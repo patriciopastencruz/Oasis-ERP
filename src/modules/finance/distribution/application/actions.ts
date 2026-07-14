@@ -191,9 +191,15 @@ export async function createOrderAction(form: FormData) {
 }
 
 export async function createRouteOrderAction(form: FormData) {
-  const { unit, supabase } = await distributionContext(
+  const { ctx, unit, supabase } = await distributionContext(
     "finance.distribution.driver",
   );
+  if (ctx.role?.key !== "driver")
+    done(
+      "/finance/distribution/driver",
+      "error",
+      "Esta operación es exclusiva del rol Chofer.",
+    );
   let lines: unknown;
   try {
     lines = JSON.parse(String(form.get("lines") ?? "[]"));

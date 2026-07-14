@@ -35,7 +35,7 @@ export default async function DistributionOrders({
     query.date ??
     new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
   const data = await dailyDistributionData(date);
-  if (data.ctx.permissions.has("finance.distribution.driver"))
+  if (data.ctx.role?.key === "driver")
     redirect(`/finance/distribution/driver?date=${date}`);
   const previous = new Date(`${date}T12:00:00`);
   previous.setDate(previous.getDate() - 1);

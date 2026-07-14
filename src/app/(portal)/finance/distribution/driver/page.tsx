@@ -35,8 +35,8 @@ export default async function Driver({
     .eq("delivery_date", date)
     .not("driver_id", "is", null)
     .order("route_position");
-  if (ctx.permissions.has("finance.distribution.driver"))
-    query = query.eq("driver_id", ctx.user.id);
+  const isDriver = ctx.role?.key === "driver";
+  if (isDriver) query = query.eq("driver_id", ctx.user.id);
   const [orders, customers, products] = await Promise.all([
     query,
     supabase
@@ -64,7 +64,7 @@ export default async function Driver({
       />
       <Flash success={q.success} error={q.error} />
       <div className="mx-auto max-w-2xl space-y-4">
-        {ctx.permissions.has("finance.distribution.driver") && (
+        {isDriver && (
           <details className="group overflow-hidden rounded-2xl border border-[var(--oasis-border)] bg-white shadow-sm">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 font-semibold text-[var(--oasis-primary)] [&::-webkit-details-marker]:hidden">
               <span className="flex items-center gap-2">

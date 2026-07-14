@@ -106,7 +106,7 @@ export async function setContextAction(form: FormData) {
   if (unitCode === "DA") {
     const ctx = await getSessionContext();
     redirect(
-      ctx?.permissions.has("finance.distribution.driver")
+      ctx?.role?.key === "driver"
         ? "/finance/distribution/driver"
         : "/finance/distribution",
     );

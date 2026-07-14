@@ -301,7 +301,7 @@ export async function AppShell({
   const isOasisModulares = unit?.code === "OM";
   const isHostalUruguay = unit?.code === "HU";
   const isAltiplanica = unit?.code === "DA";
-  const isDriver = ctx.permissions.has("finance.distribution.driver");
+  const isDriver = ctx.role?.key === "driver";
   const unitBrand = getBusinessUnitBrand(unit?.code);
   const unitTheme = {
     "--oasis-page": isAltiplanica ? "#f2f6fb" : "#f2f5f3",

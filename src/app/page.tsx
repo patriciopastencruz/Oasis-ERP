@@ -6,7 +6,7 @@ export default async function Home() {
   redirect(
     ctx.permissions.has("reports.executive_dashboard.view")
       ? "/dashboard"
-      : ctx.permissions.has("finance.distribution.driver")
+      : ctx.role?.key === "driver"
         ? "/finance/distribution/driver"
         : ctx.permissions.has("finance.distribution.view")
           ? "/finance/distribution"
