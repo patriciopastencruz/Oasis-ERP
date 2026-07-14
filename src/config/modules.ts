@@ -14,7 +14,7 @@ export interface ErpModuleDefinition {
 export const erpModules: readonly ErpModuleDefinition[] = [
   {
     key: "executive-dashboard",
-    label: "Dashboard Ejecutivo",
+    label: "Panel ejecutivo",
     status: "planned",
     features: [],
   },
@@ -92,7 +92,7 @@ export const erpModules: readonly ErpModuleDefinition[] = [
     key: "reports",
     label: "Reportes",
     status: "planned",
-    features: ["Indicadores", "Dashboard Ejecutivo", "Exportaciones"],
+    features: ["Indicadores", "Panel ejecutivo", "Exportaciones"],
   },
   {
     key: "administration",
@@ -112,6 +112,6 @@ export const erpModules: readonly ErpModuleDefinition[] = [
     key: "audit",
     label: "Auditoría",
     status: "planned",
-    features: ["Historial", "Logs", "Seguridad"],
+    features: ["Historial", "Registros del sistema", "Seguridad"],
   },
 ] as const;

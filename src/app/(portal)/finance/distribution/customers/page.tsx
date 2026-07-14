@@ -6,6 +6,7 @@ import {
   inputClass,
 } from "@/components/finance/distribution/module-nav";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import { createCustomerAction } from "@/modules/finance/distribution/application/actions";
 import { distributionContext } from "@/modules/finance/distribution/application/queries";
 export default async function Customers({
@@ -128,7 +129,7 @@ export default async function Customers({
                     </span>
                   </td>
                   <td>{x.dist_customer_classifications?.name}</td>
-                  <td>{x.status}</td>
+                  <td>{uiLabel(x.status)}</td>
                   <td>
                     {x.has_credit
                       ? `${Number(x.credit_limit).toLocaleString("es-CL")} / ${x.credit_days} días`

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import { StatusBadge } from "@/components/finance/status-badge";
 import {
   DeleteAttachment,
@@ -227,7 +228,7 @@ export default async function RequestDetail({
               <Info label="Monto" value={money.format(Number(r.amount))} />
               <Info label="Categoría" value={category?.name} />
               <Info label="Centro de costo" value={center?.name} />
-              <Info label="Prioridad" value={r.priority} />
+              <Info label="Prioridad" value={uiLabel(r.priority)} />
               <Info
                 label="Fecha solicitada"
                 value={
@@ -263,7 +264,10 @@ export default async function RequestDetail({
                 </p>
                 <dl className="grid gap-4 text-sm md:grid-cols-2">
                   <Info label="Banco" value={r.bank_name} />
-                  <Info label="Tipo de cuenta" value={r.account_type} />
+                  <Info
+                    label="Tipo de cuenta"
+                    value={uiLabel(r.account_type)}
+                  />
                   <Info label="Número de cuenta" value={r.account_number} />
                   <Info label="Titular" value={r.bank_account_holder_name} />
                   <Info label="RUT titular" value={r.bank_account_holder_rut} />
@@ -346,7 +350,7 @@ export default async function RequestDetail({
                   key={d.id}
                   className="border-l-2 border-[#91baa5] pb-4 pl-4 text-sm"
                 >
-                  <b>{d.action}</b>
+                  <b>{uiLabel(d.action)}</b>
                   <p>{d.comment || "Sin comentario"}</p>
                   <small>
                     {new Date(d.created_at).toLocaleString("es-CL")}
@@ -362,7 +366,7 @@ export default async function RequestDetail({
             <Timeline status={r.status} />
           </Panel>
           <Panel>
-            <h2 className="mb-4 font-semibold">Workflow</h2>
+            <h2 className="mb-4 font-semibold">Flujo de aprobación</h2>
             {instance ? (
               <>
                 <b className="text-sm">{instance.workflow_name_snapshot}</b>
@@ -397,7 +401,7 @@ export default async function RequestDetail({
               </>
             ) : (
               <p className="text-sm text-slate-500">
-                El workflow se asignará al enviar.
+                El flujo de aprobación se asignará al enviar.
               </p>
             )}
           </Panel>
@@ -406,7 +410,7 @@ export default async function RequestDetail({
               <h2 className="mb-3 font-semibold">Auditoría</h2>
               {audit.map((x) => (
                 <p key={x.id} className="border-t py-2 text-xs">
-                  <b>{x.action}</b> ·{" "}
+                  <b>{uiLabel(x.action)}</b> ·{" "}
                   {new Date(x.created_at).toLocaleString("es-CL")}
                 </p>
               ))}

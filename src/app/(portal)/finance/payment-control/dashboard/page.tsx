@@ -73,7 +73,7 @@ export default async function Page() {
   return (
     <>
       <PageHeader
-        title="Dashboard financiero"
+        title="Panel financiero"
         description="Indicadores consolidados con el alcance autorizado por RLS."
         eyebrow="Finanzas · Solicitud de Pagos"
       />

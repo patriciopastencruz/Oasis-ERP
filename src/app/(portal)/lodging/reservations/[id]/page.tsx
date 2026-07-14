@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import {
   lodgingContext,
   formatDate,
@@ -232,7 +233,7 @@ export default async function Page({
             Saldo: <b>{clp.format(Number(s.balance))}</b>
           </p>
           <p className="mt-2 text-xs capitalize text-slate-500">
-            {String(s.payment_status).replaceAll("_", " ")}
+            {uiLabel(s.payment_status)}
           </p>
         </Panel>
       </div>
@@ -299,7 +300,7 @@ export default async function Page({
               <div>
                 <b>{clp.format(Number(p.amount))}</b>
                 <span className="ml-2 capitalize text-slate-500">
-                  {p.type.replaceAll("_", " ")} · {p.payment_method}
+                  {uiLabel(p.type)} · {uiLabel(p.payment_method)}
                 </span>
                 <span className="block text-xs text-slate-400">
                   {new Intl.DateTimeFormat("es-CL", {

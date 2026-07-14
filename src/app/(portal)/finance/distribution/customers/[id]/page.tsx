@@ -7,6 +7,7 @@ import {
   inputClass,
 } from "@/components/finance/distribution/module-nav";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import { createPriceAction } from "@/modules/finance/distribution/application/actions";
 import {
   clp,
@@ -121,7 +122,7 @@ export default async function CustomerDetail({
               </div>
               <div>
                 <dt className="text-xs text-[#718078]">Estado</dt>
-                <dd className="mt-1 font-medium">{customer.status}</dd>
+                <dd className="mt-1 font-medium">{uiLabel(customer.status)}</dd>
               </div>
               <div>
                 <dt className="text-xs text-[#718078]">Crédito</dt>

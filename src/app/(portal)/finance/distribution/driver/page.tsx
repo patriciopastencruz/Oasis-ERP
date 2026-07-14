@@ -2,6 +2,7 @@
 import { MapPin, Phone, Truck, CheckCircle2, PackageX } from "lucide-react";
 import { Flash } from "@/components/finance/distribution/module-nav";
 import { PageHeader } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import { changeOrderStatusAction } from "@/modules/finance/distribution/application/actions";
 import {
   clp,
@@ -48,7 +49,7 @@ export default async function Driver({
                 Parada {o.route_position} · {o.order_number}
               </span>
               <span className="rounded-full bg-white/15 px-2 py-1 text-xs">
-                {o.status}
+                {uiLabel(o.status)}
               </span>
             </div>
             <div className="p-4">

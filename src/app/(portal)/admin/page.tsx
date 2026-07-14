@@ -4,7 +4,7 @@ import { requirePermission } from "@/modules/platform/auth/application/session";
 const cards = [
   ["/admin/users", "Usuarios"],
   ["/admin/roles", "Roles y permisos"],
-  ["/admin/workflows", "Workflows"],
+  ["/admin/workflows", "Flujos de aprobación"],
   ["/admin/business-units", "Unidades de negocio"],
 ];
 export default async function Admin() {

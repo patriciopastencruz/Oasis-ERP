@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { uiLabel } from "@/lib/ui-labels";
 type Role = { id: string; name: string };
 type Company = { id: string; trade_name: string };
 type Unit = { id: string; company_id: string; name: string };
@@ -115,7 +116,9 @@ export function WorkflowEditor({
             "advance",
             "other",
           ].map((x) => (
-            <option key={x}>{x}</option>
+            <option key={x} value={x}>
+              {uiLabel(x)}
+            </option>
           ))}
         </select>
         <select
@@ -125,7 +128,9 @@ export function WorkflowEditor({
         >
           <option value="">Cualquier prioridad</option>
           {["urgent", "normal", "scheduled"].map((x) => (
-            <option key={x}>{x}</option>
+            <option key={x} value={x}>
+              {uiLabel(x)}
+            </option>
           ))}
         </select>
         <input
@@ -252,7 +257,7 @@ export function WorkflowEditor({
       </button>
       <input type="hidden" name="steps_json" value={JSON.stringify(steps)} />
       <button className="w-full rounded-xl bg-[#173f2d] px-4 py-3 font-semibold text-white">
-        Guardar workflow
+        Guardar flujo de aprobación
       </button>
     </form>
   );

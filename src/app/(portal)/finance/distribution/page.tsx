@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
+import { uiLabel } from "@/lib/ui-labels";
 import {
   CalendarDays,
   CheckCircle2,
@@ -217,7 +218,7 @@ export default async function DistributionOrders({
                   </td>
                   <td className="px-3 py-3">
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-xs">
-                      {o.status}
+                      {uiLabel(o.status)}
                     </span>
                   </td>
                   <td className="px-3 py-3">

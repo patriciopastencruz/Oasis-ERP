@@ -512,7 +512,7 @@ export async function checkOutAction(form: FormData) {
     go(
       `/lodging/reservations/${id}`,
       "error",
-      "No se puede realizar check-out con saldo pendiente.",
+      "No se puede realizar el check-out con saldo pendiente.",
     );
   const { error } = await s
     .from("lodging_reservations")

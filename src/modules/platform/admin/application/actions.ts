@@ -599,7 +599,7 @@ export async function toggleUnitAction(form: FormData) {
     if ((users ?? 0) + (flows ?? 0) > 0)
       fail(
         "/admin/business-units",
-        "La unidad tiene usuarios o workflows; confirma la desactivación",
+        "La unidad tiene usuarios o flujos de aprobación; confirma la desactivación",
       );
   }
   await admin.from("business_units").update({ active }).eq("id", id);
@@ -715,7 +715,7 @@ export async function saveWorkflowAction(form: FormData) {
   if (overlaps)
     fail(
       "/admin/workflows",
-      "La configuración se superpone con otro workflow activo",
+      "La configuración se superpone con otro flujo de aprobación activo",
     );
   let id = v.id;
   const workflowData = {
@@ -800,7 +800,7 @@ export async function saveWorkflowAction(form: FormData) {
     v.company_id,
   );
   revalidatePath("/admin/workflows");
-  redirect("/admin/workflows?success=Workflow guardado");
+  redirect("/admin/workflows?success=Flujo de aprobación guardado");
 }
 export async function duplicateWorkflowAction(form: FormData) {
   await requirePermission("administration.approval_rules.manage");
@@ -811,7 +811,7 @@ export async function duplicateWorkflowAction(form: FormData) {
     .select("*,approval_workflow_conditions(*),approval_workflow_steps(*)")
     .eq("id", id)
     .single();
-  if (!w) fail("/admin/workflows", "Workflow no encontrado");
+  if (!w) fail("/admin/workflows", "Flujo de aprobación no encontrado");
   const newCode = `${w.code}-COPY-${Date.now().toString().slice(-5)}`.slice(
     0,
     60,
@@ -866,7 +866,9 @@ export async function duplicateWorkflowAction(form: FormData) {
       })),
     );
   revalidatePath("/admin/workflows");
-  redirect("/admin/workflows?success=Workflow duplicado como inactivo");
+  redirect(
+    "/admin/workflows?success=Flujo de aprobación duplicado como inactivo",
+  );
 }
 
 export async function bootstrapSuperadminAction(form: FormData) {

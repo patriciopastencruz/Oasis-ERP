@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { uiLabel } from "@/lib/ui-labels";
 import { Panel } from "@/components/ui/page";
 import { StatusBadge } from "./status-badge";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -159,7 +160,7 @@ export async function PaymentQueue({
                         : "—"}
                     </td>
                     <td>
-                      {payment?.method ?? payment?.scheduled_method ?? "—"}
+                      {uiLabel(payment?.method ?? payment?.scheduled_method)}
                     </td>
                     <td>
                       <Link

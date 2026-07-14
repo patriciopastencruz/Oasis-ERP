@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { uiLabel } from "@/lib/ui-labels";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import {
   InventoryTabs,
@@ -90,7 +91,7 @@ export default async function Page({
                     {number(x.current_stock)} {x.unit_of_measure}
                   </td>
                   <td>{money(x.average_price)}</td>
-                  <td>{x.status}</td>
+                  <td>{uiLabel(x.status)}</td>
                   <td>
                     <Link
                       className="font-semibold text-[#277a55]"

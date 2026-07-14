@@ -4,6 +4,7 @@ import {
   inputClass,
 } from "@/components/finance/distribution/module-nav";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import { reviewOrderChangeAction } from "@/modules/finance/distribution/application/actions";
 import { distributionContext } from "@/modules/finance/distribution/application/queries";
 export default async function Requests({
@@ -32,7 +33,7 @@ export default async function Requests({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase text-[#718078]">
-                  {x.type} · {x.status}
+                  {uiLabel(x.type)} · {uiLabel(x.status)}
                 </p>
                 <h2 className="font-semibold">
                   Pedido {x.dist_orders?.order_number}

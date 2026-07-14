@@ -85,7 +85,7 @@ export default async function Approvals({
     <>
       <PageHeader
         title="Bandeja de aprobaciones"
-        description="Solicitudes disponibles según workflow, etapa, permisos y contexto."
+        description="Solicitudes disponibles según flujo de aprobación, etapa, permisos y contexto."
         eyebrow="Finanzas · Solicitud de Pagos"
       />
       <details className="group/notifications mb-5">

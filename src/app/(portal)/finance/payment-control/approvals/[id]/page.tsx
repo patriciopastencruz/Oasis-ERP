@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import { StatusBadge } from "@/components/finance/status-badge";
 import { ApprovalDecisionForm } from "@/components/finance/approval-decision-form";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -94,7 +95,7 @@ export default async function ApprovalDetail({
     <>
       <PageHeader
         title={r.request_number ?? "Solicitud"}
-        description="Revisión de antecedentes y workflow congelado."
+        description="Revisión de antecedentes y flujo de aprobación registrado."
         eyebrow="Bandeja de aprobaciones"
       />
       <div className="mb-5 flex justify-between">
@@ -144,7 +145,10 @@ export default async function ApprovalDetail({
                 </p>
                 <dl className="grid gap-4 text-sm md:grid-cols-2">
                   <Info label="Banco" value={r.bank_name} />
-                  <Info label="Tipo de cuenta" value={r.account_type} />
+                  <Info
+                    label="Tipo de cuenta"
+                    value={uiLabel(r.account_type)}
+                  />
                   <Info label="Número de cuenta" value={r.account_number} />
                   <Info label="Titular" value={r.bank_account_holder_name} />
                   <Info label="RUT titular" value={r.bank_account_holder_rut} />
@@ -153,8 +157,8 @@ export default async function ApprovalDetail({
               </>
             ) : (
               <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
-                El solicitante indicó que el pago no utilizará la cuenta bancaria
-                del proveedor.
+                El solicitante indicó que el pago no utilizará la cuenta
+                bancaria del proveedor.
               </p>
             )}
           </Panel>
@@ -220,12 +224,15 @@ export default async function ApprovalDetail({
             />
           )}
           <Panel>
-            <h2 className="mb-2 font-semibold">Workflow congelado</h2>
+            <h2 className="mb-2 font-semibold">
+              Flujo de aprobación registrado
+            </h2>
             <p className="text-sm">
               {current?.workflow_name_snapshot ?? "Sin instancia"}
             </p>
             <p className="text-xs text-slate-500">
-              Revisión {current?.revision ?? "—"} · {current?.correction_policy}
+              Revisión {current?.revision ?? "—"} ·{" "}
+              {uiLabel(current?.correction_policy)}
             </p>
             <div className="mt-4 space-y-3">
               {steps.map((x: Record<string, unknown>) => {
@@ -269,7 +276,8 @@ export default async function ApprovalDetail({
               <h2 className="mb-3 font-semibold">Auditoría</h2>
               {audit.map((x) => (
                 <p key={x.id} className="border-t py-2 text-xs">
-                  {x.action} · {new Date(x.created_at).toLocaleString("es-CL")}
+                  {uiLabel(x.action)} ·{" "}
+                  {new Date(x.created_at).toLocaleString("es-CL")}
                 </p>
               ))}
             </Panel>

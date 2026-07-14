@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { uiLabel } from "@/lib/ui-labels";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import {
   requestMaterialChangeAction,
@@ -78,7 +79,7 @@ export default async function Page({
                 }
               />
               <Stat label="Precio promedio" value={money(m.average_price)} />
-              <Stat label="Estado" value={m.status} />
+              <Stat label="Estado" value={uiLabel(m.status)} />
             </dl>
             {m.description && (
               <p className="mt-5 border-t pt-4 text-sm text-slate-600">
@@ -241,7 +242,7 @@ export default async function Page({
                   <li key={x.id} className="rounded-xl border p-3">
                     <b>
                       {x.request_type === "edit" ? "Edición" : "Desactivación"}{" "}
-                      · {x.status}
+                      · {uiLabel(x.status)}
                     </b>
                     <p>{x.reason}</p>
                     {x.decision_note && <small>{x.decision_note}</small>}

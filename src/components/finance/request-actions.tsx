@@ -75,8 +75,8 @@ export function SubmitRequest({ id }: { id: string }) {
               )}
             </div>
             <p className="mt-5 rounded-xl bg-amber-50 p-3 text-sm">
-              Al confirmar se generará el correlativo y el workflow quedará
-              congelado.
+              Al confirmar se generará el correlativo y el flujo de aprobación
+              quedará congelado.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button

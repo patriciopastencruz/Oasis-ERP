@@ -14,9 +14,9 @@ function safeError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   console.error("[payment-control]", message);
   if (/flujo.*ambigu/i.test(message))
-    return "Existe más de un workflow aplicable. Contacta a un administrador.";
+    return "Existe más de un flujo de aprobación aplicable. Contacta a un administrador.";
   if (/No existe flujo/i.test(message))
-    return "No existe un workflow configurado para esta solicitud.";
+    return "No existe un flujo de aprobación configurado para esta solicitud.";
   if (/respaldo/i.test(message))
     return "Debes adjuntar al menos un respaldo válido.";
   if (/cuenta bancaria.*disponible/i.test(message))

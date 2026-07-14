@@ -41,7 +41,7 @@ type Ctx = Awaited<
 const transversalNav = [
   {
     href: "/dashboard",
-    label: "Dashboard Ejecutivo",
+    label: "Panel ejecutivo",
     icon: LayoutDashboard,
     permission: "reports.executive_dashboard.view",
   },
@@ -87,7 +87,7 @@ const financeNav = [
   },
   {
     href: "/finance/payment-control/dashboard",
-    label: "Dashboard financiero",
+    label: "Panel financiero",
     icon: LayoutDashboard,
     permission: "finance.reports.view",
   },
@@ -174,7 +174,7 @@ const administrationNav = [
   },
   {
     href: "/admin/workflows",
-    label: "Workflows",
+    label: "Flujos de aprobación",
     icon: Workflow,
     permission: "administration.approval_rules.manage",
   },
@@ -453,7 +453,9 @@ export async function AppShell({
                   className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10"
                 >
                   <Icon size={17} />
-                  {label}
+                  {isHostalUruguay && href === "/dashboard"
+                    ? "Dashboard Ejecutivo"
+                    : label}
                 </Link>
               ))}
               {visibleAdministrationNav.length > 0 && (

@@ -1,18 +1,4 @@
-const labels: Record<string, string> = {
-  draft: "Borrador",
-  pending_approval: "Pendiente",
-  submitted: "Enviada",
-  resubmitted: "Reenviada",
-  under_review: "En revisión",
-  correction_requested: "Corrección",
-  approved: "Aprobada",
-  rejected: "Rechazada",
-  scheduled: "Programada",
-  paid: "Pagada",
-  cancelled: "Anulada",
-  normal: "Normal",
-  urgent: "Urgente",
-};
+import { uiLabel } from "@/lib/ui-labels";
 const colors: Record<string, string> = {
   draft: "bg-slate-100 text-slate-700",
   pending_approval: "bg-amber-100 text-amber-800",
@@ -33,7 +19,7 @@ export function StatusBadge({ value }: { value: string }) {
     <span
       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${colors[value] ?? "bg-violet-100 text-violet-800"}`}
     >
-      {labels[value] ?? value}
+      {uiLabel(value)}
     </span>
   );
 }

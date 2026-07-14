@@ -1,4 +1,5 @@
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import { paymentReport } from "@/modules/finance/payment-control/application/report-query";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 export default async function Page({
@@ -59,7 +60,9 @@ export default async function Page({
               "scheduled",
               "paid",
             ].map((x) => (
-              <option key={x}>{x}</option>
+              <option key={x} value={x}>
+                {uiLabel(x)}
+              </option>
             ))}
           </select>
           <select
@@ -104,7 +107,9 @@ export default async function Page({
               "petty_cash",
               "other",
             ].map((x) => (
-              <option key={x}>{x}</option>
+              <option key={x} value={x}>
+                {uiLabel(x)}
+              </option>
             ))}
           </select>
           <button className="rounded-xl bg-[#173f2d] text-white">

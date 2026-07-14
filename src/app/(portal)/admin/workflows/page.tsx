@@ -30,7 +30,7 @@ export default async function Workflows({
   return (
     <>
       <PageHeader
-        title="Workflows"
+        title="Flujos de aprobación"
         description="Los cambios se aplican solo a solicitudes futuras; las instancias existentes permanecen congeladas."
       />
       {q.error && (

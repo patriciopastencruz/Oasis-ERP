@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import { StatusBadge } from "@/components/finance/status-badge";
 import { ExecuteForm } from "@/components/finance/payment-operation-forms";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -121,18 +122,19 @@ export default async function Detail({
               {r.use_supplier_bank_account && (
                 <>
                   <I l="Banco congelado" v={r.bank_name} />
-                  <I l="Tipo de cuenta" v={r.account_type} />
+                  <I l="Tipo de cuenta" v={uiLabel(r.account_type)} />
                   <I l="Número de cuenta" v={r.account_number} />
                   <I l="Titular" v={r.bank_account_holder_name} />
                   <I l="RUT titular" v={r.bank_account_holder_rut} />
                   <I l="Correo comprobante" v={r.supplier_email} />
-                  <I l="Verificación" v={r.bank_verification_status} />
+                  <I l="Verificación" v={uiLabel(r.bank_verification_status)} />
                 </>
               )}
             </dl>
             {!r.use_supplier_bank_account && (
               <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
-                Registra el medio efectivamente utilizado y adjunta el comprobante.
+                Registra el medio efectivamente utilizado y adjunta el
+                comprobante.
               </p>
             )}
             <p className="mt-5 border-t pt-4 text-sm text-slate-600">
@@ -194,7 +196,7 @@ export default async function Detail({
               <h2 className="mb-3 font-semibold">Aprobaciones</h2>
               {decisions?.map((x) => (
                 <p key={x.id} className="border-t py-2 text-sm">
-                  <b>{x.action}</b> · {x.comment || "Sin comentario"}
+                  <b>{uiLabel(x.action)}</b> · {x.comment || "Sin comentario"}
                 </p>
               ))}
             </Panel>

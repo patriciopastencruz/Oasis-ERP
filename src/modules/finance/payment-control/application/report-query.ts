@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { uiLabel } from "@/lib/ui-labels";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 export async function paymentReport(filters: URLSearchParams) {
   await requirePermission("finance.reports.view");
@@ -71,13 +72,22 @@ export async function paymentReport(filters: URLSearchParams) {
     requesterText = filters.get("requester_text")?.toLowerCase(),
     approverText = filters.get("approver_text")?.toLowerCase(),
     method = filters.get("method");
-  return mapped.filter(
-    (x) =>
-      (!supplierText || x.proveedor.toLowerCase().includes(supplierText)) &&
-      (!requesterText || x.solicitante.toLowerCase().includes(requesterText)) &&
-      (!approverText || x.aprobador.toLowerCase().includes(approverText)) &&
-      (!method || x.medio === method),
-  );
+  return mapped
+    .filter(
+      (x) =>
+        (!supplierText || x.proveedor.toLowerCase().includes(supplierText)) &&
+        (!requesterText ||
+          x.solicitante.toLowerCase().includes(requesterText)) &&
+        (!approverText || x.aprobador.toLowerCase().includes(approverText)) &&
+        (!method || x.medio === method),
+    )
+    .map((row) => ({
+      ...row,
+      tipo_cuenta: uiLabel(row.tipo_cuenta),
+      prioridad: uiLabel(row.prioridad),
+      estado: uiLabel(row.estado),
+      medio: row.medio ? uiLabel(row.medio) : row.medio,
+    }));
 }
 function one<T>(x: T | T[] | null | undefined): T | undefined {
   return Array.isArray(x) ? x[0] : (x ?? undefined);

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
 export default async function Page() {
   const today = new Intl.DateTimeFormat("en-CA", {
@@ -48,7 +49,7 @@ export default async function Page() {
                 <span>{room?.name}</span>
                 <span>Saldo {clp.format(Number(r.total_value) - paid)}</span>
                 <span className="capitalize sm:text-right">
-                  {r.status.replaceAll("_", " ")} · {room?.status}
+                  {uiLabel(r.status)} · {uiLabel(room?.status)}
                 </span>
               </Link>
             );

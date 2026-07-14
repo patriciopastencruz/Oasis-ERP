@@ -46,7 +46,9 @@ export async function executiveDashboardData() {
   const commonError =
     summaryResult.error ?? trendResult.error ?? statusesResult.error;
   if (commonError)
-    throw new Error(`No se pudo cargar el dashboard: ${commonError.message}`);
+    throw new Error(
+      `No se pudo cargar el panel ejecutivo: ${commonError.message}`,
+    );
 
   let operations: Record<string, number> = {};
   if (unit.code === "DA" && ctx.permissions.has("finance.distribution.view")) {

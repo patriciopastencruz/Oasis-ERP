@@ -3,6 +3,7 @@ import { Activity, CircleDollarSign, Clock3, TrendingUp } from "lucide-react";
 import { getBusinessUnitBrand } from "@/config/business-units";
 import { Panel } from "@/components/ui/page";
 import { executiveDashboardData } from "@/modules/executive-dashboard/application/queries";
+import { uiLabel } from "@/lib/ui-labels";
 
 const clp = new Intl.NumberFormat("es-CL", {
   style: "currency",
@@ -76,7 +77,9 @@ export default async function Dashboard() {
             className="text-xs font-bold uppercase tracking-[.18em]"
             style={{ color: brand.accent }}
           >
-            Dashboard Ejecutivo
+            {["HOC", "HOB", "HU"].includes(data.unit.code)
+              ? "Dashboard Ejecutivo"
+              : "Panel ejecutivo"}
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             {data.unit.name}
@@ -172,7 +175,7 @@ export default async function Dashboard() {
               >
                 <div>
                   <p className="text-sm font-semibold capitalize">
-                    {String(item.status).replaceAll("_", " ")}
+                    {uiLabel(item.status)}
                   </p>
                   <p className="text-xs text-[#718078]">
                     {Number(item.request_count)} solicitud(es)

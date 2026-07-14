@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import { StatusBadge } from "@/components/finance/status-badge";
 import {
   DeletePettyCashAttachment,
@@ -213,8 +214,8 @@ export default async function PettyCashReportPage({
               <div className="mt-3 space-y-2 text-xs">
                 {audit?.map((item) => (
                   <p key={item.id}>
-                    <b>{item.action}</b> · {item.entity_type} ·{" "}
-                    {new Date(item.created_at).toLocaleString("es-CL")}
+                    <b>{uiLabel(item.action)}</b> · {uiLabel(item.entity_type)}{" "}
+                    · {new Date(item.created_at).toLocaleString("es-CL")}
                   </p>
                 ))}
               </div>

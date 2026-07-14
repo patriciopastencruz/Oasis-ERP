@@ -1,5 +1,6 @@
 "use client";
 import { useActionState, useEffect, useState } from "react";
+import { uiLabel } from "@/lib/ui-labels";
 import { useRouter } from "next/navigation";
 import { savePaymentRequestAction } from "@/modules/finance/payment-control/application/actions";
 import type { ActionResult } from "@/modules/finance/payment-control/application/schemas";
@@ -217,11 +218,18 @@ export function PaymentRequestForm({
                 Finanzas deberá registrar el medio real utilizado al pagar.
               </p>
             ) : !supplier ? (
-              <span>Selecciona un proveedor para consultar su cuenta bancaria.</span>
+              <span>
+                Selecciona un proveedor para consultar su cuenta bancaria.
+              </span>
             ) : bank?.available ? (
               <>
-                <b>{String(bank.bank_name)} · {String(bank.account_type)}</b>
-                <p>{String(bank.masked_number)} · {String(bank.account_holder_name)}</p>
+                <b>
+                  {String(bank.bank_name)} · {uiLabel(bank.account_type)}
+                </b>
+                <p>
+                  {String(bank.masked_number)} ·{" "}
+                  {String(bank.account_holder_name)}
+                </p>
                 <p className="text-emerald-700">Cuenta bancaria disponible</p>
               </>
             ) : (

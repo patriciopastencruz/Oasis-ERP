@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { uiLabel } from "@/lib/ui-labels";
 import {
   lodgingContext,
   formatDate,
@@ -75,7 +76,7 @@ export default async function Page() {
                         : "capitalize"
                     }
                   >
-                    {r.status.replaceAll("_", " ")}
+                    {uiLabel(r.status)}
                   </td>
                   <td className="text-right">
                     {clp.format(Number(r.total_value))}

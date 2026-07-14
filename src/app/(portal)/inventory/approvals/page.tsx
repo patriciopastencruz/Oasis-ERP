@@ -1,5 +1,6 @@
 import { PageHeader, Panel } from "@/components/ui/page";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { uiLabel } from "@/lib/ui-labels";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { decideMaterialChangeAction } from "@/modules/inventory/application/actions";
 import { InventoryTabs, Notice, inputClass } from "@/modules/inventory/ui";
@@ -35,7 +36,7 @@ export default async function Page({
             key={x}
             className="rounded-full border bg-white px-3 py-1.5 text-sm"
           >
-            {x}
+            {uiLabel(x)}
           </a>
         ))}
       </div>
@@ -62,7 +63,7 @@ export default async function Page({
                   </p>
                 </div>
                 <span className="h-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">
-                  {x.status}
+                  {uiLabel(x.status)}
                 </span>
               </div>
               {x.request_type === "edit" && (
