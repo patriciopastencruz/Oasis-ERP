@@ -46,23 +46,21 @@ export async function createCustomerAction(form: FormData) {
       parsed.error.issues[0].message,
     );
   const hasCredit = parsed.data.has_credit === "on";
-  const { error } = await supabase
-    .from("dist_customers")
-    .insert({
-      company_id: unit.company_id,
-      business_unit_id: unit.id,
-      name: parsed.data.name,
-      address: parsed.data.address,
-      phone: parsed.data.phone,
-      email: parsed.data.email || null,
-      classification_id: parsed.data.classification_id,
-      status: parsed.data.status,
-      has_credit: hasCredit,
-      credit_limit: hasCredit ? parsed.data.credit_limit : 0,
-      credit_days: hasCredit ? parsed.data.credit_days : 0,
-      credit_status: hasCredit ? "current" : "suspended",
-      created_by: ctx.user.id,
-    });
+  const { error } = await supabase.from("dist_customers").insert({
+    company_id: unit.company_id,
+    business_unit_id: unit.id,
+    name: parsed.data.name,
+    address: parsed.data.address,
+    phone: parsed.data.phone,
+    email: parsed.data.email || null,
+    classification_id: parsed.data.classification_id,
+    status: parsed.data.status,
+    has_credit: hasCredit,
+    credit_limit: hasCredit ? parsed.data.credit_limit : 0,
+    credit_days: hasCredit ? parsed.data.credit_days : 0,
+    credit_status: hasCredit ? "current" : "suspended",
+    created_by: ctx.user.id,
+  });
   if (error)
     done("/finance/distribution/customers", "error", errorMessage(error));
   revalidatePath("/finance/distribution");
@@ -86,29 +84,66 @@ export async function createPriceAction(form: FormData) {
       valid_until: z.string(),
       change_reason: text.max(300),
     })
+    .refine(
+      (value) => !value.valid_until || value.valid_until >= value.valid_from,
+      { message: "La fecha hasta no puede ser anterior a la fecha desde." },
+    )
     .safeParse(Object.fromEntries(form));
+  const requestedCustomer = String(form.get("customer_id") ?? "");
+  const returnPath = uuid.safeParse(requestedCustomer).success
+    ? `/finance/distribution/customers/${requestedCustomer}`
+    : "/finance/distribution/catalogs";
   if (!parsed.success)
-    done(
-      "/finance/distribution/catalogs",
-      "error",
-      parsed.error.issues[0].message,
+    done(returnPath, "error", parsed.error.issues[0].message);
+
+  const [product, customer] = await Promise.all([
+    supabase
+      .from("dist_products")
+      .select("id")
+      .eq("id", parsed.data.product_id)
+      .eq("business_unit_id", unit.id)
+      .eq("active", true)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    parsed.data.customer_id
+      ? supabase
+          .from("dist_customers")
+          .select("id")
+          .eq("id", parsed.data.customer_id)
+          .eq("business_unit_id", unit.id)
+          .is("deleted_at", null)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  if (product.error || !product.data)
+    done(returnPath, "error", "El producto no pertenece a esta unidad.");
+  if (parsed.data.customer_id && (customer.error || !customer.data))
+    done(returnPath, "error", "El cliente no pertenece a esta unidad.");
+
+  const { error } = await supabase.from("dist_prices").insert({
+    company_id: unit.company_id,
+    business_unit_id: unit.id,
+    product_id: parsed.data.product_id,
+    customer_id: parsed.data.customer_id || null,
+    amount: parsed.data.amount,
+    valid_from: parsed.data.valid_from,
+    valid_until: parsed.data.valid_until || null,
+    change_reason: parsed.data.change_reason,
+    created_by: ctx.user.id,
+  });
+  if (error) done(returnPath, "error", errorMessage(error));
+  revalidatePath("/finance/distribution/catalogs");
+  if (parsed.data.customer_id)
+    revalidatePath(
+      `/finance/distribution/customers/${parsed.data.customer_id}`,
     );
-  const { error } = await supabase
-    .from("dist_prices")
-    .insert({
-      company_id: unit.company_id,
-      business_unit_id: unit.id,
-      product_id: parsed.data.product_id,
-      customer_id: parsed.data.customer_id || null,
-      amount: parsed.data.amount,
-      valid_from: parsed.data.valid_from,
-      valid_until: parsed.data.valid_until || null,
-      change_reason: parsed.data.change_reason,
-      created_by: ctx.user.id,
-    });
-  if (error)
-    done("/finance/distribution/catalogs", "error", errorMessage(error));
-  done("/finance/distribution/catalogs", "success", "Precio vigente creado.");
+  done(
+    returnPath,
+    "success",
+    parsed.data.customer_id
+      ? "Precio especial asignado al cliente."
+      : "Precio general vigente creado.",
+  );
 }
 
 export async function createOrderAction(form: FormData) {
@@ -242,21 +277,19 @@ export async function closeDayAction(form: FormData) {
   );
   if (summaryError)
     done("/finance/distribution/reports", "error", errorMessage(summaryError));
-  const { error } = await supabase
-    .from("dist_daily_closures")
-    .upsert(
-      {
-        company_id: unit.company_id,
-        business_unit_id: unit.id,
-        closure_date: date,
-        status: "closed",
-        snapshot,
-        closed_by: ctx.user.id,
-        closed_at: new Date().toISOString(),
-        created_by: ctx.user.id,
-      },
-      { onConflict: "business_unit_id,closure_date" },
-    );
+  const { error } = await supabase.from("dist_daily_closures").upsert(
+    {
+      company_id: unit.company_id,
+      business_unit_id: unit.id,
+      closure_date: date,
+      status: "closed",
+      snapshot,
+      closed_by: ctx.user.id,
+      closed_at: new Date().toISOString(),
+      created_by: ctx.user.id,
+    },
+    { onConflict: "business_unit_id,closure_date" },
+  );
   if (error)
     done("/finance/distribution/reports", "error", errorMessage(error));
   done(

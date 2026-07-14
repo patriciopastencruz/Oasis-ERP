@@ -114,6 +114,7 @@ export default async function Customers({
                 <th>Estado</th>
                 <th>Crédito</th>
                 <th>Estado de pago</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -145,6 +146,18 @@ export default async function Customers({
                         Descargar PDF
                       </Link>
                     )}
+                  </td>
+                  <td>
+                    <Link
+                      className="font-semibold text-[#176b46] underline"
+                      href={`/finance/distribution/customers/${x.id}`}
+                    >
+                      {ctx.permissions.has(
+                        "finance.distribution.catalogs.manage",
+                      )
+                        ? "Gestionar precios"
+                        : "Ver detalle"}
+                    </Link>
                   </td>
                 </tr>
               ))}
