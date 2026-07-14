@@ -229,7 +229,7 @@ export default async function AccountStatements({
             </select>
           </label>
           <div className="flex items-end gap-2">
-            <button className="rounded-xl bg-[#176b46] px-4 py-2.5 text-sm font-semibold text-white">
+            <button className="rounded-xl bg-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-white">
               Aplicar filtros
             </button>
             <Link
@@ -320,7 +320,7 @@ export default async function AccountStatements({
                     "finance.distribution.reports.export",
                   ) ? (
                     <Link
-                      className="font-semibold text-[#176b46] underline"
+                      className="font-semibold text-[var(--oasis-primary)] underline"
                       href={`/api/finance/distribution/statement.pdf?customer=${customer.id}`}
                     >
                       PDF

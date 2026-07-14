@@ -67,7 +67,7 @@ export function RouteOrderForm({
                 setCustomerType(value);
                 setCustomerId("");
               }}
-              className={`rounded-xl border px-3 py-3 text-sm font-semibold ${customerType === value ? "border-[#176b46] bg-[#edf7f1] text-[#176b46]" : "bg-white"}`}
+              className={`rounded-xl border px-3 py-3 text-sm font-semibold ${customerType === value ? "border-[var(--oasis-primary)] bg-[var(--oasis-soft)] text-[var(--oasis-primary)]" : "bg-white"}`}
             >
               {label}
             </button>
@@ -214,7 +214,7 @@ export function RouteOrderForm({
         ))}
         <button
           type="button"
-          className="text-sm font-semibold text-[#176b46]"
+          className="text-sm font-semibold text-[var(--oasis-primary)]"
           onClick={() => {
             const id = nextLineId.current++;
             setLines((current) => [
@@ -228,7 +228,7 @@ export function RouteOrderForm({
       </fieldset>
 
       {isExpress && (
-        <label className="flex items-start gap-2 rounded-xl bg-[#f2f7f4] p-3 text-sm">
+        <label className="flex items-start gap-2 rounded-xl bg-[var(--oasis-soft)] p-3 text-sm">
           <input
             className="mt-1"
             type="checkbox"

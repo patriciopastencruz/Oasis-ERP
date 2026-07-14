@@ -9,7 +9,10 @@ export function PageHeader({
 }) {
   return (
     <header className="mb-7">
-      <p className="text-xs font-bold uppercase tracking-[.18em] text-[#277a55]">
+      <p
+        className="text-xs font-bold uppercase tracking-[.18em]"
+        style={{ color: "var(--oasis-accent, #277a55)" }}
+      >
         {eyebrow}
       </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h1>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { CSSProperties } from "react";
 import {
   LayoutDashboard,
   LockKeyhole,
@@ -302,6 +303,16 @@ export async function AppShell({
   const isAltiplanica = unit?.code === "DA";
   const isDriver = ctx.permissions.has("finance.distribution.driver");
   const unitBrand = getBusinessUnitBrand(unit?.code);
+  const unitTheme = {
+    "--oasis-page": isAltiplanica ? "#f2f6fb" : "#f2f5f3",
+    "--oasis-sidebar": isAltiplanica ? "#082b59" : "#123525",
+    "--oasis-primary": isAltiplanica ? "#0b4f9c" : "#176b46",
+    "--oasis-primary-dark": isAltiplanica ? "#083f7d" : "#12583a",
+    "--oasis-accent": isAltiplanica ? "#0b4f9c" : "#277a55",
+    "--oasis-soft": isAltiplanica ? "#edf4fc" : "#f2f7f4",
+    "--oasis-border": isAltiplanica ? "#b8cde6" : "#bcd2c5",
+    "--oasis-avatar": isAltiplanica ? "#dbe9f8" : "#dceee4",
+  } as CSSProperties;
   const homeHref = ctx.permissions.has("reports.executive_dashboard.view")
     ? "/dashboard"
     : isAltiplanica && isDriver
@@ -331,8 +342,11 @@ export async function AppShell({
     ctx.permissions.has(item.permission),
   );
   return (
-    <div className="min-h-screen bg-[#f2f5f3] text-[#17251e] lg:grid lg:grid-cols-[260px_1fr]">
-      <aside className="flex min-h-screen flex-col border-r bg-[#123525] p-5 text-white">
+    <div
+      style={unitTheme}
+      className="min-h-screen bg-[var(--oasis-page)] text-[#17251e] lg:grid lg:grid-cols-[260px_1fr]"
+    >
+      <aside className="flex min-h-screen flex-col border-r bg-[var(--oasis-sidebar)] p-5 text-white">
         <Link href={homeHref} className="mx-auto block w-fit">
           <span className="grid size-36 place-items-center">
             <Image
@@ -513,7 +527,7 @@ export async function AppShell({
             </Link>
             <Link
               href="/admin/profile"
-              className="grid size-9 place-items-center rounded-full bg-[#dceee4] font-bold"
+              className="grid size-9 place-items-center rounded-full bg-[var(--oasis-avatar)] font-bold"
             >
               {ctx.profile.first_name[0]}
               {ctx.profile.last_name[0]}

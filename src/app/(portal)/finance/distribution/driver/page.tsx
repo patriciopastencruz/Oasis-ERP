@@ -65,10 +65,10 @@ export default async function Driver({
       <Flash success={q.success} error={q.error} />
       <div className="mx-auto max-w-2xl space-y-4">
         {ctx.permissions.has("finance.distribution.driver") && (
-          <details className="group overflow-hidden rounded-2xl border border-[#bcd2c5] bg-white shadow-sm">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 font-semibold text-[#176b46] [&::-webkit-details-marker]:hidden">
+          <details className="group overflow-hidden rounded-2xl border border-[var(--oasis-border)] bg-white shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 font-semibold text-[var(--oasis-primary)] [&::-webkit-details-marker]:hidden">
               <span className="flex items-center gap-2">
-                <span className="grid size-9 place-items-center rounded-full bg-[#176b46] text-white">
+                <span className="grid size-9 place-items-center rounded-full bg-[var(--oasis-primary)] text-white">
                   <Plus size={20} />
                 </span>
                 Registrar venta en ruta
@@ -91,7 +91,7 @@ export default async function Driver({
             key={o.id}
             className="overflow-hidden rounded-2xl border border-[#dce4df] bg-white shadow-sm"
           >
-            <div className="flex items-center justify-between bg-[#123525] px-4 py-3 text-white">
+            <div className="flex items-center justify-between bg-[var(--oasis-sidebar)] px-4 py-3 text-white">
               <span className="text-sm font-semibold">
                 Parada {o.route_position} · {o.order_number}
               </span>
@@ -129,7 +129,7 @@ export default async function Driver({
                   </a>
                 )}
               </div>
-              <div className="rounded-xl bg-[#f2f7f4] p-3">
+              <div className="rounded-xl bg-[var(--oasis-soft)] p-3">
                 {o.dist_order_lines.map((l: any) => (
                   <p key={l.id} className="text-sm">
                     <b>{l.planned_quantity}×</b> {l.dist_products?.name}

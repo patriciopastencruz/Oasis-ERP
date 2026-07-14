@@ -81,7 +81,7 @@ export function OrderForm({
         </select>
       </label>
       {customer && (
-        <div className="rounded-xl bg-[#f2f7f4] p-4 text-sm">
+        <div className="rounded-xl bg-[var(--oasis-soft)] p-4 text-sm">
           <b>{customer.address}</b>
           <span className="ml-3 text-[#66776d]">{customer.phone}</span>
           <p className="mt-1">
@@ -185,7 +185,7 @@ export function OrderForm({
       </fieldset>
       <button
         type="button"
-        className="rounded-xl border border-[#277a55] px-4 py-2 text-sm text-[#176b46]"
+        className="rounded-xl border border-[var(--oasis-primary)] px-4 py-2 text-sm text-[var(--oasis-primary)]"
         onClick={() => setLines((x) => [...x, { product_id: "", quantity: 1 }])}
       >
         + Agregar producto

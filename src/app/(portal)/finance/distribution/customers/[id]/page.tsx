@@ -93,7 +93,7 @@ export default async function CustomerDetail({
       <div className="mb-4">
         <Link
           href="/finance/distribution/customers"
-          className="text-sm font-semibold text-[#176b46]"
+          className="text-sm font-semibold text-[var(--oasis-primary)]"
         >
           ← Volver a clientes
         </Link>
@@ -252,7 +252,7 @@ export default async function CustomerDetail({
                           ? clp.format(Number(general.amount))
                           : "Sin precio"}
                       </td>
-                      <td className="font-semibold text-[#176b46]">
+                      <td className="font-semibold text-[var(--oasis-primary)]">
                         {special ? clp.format(Number(special.amount)) : "—"}
                       </td>
                       <td className="font-semibold">

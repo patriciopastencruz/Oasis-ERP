@@ -137,7 +137,7 @@ export default async function Customers({
                   </td>
                   <td>
                     <Link
-                      className="font-semibold text-[#176b46] underline"
+                      className="font-semibold text-[var(--oasis-primary)] underline"
                       href={`/finance/distribution/customers/${x.id}`}
                     >
                       {ctx.permissions.has(

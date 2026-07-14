@@ -18,6 +18,6 @@ export function Flash({
 }
 
 export const inputClass =
-  "w-full rounded-xl border border-[#d6e0da] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#277a55]";
+  "w-full rounded-xl border border-[#d6e0da] bg-white px-3 py-2.5 text-sm outline-none focus:border-[var(--oasis-primary)] focus:ring-2 focus:ring-[var(--oasis-soft)]";
 export const buttonClass =
-  "rounded-xl bg-[#176b46] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#12583a] disabled:opacity-50";
+  "rounded-xl bg-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--oasis-primary-dark)] disabled:opacity-50";

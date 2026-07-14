@@ -61,14 +61,14 @@ export default async function DistributionOrders({
       "Venta planificada",
       clp.format(data.summary.planned_sales ?? 0),
       WalletCards,
-      "text-[#176b46]",
+      "text-[var(--oasis-primary)]",
     ],
   ] as const;
   return (
     <>
       <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#277a55]">
+          <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[var(--oasis-accent)]">
             Distribuidora Altiplánica
           </p>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -139,7 +139,7 @@ export default async function DistributionOrders({
       <Panel className="overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="min-w-[1200px] w-full text-left text-sm">
-            <thead className="bg-[#123525] text-white">
+            <thead className="bg-[var(--oasis-sidebar)] text-white">
               <tr>
                 {[
                   "Orden",
@@ -218,7 +218,7 @@ export default async function DistributionOrders({
                             </option>
                           ))}
                         </select>
-                        <button className="rounded bg-[#176b46] px-2 text-white">
+                        <button className="rounded bg-[var(--oasis-primary)] px-2 text-white">
                           ✓
                         </button>
                       </form>
