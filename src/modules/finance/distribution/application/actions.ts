@@ -471,6 +471,11 @@ export async function closeDayAction(form: FormData) {
     "finance.distribution.closures.manage",
   );
   const date = z.string().date().parse(form.get("date"));
+  const observations = z
+    .string()
+    .trim()
+    .max(1500)
+    .parse(String(form.get("observations") ?? ""));
   const { data: snapshot, error: summaryError } = await supabase.rpc(
     "dist_daily_summary",
     { target_unit: unit.id, target_date: date },
@@ -484,6 +489,7 @@ export async function closeDayAction(form: FormData) {
       closure_date: date,
       status: "closed",
       snapshot,
+      observations: observations || null,
       closed_by: ctx.user.id,
       closed_at: new Date().toISOString(),
       created_by: ctx.user.id,

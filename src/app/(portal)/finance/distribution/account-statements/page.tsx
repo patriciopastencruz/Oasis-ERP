@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
+import { CollectionOrderSelector } from "@/components/finance/distribution/collection-order-selector";
 import { inputClass } from "@/components/finance/distribution/module-nav";
 import { PageHeader, Panel } from "@/components/ui/page";
 import {
@@ -55,7 +56,9 @@ export default async function AccountStatements({
       .order("display_order"),
     supabase
       .from("dist_orders")
-      .select("id,customer_id,delivery_date,total,payment_status")
+      .select(
+        "id,order_number,customer_id,created_at,delivery_date,total,payment_status,dist_order_lines(planned_quantity,delivered_quantity,dist_products(name,presentation))",
+      )
       .eq("business_unit_id", unit.id)
       .eq("payment_condition", "credit")
       .in("status", ["delivered", "partially_delivered"])
@@ -184,6 +187,20 @@ export default async function AccountStatements({
     }),
     { sold: 0, paid: 0, balance: 0, overdue: 0 },
   );
+  const visibleCustomerIds = new Set(rows.map((row: any) => row.id));
+  const outstandingByCustomer = new Map<string, any[]>();
+  for (const order of ordersResult.data ?? []) {
+    if (!order.customer_id || !visibleCustomerIds.has(order.customer_id))
+      continue;
+    const balance = Math.max(
+      0,
+      Number(order.total) - (paidByOrder.get(order.id) ?? 0),
+    );
+    if (balance <= 0) continue;
+    const list = outstandingByCustomer.get(order.customer_id) ?? [];
+    list.push({ ...order, balance });
+    outstandingByCustomer.set(order.customer_id, list);
+  }
 
   return (
     <>
@@ -341,6 +358,59 @@ export default async function AccountStatements({
           </tbody>
         </table>
       </Panel>
+
+      <div className="mt-5 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Pedidos por cobrar</h2>
+          <p className="text-sm text-[#718078]">
+            Selecciona únicamente los pedidos que se incluirán en el reporte
+            para el cliente.
+          </p>
+        </div>
+        {rows.map((customer: any) => {
+          const orders = outstandingByCustomer.get(customer.id) ?? [];
+          if (orders.length === 0) return null;
+          return (
+            <Panel key={customer.id}>
+              <details>
+                <summary className="cursor-pointer list-none">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{customer.name}</p>
+                      <p className="text-xs text-[#718078]">
+                        {customer.code} · {orders.length} pedido(s) con saldo
+                      </p>
+                    </div>
+                    <p className="font-semibold text-[var(--oasis-primary)]">
+                      {clp.format(customer.balance)} pendiente
+                    </p>
+                  </div>
+                </summary>
+                <div className="mt-4 border-t pt-3">
+                  <CollectionOrderSelector
+                    customerId={customer.id}
+                    orders={orders.map((order: any) => ({
+                      id: order.id,
+                      orderNumber: order.order_number,
+                      date: dateLabel(order.created_at),
+                      products: (order.dist_order_lines ?? [])
+                        .map((line: any) => {
+                          const product = line.dist_products;
+                          const quantity =
+                            line.delivered_quantity ?? line.planned_quantity;
+                          return `${product?.name ?? "Producto"} (${quantity}${product?.presentation ? ` ${product.presentation}` : ""})`;
+                        })
+                        .join(", "),
+                      total: clp.format(Number(order.total)),
+                      balance: clp.format(order.balance),
+                    }))}
+                  />
+                </div>
+              </details>
+            </Panel>
+          );
+        })}
+      </div>
     </>
   );
 }
