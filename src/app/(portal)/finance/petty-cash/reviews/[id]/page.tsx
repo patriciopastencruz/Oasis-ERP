@@ -3,14 +3,138 @@ import { notFound, redirect } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { StatusBadge } from "@/components/finance/status-badge";
 import { PettyCashDecisionForm } from "@/components/finance/petty-cash-actions";
-import { PettyCashExpenseLine, PettyCashReviewHistory } from "@/components/finance/petty-cash-detail";
+import {
+  PettyCashExpenseLine,
+  PettyCashReviewHistory,
+} from "@/components/finance/petty-cash-detail";
 import { requireSession } from "@/modules/platform/auth/application/session";
-import { currentWeekSummary, loadPettyCashReport, signPettyCashAttachments } from "@/modules/finance/petty-cash/application/queries";
-import { clp, formatWeek } from "@/modules/finance/petty-cash/domain/petty-cash";
+import {
+  currentWeekSummary,
+  loadPettyCashReport,
+  signPettyCashAttachments,
+} from "@/modules/finance/petty-cash/application/queries";
+import {
+  clp,
+  formatWeek,
+} from "@/modules/finance/petty-cash/domain/petty-cash";
 
-export default async function PettyCashReviewDetail({ params }: { params: Promise<{ id: string }> }) {
-  const ctx = await requireSession(); if (!ctx.permissions.has("finance.petty_cash.review")) redirect("/no-access"); const { id } = await params; const report = await loadPettyCashReport(id); if (!report) notFound(); const lines = await signPettyCashAttachments(report as Record<string, unknown>); const summary = await currentWeekSummary(report.business_unit_id, report.responsible_id); const profile = one<{ first_name?: string; last_name?: string }>(report.responsible); const unit = one<{ name?: string }>(report.business_units);
-  return <><PageHeader title={report.report_number ?? "Rendición"} description="Revisa todos los gastos y toma una decisión sobre la rendición completa." eyebrow="Finanzas · Caja Chica · Revisión" /><div className="mb-5 flex justify-between"><StatusBadge value={report.status} /><Link href="/finance/petty-cash/reviews" className="text-sm font-semibold text-[#277a55]">Volver a la bandeja</Link></div><div className="grid gap-5 xl:grid-cols-[1fr_380px]"><div className="space-y-5"><Panel><dl className="grid gap-4 text-sm md:grid-cols-2"><Info label="Trabajador" value={`${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`} /><Info label="Unidad" value={unit?.name} /><Info label="Semana" value={formatWeek(report.week_start, report.week_end)} /><Info label="Revisión" value={report.revision_number} /><Info label="Total rendición" value={clp(report.total_registered)} /><Info label="Acumulado semanal" value={clp(summary?.committed)} /><Info label="Saldo disponible" value={clp(summary?.available)} /><Info label="Motivo" value={report.general_reason} /></dl></Panel><Panel><h2 className="font-semibold">Líneas y comprobantes</h2><div className="mt-4 space-y-4">{lines.map((line, index) => <PettyCashExpenseLine key={String(line.id)} line={line} index={index} />)}</div></Panel><Panel><h2 className="font-semibold">Historial</h2><PettyCashReviewHistory actions={(report.petty_cash_review_actions as Array<Record<string, unknown>>) ?? []} /></Panel></div><aside><Panel><h2 className="mb-4 font-semibold">Decisión</h2>{["submitted", "resubmitted", "under_review"].includes(report.status) ? <PettyCashDecisionForm id={id} lines={lines.map((line, index) => ({ id: String(line.id), label: `${index + 1}. ${String(line.merchant_name)} · ${clp(Number(line.amount))}` }))} canApprove={ctx.permissions.has("finance.petty_cash.approve")} /> : <p className="text-sm text-slate-500">La rendición ya fue decidida.</p>}</Panel></aside></div></>;
+export default async function PettyCashReviewDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const ctx = await requireSession();
+  if (!ctx.permissions.has("finance.petty_cash.review")) redirect("/no-access");
+  const { id } = await params;
+  const report = await loadPettyCashReport(id);
+  if (!report) notFound();
+  const lines = await signPettyCashAttachments(
+    report as Record<string, unknown>,
+  );
+  const summary = await currentWeekSummary(
+    report.business_unit_id,
+    report.responsible_id,
+    report.week_start,
+  );
+  const profile = one<{ first_name?: string; last_name?: string }>(
+    report.responsible,
+  );
+  const unit = one<{ name?: string }>(report.business_units);
+  return (
+    <>
+      <PageHeader
+        title={report.report_number ?? "Rendición"}
+        description="Revisa todos los gastos y toma una decisión sobre la rendición completa."
+        eyebrow="Finanzas · Caja Chica · Revisión"
+      />
+      <div className="mb-5 flex justify-between">
+        <StatusBadge value={report.status} />
+        <Link
+          href="/finance/petty-cash/reviews"
+          className="text-sm font-semibold text-[#277a55]"
+        >
+          Volver a la bandeja
+        </Link>
+      </div>
+      <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
+        <div className="space-y-5">
+          <Panel>
+            <dl className="grid gap-4 text-sm md:grid-cols-2">
+              <Info
+                label="Trabajador"
+                value={`${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`}
+              />
+              <Info label="Unidad" value={unit?.name} />
+              <Info
+                label="Semana"
+                value={formatWeek(report.week_start, report.week_end)}
+              />
+              <Info label="Revisión" value={report.revision_number} />
+              <Info
+                label="Total rendición"
+                value={clp(report.total_registered)}
+              />
+              <Info label="Acumulado semanal" value={clp(summary?.committed)} />
+              <Info label="Saldo disponible" value={clp(summary?.available)} />
+              <Info label="Motivo" value={report.general_reason} />
+            </dl>
+          </Panel>
+          <Panel>
+            <h2 className="font-semibold">Líneas y comprobantes</h2>
+            <div className="mt-4 space-y-4">
+              {lines.map((line, index) => (
+                <PettyCashExpenseLine
+                  key={String(line.id)}
+                  line={line}
+                  index={index}
+                />
+              ))}
+            </div>
+          </Panel>
+          <Panel>
+            <h2 className="font-semibold">Historial</h2>
+            <PettyCashReviewHistory
+              actions={
+                (report.petty_cash_review_actions as Array<
+                  Record<string, unknown>
+                >) ?? []
+              }
+            />
+          </Panel>
+        </div>
+        <aside>
+          <Panel>
+            <h2 className="mb-4 font-semibold">Decisión</h2>
+            {["submitted", "resubmitted", "under_review"].includes(
+              report.status,
+            ) ? (
+              <PettyCashDecisionForm
+                id={id}
+                lines={lines.map((line, index) => ({
+                  id: String(line.id),
+                  label: `${index + 1}. ${String(line.merchant_name)} · ${clp(Number(line.amount))}`,
+                }))}
+                canApprove={ctx.permissions.has("finance.petty_cash.approve")}
+              />
+            ) : (
+              <p className="text-sm text-slate-500">
+                La rendición ya fue decidida.
+              </p>
+            )}
+          </Panel>
+        </aside>
+      </div>
+    </>
+  );
 }
-function Info({ label, value }: { label: string; value?: unknown }) { return <div><dt className="text-xs uppercase text-slate-500">{label}</dt><dd className="mt-1 font-medium">{String(value ?? "—")}</dd></div>; }
-function one<T>(value: unknown): T | undefined { return (Array.isArray(value) ? value[0] : value) as T | undefined; }
+function Info({ label, value }: { label: string; value?: unknown }) {
+  return (
+    <div>
+      <dt className="text-xs uppercase text-slate-500">{label}</dt>
+      <dd className="mt-1 font-medium">{String(value ?? "—")}</dd>
+    </div>
+  );
+}
+function one<T>(value: unknown): T | undefined {
+  return (Array.isArray(value) ? value[0] : value) as T | undefined;
+}

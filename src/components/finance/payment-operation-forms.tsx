@@ -19,16 +19,20 @@ export function ExecuteForm({
   requestId,
   companyId,
   amount,
+  useSupplierBankAccount,
 }: {
   requestId: string;
   companyId: string;
   amount: number;
+  useSupplierBankAccount: boolean;
 }) {
   const router = useRouter(),
     [state, action, pending] = useActionState(executePaymentAction, {
       success: false,
     } as PaymentResult),
-    [method, setMethod] = useState("bank_transfer");
+    [method, setMethod] = useState(
+      useSupplierBankAccount ? "bank_transfer" : "cash",
+    );
   useEffect(() => {
     if (state.success) router.refresh();
   }, [state.success, router]);
@@ -37,6 +41,11 @@ export function ExecuteForm({
       <input type="hidden" name="request_id" value={requestId} />
       <input type="hidden" name="company_id" value={companyId} />
       <h2 className="font-semibold">Registrar pago</h2>
+      <p className="text-sm text-slate-600">
+        {useSupplierBankAccount
+          ? "La solicitud considera la cuenta bancaria congelada del proveedor."
+          : "La solicitud no considera la cuenta bancaria del proveedor. Registra el medio realmente utilizado."}
+      </p>
       {state.message && <Message state={state} />}
       <label className="block text-sm">
         Fecha y hora real

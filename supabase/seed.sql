@@ -23,6 +23,7 @@ begin
   insert into public.business_units(company_id, code, name) values
     (company_uuid, 'HOC', 'Hostal Oasis Centro'),
     (company_uuid, 'HOB', 'Hostal Oasis Cobija'),
+    (company_uuid, 'HU', 'Hostal Uruguay'),
     (company_uuid, 'OM', 'Oasis Modulares'),
     (company_uuid, 'DA', 'Distribuidora Altiplánica')
   on conflict (company_id, code) do update set name = excluded.name;
@@ -136,6 +137,36 @@ begin
     ('company', company_uuid, 'currency', '"CLP"'::jsonb, 'Moneda operativa única'),
     ('company', company_uuid, 'petty_cash_weekly_target', '100000'::jsonb, 'Fondo objetivo inicial')
   on conflict (company_id, key) do update set value = excluded.value;
+
+  -- Datos operativos iniciales de Hostal Uruguay. Las fechas son relativas para
+  -- que el calendario local siempre muestre ejemplos vigentes.
+  insert into public.lodging_rooms(company_id,business_unit_id,code,name,capacity,base_rate,display_order)
+  select company_uuid,bu.id,'P'||n,'Pieza '||n,2,35000,n
+  from public.business_units bu cross join generate_series(1,5) n
+  where bu.company_id=company_uuid and bu.code='HU'
+  on conflict(business_unit_id,code) do nothing;
+
+  with hu as (select id from public.business_units where company_id=company_uuid and code='HU'),
+  new_guests as (
+    insert into public.lodging_guests(company_id,business_unit_id,full_name,phone,email)
+    select company_uuid,hu.id,x.name,x.phone,x.email from hu cross join (values
+      ('Reserva Booking — información pendiente','Pendiente',null::text),
+      ('Reserva Airbnb — información pendiente','Pendiente',null::text),
+      ('Ana Martínez','+56 9 5555 0101','ana@example.test'),
+      ('Empresa Andina','+56 9 5555 0202','viajes@example.test')
+    ) x(name,phone,email) returning id,full_name,business_unit_id
+  )
+  insert into public.lodging_reservations(company_id,business_unit_id,room_id,guest_id,origin,status,check_in,check_out,guest_count,nightly_rate,total_value,imported_from_ical,information_complete,company_name)
+  select company_uuid,g.business_unit_id,r.id,g.id,v.origin,'confirmed',current_date+v.start_day,current_date+v.end_day,1,v.rate,(v.end_day-v.start_day)*v.rate,v.external,v.complete,v.company_name
+  from new_guests g
+  join (values
+    ('Reserva Booking — información pendiente','booking',1,3,0::numeric,true,false,null::text,'P1'),
+    ('Reserva Airbnb — información pendiente','airbnb',2,5,0::numeric,true,false,null::text,'P2'),
+    ('Ana Martínez','direct',1,4,35000::numeric,false,true,null::text,'P3'),
+    ('Empresa Andina','company',4,7,32000::numeric,false,true,'Empresa Andina','P4')
+  ) v(guest_name,origin,start_day,end_day,rate,external,complete,company_name,room_code) on v.guest_name=g.full_name
+  join public.lodging_rooms r on r.business_unit_id=g.business_unit_id and r.code=v.room_code
+  on conflict do nothing;
 end $$;
 
 commit;

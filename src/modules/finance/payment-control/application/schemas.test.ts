@@ -7,6 +7,7 @@ const validFormPayload = {
   business_unit_id: "22222222-2222-4222-8222-222222222222",
   request_type: "supplier_payment",
   supplier_id: "33333333-3333-4333-8333-333333333333",
+  use_supplier_bank_account: "true",
   amount: "1000",
   expense_category_id: "44444444-4444-4444-8444-444444444444",
   cost_center_id: "55555555-5555-4555-8555-555555555555",
@@ -30,6 +31,29 @@ describe("validación de solicitudes de pago", () => {
         id: "66666666-6666-4666-8666-666666666666",
       }).success,
     ).toBe(true);
+  });
+
+  it("acepta explícitamente una solicitud sin cuenta bancaria del proveedor", () => {
+    const result = paymentRequestSchema.safeParse({
+      ...validFormPayload,
+      use_supplier_bank_account: "false",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.use_supplier_bank_account).toBe(false);
+  });
+
+  it("exige definir si se usará la cuenta bancaria del proveedor", () => {
+    const payload = { ...validFormPayload } as Partial<
+      typeof validFormPayload
+    >;
+    delete payload.use_supplier_bank_account;
+    const result = paymentRequestSchema.safeParse(payload);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.flatten().fieldErrors.use_supplier_bank_account,
+      ).toEqual(["Selecciona cómo se realizará el pago."]);
+    }
   });
 
   it("rechaza monto no positivo", () => {

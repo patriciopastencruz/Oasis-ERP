@@ -22,7 +22,7 @@ export const erpModules: readonly ErpModuleDefinition[] = [
     key: "finance",
     label: "Finanzas",
     status: "active",
-    features: ["Gestión de Pagos", "Caja Chica", "Proveedores", "Tesorería"],
+    features: ["Solicitud de Pagos", "Caja Chica", "Proveedores", "Tesorería"],
   },
   {
     key: "purchasing",
@@ -58,8 +58,14 @@ export const erpModules: readonly ErpModuleDefinition[] = [
   {
     key: "lodging",
     label: "Hostales",
-    status: "planned",
-    features: ["Reservas", "Habitaciones", "Huéspedes", "Check-in / Check-out"],
+    status: "active",
+    features: [
+      "Gestión de reservas",
+      "Habitaciones",
+      "Huéspedes",
+      "Check-in / Check-out",
+      "Sincronización iCal",
+    ],
   },
   {
     key: "sales",

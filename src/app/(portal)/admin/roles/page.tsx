@@ -145,7 +145,11 @@ export default async function Roles({
               </Link>
             )}
           </div>
-          <form action={saveRoleAction} className="space-y-3">
+          <form
+            key={editing?.id ?? "new-role"}
+            action={saveRoleAction}
+            className="space-y-3"
+          >
             {editing && <input type="hidden" name="id" value={editing.id} />}
             <label className="block text-sm font-medium">
               Key técnica

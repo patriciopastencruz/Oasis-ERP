@@ -41,6 +41,9 @@ export function PaymentRequestForm({
     ),
   );
   const [supplier, setSupplier] = useState(String(request?.supplier_id ?? ""));
+  const [useSupplierBankAccount, setUseSupplierBankAccount] = useState(
+    request?.use_supplier_bank_account !== false,
+  );
   const [bank, setBank] = useState<Record<string, unknown> | null>(null);
   useEffect(() => {
     if (state.success && state.id)
@@ -141,7 +144,10 @@ export function PaymentRequestForm({
             <select
               name="supplier_id"
               value={supplier}
-              onChange={(e) => setSupplier(e.target.value)}
+              onChange={(e) => {
+                setBank(null);
+                setSupplier(e.target.value);
+              }}
               className={input}
               required
             >
@@ -166,26 +172,62 @@ export function PaymentRequestForm({
               aria-label="RUT autocompletado"
             />
           </Field>
+          <Field
+            label="Destino del pago"
+            error={error("use_supplier_bank_account")}
+          >
+            <div className="mt-1.5 grid gap-3 md:grid-cols-2">
+              <label className="flex cursor-pointer gap-3 rounded-xl border bg-white p-4 text-sm">
+                <input
+                  type="radio"
+                  name="use_supplier_bank_account"
+                  value="true"
+                  checked={useSupplierBankAccount}
+                  onChange={() => setUseSupplierBankAccount(true)}
+                />
+                <span>
+                  <b>Usar cuenta bancaria del proveedor</b>
+                  <small className="mt-1 block text-slate-500">
+                    Finanzas utilizará la cuenta registrada en su ficha.
+                  </small>
+                </span>
+              </label>
+              <label className="flex cursor-pointer gap-3 rounded-xl border bg-white p-4 text-sm">
+                <input
+                  type="radio"
+                  name="use_supplier_bank_account"
+                  value="false"
+                  checked={!useSupplierBankAccount}
+                  onChange={() => setUseSupplierBankAccount(false)}
+                />
+                <span>
+                  <b>No usar cuenta bancaria del proveedor</b>
+                  <small className="mt-1 block text-slate-500">
+                    Para pagos en efectivo u otra modalidad gestionada por el
+                    encargado.
+                  </small>
+                </span>
+              </label>
+            </div>
+          </Field>
           <div className="md:col-span-2 rounded-xl border bg-slate-50 p-4 text-sm">
-            {!supplier ? (
-              <span>
-                Selecciona un proveedor para consultar su cuenta bancaria.
-              </span>
+            {!useSupplierBankAccount ? (
+              <p className="text-amber-800">
+                Esta solicitud se enviará sin datos bancarios del proveedor.
+                Finanzas deberá registrar el medio real utilizado al pagar.
+              </p>
+            ) : !supplier ? (
+              <span>Selecciona un proveedor para consultar su cuenta bancaria.</span>
             ) : bank?.available ? (
               <>
-                <b>
-                  {String(bank.bank_name)} · {String(bank.account_type)}
-                </b>
-                <p>
-                  {String(bank.masked_number)} ·{" "}
-                  {String(bank.account_holder_name)}
-                </p>
+                <b>{String(bank.bank_name)} · {String(bank.account_type)}</b>
+                <p>{String(bank.masked_number)} · {String(bank.account_holder_name)}</p>
                 <p className="text-emerald-700">Cuenta bancaria disponible</p>
               </>
             ) : (
               <p className="text-red-700">
-                Este proveedor no tiene una cuenta bancaria principal
-                disponible.
+                Este proveedor no tiene una cuenta bancaria disponible. Corrige
+                su ficha o selecciona “No usar cuenta bancaria del proveedor”.
               </p>
             )}
           </div>

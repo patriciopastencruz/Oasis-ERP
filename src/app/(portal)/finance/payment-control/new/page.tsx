@@ -34,7 +34,7 @@ export default async function NewRequest() {
       <PageHeader
         title="Nueva solicitud"
         description="Guarda el borrador y revísalo antes de enviarlo a aprobación."
-        eyebrow="Finanzas · Gestión de Pagos"
+        eyebrow="Finanzas · Solicitud de Pagos"
       />
       {ctx.permissions.has("finance.suppliers.manage") && (
         <SupplierQuickCreate

@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { requirePermission } from "@/modules/platform/auth/application/session";
-import { createUserSchema, type UserActionResult } from "./user-schema";
+import {
+  createUserSchema,
+  updateUserSchema,
+  type UserActionResult,
+} from "./user-schema";
 
 const text = z.string().trim().min(1).max(160);
 const uuid = z.string().uuid();
@@ -41,7 +45,6 @@ async function audit(
   });
 }
 
-const userSchema = createUserSchema.extend({ id: uuid.optional() });
 async function validateAssignments(
   admin: ReturnType<typeof createSupabaseAdminClient>,
   companies: string[],
@@ -86,14 +89,16 @@ export async function createUserAction(
       fieldErrors: { unit_ids: [(e as Error).message] },
     };
   }
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(v.email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/auth/callback?next=/update-password`,
+  const { data, error } = await admin.auth.admin.createUser({
+    email: v.email,
+    password: v.password,
+    email_confirm: true,
   });
   if (error || !data.user)
     return {
       success: false,
       message:
-        "No fue posible enviar la invitación. Verifica que el correo no esté registrado.",
+        "No fue posible crear el usuario. Verifica que el correo no esté registrado.",
     };
   const id = data.user.id;
   const { error: profileError } = await admin.from("profiles").insert({
@@ -110,7 +115,7 @@ export async function createUserAction(
     await admin.auth.admin.deleteUser(id);
     return {
       success: false,
-      message: "No fue posible crear el perfil; la invitación fue revertida.",
+      message: "No fue posible crear el perfil; la creación fue revertida.",
     };
   }
   const companyRows = v.company_ids.map((company_id) => ({
@@ -154,15 +159,29 @@ export async function createUserAction(
       fieldErrors: { unit_ids: ["Revisa las unidades seleccionadas."] },
     };
   }
-  await audit(admin, actor.user.id, "invite", "profiles", id, null, v);
+  await audit(admin, actor.user.id, "create", "profiles", id, null, {
+    first_name: v.first_name,
+    last_name: v.last_name,
+    email: v.email,
+    phone: v.phone,
+    job_title: v.job_title,
+    role_id: v.role_id,
+    company_ids: v.company_ids,
+    unit_ids: v.unit_ids,
+    active: true,
+    email_confirmed: true,
+  });
   revalidatePath("/admin/users");
-  return { success: true, message: "Usuario invitado correctamente." };
+  return {
+    success: true,
+    message: "Usuario creado y habilitado correctamente.",
+  };
 }
 
 export async function updateUserAction(form: FormData) {
   const actor = await requirePermission("administration.users.manage");
   const admin = createSupabaseAdminClient();
-  const parsed = userSchema.safeParse({
+  const parsed = updateUserSchema.safeParse({
     ...Object.fromEntries(form),
     company_ids: values(form, "company_ids"),
     unit_ids: values(form, "unit_ids"),
@@ -262,17 +281,6 @@ export async function sendRecoveryAction(form: FormData) {
   });
   redirect("/admin/users?success=Recuperación enviada");
 }
-export async function resendInvitationAction(form: FormData) {
-  await requirePermission("administration.users.manage");
-  const admin = createSupabaseAdminClient();
-  const target = email.parse(form.get("email"));
-  const { error } = await admin.auth.admin.inviteUserByEmail(target, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/auth/callback?next=/update-password`,
-  });
-  if (error) fail("/admin/users", error.message);
-  redirect("/admin/users?success=Invitación reenviada");
-}
-
 const roleSchema = z.object({
   id: uuid.optional(),
   key: z
@@ -297,16 +305,48 @@ export async function saveRoleAction(form: FormData) {
   if (id) {
     const { data: old } = await admin
       .from("roles")
-      .select("*")
+      .select("*,role_permissions(permission_id)")
       .eq("id", id)
       .single();
     if (old?.is_system && old.key !== v.key)
       fail("/admin/roles", "La key de un rol base es inmutable");
-    await admin
+    const { error: roleError } = await admin
       .from("roles")
       .update({ name: v.name, description: v.description || null })
       .eq("id", id);
-    await admin.from("role_permissions").delete().eq("role_id", id);
+    if (roleError) fail("/admin/roles", roleError.message);
+
+    const currentPermissionIds = new Set<string>(
+      (old?.role_permissions ?? []).map(
+        (item: { permission_id: string }) => item.permission_id,
+      ),
+    );
+    const selectedPermissionIds = new Set(v.permission_ids);
+    const permissionIdsToRemove = [...currentPermissionIds].filter(
+      (permissionId) => !selectedPermissionIds.has(permissionId),
+    );
+    const permissionIdsToAdd = v.permission_ids.filter(
+      (permissionId) => !currentPermissionIds.has(permissionId),
+    );
+
+    if (permissionIdsToRemove.length) {
+      const { error } = await admin
+        .from("role_permissions")
+        .delete()
+        .eq("role_id", id)
+        .in("permission_id", permissionIdsToRemove);
+      if (error) fail("/admin/roles", error.message);
+    }
+    if (permissionIdsToAdd.length) {
+      const { error } = await admin.from("role_permissions").insert(
+        permissionIdsToAdd.map((permission_id) => ({
+          role_id: id!,
+          permission_id,
+          created_by: actor.user.id,
+        })),
+      );
+      if (error) fail("/admin/roles", error.message);
+    }
     await audit(admin, actor.user.id, "update", "roles", id, old, v);
   } else {
     const { data, error } = await admin
@@ -324,14 +364,16 @@ export async function saveRoleAction(form: FormData) {
     await audit(admin, actor.user.id, "create", "roles", id ?? null, null, v);
   }
   if (!id) fail("/admin/roles", "No se obtuvo el identificador del rol");
-  if (v.permission_ids.length)
-    await admin.from("role_permissions").insert(
+  if (!v.id && v.permission_ids.length) {
+    const { error } = await admin.from("role_permissions").insert(
       v.permission_ids.map((permission_id) => ({
         role_id: id,
         permission_id,
         created_by: actor.user.id,
       })),
     );
+    if (error) fail("/admin/roles", error.message);
+  }
   revalidatePath("/admin/roles");
   redirect("/admin/roles?success=Rol guardado");
 }

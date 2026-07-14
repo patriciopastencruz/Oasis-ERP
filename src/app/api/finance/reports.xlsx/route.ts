@@ -4,7 +4,7 @@ import { paymentReport } from "@/modules/finance/payment-control/application/rep
 export async function GET(req: NextRequest) {
   const rows = await paymentReport(req.nextUrl.searchParams),
     wb = new ExcelJS.Workbook(),
-    ws = wb.addWorksheet("Gestión de Pagos", {
+    ws = wb.addWorksheet("Solicitud de Pagos", {
       views: [{ state: "frozen", ySplit: 1 }],
     });
   const columns: Array<[string, string, number]> = [

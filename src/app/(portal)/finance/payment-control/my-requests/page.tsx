@@ -46,7 +46,7 @@ export default async function MyRequests({
       <PageHeader
         title="Mis solicitudes"
         description="Seguimiento de borradores y solicitudes enviadas."
-        eyebrow="Finanzas · Gestión de Pagos"
+        eyebrow="Finanzas · Solicitud de Pagos"
       />
       <Panel>
         <form className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">

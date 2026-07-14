@@ -10,7 +10,7 @@ export default async function Page({
       <PageHeader
         title="Pagos ejecutados"
         description="Historial de pagos con sus comprobantes."
-        eyebrow="Finanzas · Gestión de Pagos"
+        eyebrow="Finanzas · Solicitud de Pagos"
       />
       <PaymentQueue params={await searchParams} fixedStatus="paid" />
     </>

@@ -4,7 +4,7 @@
 
 - `src/lib/supabase`: clientes SSR y cliente administrativo exclusivo de servidor.
 - `modules/platform/auth/application`: sesión, permisos y acciones Auth.
-- `modules/platform/admin/application`: invitaciones y bootstrap administrativo.
+- `modules/platform/admin/application`: creación inmediata de usuarios y bootstrap administrativo.
 - `src/proxy.ts`: renovación de cookies y protección global de rutas.
 - `app/(auth)`: login, recuperación, nueva contraseña y setup inicial.
 - `app/(portal)`: layout privado y rutas autorizadas.
@@ -23,7 +23,7 @@ Las rutas consultan permisos mediante `role_permissions`; no comparan nombres de
 
 ## Usuarios
 
-`/admin/users` lista perfiles y permite invitar una cuenta con rol, empresa y unidad inicial. La invitación dirige al flujo de nueva contraseña. También permite activar/desactivar el perfil. La administración de credenciales nunca escribe contraseñas en tablas públicas.
+`/admin/users` lista perfiles y permite crear inmediatamente una cuenta activa con rol, empresa, unidades y contraseña inicial. No se envía correo de invitación ni se requiere aceptación. También permite activar/desactivar el perfil. La contraseña se entrega directamente a Supabase Auth desde el servidor y nunca se escribe en tablas públicas ni en auditoría.
 
 ## Avance 3B y limitaciones sin cambio SQL
 

@@ -1,6 +1,6 @@
 # Etapa 4A — Solicitudes de pago
 
-Gestión de Pagos implementa registro, borradores, respaldos privados, previsualización del workflow, envío, listado y detalle. Las rutas son `/finance/payment-control`, `/new`, `/my-requests` y `/requests/[id]`.
+Solicitud de Pagos implementa registro, borradores, respaldos privados, previsualización del workflow, envío, listado y detalle. Las rutas son `/finance/payment-control`, `/new`, `/my-requests` y `/requests/[id]`.
 
 La seguridad se basa en sesión SSR, permisos, contexto de empresa/unidad y RLS. Las Server Actions vuelven a validar el contexto. PostgreSQL es la fuente de verdad para seleccionar y congelar workflows mediante `preview_payment_request_workflow` y `submit_payment_request`.
 

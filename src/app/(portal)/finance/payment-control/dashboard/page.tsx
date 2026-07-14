@@ -75,7 +75,7 @@ export default async function Page() {
       <PageHeader
         title="Dashboard financiero"
         description="Indicadores consolidados con el alcance autorizado por RLS."
-        eyebrow="Finanzas · Gestión de Pagos"
+        eyebrow="Finanzas · Solicitud de Pagos"
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <K l="Solicitado" v={money.format(sum(requests))} />

@@ -18,6 +18,12 @@ import {
   History,
   BarChart3,
   Building2,
+  CalendarDays,
+  BedDouble,
+  LogIn,
+  LogOut,
+  RefreshCw,
+  SlidersHorizontal,
   ReceiptText,
 } from "lucide-react";
 import { cookies } from "next/headers";
@@ -53,7 +59,7 @@ const financeNav = [
   },
   {
     href: "/finance/payment-control",
-    label: "Gestión de Pagos",
+    label: "Solicitud de Pagos",
     icon: WalletCards,
     permission: "finance.payment_requests.create",
   },
@@ -83,7 +89,7 @@ const financeNav = [
   },
 ];
 
-const financeAdministrationNav = [
+const administrationNav = [
   {
     href: "/finance/payment-control/categories",
     label: "Categorías de gasto",
@@ -163,9 +169,52 @@ const inventoryNav = [
   },
 ];
 
-type NavItem =
-  (typeof financeNav)[number] | (typeof financeAdministrationNav)[number];
+const lodgingNav = [
+  {
+    href: "/lodging",
+    label: "Calendario",
+    icon: CalendarDays,
+    permission: "lodging.reservations.view",
+  },
+  {
+    href: "/lodging/reservations",
+    label: "Reservas",
+    icon: BedDouble,
+    permission: "lodging.reservations.view",
+  },
+  {
+    href: "/lodging/arrivals",
+    label: "Llegadas",
+    icon: LogIn,
+    permission: "lodging.reservations.view",
+  },
+  {
+    href: "/lodging/departures",
+    label: "Salidas",
+    icon: LogOut,
+    permission: "lodging.reservations.view",
+  },
+  {
+    href: "/lodging/rooms",
+    label: "Habitaciones",
+    icon: BedDouble,
+    permission: "lodging.reservations.view",
+  },
+  {
+    href: "/lodging/ical",
+    label: "Sincronización iCal",
+    icon: RefreshCw,
+    permission: "lodging.ical.sync",
+  },
+  {
+    href: "/lodging/settings",
+    label: "Configuración",
+    icon: SlidersHorizontal,
+    permission: "lodging.reservations.view",
+  },
+] as const;
 
+type NavItem = { permission: string; legacyPermission?: string };
 function canView(item: NavItem, permissions: Set<string>) {
   const legacyPermission =
     "legacyPermission" in item ? item.legacyPermission : undefined;
@@ -192,6 +241,7 @@ export async function AppShell({
     companyUnits.find((u) => u.code === "OM") ??
     [...companyUnits].sort((a, b) => a.name.localeCompare(b.name, "es"))[0];
   const isOasisModulares = unit?.code === "OM";
+  const isHostalUruguay = unit?.code === "HU";
   const homeHref = ctx.permissions.has("reports.executive_dashboard.view")
     ? "/dashboard"
     : ctx.permissions.has("inventory.materials.view")
@@ -203,12 +253,14 @@ export async function AppShell({
   const visibleTransversalNav = transversalNav.filter((item) =>
     canView(item, ctx.permissions),
   );
-  const visibleFinanceAdministrationNav = financeAdministrationNav.filter(
-    (item) => canView(item, ctx.permissions),
+  const visibleAdministrationNav = administrationNav.filter((item) =>
+    canView(item, ctx.permissions),
   );
-  const showFinance =
-    visibleFinanceNav.length > 0 || visibleFinanceAdministrationNav.length > 0;
+  const showFinance = visibleFinanceNav.length > 0;
   const visibleInventoryNav = inventoryNav.filter((item) =>
+    ctx.permissions.has(item.permission),
+  );
+  const visibleLodgingNav = lodgingNav.filter((item) =>
     ctx.permissions.has(item.permission),
   );
   return (
@@ -262,32 +314,6 @@ export async function AppShell({
                     {label}
                   </Link>
                 ))}
-                {visibleFinanceAdministrationNav.length > 0 && (
-                  <details className="group/admin">
-                    <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white [&::-webkit-details-marker]:hidden">
-                      <Settings2 size={16} />
-                      <span className="flex-1">Administración</span>
-                      <ChevronDown
-                        size={14}
-                        className="transition-transform group-open/admin:rotate-180"
-                      />
-                    </summary>
-                    <div className="ml-4 mt-1 space-y-1 border-l border-white/15 pl-2">
-                      {visibleFinanceAdministrationNav.map(
-                        ({ href, label, icon: Icon }) => (
-                          <Link
-                            key={href}
-                            href={href}
-                            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/65 hover:bg-white/10 hover:text-white"
-                          >
-                            <Icon size={15} />
-                            {label}
-                          </Link>
-                        ),
-                      )}
-                    </div>
-                  </details>
-                )}
               </div>
             </details>
           )}
@@ -315,7 +341,32 @@ export async function AppShell({
               </div>
             </details>
           )}
-          {visibleTransversalNav.length > 0 && (
+          {isHostalUruguay && visibleLodgingNav.length > 0 && (
+            <details className="group/lodging" open>
+              <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                <BedDouble size={17} />
+                <span className="flex-1">Gestión de reservas</span>
+                <ChevronDown
+                  size={15}
+                  className="transition-transform group-open/lodging:rotate-180"
+                />
+              </summary>
+              <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
+                {visibleLodgingNav.map(({ href, label, icon: Icon }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </details>
+          )}
+          {(visibleTransversalNav.length > 0 ||
+            visibleAdministrationNav.length > 0) && (
             <div className="mt-4 border-t border-white/10 pt-3">
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
                 Gestión transversal
@@ -330,6 +381,32 @@ export async function AppShell({
                   {label}
                 </Link>
               ))}
+              {visibleAdministrationNav.length > 0 && (
+                <details className="group/admin">
+                  <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                    <Settings2 size={17} />
+                    <span className="flex-1">Administración</span>
+                    <ChevronDown
+                      size={15}
+                      className="transition-transform group-open/admin:rotate-180"
+                    />
+                  </summary>
+                  <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
+                    {visibleAdministrationNav.map(
+                      ({ href, label, icon: Icon }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/65 hover:bg-white/10 hover:text-white"
+                        >
+                          <Icon size={15} />
+                          {label}
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                </details>
+              )}
             </div>
           )}
         </nav>

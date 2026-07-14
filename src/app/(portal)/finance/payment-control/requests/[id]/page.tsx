@@ -130,7 +130,7 @@ export default async function RequestDetail({
         <PageHeader
           title={r.request_number ?? "Editar borrador"}
           description="Actualiza los datos, administra respaldos y envía cuando esté completo."
-          eyebrow="Finanzas · Gestión de Pagos"
+          eyebrow="Finanzas · Solicitud de Pagos"
         />
         <div className="mb-5 flex items-center justify-between">
           <StatusBadge value={r.status} />
@@ -201,7 +201,7 @@ export default async function RequestDetail({
       <PageHeader
         title={r.request_number ?? "Solicitud"}
         description="Detalle y seguimiento completo de la solicitud."
-        eyebrow="Finanzas · Gestión de Pagos"
+        eyebrow="Finanzas · Solicitud de Pagos"
       />
       <div className="mb-5 flex items-center justify-between">
         <StatusBadge value={r.status} />
@@ -256,17 +256,26 @@ export default async function RequestDetail({
           </Panel>
           <Panel>
             <h2 className="mb-4 font-semibold">Datos bancarios para el pago</h2>
-            <p className="mb-3 text-xs text-slate-500">
-              Cuenta del proveedor congelada al enviar la solicitud
-            </p>
-            <dl className="grid gap-4 text-sm md:grid-cols-2">
-              <Info label="Banco" value={r.bank_name} />
-              <Info label="Tipo de cuenta" value={r.account_type} />
-              <Info label="Número de cuenta" value={r.account_number} />
-              <Info label="Titular" value={r.bank_account_holder_name} />
-              <Info label="RUT titular" value={r.bank_account_holder_rut} />
-              <Info label="Correo comprobante" value={r.supplier_email} />
-            </dl>
+            {r.use_supplier_bank_account ? (
+              <>
+                <p className="mb-3 text-xs text-slate-500">
+                  Cuenta del proveedor congelada al enviar la solicitud
+                </p>
+                <dl className="grid gap-4 text-sm md:grid-cols-2">
+                  <Info label="Banco" value={r.bank_name} />
+                  <Info label="Tipo de cuenta" value={r.account_type} />
+                  <Info label="Número de cuenta" value={r.account_number} />
+                  <Info label="Titular" value={r.bank_account_holder_name} />
+                  <Info label="RUT titular" value={r.bank_account_holder_rut} />
+                  <Info label="Correo comprobante" value={r.supplier_email} />
+                </dl>
+              </>
+            ) : (
+              <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                Se solicitó pagar sin utilizar la cuenta bancaria del proveedor.
+                Finanzas registrará el medio real al efectuar el pago.
+              </p>
+            )}
           </Panel>
           {!editable &&
             ["approved", "scheduled", "paid"].includes(r.status) && (

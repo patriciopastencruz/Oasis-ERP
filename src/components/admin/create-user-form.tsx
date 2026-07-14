@@ -44,6 +44,20 @@ export function CreateUserForm({
       <F l="Nombre" n="first_name" />
       <F l="Apellido" n="last_name" />
       <F l="Correo" n="email" t="email" />
+      <F
+        l="Contraseña inicial"
+        n="password"
+        t="password"
+        autoComplete="new-password"
+      />
+      <Error value={state.fieldErrors?.password?.[0]} />
+      <F
+        l="Confirmar contraseña"
+        n="password_confirmation"
+        t="password"
+        autoComplete="new-password"
+      />
+      <Error value={state.fieldErrors?.password_confirmation?.[0]} />
       <F l="Teléfono" n="phone" required={false} />
       <F l="Cargo" n="job_title" />
       <label className="block text-sm">
@@ -91,7 +105,7 @@ export function CreateUserForm({
         disabled={pending}
         className="w-full rounded-xl bg-[#173f2d] px-4 py-3 font-semibold text-white disabled:opacity-50"
       >
-        {pending ? "Creando…" : "Enviar invitación"}
+        {pending ? "Creando…" : "Crear usuario"}
       </button>
     </form>
   );
@@ -101,11 +115,13 @@ function F({
   n,
   t = "text",
   required = true,
+  autoComplete,
 }: {
   l: string;
   n: string;
   t?: string;
   required?: boolean;
+  autoComplete?: string;
 }) {
   return (
     <label className="block text-sm">
@@ -114,12 +130,14 @@ function F({
         name={n}
         type={t}
         required={required}
+        autoComplete={autoComplete}
+        minLength={t === "password" ? 8 : undefined}
         className="mt-2 w-full rounded-xl border p-3"
       />
     </label>
   );
 }
-function Error({ id, value }: { id: string; value?: string }) {
+function Error({ id, value }: { id?: string; value?: string }) {
   return value ? (
     <span id={id} className="mt-1 block text-xs font-medium text-red-600">
       {value}

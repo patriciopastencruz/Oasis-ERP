@@ -110,14 +110,31 @@ export default async function Detail({
                     : "—"
                 }
               />
-              <I l="Banco congelado" v={r.bank_name} />
-              <I l="Tipo de cuenta" v={r.account_type} />
-              <I l="Número de cuenta" v={r.account_number} />
-              <I l="Titular" v={r.bank_account_holder_name} />
-              <I l="RUT titular" v={r.bank_account_holder_rut} />
-              <I l="Correo comprobante" v={r.supplier_email} />
-              <I l="Verificación" v={r.bank_verification_status} />
+              <I
+                l="Destino solicitado"
+                v={
+                  r.use_supplier_bank_account
+                    ? "Cuenta bancaria del proveedor"
+                    : "Sin cuenta bancaria del proveedor"
+                }
+              />
+              {r.use_supplier_bank_account && (
+                <>
+                  <I l="Banco congelado" v={r.bank_name} />
+                  <I l="Tipo de cuenta" v={r.account_type} />
+                  <I l="Número de cuenta" v={r.account_number} />
+                  <I l="Titular" v={r.bank_account_holder_name} />
+                  <I l="RUT titular" v={r.bank_account_holder_rut} />
+                  <I l="Correo comprobante" v={r.supplier_email} />
+                  <I l="Verificación" v={r.bank_verification_status} />
+                </>
+              )}
             </dl>
+            {!r.use_supplier_bank_account && (
+              <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                Registra el medio efectivamente utilizado y adjunta el comprobante.
+              </p>
+            )}
             <p className="mt-5 border-t pt-4 text-sm text-slate-600">
               {r.description}
             </p>
@@ -191,6 +208,7 @@ export default async function Detail({
                   requestId={id}
                   companyId={r.company_id}
                   amount={Number(r.amount)}
+                  useSupplierBankAccount={r.use_supplier_bank_account}
                 />
               </Panel>
             )}

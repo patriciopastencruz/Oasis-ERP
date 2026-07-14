@@ -10,6 +10,8 @@ const id1 = "11111111-1111-4111-8111-111111111111",
     role_id: id1,
     company_ids: [id1],
     unit_ids: [id2],
+    password: "ClaveSegura123",
+    password_confirmation: "ClaveSegura123",
   };
 describe("create user assignments", () => {
   it("rechaza empresa vacía con mensaje en español", () => {
@@ -34,4 +36,23 @@ describe("create user assignments", () => {
     expect(
       createUserSchema.safeParse({ ...valid, unit_ids: [id1, id2] }).success,
     ).toBe(true));
+  it("rechaza una contraseña inicial corta", () => {
+    const r = createUserSchema.safeParse({
+      ...valid,
+      password: "corta",
+      password_confirmation: "corta",
+    });
+    expect(r.success).toBe(false);
+  });
+  it("rechaza contraseñas que no coinciden", () => {
+    const r = createUserSchema.safeParse({
+      ...valid,
+      password_confirmation: "OtraClave123",
+    });
+    expect(r.success).toBe(false);
+    if (!r.success)
+      expect(r.error.flatten().fieldErrors.password_confirmation).toContain(
+        "Las contraseñas no coinciden.",
+      );
+  });
 });

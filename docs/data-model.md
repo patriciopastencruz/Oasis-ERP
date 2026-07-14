@@ -1,6 +1,6 @@
 # Modelo de datos preliminar de OASIS ERP
 
-Este documento describe el núcleo de organización única y el primer módulo, Finanzas → Gestión de Pagos.
+Este documento describe el núcleo de organización única y el primer módulo, Finanzas → Solicitud de Pagos.
 
 Todas las claves principales serán UUID; montos usarán `numeric(18,2)`, fechas `timestamptz` y entidades administrables `active` o `deleted_at`.
 
@@ -20,7 +20,7 @@ Todas las claves principales serán UUID; montos usarán `numeric(18,2)`, fechas
 | `audit_logs`          | Registro inmutable con empresa, actor, acción y valores anterior/nuevo.                                     |
 | `app_settings`        | Parámetros globales o por empresa, nunca secretos.                                                          |
 
-## Finanzas → Gestión de Pagos
+## Finanzas → Solicitud de Pagos
 
 | Tabla                         | Propósito y relaciones principales                                                      |
 | ----------------------------- | --------------------------------------------------------------------------------------- |

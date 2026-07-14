@@ -1,6 +1,6 @@
 # Guía de solicitudes de pago
 
-1. En Finanzas → Gestión de Pagos selecciona **Nueva solicitud**.
+1. En Finanzas → Solicitud de Pagos selecciona **Nueva solicitud**.
 2. Completa empresa, unidad, proveedor, monto, clasificación y motivo. Para prioridad Programado debes indicar una fecha.
 3. Adjunta PDF, JPG, JPEG o PNG de hasta 10 MB y guarda el borrador.
 4. Desde el detalle puedes editar mientras esté en Borrador o Corrección solicitada, agregar respaldos o eliminarlos.

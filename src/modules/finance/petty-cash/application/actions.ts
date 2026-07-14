@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireSession } from "@/modules/platform/auth/application/session";
 import {
@@ -8,6 +9,7 @@ import {
   PettyCashActionResult,
   reportDraftSchema,
 } from "./schemas";
+import { chileWeek } from "../domain/petty-cash";
 
 function friendlyError(error: unknown) {
   const message =
@@ -19,13 +21,16 @@ function friendlyError(error: unknown) {
     return "Esta rendición supera el saldo semanal disponible.";
   if (/comprobante/i.test(message))
     return "Cada gasto debe tener al menos un comprobante válido.";
-  if (/categoría/i.test(message)) return "La categoría seleccionada ya no está disponible.";
-  if (/centro de costo/i.test(message)) return "El centro de costo seleccionado ya no está disponible.";
+  if (/categoría/i.test(message))
+    return "La categoría seleccionada ya no está disponible.";
+  if (/centro de costo/i.test(message))
+    return "El centro de costo seleccionado ya no está disponible.";
   if (/permiso|autoriz|RLS|row-level|42501/i.test(message))
     return "No tienes autorización para realizar esta acción.";
   if (/estado|decidida|inmutable/i.test(message))
     return "La rendición cambió de estado y ya no admite esta operación.";
-  if (/sesión|JWT|refresh/i.test(message)) return "Tu sesión expiró. Vuelve a iniciar sesión.";
+  if (/sesión|JWT|refresh/i.test(message))
+    return "Tu sesión expiró. Vuelve a iniciar sesión.";
   return "No fue posible completar la operación. Intenta nuevamente.";
 }
 
@@ -52,7 +57,10 @@ export async function savePettyCashDraftAction(
     try {
       lines = JSON.parse(rawLines);
     } catch {
-      return { success: false, message: "No fue posible leer las líneas de gasto." };
+      return {
+        success: false,
+        message: "No fue posible leer las líneas de gasto.",
+      };
     }
     const parsed = reportDraftSchema.safeParse({
       id: String(form.get("id") ?? "") || undefined,
@@ -72,9 +80,22 @@ export async function savePettyCashDraftAction(
       };
     }
     const value = parsed.data;
+    if (value.week_start > chileWeek().start) {
+      return {
+        success: false,
+        message:
+          "La semana seleccionada no puede ser posterior a la semana actual.",
+        fieldErrors: {
+          week_start: ["Selecciona la semana actual o una anterior."],
+        },
+      };
+    }
     const unit = ctx.units.find((item) => item.id === value.business_unit_id);
     if (!unit)
-      return { success: false, message: "Selecciona una unidad de negocio autorizada." };
+      return {
+        success: false,
+        message: "Selecciona una unidad de negocio autorizada.",
+      };
     const supabase = await createSupabaseServerClient();
     reportId = value.id;
     if (reportId) {
@@ -90,7 +111,10 @@ export async function savePettyCashDraftAction(
         report.business_unit_id !== value.business_unit_id ||
         report.week_start !== value.week_start
       )
-        return { success: false, message: "Esta rendición ya no puede editarse." };
+        return {
+          success: false,
+          message: "Esta rendición ya no puede editarse.",
+        };
       const { error } = await supabase
         .from("petty_cash_reports")
         .update({
@@ -118,7 +142,8 @@ export async function savePettyCashDraftAction(
       if (error) throw error;
       reportId = data.id;
     }
-    if (!reportId) throw new Error("No fue posible identificar la rendición guardada");
+    if (!reportId)
+      throw new Error("No fue posible identificar la rendición guardada");
 
     const { data: existing, error: existingError } = await supabase
       .from("petty_cash_expense_lines")
@@ -126,20 +151,31 @@ export async function savePettyCashDraftAction(
       .eq("petty_cash_report_id", reportId)
       .is("deleted_at", null);
     if (existingError) throw existingError;
-    const retained = new Set(value.lines.flatMap((line) => (line.id ? [line.id] : [])));
-    const removed = (existing ?? []).filter((line) => !retained.has(line.id)).map((line) => line.id);
+    const retained = new Set(
+      value.lines.flatMap((line) => (line.id ? [line.id] : [])),
+    );
+    const removed = (existing ?? [])
+      .filter((line) => !retained.has(line.id))
+      .map((line) => line.id);
     if (removed.length) {
       const { data: removedAttachments } = await supabase
         .from("petty_cash_line_attachments")
         .select("object_path")
         .in("expense_line_id", removed)
         .is("deleted_at", null);
-      const paths = (removedAttachments ?? []).map((attachment) => attachment.object_path);
+      const paths = (removedAttachments ?? []).map(
+        (attachment) => attachment.object_path,
+      );
       if (paths.length) {
-        const { error: storageError } = await supabase.storage.from("petty-cash-attachments").remove(paths);
+        const { error: storageError } = await supabase.storage
+          .from("petty-cash-attachments")
+          .remove(paths);
         if (storageError) throw storageError;
       }
-      const { error } = await supabase.from("petty_cash_expense_lines").delete().in("id", removed);
+      const { error } = await supabase
+        .from("petty_cash_expense_lines")
+        .delete()
+        .in("id", removed);
       if (error) throw error;
     }
 
@@ -163,7 +199,10 @@ export async function savePettyCashDraftAction(
       };
       let lineId = line.id;
       if (lineId) {
-        const { error } = await supabase.from("petty_cash_expense_lines").update(payload).eq("id", lineId);
+        const { error } = await supabase
+          .from("petty_cash_expense_lines")
+          .update(payload)
+          .eq("id", lineId);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
@@ -180,8 +219,13 @@ export async function savePettyCashDraftAction(
         if (error) throw error;
         lineId = data.id;
       }
-      if (!lineId) throw new Error("No fue posible identificar la línea guardada");
-      uploadTargets.push({ client_id: line.client_id, line_id: lineId, report_id: reportId });
+      if (!lineId)
+        throw new Error("No fue posible identificar la línea guardada");
+      uploadTargets.push({
+        client_id: line.client_id,
+        line_id: lineId,
+        report_id: reportId,
+      });
     }
     revalidatePettyCash(reportId);
     return {
@@ -192,6 +236,33 @@ export async function savePettyCashDraftAction(
     };
   } catch (error) {
     return { success: false, id: reportId, message: friendlyError(error) };
+  }
+}
+
+export async function pettyCashWeekSummaryAction(
+  businessUnitId: string,
+  weekStart: string,
+) {
+  try {
+    const ctx = await createContext("finance.petty_cash.create");
+    const unitId = z.string().uuid().parse(businessUnitId);
+    const targetWeek = z.string().date().parse(weekStart);
+    if (!ctx.units.some((unit) => unit.id === unitId)) return null;
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc("petty_cash_week_summary", {
+      target_business_unit: unitId,
+      target_week: targetWeek,
+      target_responsible: ctx.user.id,
+    });
+    if (error) throw error;
+    return data as {
+      weekly_limit?: number;
+      committed?: number;
+      available?: number;
+    };
+  } catch (error) {
+    console.error("[petty-cash-week-summary]", error);
+    return null;
   }
 }
 
@@ -206,12 +277,17 @@ export async function preparePettyCashAttachmentAction(input: {
     const ctx = await createContext("finance.petty_cash.create");
     const parsed = attachmentMetadataSchema.safeParse(input);
     if (!parsed.success) {
-      return { success: false, message: "El comprobante no es válido o supera 10 MB." };
+      return {
+        success: false,
+        message: "El comprobante no es válido o supera 10 MB.",
+      };
     }
     const supabase = await createSupabaseServerClient();
     const { data: line, error: lineError } = await supabase
       .from("petty_cash_expense_lines")
-      .select("id,company_id,business_unit_id,petty_cash_report_id,petty_cash_reports!inner(responsible_id,status)")
+      .select(
+        "id,company_id,business_unit_id,petty_cash_report_id,petty_cash_reports!inner(responsible_id,status)",
+      )
       .eq("id", parsed.data.expense_line_id)
       .eq("petty_cash_report_id", parsed.data.report_id)
       .single();
@@ -246,7 +322,10 @@ export async function preparePettyCashAttachmentAction(input: {
     return {
       success: true,
       id: attachment.id,
-      data: { attachment_id: attachment.id, object_path: attachment.object_path },
+      data: {
+        attachment_id: attachment.id,
+        object_path: attachment.object_path,
+      },
       message: "Comprobante preparado.",
     };
   } catch (error) {
@@ -254,20 +333,31 @@ export async function preparePettyCashAttachmentAction(input: {
   }
 }
 
-export async function submitPettyCashReportAction(id: string): Promise<PettyCashActionResult> {
+export async function submitPettyCashReportAction(
+  id: string,
+): Promise<PettyCashActionResult> {
   try {
     await createContext("finance.petty_cash.create");
     const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.rpc("submit_petty_cash_report", { target_report_id: id });
+    const { data, error } = await supabase.rpc("submit_petty_cash_report", {
+      target_report_id: id,
+    });
     if (error) throw error;
     revalidatePettyCash(id);
-    return { success: true, id, data, message: "Rendición enviada a revisión." };
+    return {
+      success: true,
+      id,
+      data,
+      message: "Rendición enviada a revisión.",
+    };
   } catch (error) {
     return { success: false, id, message: friendlyError(error) };
   }
 }
 
-export async function deletePettyCashAttachmentAction(id: string): Promise<PettyCashActionResult> {
+export async function deletePettyCashAttachmentAction(
+  id: string,
+): Promise<PettyCashActionResult> {
   try {
     await createContext("finance.petty_cash.create");
     const supabase = await createSupabaseServerClient();
@@ -284,7 +374,9 @@ export async function deletePettyCashAttachmentAction(id: string): Promise<Petty
         .remove([attachment.object_path]);
       if (storageError) throw storageError;
     }
-    const { error } = await supabase.rpc("delete_petty_cash_attachment", { target_attachment_id: id });
+    const { error } = await supabase.rpc("delete_petty_cash_attachment", {
+      target_attachment_id: id,
+    });
     if (error) throw error;
     revalidatePath("/finance/petty-cash");
     return { success: true, message: "Comprobante eliminado." };
@@ -301,8 +393,14 @@ export async function decidePettyCashReportAction(
 ): Promise<PettyCashActionResult> {
   try {
     await createContext("finance.petty_cash.review");
-    if (["rejected", "correction_requested"].includes(decision) && !comment.trim())
-      return { success: false, message: "Debes ingresar un comentario para esta decisión." };
+    if (
+      ["rejected", "correction_requested"].includes(decision) &&
+      !comment.trim()
+    )
+      return {
+        success: false,
+        message: "Debes ingresar un comentario para esta decisión.",
+      };
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.rpc("decide_petty_cash_report", {
       target_report_id: id,
@@ -312,7 +410,14 @@ export async function decidePettyCashReportAction(
     });
     if (error) throw error;
     revalidatePettyCash(id);
-    return { success: true, data, message: decision === "comment" ? "Comentario registrado." : "Decisión registrada correctamente." };
+    return {
+      success: true,
+      data,
+      message:
+        decision === "comment"
+          ? "Comentario registrado."
+          : "Decisión registrada correctamente.",
+    };
   } catch (error) {
     return { success: false, message: friendlyError(error) };
   }

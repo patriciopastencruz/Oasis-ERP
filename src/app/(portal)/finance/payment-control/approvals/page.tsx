@@ -86,7 +86,7 @@ export default async function Approvals({
       <PageHeader
         title="Bandeja de aprobaciones"
         description="Solicitudes disponibles según workflow, etapa, permisos y contexto."
-        eyebrow="Finanzas · Gestión de Pagos"
+        eyebrow="Finanzas · Solicitud de Pagos"
       />
       <details className="group/notifications mb-5">
         <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-xl border border-[#dce4df] bg-white px-4 py-2.5 text-sm font-semibold text-[#173f2d] shadow-sm transition hover:bg-[#edf5f0] [&::-webkit-details-marker]:hidden">

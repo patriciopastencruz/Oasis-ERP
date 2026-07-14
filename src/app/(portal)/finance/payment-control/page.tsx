@@ -50,7 +50,7 @@ export default async function PaymentControl() {
   return (
     <>
       <PageHeader
-        title="Gestión de Pagos"
+        title="Solicitud de Pagos"
         description="Registra solicitudes, adjunta respaldos y consulta su avance de aprobación."
         eyebrow="Finanzas"
       />

@@ -28,6 +28,11 @@ export const paymentRequestSchema = z
     business_unit_id: z.uuid("Selecciona una unidad de negocio."),
     request_type: z.enum(requestTypes, "Selecciona un tipo de solicitud."),
     supplier_id: z.uuid("Selecciona un proveedor."),
+    use_supplier_bank_account: z
+      .enum(["true", "false"], {
+        message: "Selecciona cómo se realizará el pago.",
+      })
+      .transform((value) => value === "true"),
     amount: z.coerce
       .number("Ingresa un monto válido.")
       .int("El monto debe ser un número entero.")

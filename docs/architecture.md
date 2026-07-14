@@ -1,6 +1,6 @@
 # Arquitectura de OASIS ERP
 
-## Gestión de Pagos
+## Solicitud de Pagos
 
 La capa de aplicación usa Server Actions con el cliente SSR autenticado. RLS conserva la barrera principal. La migración 007 expone operaciones transaccionales para previsualización, borrado lógico de respaldos y envío idempotente; la selección de workflows permanece exclusivamente en PostgreSQL. Storage utiliza buckets privados y URLs firmadas.
 
@@ -8,7 +8,7 @@ Las migraciones posteriores incorporan decisiones, notificaciones encadenadas, p
 
 ## Objetivo
 
-OASIS ERP es una aplicación modular de organización única. Finanzas → Gestión de Pagos es el primer módulo, no el límite del producto. La arquitectura separa capacidades para que nuevos dominios se agreguen sin reescribir autenticación, autorización, auditoría o navegación.
+OASIS ERP es una aplicación modular de organización única. Finanzas → Solicitud de Pagos es el primer módulo, no el límite del producto. La arquitectura separa capacidades para que nuevos dominios se agreguen sin reescribir autenticación, autorización, auditoría o navegación.
 
 ## Contexto organizacional
 
@@ -32,7 +32,7 @@ No contendrá reglas financieras, de inventario, producción, hostales o ventas.
 OASIS ERP
 ├── Dashboard Ejecutivo
 ├── Finanzas
-│   ├── Gestión de Pagos          [alcance actual]
+│   ├── Solicitud de Pagos          [alcance actual]
 │   ├── Caja Chica                [posterior]
 │   ├── Proveedores               [posterior]
 │   └── Tesorería                 [futuro]
@@ -106,7 +106,7 @@ Un usuario conserva un rol principal, pero el rol será solo una agrupación adm
 
 El menú se genera a partir del catálogo modular y los permisos efectivos. Esto mejora la experiencia, pero no reemplaza controles en servidor y RLS. La base de datos determinará usuario, empresa, unidades y permiso sin confiar en el navegador.
 
-## Flujo de Gestión de Pagos
+## Flujo de Solicitud de Pagos
 
 Al enviar una solicitud, el servidor busca una regla activa no superpuesta para su empresa, unidad y monto. La solicitud conserva la regla y nivel aplicados. Una decisión válida completa la aprobación; Gerente general y Superadministrador pueden reemplazar al aprobador requerido dejando auditoría.
 

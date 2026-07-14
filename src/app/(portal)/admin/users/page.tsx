@@ -58,7 +58,7 @@ export default async function Users({
     <>
       <PageHeader
         title="Usuarios"
-        description="Búsqueda, invitación y administración segura de accesos."
+        description="Creación inmediata y administración segura de accesos."
       />
       {q.error && (
         <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
@@ -172,7 +172,11 @@ export default async function Users({
           </div>
         </Panel>
         <Panel>
-          <h2 className="mb-4 font-semibold">Invitar usuario</h2>
+          <h2 className="mb-1 font-semibold">Crear usuario</h2>
+          <p className="mb-4 text-xs text-slate-500">
+            Quedará activo inmediatamente y podrá ingresar con la contraseña
+            inicial.
+          </p>
           <CreateUserForm
             roles={(roles ?? []).map((x) => ({ id: x.id, name: x.name }))}
             companies={(companies ?? []).map((x) => ({

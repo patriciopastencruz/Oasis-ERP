@@ -17,7 +17,7 @@ export default async function Page({
       <PageHeader
         title="Reportes financieros"
         description="Consulta y exportación respetando permisos y unidades de negocio."
-        eyebrow="Finanzas · Gestión de Pagos"
+        eyebrow="Finanzas · Solicitud de Pagos"
       />
       <Panel>
         <form className="grid gap-2 md:grid-cols-4 xl:grid-cols-7">

@@ -1,20 +1,22 @@
 # OASIS ERP
 
-Finanzas → Gestión de Pagos incluye registro y edición de borradores, respaldos privados, envío a workflows configurables, listado filtrable y seguimiento detallado. Consulta `docs/stage-4a-payment-requests.md` y `docs/payment-request-user-guide.md`.
+Finanzas → Solicitud de Pagos incluye registro y edición de borradores, respaldos privados, envío a workflows configurables, listado filtrable y seguimiento detallado. Consulta `docs/stage-4a-payment-requests.md` y `docs/payment-request-user-guide.md`.
 
 La programación y ejecución financiera se documenta en `docs/stage-4c-payment-execution.md` y `docs/finance-payment-user-guide.md`.
 
 El ciclo completo del módulo está documentado en `docs/finance-payment-module.md`, incluyendo guías de aprobaciones, cuentas bancarias y reportes.
 
-Plataforma modular de gestión empresarial. Los alcances funcionales actuales son **Finanzas → Gestión de Pagos** e **Inventario y Materiales → Oasis Modulares**; los demás dominios se mantienen como extensiones futuras.
+Plataforma modular de gestión empresarial. Los alcances funcionales actuales son **Finanzas → Solicitud de Pagos** e **Inventario y Materiales → Oasis Modulares**; los demás dominios se mantienen como extensiones futuras.
 
 La unidad **Oasis Modulares** cuenta además con Inventario y Materiales: maestro, facturas de compra, salidas, aprobaciones, trazabilidad y reportes Excel. Consulta `docs/inventory-materials-module.md`.
+
+La unidad **Hostal Uruguay** incluye el módulo funcional **Gestión de reservas**: calendario semanal, habitaciones, reservas directas y externas, pagos, comprobantes privados, check-in/out e iCal. Consulta `docs/hostal-uruguay-reservas.md`.
 
 La **Etapa 2A.1** está generada para revisión: evoluciona aprobaciones hacia flujos configurables y prepara contratos seguros para dashboards, pero todavía no se aplicó nada a Supabase.
 
 ## Alcance actual
 
-Gestión de Pagos permitirá registrar, aprobar, programar y auditar pagos. Sus decisiones confirmadas son:
+Solicitud de Pagos permitirá registrar, aprobar, programar y auditar pagos. Sus decisiones confirmadas son:
 
 - Un rol principal por usuario y permisos independientes configurables.
 - Un único nivel de aprobación determinado por monto y unidad.
@@ -45,7 +47,7 @@ OASIS ERP
 | Dominio             | Capacidades                                                     |
 | ------------------- | --------------------------------------------------------------- |
 | Dashboard Ejecutivo | Vista consolidada futura                                        |
-| Finanzas            | **Gestión de Pagos**, Caja Chica, Proveedores, Tesorería futura |
+| Finanzas            | **Solicitud de Pagos**, Caja Chica, Proveedores, Tesorería futura |
 | Compras             | Solicitudes, órdenes y recepción                                |
 | Inventario          | Productos, movimientos, bodega y stock                          |
 | Producción          | Modulares, órdenes, avance, materiales y mano de obra           |
@@ -55,7 +57,7 @@ OASIS ERP
 | Administración      | Usuarios, roles, empresas, unidades, catálogos y configuración  |
 | Auditoría           | Historial, logs y seguridad                                     |
 
-Solo Finanzas → Gestión de Pagos pertenece al alcance de desarrollo actual.
+Solo Finanzas → Solicitud de Pagos pertenece al alcance de desarrollo actual.
 
 ## Arquitectura del código
 

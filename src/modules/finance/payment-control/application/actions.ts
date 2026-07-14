@@ -18,6 +18,10 @@ function safeError(error: unknown) {
     return "No existe un workflow configurado para esta solicitud.";
   if (/respaldo/i.test(message))
     return "Debes adjuntar al menos un respaldo válido.";
+  if (/cuenta bancaria.*disponible/i.test(message))
+    return "El proveedor no tiene una cuenta bancaria activa. Puedes corregir su ficha o elegir no usar su cuenta bancaria.";
+  if (/cuenta bancaria.*verificada/i.test(message))
+    return "La cuenta bancaria del proveedor todavía no está disponible para pagos.";
   if (/permission|permis|authorized|RLS|row-level|42501/i.test(message))
     return "No tienes autorización para realizar esta acción.";
   if (/sesión|JWT|refresh/i.test(message))
@@ -113,6 +117,7 @@ export async function savePaymentRequestAction(
       company_id: v.company_id,
       business_unit_id: v.business_unit_id,
       request_type: v.request_type,
+      use_supplier_bank_account: v.use_supplier_bank_account,
       supplier_id: v.supplier_id,
       supplier_rut: supplier.rut,
       supplier_legal_name: supplier.legal_name,
@@ -124,6 +129,19 @@ export async function savePaymentRequestAction(
       requested_payment_date: v.requested_payment_date || null,
       description: v.description,
       notes: v.notes || null,
+      ...(v.use_supplier_bank_account
+        ? {}
+        : {
+            supplier_bank_account_id: null,
+            bank_name: null,
+            account_type: null,
+            account_number: null,
+            bank_account_holder_name: null,
+            bank_account_holder_rut: null,
+            supplier_email: null,
+            bank_verification_status: null,
+            bank_verified_at: null,
+          }),
     };
     let id = v.id;
     if (id) {

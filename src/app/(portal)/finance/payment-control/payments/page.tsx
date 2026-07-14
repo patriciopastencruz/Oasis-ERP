@@ -44,7 +44,7 @@ export default async function Payments({
       <PageHeader
         title="Pagos"
         description="Registro y seguimiento de pagos aprobados."
-        eyebrow="Finanzas · Gestión de Pagos"
+        eyebrow="Finanzas · Solicitud de Pagos"
       />
       <div className="mb-5 flex gap-3">
         <Link
