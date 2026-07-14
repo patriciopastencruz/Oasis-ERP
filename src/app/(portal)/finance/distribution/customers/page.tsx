@@ -113,7 +113,6 @@ export default async function Customers({
                 <th>Clasificación</th>
                 <th>Estado</th>
                 <th>Crédito</th>
-                <th>Estado de pago</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -134,18 +133,6 @@ export default async function Customers({
                     {x.has_credit
                       ? `${Number(x.credit_limit).toLocaleString("es-CL")} / ${x.credit_days} días`
                       : "No"}
-                  </td>
-                  <td>
-                    {ctx.permissions.has(
-                      "finance.distribution.reports.export",
-                    ) && (
-                      <Link
-                        className="font-medium text-[#176b46] underline"
-                        href={`/api/finance/distribution/statement.pdf?customer=${x.id}`}
-                      >
-                        Descargar PDF
-                      </Link>
-                    )}
                   </td>
                   <td>
                     <Link
