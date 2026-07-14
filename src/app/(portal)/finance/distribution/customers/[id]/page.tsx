@@ -8,7 +8,11 @@ import {
 } from "@/components/finance/distribution/module-nav";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
-import { createPriceAction } from "@/modules/finance/distribution/application/actions";
+import {
+  createPriceAction,
+  deleteCustomerAction,
+  updateCustomerAction,
+} from "@/modules/finance/distribution/application/actions";
 import {
   clp,
   distributionContext,
@@ -36,45 +40,61 @@ export default async function CustomerDetail({
     timeZone: "America/Santiago",
   });
 
-  const [customerResult, productsResult, standardResult, customerPricesResult] =
-    await Promise.all([
-      supabase
-        .from("dist_customers")
-        .select("*,dist_customer_classifications(name)")
-        .eq("id", id)
-        .eq("business_unit_id", unit.id)
-        .is("deleted_at", null)
-        .maybeSingle(),
-      supabase
-        .from("dist_products")
-        .select("id,code,name,presentation,display_order")
-        .eq("business_unit_id", unit.id)
-        .eq("active", true)
-        .is("deleted_at", null)
-        .order("display_order"),
-      supabase
-        .from("dist_prices")
-        .select("id,product_id,amount,valid_from,valid_until,active,deleted_at")
-        .eq("business_unit_id", unit.id)
-        .is("customer_id", null)
-        .order("valid_from", { ascending: false }),
-      supabase
-        .from("dist_prices")
-        .select(
-          "id,product_id,amount,valid_from,valid_until,active,deleted_at,change_reason,created_at,dist_products(code,name,presentation)",
-        )
-        .eq("business_unit_id", unit.id)
-        .eq("customer_id", id)
-        .order("valid_from", { ascending: false }),
-    ]);
+  const [
+    customerResult,
+    productsResult,
+    standardResult,
+    customerPricesResult,
+    classificationsResult,
+  ] = await Promise.all([
+    supabase
+      .from("dist_customers")
+      .select("*,dist_customer_classifications(name)")
+      .eq("id", id)
+      .eq("business_unit_id", unit.id)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    supabase
+      .from("dist_products")
+      .select("id,code,name,presentation,display_order")
+      .eq("business_unit_id", unit.id)
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("display_order"),
+    supabase
+      .from("dist_prices")
+      .select("id,product_id,amount,valid_from,valid_until,active,deleted_at")
+      .eq("business_unit_id", unit.id)
+      .is("customer_id", null)
+      .order("valid_from", { ascending: false }),
+    supabase
+      .from("dist_prices")
+      .select(
+        "id,product_id,amount,valid_from,valid_until,active,deleted_at,change_reason,created_at,dist_products(code,name,presentation)",
+      )
+      .eq("business_unit_id", unit.id)
+      .eq("customer_id", id)
+      .order("valid_from", { ascending: false }),
+    supabase
+      .from("dist_customer_classifications")
+      .select("id,name")
+      .eq("business_unit_id", unit.id)
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("display_order"),
+  ]);
 
   const customer = customerResult.data;
   if (!customer) notFound();
   const products = productsResult.data ?? [];
   const standardPrices = standardResult.data ?? [];
   const customerPrices = customerPricesResult.data ?? [];
+  const classifications = classificationsResult.data ?? [];
   const canManagePrices = ctx.permissions.has(
     "finance.distribution.catalogs.manage",
+  );
+  const canEditCustomer = ctx.permissions.has(
+    "finance.distribution.customers.edit",
   );
 
   const currentStandard = new Map<string, any>();
@@ -140,6 +160,113 @@ export default async function CustomerDetail({
               </div>
             </dl>
           </Panel>
+
+          {canEditCustomer && (
+            <Panel>
+              <h2 className="font-semibold">Editar cliente</h2>
+              <p className="mt-1 text-xs leading-5 text-[#718078]">
+                Los cambios comerciales quedan registrados en auditoría.
+              </p>
+              <form action={updateCustomerAction} className="mt-4 space-y-3">
+                <input type="hidden" name="customer_id" value={customer.id} />
+                <label className="block text-sm">
+                  Nombre
+                  <input
+                    className={inputClass}
+                    name="name"
+                    defaultValue={customer.name}
+                    required
+                  />
+                </label>
+                <label className="block text-sm">
+                  Dirección
+                  <input
+                    className={inputClass}
+                    name="address"
+                    defaultValue={customer.address}
+                    required
+                  />
+                </label>
+                <label className="block text-sm">
+                  Teléfono
+                  <input
+                    className={inputClass}
+                    name="phone"
+                    defaultValue={customer.phone}
+                    required
+                  />
+                </label>
+                <label className="block text-sm">
+                  Correo
+                  <input
+                    className={inputClass}
+                    name="email"
+                    type="email"
+                    defaultValue={customer.email ?? ""}
+                  />
+                </label>
+                <label className="block text-sm">
+                  Clasificación
+                  <select
+                    className={inputClass}
+                    name="classification_id"
+                    defaultValue={customer.classification_id}
+                    required
+                  >
+                    {classifications.map((classification) => (
+                      <option key={classification.id} value={classification.id}>
+                        {classification.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm">
+                  Estado
+                  <select
+                    className={inputClass}
+                    name="status"
+                    defaultValue={customer.status}
+                  >
+                    <option value="active">Activo</option>
+                    <option value="inactive">Inactivo</option>
+                    <option value="suspended">Suspendido</option>
+                  </select>
+                </label>
+                <label className="flex gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="has_credit"
+                    defaultChecked={customer.has_credit}
+                  />
+                  Tiene crédito autorizado
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-sm">
+                    Límite
+                    <input
+                      className={inputClass}
+                      name="credit_limit"
+                      type="number"
+                      min="0"
+                      defaultValue={customer.credit_limit}
+                    />
+                  </label>
+                  <label className="text-sm">
+                    Días
+                    <input
+                      className={inputClass}
+                      name="credit_days"
+                      type="number"
+                      min="0"
+                      max="365"
+                      defaultValue={customer.credit_days}
+                    />
+                  </label>
+                </div>
+                <button className={buttonClass}>Guardar cambios</button>
+              </form>
+            </Panel>
+          )}
 
           {canManagePrices ? (
             <Panel>
@@ -216,6 +343,35 @@ export default async function CustomerDetail({
                 Puedes consultar los precios del cliente. La asignación está
                 reservada a roles con permiso para administrar precios.
               </p>
+            </Panel>
+          )}
+
+          {canEditCustomer && (
+            <Panel className="border-red-200">
+              <details>
+                <summary className="cursor-pointer font-semibold text-red-700">
+                  Eliminar cliente
+                </summary>
+                <p className="mt-3 text-sm leading-6 text-[#718078]">
+                  El cliente dejará de estar disponible para nuevos pedidos. Sus
+                  pedidos, pagos y precios históricos se conservarán.
+                </p>
+                <form action={deleteCustomerAction} className="mt-4 space-y-3">
+                  <input type="hidden" name="customer_id" value={customer.id} />
+                  <label className="flex gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      name="confirm_delete"
+                      value="yes"
+                      required
+                    />
+                    Confirmo que deseo eliminar a {customer.name}.
+                  </label>
+                  <button className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800">
+                    Eliminar cliente
+                  </button>
+                </form>
+              </details>
             </Panel>
           )}
         </div>

@@ -16,6 +16,9 @@ export default async function Customers({
 }) {
   const q = await searchParams;
   const { ctx, unit, supabase } = await distributionContext();
+  const canEditCustomers = ctx.permissions.has(
+    "finance.distribution.customers.edit",
+  );
   const [{ data: classes }, { data: customers }] = await Promise.all([
     supabase
       .from("dist_customer_classifications")
@@ -140,11 +143,13 @@ export default async function Customers({
                       className="font-semibold text-[var(--oasis-primary)] underline"
                       href={`/finance/distribution/customers/${x.id}`}
                     >
-                      {ctx.permissions.has(
-                        "finance.distribution.catalogs.manage",
-                      )
-                        ? "Gestionar precios"
-                        : "Ver detalle"}
+                      {canEditCustomers
+                        ? "Editar y gestionar"
+                        : ctx.permissions.has(
+                              "finance.distribution.catalogs.manage",
+                            )
+                          ? "Gestionar precios"
+                          : "Ver detalle"}
                     </Link>
                   </td>
                 </tr>

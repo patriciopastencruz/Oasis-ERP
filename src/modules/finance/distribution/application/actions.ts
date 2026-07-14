@@ -8,6 +8,25 @@ import { distributionContext } from "./queries";
 
 const uuid = z.string().uuid();
 const text = z.string().trim().min(1);
+const customerSchema = z.object({
+  name: text.max(160),
+  address: text.max(300),
+  phone: text.max(50),
+  classification_id: uuid,
+  email: z.string().trim().email().or(z.literal("")),
+  status: z.enum(["active", "inactive", "suspended"]),
+  has_credit: z.enum(["on", "off"]).default("off"),
+  credit_limit: z.coerce.number().min(0),
+  credit_days: z.coerce.number().int().min(0).max(365),
+});
+
+function parseCustomer(form: FormData) {
+  return customerSchema.safeParse({
+    ...Object.fromEntries(form),
+    has_credit: form.get("has_credit") ? "on" : "off",
+  });
+}
+
 function done(path: string, type: "success" | "error", message: string): never {
   redirect(`${path}?${type}=${encodeURIComponent(message)}`);
 }
@@ -24,22 +43,7 @@ export async function createCustomerAction(form: FormData) {
   const { ctx, unit, supabase } = await distributionContext(
     "finance.distribution.customers.manage",
   );
-  const parsed = z
-    .object({
-      name: text.max(160),
-      address: text.max(300),
-      phone: text.max(50),
-      classification_id: uuid,
-      email: z.string().trim().email().or(z.literal("")),
-      status: z.enum(["active", "inactive", "suspended"]),
-      has_credit: z.enum(["on", "off"]).default("off"),
-      credit_limit: z.coerce.number().min(0),
-      credit_days: z.coerce.number().int().min(0).max(365),
-    })
-    .safeParse({
-      ...Object.fromEntries(form),
-      has_credit: form.get("has_credit") ? "on" : "off",
-    });
+  const parsed = parseCustomer(form);
   if (!parsed.success)
     done(
       "/finance/distribution/customers",
@@ -69,6 +73,104 @@ export async function createCustomerAction(form: FormData) {
     "/finance/distribution/customers",
     "success",
     "Cliente creado correctamente.",
+  );
+}
+
+export async function updateCustomerAction(form: FormData) {
+  const { ctx, unit, supabase } = await distributionContext(
+    "finance.distribution.customers.edit",
+  );
+  const id = uuid.safeParse(form.get("customer_id"));
+  const returnPath = id.success
+    ? `/finance/distribution/customers/${id.data}`
+    : "/finance/distribution/customers";
+  if (!id.success) done(returnPath, "error", "Cliente inválido.");
+  const parsed = parseCustomer(form);
+  if (!parsed.success)
+    done(returnPath, "error", parsed.error.issues[0].message);
+
+  const classification = await supabase
+    .from("dist_customer_classifications")
+    .select("id")
+    .eq("id", parsed.data.classification_id)
+    .eq("business_unit_id", unit.id)
+    .eq("active", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (classification.error || !classification.data)
+    done(returnPath, "error", "La clasificación no pertenece a esta unidad.");
+
+  const hasCredit = parsed.data.has_credit === "on";
+  const { data, error } = await supabase
+    .from("dist_customers")
+    .update({
+      name: parsed.data.name,
+      address: parsed.data.address,
+      phone: parsed.data.phone,
+      email: parsed.data.email || null,
+      classification_id: parsed.data.classification_id,
+      status: parsed.data.status,
+      has_credit: hasCredit,
+      credit_limit: hasCredit ? parsed.data.credit_limit : 0,
+      credit_days: hasCredit ? parsed.data.credit_days : 0,
+      credit_status: hasCredit ? "current" : "suspended",
+      updated_by: ctx.user.id,
+    })
+    .eq("id", id.data)
+    .eq("business_unit_id", unit.id)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error) done(returnPath, "error", errorMessage(error));
+  if (!data) done(returnPath, "error", "El cliente no existe o fue eliminado.");
+  revalidatePath("/finance/distribution/customers");
+  revalidatePath(returnPath);
+  done(returnPath, "success", "Cliente actualizado correctamente.");
+}
+
+export async function deleteCustomerAction(form: FormData) {
+  const { ctx, unit, supabase } = await distributionContext(
+    "finance.distribution.customers.edit",
+  );
+  const id = uuid.safeParse(form.get("customer_id"));
+  if (!id.success)
+    done("/finance/distribution/customers", "error", "Cliente inválido.");
+  if (form.get("confirm_delete") !== "yes")
+    done(
+      `/finance/distribution/customers/${id.data}`,
+      "error",
+      "Debes confirmar la eliminación del cliente.",
+    );
+  const { data, error } = await supabase
+    .from("dist_customers")
+    .update({
+      status: "inactive",
+      deleted_at: new Date().toISOString(),
+      updated_by: ctx.user.id,
+    })
+    .eq("id", id.data)
+    .eq("business_unit_id", unit.id)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error)
+    done(
+      `/finance/distribution/customers/${id.data}`,
+      "error",
+      errorMessage(error),
+    );
+  if (!data)
+    done(
+      "/finance/distribution/customers",
+      "error",
+      "El cliente no existe o ya fue eliminado.",
+    );
+  revalidatePath("/finance/distribution/customers");
+  revalidatePath("/finance/distribution/orders/new");
+  done(
+    "/finance/distribution/customers",
+    "success",
+    "Cliente eliminado. Sus pedidos y pagos históricos se conservaron.",
   );
 }
 

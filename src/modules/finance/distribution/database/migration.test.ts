@@ -6,6 +6,7 @@ const sql = [
   "supabase/migrations/20260714141229_driver_route_orders.sql",
   "supabase/migrations/20260714143207_distinguish_driver_role_from_permissions.sql",
   "supabase/migrations/20260714143432_make_current_role_check_invoker.sql",
+  "supabase/migrations/20260714150839_customer_editing_for_administrators.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -29,5 +30,20 @@ describe("pedidos no planificados del chofer", () => {
     expect(sql).toContain("security invoker");
     expect(sql).toContain("set search_path = ''");
     expect(sql).toContain("revoke execute");
+  });
+});
+
+describe("edición segura de clientes", () => {
+  it("reserva edición y eliminación para Administrador y roles superiores", () => {
+    expect(sql).toContain("finance.distribution.customers.edit");
+    expect(sql).toContain(
+      "('administrator', 'operations_manager', 'general_manager', 'superadmin')",
+    );
+    expect(sql).toContain("create policy dist_customers_update");
+  });
+
+  it("conserva los registros comerciales mediante eliminación lógica", () => {
+    expect(sql).toContain("deleted_at");
+    expect(sql).not.toContain("create policy dist_customers_delete");
   });
 });
