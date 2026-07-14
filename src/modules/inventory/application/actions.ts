@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { dispatchApprovalEmails } from "@/lib/notifications/approval-email";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 
 const uuid = z.string().uuid();
@@ -246,12 +247,15 @@ export async function requestMaterialChangeAction(form: FormData) {
         }
       : null;
   const s = await createSupabaseServerClient();
-  const { error } = await s.rpc("request_inventory_material_change", {
-    material,
-    kind,
-    reason,
-    proposed,
-  });
+  const { data: requestId, error } = await s.rpc(
+    "request_inventory_material_change",
+    {
+      material,
+      kind,
+      reason,
+      proposed,
+    },
+  );
   if (error) {
     console.error(error);
     go(
@@ -262,6 +266,7 @@ export async function requestMaterialChangeAction(form: FormData) {
         : "No fue posible crear la solicitud.",
     );
   }
+  if (requestId) await dispatchApprovalEmails();
   revalidatePath("/inventory");
   go(
     `/inventory/materials/${material}`,

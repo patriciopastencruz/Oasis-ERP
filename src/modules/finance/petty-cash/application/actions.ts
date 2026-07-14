@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { dispatchApprovalEmails } from "@/lib/notifications/approval-email";
 import { requireSession } from "@/modules/platform/auth/application/session";
 import {
   attachmentMetadataSchema,
@@ -343,6 +344,7 @@ export async function submitPettyCashReportAction(
       target_report_id: id,
     });
     if (error) throw error;
+    await dispatchApprovalEmails();
     revalidatePettyCash(id);
     return {
       success: true,

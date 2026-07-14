@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
+import { dispatchApprovalEmails } from "@/lib/notifications/approval-email";
 import { validateAttachment } from "./schemas";
 export type DecisionResult = {
   success: boolean;
@@ -79,6 +80,7 @@ export async function decideApprovalAction(
       console.error("[approval-decision]", error.code, error.message);
       return { success: false, message: friendly(error.message) };
     }
+    await dispatchApprovalEmails();
     await s
       .from("notifications")
       .update({ status: "read", read_at: new Date().toISOString() })

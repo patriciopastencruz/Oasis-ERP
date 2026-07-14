@@ -6,6 +6,7 @@ import {
   markOwnNotificationReadAction,
   markAllOwnNotificationsReadAction,
 } from "@/modules/platform/auth/application/actions";
+import { notificationActionPath } from "@/lib/notifications/approval-email-template";
 export default async function Notifications() {
   const ctx = await requireSession();
   const s = await createSupabaseServerClient();
@@ -29,16 +30,11 @@ export default async function Notifications() {
       <Panel>
         <div className="space-y-3">
           {data?.map((n) => {
-            const pettyCash = n.entity_type === "petty_cash_report";
-            const approval =
-              n.event_key === "payment_request.approval_assigned";
-            const href = pettyCash
-              ? n.event_key === "petty_cash.review_assigned"
-                ? `/finance/petty-cash/reviews/${n.entity_id}`
-                : `/finance/petty-cash/reports/${n.entity_id}`
-              : approval
-              ? `/finance/payment-control/approvals/${n.entity_id}`
-              : `/finance/payment-control/requests/${n.entity_id}`;
+            const href = notificationActionPath(
+              n.entity_type ?? "",
+              n.entity_id ?? "",
+              n.event_key,
+            );
             return (
               <div
                 key={n.id}

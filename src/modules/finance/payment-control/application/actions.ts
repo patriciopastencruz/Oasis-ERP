@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireSession } from "@/modules/platform/auth/application/session";
+import { dispatchApprovalEmails } from "@/lib/notifications/approval-email";
 import {
   ActionResult,
   MAX_ATTACHMENT_COUNT,
@@ -253,6 +254,7 @@ export async function submitPaymentRequestAction(
       payment_request_id: requestId,
     });
     if (error) throw error;
+    await dispatchApprovalEmails();
     revalidatePath("/finance/payment-control/my-requests");
     revalidatePath(`/finance/payment-control/requests/${requestId}`);
     return { success: true, data, message: "Solicitud enviada a aprobación." };

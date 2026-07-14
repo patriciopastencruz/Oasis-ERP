@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { dispatchApprovalEmails } from "@/lib/notifications/approval-email";
 import { distributionContext } from "./queries";
 
 const uuid = z.string().uuid();
@@ -223,14 +224,18 @@ export async function requestOrderChangeAction(form: FormData) {
   const { supabase } = await distributionContext(
     "finance.distribution.requests.create",
   );
-  const { error } = await supabase.rpc("dist_request_order_change", {
-    target_order: uuid.parse(form.get("order_id")),
-    request_type: z.enum(["edit", "void"]).parse(form.get("type")),
-    reason_text: text.min(3).parse(form.get("reason")),
-    proposed: {},
-  });
+  const { data: requestId, error } = await supabase.rpc(
+    "dist_request_order_change",
+    {
+      target_order: uuid.parse(form.get("order_id")),
+      request_type: z.enum(["edit", "void"]).parse(form.get("type")),
+      reason_text: text.min(3).parse(form.get("reason")),
+      proposed: {},
+    },
+  );
   if (error)
     done("/finance/distribution/requests", "error", errorMessage(error));
+  if (requestId) await dispatchApprovalEmails();
   done("/finance/distribution/requests", "success", "Solicitud enviada.");
 }
 
