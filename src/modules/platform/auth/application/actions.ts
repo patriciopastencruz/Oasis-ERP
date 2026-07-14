@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSessionContext } from "./session";
 
 export async function loginAction(form: FormData) {
   const email = String(form.get("email") ?? "");
@@ -102,7 +103,14 @@ export async function setContextAction(form: FormData) {
   store.set("oasis_company", companyId, options);
   store.set("oasis_unit", unitId, options);
   revalidatePath("/", "layout");
-  if (unitCode === "DA") redirect("/finance/distribution");
+  if (unitCode === "DA") {
+    const ctx = await getSessionContext();
+    redirect(
+      ctx?.permissions.has("finance.distribution.driver")
+        ? "/finance/distribution/driver"
+        : "/finance/distribution",
+    );
+  }
   if (unitCode === "HU") redirect("/lodging");
   redirect("/dashboard");
 }

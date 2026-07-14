@@ -6,9 +6,17 @@ export default async function Home() {
   redirect(
     ctx.permissions.has("reports.executive_dashboard.view")
       ? "/dashboard"
-      : ctx.permissions.has("finance.payment_requests.create") ||
-          ctx.permissions.has("finance.payment_requests.view_own")
-        ? "/finance/payment-control"
-        : "/no-access",
+      : ctx.permissions.has("finance.distribution.driver")
+        ? "/finance/distribution/driver"
+        : ctx.permissions.has("finance.distribution.view")
+          ? "/finance/distribution"
+          : ctx.permissions.has("finance.payment_requests.create") ||
+              ctx.permissions.has("finance.payment_requests.view_own")
+            ? "/finance/payment-control"
+            : ctx.permissions.has("inventory.materials.view")
+              ? "/inventory"
+              : ctx.permissions.has("lodging.reservations.view")
+                ? "/lodging"
+                : "/no-access",
   );
 }

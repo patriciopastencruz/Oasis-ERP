@@ -190,6 +190,93 @@ export async function createOrderAction(form: FormData) {
   );
 }
 
+export async function createRouteOrderAction(form: FormData) {
+  const { unit, supabase } = await distributionContext(
+    "finance.distribution.driver",
+  );
+  let lines: unknown;
+  try {
+    lines = JSON.parse(String(form.get("lines") ?? "[]"));
+  } catch {
+    done("/finance/distribution/driver", "error", "Productos inválidos.");
+  }
+  const parsed = z
+    .object({
+      delivery_date: z.string().date(),
+      customer_type: z.enum(["regular", "express"]),
+      customer_id: uuid.or(z.literal("")),
+      occasional_customer_name: z.string().trim().max(160),
+      delivery_address: text.max(300),
+      customer_phone: z.string().trim().max(50),
+      payment_method: z.enum(["cash", "transfer", "credit", "mixed"]),
+      payment_condition: z.enum(["cash", "credit"]),
+      request_regular_customer: z.enum(["on", "off"]).default("off"),
+      notes: z.string().trim().max(1000),
+      lines: z
+        .array(z.object({ product_id: uuid, quantity: z.number().positive() }))
+        .min(1),
+    })
+    .superRefine((value, issue) => {
+      if (value.customer_type === "regular" && !value.customer_id)
+        issue.addIssue({
+          code: "custom",
+          path: ["customer_id"],
+          message: "Selecciona un cliente habitual.",
+        });
+      if (value.customer_type === "express" && !value.occasional_customer_name)
+        issue.addIssue({
+          code: "custom",
+          path: ["occasional_customer_name"],
+          message: "Ingresa el nombre del cliente express.",
+        });
+      if (
+        value.customer_type === "express" &&
+        (value.payment_method === "credit" ||
+          value.payment_condition === "credit")
+      )
+        issue.addIssue({
+          code: "custom",
+          path: ["payment_method"],
+          message: "Los clientes express deben pagar al contado.",
+        });
+    })
+    .safeParse({
+      ...Object.fromEntries(form),
+      request_regular_customer: form.get("request_regular_customer")
+        ? "on"
+        : "off",
+      lines,
+    });
+  const returnPath = `/finance/distribution/driver?date=${encodeURIComponent(String(form.get("delivery_date") ?? ""))}`;
+  if (!parsed.success)
+    done(returnPath, "error", parsed.error.issues[0].message);
+  const regular = parsed.data.customer_type === "regular";
+  const { data, error } = await supabase.rpc("dist_create_order", {
+    payload: {
+      business_unit_id: unit.id,
+      delivery_date: parsed.data.delivery_date,
+      estimated_time: "",
+      customer_id: regular ? parsed.data.customer_id : "",
+      occasional_customer_name: regular
+        ? ""
+        : parsed.data.occasional_customer_name,
+      delivery_address: parsed.data.delivery_address,
+      customer_phone: parsed.data.customer_phone,
+      route_sale: true,
+      request_regular_customer:
+        !regular && parsed.data.request_regular_customer === "on",
+      payment_method: parsed.data.payment_method,
+      payment_condition: parsed.data.payment_condition,
+      priority: "normal",
+      notes: parsed.data.notes,
+      lines: parsed.data.lines,
+    },
+  });
+  if (error) done(returnPath, "error", errorMessage(error));
+  revalidatePath("/finance/distribution/driver");
+  done(returnPath, "success", `Pedido ${data} agregado a tu ruta.`);
+}
+
 export async function assignOrderAction(form: FormData) {
   const { supabase } = await distributionContext(
     "finance.distribution.routes.manage",

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { uiLabel } from "@/lib/ui-labels";
 import {
   CalendarDays,
@@ -34,6 +35,8 @@ export default async function DistributionOrders({
     query.date ??
     new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
   const data = await dailyDistributionData(date);
+  if (data.ctx.permissions.has("finance.distribution.driver"))
+    redirect(`/finance/distribution/driver?date=${date}`);
   const previous = new Date(`${date}T12:00:00`);
   previous.setDate(previous.getDate() - 1);
   const next = new Date(`${date}T12:00:00`);
@@ -165,6 +168,11 @@ export default async function DistributionOrders({
                   </td>
                   <td className="px-3 py-3 font-mono text-xs">
                     {o.order_number}
+                    {o.route_sale && (
+                      <span className="mt-1 block w-fit rounded-full bg-violet-100 px-2 py-0.5 font-sans text-[10px] font-semibold text-violet-800">
+                        Venta en ruta
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-3">
                     {o.estimated_time?.slice(0, 5) ?? "—"}
@@ -188,7 +196,7 @@ export default async function DistributionOrders({
                   </td>
                   <td className="px-3 py-3">
                     <span className="rounded-full bg-amber-50 px-2 py-1 text-xs">
-                      {o.payment_status}
+                      {uiLabel(o.payment_status)}
                     </span>
                   </td>
                   <td className="px-3 py-3">

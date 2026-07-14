@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { MapPin, Phone, Truck, CheckCircle2, PackageX } from "lucide-react";
+import {
+  MapPin,
+  Phone,
+  Truck,
+  CheckCircle2,
+  PackageX,
+  Plus,
+} from "lucide-react";
 import { Flash } from "@/components/finance/distribution/module-nav";
+import { RouteOrderForm } from "@/components/finance/distribution/route-order-form";
 import { PageHeader } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
 import { changeOrderStatusAction } from "@/modules/finance/distribution/application/actions";
@@ -29,16 +37,55 @@ export default async function Driver({
     .order("route_position");
   if (ctx.permissions.has("finance.distribution.driver"))
     query = query.eq("driver_id", ctx.user.id);
-  const { data } = await query;
+  const [orders, customers, products] = await Promise.all([
+    query,
+    supabase
+      .from("dist_customers")
+      .select("id,code,name,address,phone,has_credit")
+      .eq("business_unit_id", unit.id)
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .order("name"),
+    supabase
+      .from("dist_products")
+      .select("id,code,name,presentation")
+      .eq("business_unit_id", unit.id)
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("display_order"),
+  ]);
+  const data = orders.data;
   return (
     <>
       <PageHeader
         eyebrow="Distribuidora Altiplánica"
         title="Mi ruta"
-        description="Vista móvil de entregas en el orden planificado."
+        description="Entregas planificadas y ventas no planificadas realizadas durante la ruta."
       />
       <Flash success={q.success} error={q.error} />
       <div className="mx-auto max-w-2xl space-y-4">
+        {ctx.permissions.has("finance.distribution.driver") && (
+          <details className="group overflow-hidden rounded-2xl border border-[#bcd2c5] bg-white shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 font-semibold text-[#176b46] [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center gap-2">
+                <span className="grid size-9 place-items-center rounded-full bg-[#176b46] text-white">
+                  <Plus size={20} />
+                </span>
+                Registrar venta en ruta
+              </span>
+              <span className="text-xs font-normal text-[#66776d] group-open:hidden">
+                Habitual o express
+              </span>
+            </summary>
+            <div className="border-t border-[#e0e8e3] p-4">
+              <RouteOrderForm
+                customers={(customers.data ?? []) as any}
+                products={(products.data ?? []) as any}
+                date={date}
+              />
+            </div>
+          </details>
+        )}
         {data?.map((o: any) => (
           <article
             key={o.id}
@@ -56,12 +103,18 @@ export default async function Driver({
               <h2 className="text-xl font-bold">
                 {o.dist_customers?.name ?? o.occasional_customer_name}
               </h2>
+              {o.route_sale && (
+                <span className="mt-2 inline-flex rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-800">
+                  Venta en ruta
+                </span>
+              )}
               <p className="mt-1 text-sm">{o.delivery_address}</p>
               <div className="my-4 flex gap-2">
                 <a
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold"
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.delivery_address)}`}
                   target="_blank"
+                  rel="noreferrer"
                 >
                   <MapPin size={18} />
                   Abrir mapa

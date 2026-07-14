@@ -3,12 +3,14 @@ import { Flash } from "@/components/finance/distribution/module-nav";
 import { OrderForm } from "@/components/finance/distribution/order-form";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { dailyDistributionData } from "@/modules/finance/distribution/application/queries";
+import { requirePermission } from "@/modules/platform/auth/application/session";
 export default async function NewOrder({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const q = await searchParams;
+  await requirePermission("finance.distribution.orders.create");
   const date =
     q.date ??
     new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });

@@ -98,13 +98,14 @@ const distributionNav = [
     href: "/finance/distribution",
     label: "Pedidos",
     icon: ShoppingCart,
-    permission: "finance.distribution.view",
+    permission: "finance.distribution.orders.create",
   },
   {
     href: "/finance/distribution/driver",
     label: "Ruta y entregas",
     icon: Route,
-    permission: "finance.distribution.view",
+    permission: "finance.distribution.driver",
+    legacyPermission: "finance.distribution.routes.manage",
   },
   {
     href: "/finance/distribution/customers",
@@ -299,14 +300,17 @@ export async function AppShell({
   const isOasisModulares = unit?.code === "OM";
   const isHostalUruguay = unit?.code === "HU";
   const isAltiplanica = unit?.code === "DA";
+  const isDriver = ctx.permissions.has("finance.distribution.driver");
   const unitBrand = getBusinessUnitBrand(unit?.code);
   const homeHref = ctx.permissions.has("reports.executive_dashboard.view")
     ? "/dashboard"
-    : isAltiplanica && ctx.permissions.has("finance.distribution.view")
-      ? "/finance/distribution"
-      : ctx.permissions.has("inventory.materials.view")
-        ? "/inventory"
-        : "/finance/payment-control";
+    : isAltiplanica && isDriver
+      ? "/finance/distribution/driver"
+      : isAltiplanica && ctx.permissions.has("finance.distribution.view")
+        ? "/finance/distribution"
+        : ctx.permissions.has("inventory.materials.view")
+          ? "/inventory"
+          : "/finance/payment-control";
   const visibleFinanceNav = financeNav.filter((item) =>
     canView(item, ctx.permissions),
   );
