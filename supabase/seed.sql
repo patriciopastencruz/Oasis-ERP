@@ -73,13 +73,15 @@ begin
    'finance.distribution.view','finance.distribution.customers.manage','finance.distribution.catalogs.manage',
    'finance.distribution.orders.create','finance.distribution.orders.manage','finance.distribution.routes.manage',
    'finance.distribution.requests.review','finance.distribution.payments.manage','finance.distribution.closures.manage',
-   'finance.distribution.reports.view','finance.distribution.reports.export','finance.distribution.audit.view')
+   'finance.distribution.reports.view','finance.distribution.reports.export','finance.distribution.audit.view',
+   'finance.distribution.stock.view','finance.distribution.stock.manage')
   where r.key='administrator' on conflict do nothing;
   insert into public.role_permissions(role_id,permission_id)
   select r.id,p.id from public.roles r join public.permissions p on p.key in (
    'finance.distribution.view','finance.distribution.customers.manage','finance.distribution.orders.create',
    'finance.distribution.routes.manage','finance.distribution.requests.create','finance.distribution.payments.manage',
-   'finance.distribution.reports.view') where r.key='administrative' on conflict do nothing;
+   'finance.distribution.reports.view','finance.distribution.stock.view','finance.distribution.stock.manage')
+  where r.key='administrative' on conflict do nothing;
   insert into public.role_permissions(role_id,permission_id)
   select r.id,p.id from public.roles r join public.permissions p on p.key in
    ('finance.distribution.view','finance.distribution.driver') where r.key='driver' on conflict do nothing;

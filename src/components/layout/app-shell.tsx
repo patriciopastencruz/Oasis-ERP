@@ -29,6 +29,7 @@ import {
   ShoppingCart,
   UserRound,
   Route,
+  PackageOpen,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -119,6 +120,12 @@ const distributionNav = [
     label: "Productos y precios",
     icon: Boxes,
     permission: "finance.distribution.catalogs.manage",
+  },
+  {
+    href: "/finance/distribution/stock",
+    label: "Stock materia prima",
+    icon: PackageOpen,
+    permission: "finance.distribution.stock.view",
   },
   {
     href: "/finance/distribution/account-statements",

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const inputClass =
-  "mt-1.5 w-full rounded-xl border border-[#d8e1dc] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#277a55]";
+  "mt-1.5 w-full rounded-xl border border-[#d8e1dc] bg-white px-3 py-2.5 text-sm outline-none focus:border-[var(--oasis-primary)]";
 export function Notice({
   success,
   error,

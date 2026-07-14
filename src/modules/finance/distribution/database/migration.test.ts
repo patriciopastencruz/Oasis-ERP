@@ -8,6 +8,7 @@ const sql = [
   "supabase/migrations/20260714143432_make_current_role_check_invoker.sql",
   "supabase/migrations/20260714150839_customer_editing_for_administrators.sql",
   "supabase/migrations/20260714181836_enhance_distribution_collection_and_daily_close.sql",
+  "supabase/migrations/20260714192547_distribution_raw_material_stock.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -73,5 +74,34 @@ describe("cierre diario trazable", () => {
     expect(sql).toContain(
       "comment on column public.dist_daily_closures.observations",
     );
+  });
+});
+
+describe("stock de materia prima de la distribuidora", () => {
+  it("crea el catálogo inicial completo", () => {
+    expect(sql).toContain("ensure_distribution_stock_catalog");
+    expect(sql).toContain("DA-MP-ICE-1KG");
+    expect(sql).toContain("DA-MP-ICE-2KG");
+    expect(sql).toContain("DA-MP-FRAPPE-1KG");
+    expect(sql).toContain("DA-MP-FRAPPE-2KG");
+    expect(sql).toContain("DA-MP-WATER-20L");
+    expect(sql).toContain("DA-MP-WATER-6L");
+    expect(sql).toContain("DA-MP-WATER-16L");
+    expect(sql).toContain("DA-MP-WATER-600CC");
+  });
+
+  it("protege compras, salidas y fotografías por unidad y permiso", () => {
+    expect(sql).toContain("finance.distribution.stock.view");
+    expect(sql).toContain("finance.distribution.stock.manage");
+    expect(sql).toContain("dist_stock_materials_read");
+    expect(sql).toContain("dist_stock_invoices_insert");
+    expect(sql).toContain("public.can_access_unit");
+    expect(sql).toContain("bucket_id='inventory-invoices'");
+  });
+
+  it("mantiene un libro mayor y evita stock negativo", () => {
+    expect(sql).toContain("public.inventory_movements");
+    expect(sql).toContain("No existe stock suficiente");
+    expect(sql).toContain("for update");
   });
 });

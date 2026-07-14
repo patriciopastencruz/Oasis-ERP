@@ -59,7 +59,7 @@ export function InvoiceLines({ materials }: { materials: Material[] }) {
         <button
           type="button"
           onClick={() => setLines((current) => [...current, newLine()])}
-          className="inline-flex items-center gap-2 rounded-xl border border-[#277a55] px-3 py-2 text-sm font-semibold text-[#277a55]"
+          className="inline-flex items-center gap-2 rounded-xl border border-[var(--oasis-primary)] px-3 py-2 text-sm font-semibold text-[var(--oasis-primary)]"
         >
           <Plus size={16} /> Agregar producto
         </button>
@@ -151,7 +151,7 @@ export function InvoiceLines({ materials }: { materials: Material[] }) {
         ))}
       </div>
       <div className="mt-4 flex justify-end">
-        <div className="min-w-72 rounded-2xl bg-[#173f2d] p-4 text-white">
+        <div className="min-w-72 rounded-2xl bg-[var(--oasis-primary-dark)] p-4 text-white">
           <span className="text-sm text-white/70">
             Monto total de la factura
           </span>
