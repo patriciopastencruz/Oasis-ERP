@@ -58,7 +58,14 @@ begin
     ('finance.suppliers.view','finance','Consultar proveedores'),
     ('finance.suppliers.manage','finance','Administrar proveedores'),
     ('finance.petty_cash.view','finance','Consultar caja chica'),
-    ('finance.petty_cash.manage','finance','Administrar caja chica')
+    ('finance.petty_cash.manage','finance','Administrar caja chica'),
+    ('finance.petty_cash.create','finance','Crear y corregir rendiciones propias de Caja Chica'),
+    ('finance.petty_cash.view_own','finance','Consultar rendiciones propias de Caja Chica'),
+    ('finance.petty_cash.view_unit','finance','Consultar rendiciones de Caja Chica de unidades asignadas'),
+    ('finance.petty_cash.review','finance','Revisar y observar rendiciones de Caja Chica'),
+    ('finance.petty_cash.approve','finance','Aprobar o rechazar rendiciones de Caja Chica'),
+    ('finance.petty_cash.reports.view','finance','Consultar reportes consolidados de Caja Chica'),
+    ('finance.petty_cash.reports.export','finance','Exportar reportes de Caja Chica')
   on conflict (key) do update set description = excluded.description, active = true;
 
   -- Superadministrador: todos los permisos.
@@ -78,16 +85,16 @@ begin
   -- Finanzas.
   insert into public.role_permissions(role_id, permission_id)
   select r.id, p.id from public.roles r join public.permissions p on p.key in
-    ('finance.payment_requests.view_unit','finance.approvals.decide','finance.payments.view','finance.payments.manage','finance.payments.schedule','finance.payments.execute','finance.suppliers.view','finance.suppliers.manage','finance.petty_cash.view','reports.executive_dashboard.view')
+    ('finance.payment_requests.view_unit','finance.approvals.decide','finance.payments.view','finance.payments.manage','finance.payments.schedule','finance.payments.execute','finance.suppliers.view','finance.suppliers.manage','finance.petty_cash.view','finance.petty_cash.view_unit','finance.petty_cash.manage','finance.petty_cash.reports.view','finance.petty_cash.reports.export','reports.executive_dashboard.view')
   where r.key = 'finance_manager' on conflict do nothing;
   -- Administrador.
   insert into public.role_permissions(role_id, permission_id)
   select r.id, p.id from public.roles r join public.permissions p on p.key in
-    ('finance.payment_requests.create','finance.payment_requests.view_unit','finance.approvals.decide','finance.suppliers.view','finance.suppliers.manage','finance.petty_cash.view','finance.petty_cash.manage')
+    ('finance.payment_requests.create','finance.payment_requests.view_unit','finance.approvals.decide','finance.suppliers.view','finance.suppliers.manage','finance.petty_cash.view','finance.petty_cash.manage','finance.petty_cash.create','finance.petty_cash.view_own','finance.petty_cash.view_unit','finance.petty_cash.review','finance.petty_cash.approve')
   where r.key = 'administrator' on conflict do nothing;
   -- Trabajador.
   insert into public.role_permissions(role_id, permission_id)
-  select r.id, p.id from public.roles r join public.permissions p on p.key in ('finance.payment_requests.create','finance.suppliers.view')
+  select r.id, p.id from public.roles r join public.permissions p on p.key in ('finance.payment_requests.create','finance.suppliers.view','finance.petty_cash.create','finance.petty_cash.view_own')
   where r.key = 'worker' on conflict do nothing;
 
   select id into admin_role from public.roles where key = 'administrator';

@@ -11,7 +11,7 @@ export default async function Notifications() {
   const s = await createSupabaseServerClient();
   const { data } = await s
     .from("notifications")
-    .select("id,title,body,status,entity_id,event_key,created_at")
+    .select("id,title,body,status,entity_type,entity_id,event_key,created_at")
     .eq("recipient_id", ctx.user.id)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -29,9 +29,14 @@ export default async function Notifications() {
       <Panel>
         <div className="space-y-3">
           {data?.map((n) => {
+            const pettyCash = n.entity_type === "petty_cash_report";
             const approval =
               n.event_key === "payment_request.approval_assigned";
-            const href = approval
+            const href = pettyCash
+              ? n.event_key === "petty_cash.review_assigned"
+                ? `/finance/petty-cash/reviews/${n.entity_id}`
+                : `/finance/petty-cash/reports/${n.entity_id}`
+              : approval
               ? `/finance/payment-control/approvals/${n.entity_id}`
               : `/finance/payment-control/requests/${n.entity_id}`;
             return (

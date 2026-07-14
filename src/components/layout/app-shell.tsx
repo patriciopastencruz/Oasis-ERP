@@ -18,6 +18,7 @@ import {
   History,
   BarChart3,
   Building2,
+  ReceiptText,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -43,6 +44,13 @@ const transversalNav = [
 ];
 
 const financeNav = [
+  {
+    href: "/finance/petty-cash",
+    label: "Caja Chica",
+    icon: ReceiptText,
+    permission: "finance.petty_cash.create",
+    legacyPermission: "finance.petty_cash.view",
+  },
   {
     href: "/finance/payment-control",
     label: "Gestión de Pagos",
