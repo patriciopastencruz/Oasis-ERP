@@ -21,7 +21,7 @@ export default async function Reports({
     new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
   const d = await dailyDistributionData(date);
   const rows = [
-    ["Venta planificada", clp.format(d.summary.planned_sales ?? 0)],
+    ["Venta del día", clp.format(d.summary.planned_sales ?? 0)],
     ["Venta entregada", clp.format(d.summary.delivered_sales ?? 0)],
     ["Total cobrado", clp.format(d.summary.collected ?? 0)],
     ["Efectivo planificado", clp.format(d.summary.cash ?? 0)],

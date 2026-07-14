@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     ["Entregados", "delivered"],
     ["Pendientes", "pending"],
     ["No entregados", "not_delivered"],
-    ["Venta planificada", "planned_sales"],
+    ["Venta del día", "planned_sales"],
     ["Venta entregada", "delivered_sales"],
     ["Total cobrado", "collected"],
     ["Kilos de hielo", "ice_kg"],

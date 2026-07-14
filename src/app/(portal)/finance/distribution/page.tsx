@@ -58,7 +58,7 @@ export default async function DistributionOrders({
     ],
     ["Sin chofer", data.summary.unassigned ?? 0, Truck, "text-violet-600"],
     [
-      "Venta planificada",
+      "Venta del día",
       clp.format(data.summary.planned_sales ?? 0),
       WalletCards,
       "text-[var(--oasis-primary)]",

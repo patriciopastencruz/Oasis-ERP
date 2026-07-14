@@ -39,7 +39,7 @@ export default async function Dashboard() {
           ["Pedidos de hoy", data.operations.orders_total ?? 0],
           ["Entregados", data.operations.delivered ?? 0],
           ["Pendientes", data.operations.pending ?? 0],
-          ["Venta planificada", clp.format(data.operations.planned_sales ?? 0)],
+          ["Venta del día", clp.format(data.operations.planned_sales ?? 0)],
         ]
       : data.unit.code === "OM"
         ? [
