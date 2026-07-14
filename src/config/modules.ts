@@ -25,6 +25,21 @@ export const erpModules: readonly ErpModuleDefinition[] = [
     features: ["Solicitud de Pagos", "Caja Chica", "Proveedores", "Tesorería"],
   },
   {
+    key: "distribution",
+    label: "Distribuidora Altiplánica",
+    status: "active",
+    features: [
+      "Pedidos",
+      "Rutas y entregas",
+      "Clientes",
+      "Productos y precios",
+      "Estado de pago",
+      "Cobranzas",
+      "Cierre diario",
+      "Reportabilidad",
+    ],
+  },
+  {
     key: "purchasing",
     label: "Compras",
     status: "planned",

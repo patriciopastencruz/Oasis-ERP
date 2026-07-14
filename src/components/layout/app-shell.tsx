@@ -25,10 +25,14 @@ import {
   RefreshCw,
   SlidersHorizontal,
   ReceiptText,
+  ShoppingCart,
+  UserRound,
+  Route,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
 import { BusinessUnitSelector } from "@/components/layout/business-unit-selector";
+import { getBusinessUnitBrand } from "@/config/business-units";
 type Ctx = Awaited<
   ReturnType<
     typeof import("@/modules/platform/auth/application/session").requireSession
@@ -88,6 +92,58 @@ const financeNav = [
     permission: "finance.reports.view",
   },
 ];
+
+const distributionNav = [
+  {
+    href: "/finance/distribution",
+    label: "Pedidos",
+    icon: ShoppingCart,
+    permission: "finance.distribution.view",
+  },
+  {
+    href: "/finance/distribution/driver",
+    label: "Ruta y entregas",
+    icon: Route,
+    permission: "finance.distribution.view",
+  },
+  {
+    href: "/finance/distribution/customers",
+    label: "Clientes",
+    icon: UserRound,
+    permission: "finance.distribution.customers.manage",
+  },
+  {
+    href: "/finance/distribution/catalogs",
+    label: "Productos y precios",
+    icon: Boxes,
+    permission: "finance.distribution.catalogs.manage",
+  },
+  {
+    href: "/finance/distribution/account-statements",
+    label: "Estado de pago",
+    icon: ReceiptText,
+    permission: "finance.distribution.reports.view",
+  },
+  {
+    href: "/finance/distribution/payments",
+    label: "Cobranzas",
+    icon: WalletCards,
+    permission: "finance.distribution.payments.manage",
+  },
+  {
+    href: "/finance/distribution/reports",
+    label: "Cierre y reportabilidad",
+    icon: BarChart3,
+    permission: "finance.distribution.reports.view",
+  },
+  {
+    href: "/finance/distribution/requests",
+    label: "Solicitudes",
+    icon: ClipboardCheck,
+    permission: "finance.distribution.requests.review",
+    legacyPermission: "finance.distribution.requests.create",
+  },
+] as const;
 
 const administrationNav = [
   {
@@ -242,14 +298,21 @@ export async function AppShell({
     [...companyUnits].sort((a, b) => a.name.localeCompare(b.name, "es"))[0];
   const isOasisModulares = unit?.code === "OM";
   const isHostalUruguay = unit?.code === "HU";
+  const isAltiplanica = unit?.code === "DA";
+  const unitBrand = getBusinessUnitBrand(unit?.code);
   const homeHref = ctx.permissions.has("reports.executive_dashboard.view")
     ? "/dashboard"
-    : ctx.permissions.has("inventory.materials.view")
-      ? "/inventory"
-      : "/finance/payment-control";
+    : isAltiplanica && ctx.permissions.has("finance.distribution.view")
+      ? "/finance/distribution"
+      : ctx.permissions.has("inventory.materials.view")
+        ? "/inventory"
+        : "/finance/payment-control";
   const visibleFinanceNav = financeNav.filter((item) =>
     canView(item, ctx.permissions),
   );
+  const visibleDistributionNav = isAltiplanica
+    ? distributionNav.filter((item) => canView(item, ctx.permissions))
+    : [];
   const visibleTransversalNav = transversalNav.filter((item) =>
     canView(item, ctx.permissions),
   );
@@ -265,22 +328,24 @@ export async function AppShell({
   );
   return (
     <div className="min-h-screen bg-[#f2f5f3] text-[#17251e] lg:grid lg:grid-cols-[260px_1fr]">
-      <aside className="border-r bg-[#123525] p-5 text-white">
+      <aside className="flex min-h-screen flex-col border-r bg-[#123525] p-5 text-white">
         <Link href={homeHref} className="mx-auto block w-fit">
           <span className="grid size-36 place-items-center">
             <Image
-              src="/oasis-logo-crane.png"
-              alt="Logo de OASIS ERP"
+              src={unitBrand.logo}
+              alt={`Logo de ${unit?.name ?? "OASIS ERP"}`}
               width={144}
               height={144}
               priority
-              className="size-36 scale-[1.55] object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,.18)]"
+              className="size-32 rounded-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,.18)]"
             />
           </span>
           <span className="mt-1 block text-center">
-            <b className="block tracking-[.18em]">OASIS ERP</b>
-            <span className="mt-1 block text-xs text-white/60">
-              Gestión empresarial
+            <b className="block text-sm tracking-[.08em]">
+              {unit?.name ?? "OASIS ERP"}
+            </b>
+            <span className="mt-1 block text-[11px] font-semibold uppercase tracking-[.16em] text-white/60">
+              ERP OASIS
             </span>
           </span>
         </Link>
@@ -292,7 +357,7 @@ export async function AppShell({
             units={companyUnits}
           />
         )}
-        <nav className="mt-4 space-y-1">
+        <nav className="mt-4 flex-1 space-y-1">
           {showFinance && (
             <details className="group/finance">
               <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
@@ -317,6 +382,16 @@ export async function AppShell({
               </div>
             </details>
           )}
+          {visibleDistributionNav.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 hover:text-white"
+            >
+              <Icon size={17} />
+              {label}
+            </Link>
+          ))}
           {isOasisModulares && visibleInventoryNav.length > 0 && (
             <details className="group/inventory">
               <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
@@ -342,7 +417,7 @@ export async function AppShell({
             </details>
           )}
           {isHostalUruguay && visibleLodgingNav.length > 0 && (
-            <details className="group/lodging" open>
+            <details className="group/lodging">
               <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
                 <BedDouble size={17} />
                 <span className="flex-1">Gestión de reservas</span>
@@ -410,6 +485,12 @@ export async function AppShell({
             </div>
           )}
         </nav>
+        <footer className="mt-6 border-t border-white/10 pt-4 text-center">
+          <p className="text-[10px] uppercase tracking-[.15em] text-white/45">
+            Gestión empresarial
+          </p>
+          <p className="mt-1 text-[10px] text-white/30">OASIS ERP</p>
+        </footer>
       </aside>
       <div>
         <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-white px-5 py-3">

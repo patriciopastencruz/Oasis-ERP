@@ -28,6 +28,31 @@ begin
     (company_uuid, 'DA', 'Distribuidora Altiplánica')
   on conflict (company_id, code) do update set name = excluded.name;
 
+  -- Catálogos productivos de Distribuidora Altiplánica. Se repiten aquí de
+  -- forma idempotente porque el reset local crea la unidad después de aplicar
+  -- migraciones. No se insertan clientes ni operaciones ficticias.
+  insert into public.dist_customer_classifications(company_id,business_unit_id,code,name,display_order)
+  select bu.company_id,bu.id,lower(regexp_replace(x.name,'[^a-zA-Z0-9]+','_','g')),x.name,x.ord
+  from public.business_units bu cross join unnest(array['Minimarket','Supermercado','Restaurante','Botillería','Bar','Pub','Discoteca','Hotel','Hostal','Cafetería','Empresa','Institución','Distribuidor','Particular','Otro']) with ordinality x(name,ord)
+  where bu.company_id=company_uuid and bu.code='DA'
+  on conflict(business_unit_id,code) do update set name=excluded.name,active=true,deleted_at=null;
+  insert into public.dist_product_categories(company_id,business_unit_id,code,name,display_order)
+  select bu.company_id,bu.id,x.code,x.name,x.ord from public.business_units bu
+  cross join (values('ICE','Hielo',1),('WATER','Agua',2)) x(code,name,ord)
+  where bu.company_id=company_uuid and bu.code='DA'
+  on conflict(business_unit_id,code) do update set name=excluded.name,active=true,deleted_at=null;
+  insert into public.dist_products(company_id,business_unit_id,category_id,code,name,presentation,unit,ice_weight_kg,display_order)
+  select bu.company_id,bu.id,c.id,x.code,x.name,x.presentation,'unit',x.weight,x.ord
+  from public.business_units bu join public.dist_product_categories c on c.business_unit_id=bu.id
+  cross join (values
+   ('ICE-1KG','Hielo cubo 1 kg','Bolsa 1 kg','ICE',1::numeric,1),('ICE-2KG','Hielo cubo 2 kg','Bolsa 2 kg','ICE',2,2),
+   ('FRAPPE-1KG','Hielo frappé 1 kg','Bolsa 1 kg','ICE',1,3),('FRAPPE-2KG','Hielo frappé 2 kg','Bolsa 2 kg','ICE',2,4),
+   ('WATER-20L','Agua 20 litros','Bidón 20 L','WATER',0,5),('WATER-6L','Agua 6 litros','Botella 6 L','WATER',0,6),
+   ('WATER-16L','Agua 1,6 litros','Botella 1,6 L','WATER',0,7),('WATER-500','Agua 500 cc','Botella 500 cc','WATER',0,8)
+  ) x(code,name,presentation,category,weight,ord)
+  where bu.company_id=company_uuid and bu.code='DA' and c.code=x.category
+  on conflict(business_unit_id,code) do update set name=excluded.name,presentation=excluded.presentation,ice_weight_kg=excluded.ice_weight_kg,active=true,deleted_at=null;
+
   insert into public.roles(key, name, is_system) values
     ('superadmin', 'Superadministrador', true),
     ('general_manager', 'Gerente general', true),
@@ -36,6 +61,28 @@ begin
     ('administrator', 'Administrador', true),
     ('worker', 'Trabajador', true)
   on conflict (key) do update set name = excluded.name;
+
+  -- Roles del módulo distribuidora pueden haber sido creados por la migración
+  -- antes de este seed; asignar sus permisos después de crear roles base.
+  insert into public.role_permissions(role_id,permission_id)
+  select r.id,p.id from public.roles r cross join public.permissions p
+  where r.key in ('superadmin','general_manager','operations_manager') and p.key like 'finance.distribution.%'
+  on conflict do nothing;
+  insert into public.role_permissions(role_id,permission_id)
+  select r.id,p.id from public.roles r join public.permissions p on p.key in (
+   'finance.distribution.view','finance.distribution.customers.manage','finance.distribution.catalogs.manage',
+   'finance.distribution.orders.create','finance.distribution.orders.manage','finance.distribution.routes.manage',
+   'finance.distribution.requests.review','finance.distribution.payments.manage','finance.distribution.closures.manage',
+   'finance.distribution.reports.view','finance.distribution.reports.export','finance.distribution.audit.view')
+  where r.key='administrator' on conflict do nothing;
+  insert into public.role_permissions(role_id,permission_id)
+  select r.id,p.id from public.roles r join public.permissions p on p.key in (
+   'finance.distribution.view','finance.distribution.customers.manage','finance.distribution.orders.create',
+   'finance.distribution.routes.manage','finance.distribution.requests.create','finance.distribution.payments.manage',
+   'finance.distribution.reports.view') where r.key='administrative' on conflict do nothing;
+  insert into public.role_permissions(role_id,permission_id)
+  select r.id,p.id from public.roles r join public.permissions p on p.key in
+   ('finance.distribution.view','finance.distribution.driver') where r.key='driver' on conflict do nothing;
 
   insert into public.permissions(key, module, description) values
     ('administration.companies.manage','administration','Administrar empresas'),

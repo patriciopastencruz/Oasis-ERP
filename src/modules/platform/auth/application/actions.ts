@@ -66,6 +66,7 @@ export async function setContextAction(form: FormData) {
   if (!user) redirect("/login");
   const companyId = String(form.get("company_id") ?? "");
   const unitId = String(form.get("unit_id") ?? "");
+  let unitCode: string | null = null;
   const { data: company } = await supabase
     .from("user_companies")
     .select("company_id")
@@ -82,6 +83,13 @@ export async function setContextAction(form: FormData) {
       .eq("business_unit_id", unitId)
       .maybeSingle();
     if (!unit) redirect("/no-access");
+    const { data: businessUnit } = await supabase
+      .from("business_units")
+      .select("code")
+      .eq("id", unitId)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    unitCode = businessUnit?.code ?? null;
   }
   const store = await cookies();
   const options = {
@@ -94,6 +102,9 @@ export async function setContextAction(form: FormData) {
   store.set("oasis_company", companyId, options);
   store.set("oasis_unit", unitId, options);
   revalidatePath("/", "layout");
+  if (unitCode === "DA") redirect("/finance/distribution");
+  if (unitCode === "HU") redirect("/lodging");
+  redirect("/dashboard");
 }
 export async function markOwnNotificationReadAction(form: FormData) {
   const supabase = await createSupabaseServerClient();
