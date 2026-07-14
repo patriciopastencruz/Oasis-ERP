@@ -13,7 +13,7 @@ import {
   buttonClass,
   inputClass,
 } from "@/components/finance/distribution/module-nav";
-import { PageHeader, Panel } from "@/components/ui/page";
+import { Panel } from "@/components/ui/page";
 import { closeDayAction } from "@/modules/finance/distribution/application/actions";
 import {
   clp,
@@ -61,34 +61,45 @@ export default async function Reports({
 
   return (
     <>
-      <PageHeader
-        eyebrow="Distribuidora Altiplánica"
-        title="Cierre diario y reportes"
-        description="Control operativo, productos, ventas, cobros y gastos de la jornada; excluye pedidos anulados."
-      />
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[.18em] text-[var(--oasis-accent)]">
+            Distribuidora Altiplánica
+          </p>
+          <h1 className="mt-1.5 text-3xl font-semibold tracking-tight">
+            Cierre diario y reportes
+          </h1>
+          <p className="mt-1.5 max-w-3xl text-sm leading-5 text-[#69786f]">
+            Control operativo, productos, ventas, cobros y gastos de la jornada;
+            excluye pedidos anulados.
+          </p>
+        </div>
+        <div className="w-full rounded-2xl border border-[#dce4df] bg-white p-2.5 shadow-[0_8px_24px_rgba(20,57,39,.04)] lg:w-auto">
+          <form className="flex flex-wrap items-end gap-2">
+            <label className="min-w-44 flex-1 text-[10px] font-semibold uppercase tracking-wide text-[#607168] lg:flex-none">
+              Fecha
+              <input
+                className={`${inputClass} mt-1 rounded-lg py-2 text-sm`}
+                type="date"
+                name="date"
+                defaultValue={date}
+              />
+            </label>
+            <button className={`${buttonClass} rounded-lg px-4 py-2 text-sm`}>
+              Consultar
+            </button>
+            <Link
+              href={`/api/finance/distribution/reports.xlsx?date=${date}`}
+              className="rounded-lg border px-4 py-2 text-sm font-semibold"
+            >
+              Exportar a Excel
+            </Link>
+          </form>
+        </div>
+      </header>
       <Flash success={q.success} error={q.error} />
-      <Panel className="mb-4 p-4">
-        <form className="flex flex-wrap items-end gap-2">
-          <label className="text-sm">
-            Fecha
-            <input
-              className={inputClass}
-              type="date"
-              name="date"
-              defaultValue={date}
-            />
-          </label>
-          <button className={buttonClass}>Consultar</button>
-          <Link
-            href={`/api/finance/distribution/reports.xlsx?date=${date}`}
-            className="rounded-xl border px-4 py-2.5 text-sm font-semibold"
-          >
-            Exportar cierre a Excel
-          </Link>
-        </form>
-      </Panel>
 
-      <section className="mb-5">
+      <section className="mb-4">
         <div className="mb-2 flex items-end justify-between gap-3">
           <div>
             <h2 className="font-semibold">Control de entregas</h2>
@@ -97,14 +108,14 @@ export default async function Reports({
             </p>
           </div>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {operational.map(([label, value, Icon]) => (
             <Panel key={label} className="flex items-center gap-2 p-3">
               <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[color-mix(in_srgb,var(--oasis-primary)_10%,white)] text-[var(--oasis-primary)]">
                 <Icon size={16} />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-[10px] font-semibold uppercase text-[#718078]">
+                <p className="text-[10px] font-semibold uppercase leading-3 text-[#718078]">
                   {label}
                 </p>
                 <p className="text-lg font-bold leading-5">{value}</p>
