@@ -1,8 +1,18 @@
 "use client";
-import { useMemo, useState } from "react";
-import { createOrderAction } from "@/modules/finance/distribution/application/actions";
+import { useEffect, useMemo, useState } from "react";
+import {
+  createOrderAction,
+  resolveOrderPricesAction,
+  type OrderPricePreview,
+} from "@/modules/finance/distribution/application/actions";
 import { CustomerCombobox } from "./customer-combobox";
 import { buttonClass, inputClass } from "./module-nav";
+
+const clp = new Intl.NumberFormat("es-CL", {
+  style: "currency",
+  currency: "CLP",
+  maximumFractionDigits: 0,
+});
 
 type Customer = {
   id: string;
@@ -26,7 +36,26 @@ export function OrderForm({
 }) {
   const [customerId, setCustomerId] = useState("");
   const customer = customers.find((x) => x.id === customerId);
+  const [deliveryDate, setDeliveryDate] = useState(initialDate);
   const [lines, setLines] = useState([{ product_id: "", quantity: 1 }]);
+  const [prices, setPrices] = useState<Record<string, OrderPricePreview>>({});
+  const [pricesKey, setPricesKey] = useState<string | null>(null);
+  const loadingPrices = pricesKey !== `${customerId}|${deliveryDate}`;
+  useEffect(() => {
+    let cancelled = false;
+    resolveOrderPricesAction(customerId, deliveryDate).then((result) => {
+      if (cancelled) return;
+      setPrices(result);
+      setPricesKey(`${customerId}|${deliveryDate}`);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId, deliveryDate]);
+  const total = lines.reduce((sum, line) => {
+    const price = prices[line.product_id];
+    return price ? sum + price.amount * Number(line.quantity || 0) : sum;
+  }, 0);
   const payload = useMemo(
     () =>
       JSON.stringify(
@@ -46,7 +75,8 @@ export function OrderForm({
             className={inputClass}
             type="date"
             name="delivery_date"
-            defaultValue={initialDate}
+            value={deliveryDate}
+            onChange={(e) => setDeliveryDate(e.target.value)}
             required
           />
         </label>
@@ -125,57 +155,81 @@ export function OrderForm({
       </div>
       <fieldset className="space-y-3">
         <legend className="text-sm font-semibold">Productos</legend>
-        {lines.map((line, index) => (
-          <div key={index} className="grid grid-cols-[1fr_110px_auto] gap-2">
-            <select
-              aria-label={`Producto ${index + 1}`}
-              className={inputClass}
-              value={line.product_id}
-              onChange={(e) =>
-                setLines((all) =>
-                  all.map((x, i) =>
-                    i === index ? { ...x, product_id: e.target.value } : x,
-                  ),
-                )
-              }
-              required
-            >
-              <option value="">Seleccionar producto</option>
-              {products.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.code} · {x.name}
-                </option>
-              ))}
-            </select>
-            <input
-              aria-label={`Cantidad ${index + 1}`}
-              className={inputClass}
-              type="number"
-              min="0.001"
-              step="0.001"
-              value={line.quantity}
-              onChange={(e) =>
-                setLines((all) =>
-                  all.map((x, i) =>
-                    i === index
-                      ? { ...x, quantity: Number(e.target.value) }
-                      : x,
-                  ),
-                )
-              }
-            />
-            <button
-              type="button"
-              className="rounded-xl border px-3"
-              onClick={() =>
-                setLines((all) => all.filter((_, i) => i !== index))
-              }
-              disabled={lines.length === 1}
-            >
-              Quitar
-            </button>
-          </div>
-        ))}
+        {lines.map((line, index) => {
+          const price = prices[line.product_id];
+          const lineTotal = price ? price.amount * Number(line.quantity || 0) : 0;
+          return (
+            <div key={index} className="space-y-1">
+              <div className="grid grid-cols-[1fr_110px_auto] gap-2">
+                <select
+                  aria-label={`Producto ${index + 1}`}
+                  className={inputClass}
+                  value={line.product_id}
+                  onChange={(e) =>
+                    setLines((all) =>
+                      all.map((x, i) =>
+                        i === index ? { ...x, product_id: e.target.value } : x,
+                      ),
+                    )
+                  }
+                  required
+                >
+                  <option value="">Seleccionar producto</option>
+                  {products.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.code} · {x.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  aria-label={`Cantidad ${index + 1}`}
+                  className={inputClass}
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={line.quantity}
+                  onChange={(e) =>
+                    setLines((all) =>
+                      all.map((x, i) =>
+                        i === index
+                          ? { ...x, quantity: Number(e.target.value) }
+                          : x,
+                      ),
+                    )
+                  }
+                />
+                <button
+                  type="button"
+                  className="rounded-xl border px-3"
+                  onClick={() =>
+                    setLines((all) => all.filter((_, i) => i !== index))
+                  }
+                  disabled={lines.length === 1}
+                >
+                  Quitar
+                </button>
+              </div>
+              {line.product_id && (
+                <p className="text-xs text-[#66776d]">
+                  {loadingPrices && !price ? (
+                    "Calculando precio…"
+                  ) : price ? (
+                    <>
+                      {clp.format(price.amount)} c/u
+                      {price.origin === "customer" && " · precio cliente"}
+                      {" · subtotal "}
+                      <b>{clp.format(lineTotal)}</b>
+                    </>
+                  ) : (
+                    <span className="text-amber-700">
+                      Sin precio vigente para este producto.
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </fieldset>
       <button
         type="button"
@@ -184,6 +238,12 @@ export function OrderForm({
       >
         + Agregar producto
       </button>
+      {lines.some((l) => l.product_id) && (
+        <div className="rounded-xl bg-[var(--oasis-soft)] p-4 text-right">
+          <span className="text-sm text-[#66776d]">Total estimado </span>
+          <span className="text-lg font-bold">{clp.format(total)}</span>
+        </div>
+      )}
       <label className="block text-sm font-medium">
         Observaciones
         <textarea className={inputClass} name="notes" rows={3} />

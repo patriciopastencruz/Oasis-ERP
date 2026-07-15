@@ -249,6 +249,46 @@ export async function createPriceAction(form: FormData) {
   );
 }
 
+export type OrderPricePreview = { amount: number; origin: "standard" | "customer" };
+
+export async function resolveOrderPricesAction(
+  customerId: string,
+  deliveryDate: string,
+): Promise<Record<string, OrderPricePreview>> {
+  const { unit, supabase } = await distributionContext();
+  const date = z.string().date().safeParse(deliveryDate);
+  if (!date.success) return {};
+  const customer = uuid.safeParse(customerId);
+  const products = await supabase
+    .from("dist_products")
+    .select("id")
+    .eq("business_unit_id", unit.id)
+    .eq("active", true)
+    .is("deleted_at", null);
+  if (!products.data?.length) return {};
+  const resolved = await Promise.all(
+    products.data.map(async (p) => {
+      const { data } = await supabase.rpc("dist_resolve_price", {
+        target_product: p.id,
+        target_customer: customer.success ? customer.data : null,
+        target_date: date.data,
+      });
+      const priced = data?.[0] as
+        | { price_id: string | null; amount: number; origin: string }
+        | undefined;
+      return [p.id, priced] as const;
+    }),
+  );
+  return Object.fromEntries(
+    resolved
+      .filter(([, priced]) => priced?.price_id)
+      .map(([id, priced]) => [
+        id,
+        { amount: Number(priced!.amount), origin: priced!.origin as "standard" | "customer" },
+      ]),
+  );
+}
+
 export async function createOrderAction(form: FormData) {
   const { unit, supabase } = await distributionContext(
     "finance.distribution.orders.create",

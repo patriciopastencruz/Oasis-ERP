@@ -12,7 +12,9 @@ El módulo reemplaza la planilla operativa de hielo y agua y vive dentro de OASI
 - Persistencia: migración `20260714041525_altiplanica_distribution_module.sql` con RLS y funciones transaccionales.
 - Exportaciones: Excel de cierre y PDF de estado de pago en rutas autenticadas bajo `src/app/api/finance/distribution`.
 
-La base recalcula precios y totales. El navegador nunca decide el total, el cupo de crédito, las transiciones ni el saldo de un cobro.
+La base recalcula precios y totales; lo que se envía al confirmar el pedido siempre se revalida server-side. El navegador nunca decide el total definitivo, el cupo de crédito, las transiciones ni el saldo de un cobro.
+
+Al crear un pedido (`order-form.tsx`, `route-order-form.tsx`), el formulario muestra una previsualización de precio y total por línea llamando a `resolveOrderPricesAction`, que invoca `dist_resolve_price` por cada producto del catálogo para el cliente y fecha seleccionados — es una vista previa, no el cálculo autoritativo; `dist_create_order` vuelve a resolver los precios al confirmar.
 
 ## Modelo de datos
 

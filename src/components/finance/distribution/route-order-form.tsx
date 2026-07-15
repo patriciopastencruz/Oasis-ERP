@@ -1,9 +1,19 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { createRouteOrderAction } from "@/modules/finance/distribution/application/actions";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  createRouteOrderAction,
+  resolveOrderPricesAction,
+  type OrderPricePreview,
+} from "@/modules/finance/distribution/application/actions";
 import { CustomerCombobox } from "./customer-combobox";
 import { buttonClass, inputClass } from "./module-nav";
+
+const clp = new Intl.NumberFormat("es-CL", {
+  style: "currency",
+  currency: "CLP",
+  maximumFractionDigits: 0,
+});
 
 type Customer = {
   id: string;
@@ -31,6 +41,24 @@ export function RouteOrderForm({
   const customer = customers.find((item) => item.id === customerId);
   const nextLineId = useRef(2);
   const [lines, setLines] = useState([{ id: 1, product_id: "", quantity: 1 }]);
+  const [prices, setPrices] = useState<Record<string, OrderPricePreview>>({});
+  const [pricesKey, setPricesKey] = useState<string | null>(null);
+  const loadingPrices = pricesKey !== customerId;
+  useEffect(() => {
+    let cancelled = false;
+    resolveOrderPricesAction(customerId, date).then((result) => {
+      if (cancelled) return;
+      setPrices(result);
+      setPricesKey(customerId);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId, date]);
+  const total = lines.reduce((sum, line) => {
+    const price = prices[line.product_id];
+    return price ? sum + price.amount * Number(line.quantity || 0) : sum;
+  }, 0);
   const payload = useMemo(
     () =>
       JSON.stringify(
@@ -149,63 +177,87 @@ export function RouteOrderForm({
 
       <fieldset className="space-y-2">
         <legend className="text-sm font-semibold">Productos</legend>
-        {lines.map((line, index) => (
-          <div key={line.id} className="grid grid-cols-[1fr_82px_auto] gap-2">
-            <select
-              aria-label={`Producto ${index + 1}`}
-              className={inputClass}
-              value={line.product_id}
-              onChange={(event) =>
-                setLines((current) =>
-                  current.map((item, position) =>
-                    position === index
-                      ? { ...item, product_id: event.target.value }
-                      : item,
-                  ),
-                )
-              }
-              required
-            >
-              <option value="">Producto</option>
-              {products.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.code} · {item.name}
-                </option>
-              ))}
-            </select>
-            <input
-              aria-label={`Cantidad ${index + 1}`}
-              className={inputClass}
-              type="number"
-              min="0.001"
-              step="0.001"
-              value={line.quantity}
-              onChange={(event) =>
-                setLines((current) =>
-                  current.map((item, position) =>
-                    position === index
-                      ? { ...item, quantity: Number(event.target.value) }
-                      : item,
-                  ),
-                )
-              }
-              required
-            />
-            <button
-              type="button"
-              aria-label={`Quitar producto ${index + 1}`}
-              className="rounded-xl border px-3"
-              onClick={() =>
-                setLines((current) =>
-                  current.filter((item) => item.id !== line.id),
-                )
-              }
-              disabled={lines.length === 1}
-            >
-              ×
-            </button>
-          </div>
-        ))}
+        {lines.map((line, index) => {
+          const price = prices[line.product_id];
+          const lineTotal = price ? price.amount * Number(line.quantity || 0) : 0;
+          return (
+            <div key={line.id} className="space-y-1">
+              <div className="grid grid-cols-[1fr_82px_auto] gap-2">
+                <select
+                  aria-label={`Producto ${index + 1}`}
+                  className={inputClass}
+                  value={line.product_id}
+                  onChange={(event) =>
+                    setLines((current) =>
+                      current.map((item, position) =>
+                        position === index
+                          ? { ...item, product_id: event.target.value }
+                          : item,
+                      ),
+                    )
+                  }
+                  required
+                >
+                  <option value="">Producto</option>
+                  {products.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.code} · {item.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  aria-label={`Cantidad ${index + 1}`}
+                  className={inputClass}
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={line.quantity}
+                  onChange={(event) =>
+                    setLines((current) =>
+                      current.map((item, position) =>
+                        position === index
+                          ? { ...item, quantity: Number(event.target.value) }
+                          : item,
+                      ),
+                    )
+                  }
+                  required
+                />
+                <button
+                  type="button"
+                  aria-label={`Quitar producto ${index + 1}`}
+                  className="rounded-xl border px-3"
+                  onClick={() =>
+                    setLines((current) =>
+                      current.filter((item) => item.id !== line.id),
+                    )
+                  }
+                  disabled={lines.length === 1}
+                >
+                  ×
+                </button>
+              </div>
+              {line.product_id && (
+                <p className="text-xs text-[#66776d]">
+                  {loadingPrices && !price ? (
+                    "Calculando precio…"
+                  ) : price ? (
+                    <>
+                      {clp.format(price.amount)} c/u
+                      {price.origin === "customer" && " · precio cliente"}
+                      {" · subtotal "}
+                      <b>{clp.format(lineTotal)}</b>
+                    </>
+                  ) : (
+                    <span className="text-amber-700">
+                      Sin precio vigente para este producto.
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+          );
+        })}
         <button
           type="button"
           className="text-sm font-semibold text-[var(--oasis-primary)]"
@@ -220,6 +272,12 @@ export function RouteOrderForm({
           + Agregar producto
         </button>
       </fieldset>
+      {lines.some((l) => l.product_id) && (
+        <div className="rounded-xl bg-[var(--oasis-soft)] p-4 text-right">
+          <span className="text-sm text-[#66776d]">Total estimado </span>
+          <span className="text-lg font-bold">{clp.format(total)}</span>
+        </div>
+      )}
 
       {isExpress && (
         <label className="flex items-start gap-2 rounded-xl bg-[var(--oasis-soft)] p-3 text-sm">
