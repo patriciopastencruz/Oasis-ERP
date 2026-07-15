@@ -139,3 +139,45 @@ function refresh(id: string) {
   revalidatePath(`/finance/payment-control/payments/${id}`);
   revalidatePath(`/finance/payment-control/requests/${id}`);
 }
+
+const cancelSchema = z.object({
+  request_id: z.string().uuid(),
+  reason: z.string().trim().min(3).max(500),
+});
+function cancelFriendly(m: string) {
+  if (/no autorizado/i.test(m))
+    return "No tienes permiso para anular esta solicitud.";
+  if (/motivo/i.test(m)) return "El motivo de anulación es obligatorio.";
+  if (/aprobadas o programadas/i.test(m))
+    return "Solo se pueden anular solicitudes aprobadas o programadas.";
+  return "No fue posible anular la solicitud. Actualiza e intenta nuevamente.";
+}
+export async function cancelPaymentRequestAction(
+  _p: PaymentResult,
+  form: FormData,
+): Promise<PaymentResult> {
+  try {
+    await requirePermission("finance.payments.manage");
+    const v = cancelSchema.safeParse(Object.fromEntries(form));
+    if (!v.success)
+      return {
+        success: false,
+        message: "Indica el motivo de la anulación (mínimo 3 caracteres).",
+        fieldErrors: v.error.flatten().fieldErrors,
+      };
+    const s = await createSupabaseServerClient();
+    const { error } = await s.rpc("cancel_payment_request", {
+      target_id: v.data.request_id,
+      reason: v.data.reason,
+    });
+    if (error) {
+      console.error("[cancel-payment-request]", error.code, error.message);
+      return { success: false, message: cancelFriendly(error.message) };
+    }
+    refresh(v.data.request_id);
+    return { success: true, message: "Solicitud anulada." };
+  } catch (e) {
+    console.error("[cancel-payment-request]", e);
+    return { success: false, message: "No fue posible anular la solicitud." };
+  }
+}

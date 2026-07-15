@@ -2,6 +2,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  cancelPaymentRequestAction,
   executePaymentAction,
   type PaymentResult,
 } from "@/modules/finance/payment-control/application/payment-actions";
@@ -117,6 +118,66 @@ export function ExecuteForm({
       >
         {pending ? "Registrando…" : "Confirmar pago ejecutado"}
       </button>
+    </form>
+  );
+}
+export function CancelRequestForm({ requestId }: { requestId: string }) {
+  const router = useRouter(),
+    [open, setOpen] = useState(false),
+    [state, action, pending] = useActionState(cancelPaymentRequestAction, {
+      success: false,
+    } as PaymentResult);
+  useEffect(() => {
+    if (state.success) router.refresh();
+  }, [state.success, router]);
+  if (!open)
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-sm font-semibold text-red-700"
+      >
+        Anular solicitud
+      </button>
+    );
+  return (
+    <form
+      action={action}
+      className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4"
+    >
+      <input type="hidden" name="request_id" value={requestId} />
+      <h2 className="font-semibold text-red-900">Anular solicitud</h2>
+      {state.message && <Message state={state} />}
+      <label className="block text-sm">
+        Motivo de la anulación
+        <textarea
+          name="reason"
+          required
+          minLength={3}
+          rows={2}
+          placeholder="Explica por qué esta solicitud aprobada no se pagará."
+          className="mt-1 w-full rounded-xl border p-3"
+        />
+      </label>
+      <div className="flex gap-2">
+        <button
+          disabled={pending}
+          onClick={(e) => {
+            if (!confirm("¿Confirmas anular esta solicitud? No podrá pagarse después."))
+              e.preventDefault();
+          }}
+          className="rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {pending ? "Anulando…" : "Confirmar anulación"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="rounded-xl border px-4 py-2 text-sm"
+        >
+          Cancelar
+        </button>
+      </div>
     </form>
   );
 }

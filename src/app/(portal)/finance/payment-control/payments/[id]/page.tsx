@@ -3,7 +3,10 @@ import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
 import { StatusBadge } from "@/components/finance/status-badge";
-import { ExecuteForm } from "@/components/finance/payment-operation-forms";
+import {
+  CancelRequestForm,
+  ExecuteForm,
+} from "@/components/finance/payment-operation-forms";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 const money = new Intl.NumberFormat("es-CL", {
@@ -212,6 +215,12 @@ export default async function Detail({
                   amount={Number(r.amount)}
                   useSupplierBankAccount={r.use_supplier_bank_account}
                 />
+              </Panel>
+            )}
+          {["approved", "scheduled"].includes(r.status) &&
+            ctx.permissions.has("finance.payments.manage") && (
+              <Panel>
+                <CancelRequestForm requestId={id} />
               </Panel>
             )}
           <Panel>
