@@ -122,6 +122,42 @@ export async function dailyDistributionData(
   };
 }
 
+export async function distributionOrderDetail(orderId: string) {
+  const { ctx, unit, supabase } = await distributionContext();
+  const [order, products, requests] = await Promise.all([
+    supabase
+      .from("dist_orders")
+      .select(
+        "*,dist_customers(id,code,name,address,phone,has_credit,credit_limit,credit_days),dist_order_lines(id,product_id,planned_quantity,delivered_quantity,unit_price,line_total,dist_products(code,name,presentation))",
+      )
+      .eq("id", orderId)
+      .eq("business_unit_id", unit.id)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    supabase
+      .from("dist_products")
+      .select("id,code,name,presentation")
+      .eq("business_unit_id", unit.id)
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("display_order"),
+    supabase
+      .from("dist_change_requests")
+      .select("id,type,status,reason,resolution_comment,created_at")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false }),
+  ]);
+  const error = order.error ?? products.error ?? requests.error;
+  if (error) throw new Error(`No se pudo consultar el pedido: ${error.message}`);
+  return {
+    ctx,
+    unit,
+    order: order.data,
+    products: products.data ?? [],
+    requests: requests.data ?? [],
+  };
+}
+
 export const clp = new Intl.NumberFormat("es-CL", {
   style: "currency",
   currency: "CLP",

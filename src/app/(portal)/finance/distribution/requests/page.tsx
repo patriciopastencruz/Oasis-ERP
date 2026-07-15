@@ -14,11 +14,21 @@ export default async function Requests({
 }) {
   const q = await searchParams;
   const { ctx, unit, supabase } = await distributionContext();
-  const { data } = await supabase
-    .from("dist_change_requests")
-    .select("*,dist_orders(order_number)")
-    .eq("business_unit_id", unit.id)
-    .order("created_at", { ascending: false });
+  const [{ data }, { data: products }] = await Promise.all([
+    supabase
+      .from("dist_change_requests")
+      .select("*,dist_orders(order_number)")
+      .eq("business_unit_id", unit.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("dist_products")
+      .select("id,code,name")
+      .eq("business_unit_id", unit.id),
+  ]);
+  const productName = (id: string) => {
+    const product = products?.find((p) => p.id === id);
+    return product ? `${product.code} · ${product.name}` : id;
+  };
   return (
     <>
       <PageHeader
@@ -39,6 +49,32 @@ export default async function Requests({
                   Pedido {x.dist_orders?.order_number}
                 </h2>
                 <p className="mt-2 text-sm">{x.reason}</p>
+                {x.type === "edit" && x.proposed_data?.lines && (
+                  <div className="mt-2 rounded-lg bg-[var(--oasis-soft)] p-3 text-xs">
+                    <p className="font-semibold">Cambios propuestos</p>
+                    <p>
+                      Entrega: {x.proposed_data.delivery_date}{" "}
+                      {x.proposed_data.estimated_time}
+                    </p>
+                    <p>Dirección: {x.proposed_data.delivery_address}</p>
+                    {x.proposed_data.notes && (
+                      <p>Notas: {x.proposed_data.notes}</p>
+                    )}
+                    <p className="mt-1 font-semibold">Productos:</p>
+                    <ul>
+                      {x.proposed_data.lines.map(
+                        (
+                          l: { product_id: string; quantity: number },
+                          i: number,
+                        ) => (
+                          <li key={i}>
+                            {productName(l.product_id)} × {l.quantity}
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
+                )}
                 <p className="mt-2 text-xs text-[#718078]">
                   {new Date(x.created_at).toLocaleString("es-CL")}
                 </p>

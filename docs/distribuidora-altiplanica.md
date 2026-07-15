@@ -37,6 +37,8 @@ Pago: `pending`, `partial`, `paid`, `credit`, `overdue`, `voided`. Se calcula in
 
 El Administrativo crea una solicitud `edit` o `void` con snapshot previo. El Administrador aprueba o rechaza una sola vez; solo la aprobación aplica la mutación y deja snapshot final.
 
+Un pedido admite edición (fecha, hora, dirección, notas, descuento, productos y cantidades) mientras no esté `delivered`, `partially_delivered`, `cancelled` ni `voided`. El Administrador (o rol con `finance.distribution.orders.manage`) edita directamente desde `/finance/distribution/orders/[id]`; el Administrativo solo puede solicitarlo desde la misma pantalla, con motivo obligatorio. `dist_update_order` recalcula precios, descuento y total en el servidor y reemplaza las líneas del pedido; la aprobación de una solicitud de edición usa la misma función. Anular un pedido ya editado no revierte cambios previos.
+
 ## Crédito, entrega y cierre
 
 El precio se resuelve por vigencia: primero precio del cliente y luego estándar. La línea guarda precio, origen y registro aplicado. Antes de un crédito se valida autorización, vigencia, bloqueo y cupo. Los clientes ocasionales solo se admiten en ventas de ruta y nunca a crédito.
@@ -56,6 +58,7 @@ pnpm exec supabase db reset --local --yes
 docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_altiplanica_distribution.sql
 docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_distribution_stock.sql
 docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_distribution_order_consumption.sql
+docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_distribution_order_editing.sql
 pnpm test
 pnpm lint
 pnpm typecheck

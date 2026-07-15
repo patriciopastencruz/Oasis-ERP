@@ -11,6 +11,7 @@ const sql = [
   "supabase/migrations/20260714192547_distribution_raw_material_stock.sql",
   "supabase/migrations/20260715024852_fix_distribution_water_600cc_product.sql",
   "supabase/migrations/20260715030500_distribution_order_raw_material_consumption.sql",
+  "supabase/migrations/20260715032629_distribution_order_editing.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -141,5 +142,30 @@ describe("descuento automático de materia prima por entrega", () => {
 
   it("permite que el chofer complete el consumo automático al entregar", () => {
     expect(sql).toContain("materials_consumed_at','updated_by','updated_at'");
+  });
+});
+
+describe("edición de pedidos antes de la entrega", () => {
+  it("recalcula precios, descuento y total al editar productos y cantidades", () => {
+    expect(sql).toContain(
+      "function public.dist_update_order(target_order uuid,payload jsonb)",
+    );
+    expect(sql).toContain("dist_resolve_price");
+    expect(sql).toContain("delete from public.dist_order_lines");
+  });
+
+  it("bloquea la edición de pedidos entregados, cancelados o anulados", () => {
+    expect(sql).toContain(
+      "if o.status in('delivered','partially_delivered','cancelled','voided') then raise exception 'El pedido ya no admite ediciones'",
+    );
+  });
+
+  it("exige que el Administrativo solicite la edición con productos válidos", () => {
+    expect(sql).toContain("if request_type='edit' then");
+    expect(sql).toContain("'La edicion requiere productos'");
+  });
+
+  it("aplica la edición solo cuando el Administrador aprueba la solicitud", () => {
+    expect(sql).toContain("perform public.dist_update_order(o.id,r.proposed_data)");
   });
 });
