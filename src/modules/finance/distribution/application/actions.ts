@@ -425,6 +425,22 @@ export async function updateOrderAction(form: FormData) {
   done(returnPath, "success", "Pedido actualizado correctamente.");
 }
 
+export async function voidOrderAction(form: FormData) {
+  const { supabase } = await distributionContext(
+    "finance.distribution.orders.manage",
+  );
+  const id = uuid.parse(form.get("order_id"));
+  const returnPath = `/finance/distribution/orders/${id}`;
+  const { error } = await supabase.rpc("dist_void_order", {
+    target_order: id,
+    reason_text: text.min(3).parse(form.get("reason")),
+  });
+  if (error) done(returnPath, "error", errorMessage(error));
+  revalidatePath("/finance/distribution");
+  revalidatePath(returnPath);
+  done(returnPath, "success", "Pedido anulado.");
+}
+
 export async function assignOrderAction(form: FormData) {
   const { supabase } = await distributionContext(
     "finance.distribution.routes.manage",
@@ -465,10 +481,7 @@ export async function requestOrderChangeAction(form: FormData) {
   );
   const orderId = uuid.parse(form.get("order_id"));
   const type = z.enum(["edit", "void"]).parse(form.get("type"));
-  const returnPath =
-    type === "edit"
-      ? `/finance/distribution/orders/${orderId}`
-      : "/finance/distribution/requests";
+  const returnPath = `/finance/distribution/orders/${orderId}`;
   const proposed = type === "edit" ? parseOrderEdit(form, returnPath) : {};
   const { data: requestId, error } = await supabase.rpc(
     "dist_request_order_change",

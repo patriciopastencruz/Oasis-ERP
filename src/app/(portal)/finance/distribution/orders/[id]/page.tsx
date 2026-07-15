@@ -2,6 +2,7 @@
 import { notFound } from "next/navigation";
 import { Flash } from "@/components/finance/distribution/module-nav";
 import { OrderEditForm } from "@/components/finance/distribution/order-edit-form";
+import { OrderVoidForm } from "@/components/finance/distribution/order-void-form";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/modules/finance/distribution/application/queries";
 
 const NOT_EDITABLE_STATUSES = ["delivered", "partially_delivered", "cancelled", "voided"];
+const VOIDABLE_STATUSES = ["scheduled", "assigned"];
 
 export default async function OrderDetail({
   params,
@@ -29,6 +31,7 @@ export default async function OrderDetail({
   const canRequestEdit = ctx.permissions.has(
     "finance.distribution.requests.create",
   );
+  const voidable = VOIDABLE_STATUSES.includes(order.status);
   const initialLines = (order.dist_order_lines ?? []).map((l: any) => ({
     product_id: l.product_id,
     quantity: Number(l.planned_quantity),
@@ -133,6 +136,16 @@ export default async function OrderDetail({
               notes={order.notes ?? ""}
               discount={Number(order.discount)}
             />
+          )}
+          {voidable && canEditDirectly && (
+            <div className="mt-5 border-t border-[#e4ebe7] pt-4">
+              <OrderVoidForm mode="void" orderId={order.id} />
+            </div>
+          )}
+          {voidable && !canEditDirectly && canRequestEdit && (
+            <div className="mt-5 border-t border-[#e4ebe7] pt-4">
+              <OrderVoidForm mode="request" orderId={order.id} />
+            </div>
           )}
         </Panel>
       </div>

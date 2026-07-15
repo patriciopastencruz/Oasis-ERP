@@ -16,10 +16,7 @@ import {
   inputClass,
 } from "@/components/finance/distribution/module-nav";
 import { Panel } from "@/components/ui/page";
-import {
-  assignOrderAction,
-  requestOrderChangeAction,
-} from "@/modules/finance/distribution/application/actions";
+import { assignOrderAction } from "@/modules/finance/distribution/application/actions";
 import {
   clp,
   dailyDistributionData,
@@ -230,34 +227,12 @@ export default async function DistributionOrders({
                     </span>
                   </td>
                   <td className="px-3 py-3">
-                    <div className="flex flex-col items-start gap-1.5">
-                      <Link
-                        className="text-xs font-semibold text-[var(--oasis-primary)]"
-                        href={`/finance/distribution/orders/${o.id}`}
-                      >
-                        Ver / Editar
-                      </Link>
-                      {data.ctx.permissions.has(
-                        "finance.distribution.requests.create",
-                      ) && (
-                        <form
-                          action={requestOrderChangeAction}
-                          className="flex gap-1"
-                        >
-                          <input type="hidden" name="order_id" value={o.id} />
-                          <input type="hidden" name="type" value="void" />
-                          <input
-                            className="w-28 rounded border p-1 text-xs"
-                            name="reason"
-                            placeholder="Motivo"
-                            required
-                          />
-                          <button className="text-xs text-red-700">
-                            Solicitar anulación
-                          </button>
-                        </form>
-                      )}
-                    </div>
+                    <Link
+                      className="text-xs font-semibold text-[var(--oasis-primary)]"
+                      href={`/finance/distribution/orders/${o.id}`}
+                    >
+                      Ver / Editar
+                    </Link>
                   </td>
                 </tr>
               ))}

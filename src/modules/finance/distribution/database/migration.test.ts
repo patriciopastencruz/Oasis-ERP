@@ -13,6 +13,7 @@ const sql = [
   "supabase/migrations/20260715030500_distribution_order_raw_material_consumption.sql",
   "supabase/migrations/20260715032629_distribution_order_editing.sql",
   "supabase/migrations/20260715040000_distribution_delivery_payment_capture.sql",
+  "supabase/migrations/20260715040440_distribution_order_void.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -190,5 +191,29 @@ describe("cobro automático al entregar pedidos de contado", () => {
 
   it("no exige medio de pago para pedidos a crédito", () => {
     expect(sql).toContain("o.payment_condition<>'credit'");
+  });
+});
+
+describe("anulación de pedidos antes de la entrega", () => {
+  it("permite que el Administrador anule directamente con motivo obligatorio", () => {
+    expect(sql).toContain(
+      "function public.dist_void_order(target_order uuid,reason_text text)",
+    );
+    expect(sql).toContain("if length(trim(reason_text))<3 then raise exception 'El motivo es obligatorio'");
+  });
+
+  it("solo anula pedidos programados o asignados", () => {
+    expect(sql).toContain(
+      "if o.status not in('scheduled','assigned') then raise exception 'El pedido ya no admite anulación directa'",
+    );
+    expect(sql).toContain(
+      "elsif request_type='void' and o.status not in('scheduled','assigned') then",
+    );
+  });
+
+  it("no permite que el recálculo de payment_status pise una anulación", () => {
+    expect(sql).toContain(
+      "if new.payment_status is distinct from old.payment_status and new.payment_status<>'voided' then",
+    );
   });
 });

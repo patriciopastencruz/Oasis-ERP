@@ -45,6 +45,8 @@ El precio se resuelve por vigencia: primero precio del cliente y luego estándar
 
 La entrega conserva cantidad planificada y permite cantidad real. El cierre usa `dist_daily_summary`, excluye anulados y calcula ventas, cobros, operación, kilos de hielo desde `ice_weight_kg` y unidades de agua. Al cerrar se persiste un snapshot auditable y las funciones normales rechazan cambios de esa fecha.
 
+Un pedido `scheduled` o `assigned` admite anulación con motivo obligatorio; el Administrador anula directamente desde `/finance/distribution/orders/[id]` y el Administrativo solo puede solicitarla desde la misma pantalla (`dist_void_order` y `dist_request_order_change`/`dist_review_order_change`). El motivo ya no se pide en el listado principal de pedidos, solo al confirmar la anulación en el detalle. Un pedido en ruta, entregado, ya anulado o cancelado no admite una nueva anulación.
+
 Cada producto de venta está vinculado a su materia prima de empaque (`dist_products.material_id`, sección de Inventario y Materiales). Al marcar un pedido como `delivered` o `partially_delivered`, `dist_change_order_status` descuenta automáticamente `planned_quantity × conversion_factor` del stock de esa materia prima y registra el movimiento en `inventory_movements` con referencia al número de pedido; el consumo queda marcado en `dist_orders.materials_consumed_at` para no aplicarse dos veces. El stock de materia prima puede quedar negativo: es la señal de que la compra no alcanzó a cubrir lo entregado y de que hay que anticipar la próxima compra. Anular un pedido ya entregado no revierte el consumo registrado. Las salidas manuales (`register_inventory_output`) siguen bloqueando saldo insuficiente porque son una decisión explícita del operador.
 
 ## PDF y Excel
@@ -59,6 +61,7 @@ docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d post
 docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_distribution_stock.sql
 docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_distribution_order_consumption.sql
 docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_distribution_order_editing.sql
+docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_distribution_order_void.sql
 pnpm test
 pnpm lint
 pnpm typecheck
