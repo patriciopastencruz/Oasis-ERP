@@ -43,6 +43,8 @@ El precio se resuelve por vigencia: primero precio del cliente y luego estándar
 
 La entrega conserva cantidad planificada y permite cantidad real. El cierre usa `dist_daily_summary`, excluye anulados y calcula ventas, cobros, operación, kilos de hielo desde `ice_weight_kg` y unidades de agua. Al cerrar se persiste un snapshot auditable y las funciones normales rechazan cambios de esa fecha.
 
+Cada producto de venta está vinculado a su materia prima de empaque (`dist_products.material_id`, sección de Inventario y Materiales). Al marcar un pedido como `delivered` o `partially_delivered`, `dist_change_order_status` descuenta automáticamente `planned_quantity × conversion_factor` del stock de esa materia prima y registra el movimiento en `inventory_movements` con referencia al número de pedido; el consumo queda marcado en `dist_orders.materials_consumed_at` para no aplicarse dos veces. El stock de materia prima puede quedar negativo: es la señal de que la compra no alcanzó a cubrir lo entregado y de que hay que anticipar la próxima compra. Anular un pedido ya entregado no revierte el consumo registrado. Las salidas manuales (`register_inventory_output`) siguen bloqueando saldo insuficiente porque son una decisión explícita del operador.
+
 ## PDF y Excel
 
 `/api/finance/distribution/statement.pdf?customer=<uuid>` genera un Estado de Pago privado y autorizado. `/api/finance/distribution/reports.xlsx?date=YYYY-MM-DD` exporta el cierre. Ambos validan permiso de exportación y unidad antes de consultar datos.
@@ -52,6 +54,8 @@ La entrega conserva cantidad planificada y permite cantidad real. El cierre usa 
 ```bash
 pnpm exec supabase db reset --local --yes
 docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_altiplanica_distribution.sql
+docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_distribution_stock.sql
+docker exec -i supabase_db_oasis-erp psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/tests/verify_distribution_order_consumption.sql
 pnpm test
 pnpm lint
 pnpm typecheck

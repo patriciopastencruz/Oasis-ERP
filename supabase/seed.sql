@@ -48,7 +48,7 @@ begin
    ('ICE-1KG','Hielo cubo 1 kg','Bolsa 1 kg','ICE',1::numeric,1),('ICE-2KG','Hielo cubo 2 kg','Bolsa 2 kg','ICE',2,2),
    ('FRAPPE-1KG','Hielo frappé 1 kg','Bolsa 1 kg','ICE',1,3),('FRAPPE-2KG','Hielo frappé 2 kg','Bolsa 2 kg','ICE',2,4),
    ('WATER-20L','Agua 20 litros','Bidón 20 L','WATER',0,5),('WATER-6L','Agua 6 litros','Botella 6 L','WATER',0,6),
-   ('WATER-16L','Agua 1,6 litros','Botella 1,6 L','WATER',0,7),('WATER-500','Agua 500 cc','Botella 500 cc','WATER',0,8)
+   ('WATER-16L','Agua 1,6 litros','Botella 1,6 L','WATER',0,7),('WATER-600','Agua 600 cc','Botella 600 cc','WATER',0,8)
   ) x(code,name,presentation,category,weight,ord)
   where bu.company_id=company_uuid and bu.code='DA' and c.code=x.category
   on conflict(business_unit_id,code) do update set name=excluded.name,presentation=excluded.presentation,ice_weight_kg=excluded.ice_weight_kg,active=true,deleted_at=null;

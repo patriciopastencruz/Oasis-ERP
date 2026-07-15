@@ -9,6 +9,8 @@ const sql = [
   "supabase/migrations/20260714150839_customer_editing_for_administrators.sql",
   "supabase/migrations/20260714181836_enhance_distribution_collection_and_daily_close.sql",
   "supabase/migrations/20260714192547_distribution_raw_material_stock.sql",
+  "supabase/migrations/20260715024852_fix_distribution_water_600cc_product.sql",
+  "supabase/migrations/20260715030500_distribution_order_raw_material_consumption.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -99,9 +101,45 @@ describe("stock de materia prima de la distribuidora", () => {
     expect(sql).toContain("bucket_id='inventory-invoices'");
   });
 
-  it("mantiene un libro mayor y evita stock negativo", () => {
+  it("mantiene un libro mayor y evita stock negativo en salidas manuales", () => {
     expect(sql).toContain("public.inventory_movements");
     expect(sql).toContain("No existe stock suficiente");
     expect(sql).toContain("for update");
+  });
+});
+
+describe("descuento automático de materia prima por entrega", () => {
+  it("corrige el producto de agua a su envase real de 600 cc", () => {
+    expect(sql).toContain("code='WATER-500'");
+    expect(sql).toContain("code='WATER-600'");
+    expect(sql).toContain("name='Agua 600 cc'");
+  });
+
+  it("vincula cada producto de venta con su materia prima de empaque", () => {
+    expect(sql).toContain("dist_products add column material_id");
+    expect(sql).toContain("when 'ICE-1KG' then 'DA-MP-ICE-1KG'");
+    expect(sql).toContain("when 'WATER-600' then 'DA-MP-WATER-600CC'");
+  });
+
+  it("descuenta stock una sola vez por pedido entregado", () => {
+    expect(sql).toContain("dist_orders add column materials_consumed_at");
+    expect(sql).toContain(
+      "function public.dist_consume_order_materials(target_order uuid)",
+    );
+    expect(sql).toContain("if o.materials_consumed_at is not null then return; end if;");
+    expect(sql).toContain("perform public.dist_consume_order_materials(o.id);");
+  });
+
+  it("permite stock negativo de materia prima para anticipar compras", () => {
+    expect(sql).toContain(
+      "drop constraint inventory_materials_current_stock_check",
+    );
+    expect(sql).toContain(
+      "drop constraint inventory_movements_stock_after_check",
+    );
+  });
+
+  it("permite que el chofer complete el consumo automático al entregar", () => {
+    expect(sql).toContain("materials_consumed_at','updated_by','updated_at'");
   });
 });
