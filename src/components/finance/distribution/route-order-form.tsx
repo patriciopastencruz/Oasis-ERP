@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { createRouteOrderAction } from "@/modules/finance/distribution/application/actions";
+import { CustomerCombobox } from "./customer-combobox";
 import { buttonClass, inputClass } from "./module-nav";
 
 type Customer = {
@@ -78,20 +79,13 @@ export function RouteOrderForm({
       {!isExpress ? (
         <label className="block text-sm font-medium">
           Cliente habitual
-          <select
-            className={inputClass}
-            name="customer_id"
+          <input type="hidden" name="customer_id" value={customerId} />
+          <CustomerCombobox
+            customers={customers}
             value={customerId}
-            onChange={(event) => setCustomerId(event.target.value)}
+            onChange={setCustomerId}
             required
-          >
-            <option value="">Seleccionar cliente</option>
-            {customers.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.code} · {item.name}
-              </option>
-            ))}
-          </select>
+          />
         </label>
       ) : (
         <>

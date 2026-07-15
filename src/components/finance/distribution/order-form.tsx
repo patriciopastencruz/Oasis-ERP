@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { createOrderAction } from "@/modules/finance/distribution/application/actions";
+import { CustomerCombobox } from "./customer-combobox";
 import { buttonClass, inputClass } from "./module-nav";
 
 type Customer = {
@@ -65,20 +66,13 @@ export function OrderForm({
       </div>
       <label className="block text-sm font-medium">
         Cliente registrado
-        <select
-          className={inputClass}
-          name="customer_id"
-          required
+        <input type="hidden" name="customer_id" value={customerId} />
+        <CustomerCombobox
+          customers={customers}
           value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
-        >
-          <option value="">Seleccionar cliente</option>
-          {customers.map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.code} · {x.name}
-            </option>
-          ))}
-        </select>
+          onChange={setCustomerId}
+          required
+        />
       </label>
       {customer && (
         <div className="rounded-xl bg-[var(--oasis-soft)] p-4 text-sm">
