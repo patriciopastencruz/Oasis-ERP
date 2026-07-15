@@ -41,7 +41,7 @@ Un pedido admite edición (fecha, hora, dirección, notas, descuento, productos 
 
 ## Crédito, entrega y cierre
 
-El precio se resuelve por vigencia: primero precio del cliente y luego estándar. La línea guarda precio, origen y registro aplicado. Antes de un crédito se valida autorización, vigencia, bloqueo y cupo. Los clientes ocasionales solo se admiten en ventas de ruta y nunca a crédito.
+El precio se resuelve por vigencia: primero precio del cliente y luego estándar; si hay varios precios igualmente vigentes para el mismo cliente y producto, gana el creado más recientemente (`created_at desc` como desempate en `dist_resolve_price`). La línea guarda precio, origen y registro aplicado. Antes de un crédito se valida autorización, vigencia, bloqueo y cupo. Los clientes ocasionales solo se admiten en ventas de ruta y nunca a crédito.
 
 La entrega conserva cantidad planificada y permite cantidad real. El cierre usa `dist_daily_summary`, excluye anulados y calcula ventas, cobros, operación, kilos de hielo desde `ice_weight_kg` y unidades de agua. Al cerrar se persiste un snapshot auditable y las funciones normales rechazan cambios de esa fecha.
 

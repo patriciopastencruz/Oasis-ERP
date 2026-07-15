@@ -14,6 +14,7 @@ const sql = [
   "supabase/migrations/20260715032629_distribution_order_editing.sql",
   "supabase/migrations/20260715040000_distribution_delivery_payment_capture.sql",
   "supabase/migrations/20260715040440_distribution_order_void.sql",
+  "supabase/migrations/20260715210123_deterministic_price_resolution.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -214,6 +215,14 @@ describe("anulación de pedidos antes de la entrega", () => {
   it("no permite que el recálculo de payment_status pise una anulación", () => {
     expect(sql).toContain(
       "if new.payment_status is distinct from old.payment_status and new.payment_status<>'voided' then",
+    );
+  });
+});
+
+describe("resolución determinística de precios por cliente", () => {
+  it("desempata precios con la misma fecha de vigencia por el más reciente", () => {
+    expect(sql).toContain(
+      "order by (p.customer_id is not null) desc,p.valid_from desc,p.created_at desc limit 1",
     );
   });
 });
