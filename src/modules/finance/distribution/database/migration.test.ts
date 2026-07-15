@@ -12,6 +12,7 @@ const sql = [
   "supabase/migrations/20260715024852_fix_distribution_water_600cc_product.sql",
   "supabase/migrations/20260715030500_distribution_order_raw_material_consumption.sql",
   "supabase/migrations/20260715032629_distribution_order_editing.sql",
+  "supabase/migrations/20260715040000_distribution_delivery_payment_capture.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -167,5 +168,27 @@ describe("edición de pedidos antes de la entrega", () => {
 
   it("aplica la edición solo cuando el Administrador aprueba la solicitud", () => {
     expect(sql).toContain("perform public.dist_update_order(o.id,r.proposed_data)");
+  });
+});
+
+describe("cobro automático al entregar pedidos de contado", () => {
+  it("exige el medio de pago al entregar pedidos que no son a crédito", () => {
+    expect(sql).toContain("target_status in('delivered','partially_delivered') and o.payment_condition<>'credit'");
+    expect(sql).toContain(
+      "if method is null or method not in('cash','transfer') then raise exception 'Medio de pago obligatorio'",
+    );
+  });
+
+  it("registra el cobro completo del pedido a través del helper compartido", () => {
+    expect(sql).toContain(
+      "function public.dist_register_payment_core(o public.dist_orders,payment_amount numeric,payment_method text,receipt text,notes_text text,idempotency text)",
+    );
+    expect(sql).toContain(
+      "perform public.dist_register_payment_core(o,o.total,method,'','Cobro registrado al entregar','delivery:'||o.id::text)",
+    );
+  });
+
+  it("no exige medio de pago para pedidos a crédito", () => {
+    expect(sql).toContain("o.payment_condition<>'credit'");
   });
 });

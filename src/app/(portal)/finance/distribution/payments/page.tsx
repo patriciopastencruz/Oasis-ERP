@@ -23,6 +23,7 @@ export default async function Payments({
       .select("id,order_number,total,payment_status,dist_customers(name)")
       .eq("business_unit_id", unit.id)
       .in("status", ["delivered", "partially_delivered"])
+      .eq("payment_condition", "credit")
       .in("payment_status", ["pending", "partial", "credit", "overdue"])
       .order("delivery_date"),
     supabase
@@ -40,7 +41,7 @@ export default async function Payments({
       <PageHeader
         eyebrow="Distribuidora Altiplánica"
         title="Cobros"
-        description="Pagos totales o parciales aplicados transaccionalmente a la deuda."
+        description="Cobro de deuda de clientes a crédito. Los pedidos de contado se pagan automáticamente al entregarse."
       />
       <Flash success={q.success} error={q.error} />
       <div className="grid gap-5 xl:grid-cols-[420px_1fr]">

@@ -448,7 +448,11 @@ export async function changeOrderStatusAction(form: FormData) {
   const { error } = await supabase.rpc("dist_change_order_status", {
     target_order: id,
     target_status: status,
-    details: { reason, notes: String(form.get("notes") ?? "") },
+    details: {
+      reason,
+      notes: String(form.get("notes") ?? ""),
+      payment_method: String(form.get("payment_method") ?? ""),
+    },
   });
   if (error) done("/finance/distribution/driver", "error", errorMessage(error));
   revalidatePath("/finance/distribution/driver");

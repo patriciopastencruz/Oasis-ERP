@@ -160,8 +160,32 @@ export default async function Driver({
                 )}
                 {o.status === "en_route" && (
                   <>
-                    <form action={changeOrderStatusAction}>
+                    <form
+                      action={changeOrderStatusAction}
+                      className={
+                        o.payment_condition === "credit"
+                          ? undefined
+                          : "sm:col-span-3"
+                      }
+                    >
                       <input type="hidden" name="order_id" value={o.id} />
+                      {o.payment_condition !== "credit" && (
+                        <select
+                          name="payment_method"
+                          required
+                          defaultValue={
+                            ["cash", "transfer"].includes(o.payment_method)
+                              ? o.payment_method
+                              : "cash"
+                          }
+                          className="mb-2 w-full rounded-xl border p-2 text-sm"
+                        >
+                          <option value="cash">Cobrar en efectivo</option>
+                          <option value="transfer">
+                            Cobrar por transferencia
+                          </option>
+                        </select>
+                      )}
                       <button
                         name="status"
                         value="delivered"
