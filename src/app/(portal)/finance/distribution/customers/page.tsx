@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import Link from "next/link";
+import { CustomersTable } from "@/components/finance/distribution/customers-table";
 import {
   Flash,
   buttonClass,
@@ -8,7 +8,11 @@ import {
 import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
 import { createCustomerAction } from "@/modules/finance/distribution/application/actions";
-import { distributionContext } from "@/modules/finance/distribution/application/queries";
+import {
+  aggregateCustomerBalances,
+  distributionContext,
+  paidAmountsByOrder,
+} from "@/modules/finance/distribution/application/queries";
 export default async function Customers({
   searchParams,
 }: {
@@ -19,7 +23,12 @@ export default async function Customers({
   const canEditCustomers = ctx.permissions.has(
     "finance.distribution.customers.edit",
   );
-  const [{ data: classes }, { data: customers }] = await Promise.all([
+  const [
+    { data: classes },
+    { data: customers },
+    ordersResult,
+    allocationsResult,
+  ] = await Promise.all([
     supabase
       .from("dist_customer_classifications")
       .select("id,name")
@@ -32,7 +41,48 @@ export default async function Customers({
       .eq("business_unit_id", unit.id)
       .is("deleted_at", null)
       .order("name"),
+    supabase
+      .from("dist_orders")
+      .select("id,customer_id,delivery_date,total")
+      .eq("business_unit_id", unit.id)
+      .eq("payment_condition", "credit")
+      .in("status", ["delivered", "partially_delivered"])
+      .is("deleted_at", null),
+    supabase
+      .from("dist_payment_allocations")
+      .select("order_id,amount,dist_payments!inner(status,business_unit_id)")
+      .eq("dist_payments.business_unit_id", unit.id)
+      .eq("dist_payments.status", "confirmed"),
   ]);
+  const paidByOrder = paidAmountsByOrder(allocationsResult.data ?? []);
+  const creditDaysById = new Map(
+    (customers ?? []).map((c: any) => [c.id, Number(c.credit_days ?? 0)]),
+  );
+  const balances = aggregateCustomerBalances(
+    ordersResult.data ?? [],
+    paidByOrder,
+    creditDaysById,
+  );
+  const rows = (customers ?? []).map((x: any) => ({
+    id: x.id,
+    code: x.code,
+    name: x.name,
+    address: x.address,
+    phone: x.phone,
+    classificationName: x.dist_customer_classifications?.name ?? "—",
+    statusLabel: uiLabel(x.status),
+    creditLabel: x.has_credit
+      ? `${Number(x.credit_limit).toLocaleString("es-CL")} / ${x.credit_days} días`
+      : "No",
+    balance: balances.get(x.id)?.balance ?? 0,
+    overdue: balances.get(x.id)?.overdue ?? 0,
+    manageHref: `/finance/distribution/customers/${x.id}`,
+    manageLabel: canEditCustomers
+      ? "Editar y gestionar"
+      : ctx.permissions.has("finance.distribution.catalogs.manage")
+        ? "Gestionar precios"
+        : "Ver detalle",
+  }));
   return (
     <>
       <PageHeader
@@ -108,55 +158,7 @@ export default async function Customers({
             <button className={buttonClass}>Crear cliente</button>
           </form>
         </Panel>
-        <Panel className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="p-2">Código</th>
-                <th>Cliente</th>
-                <th>Clasificación</th>
-                <th>Estado</th>
-                <th>Crédito</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {customers?.map((x: any) => (
-                <tr key={x.id} className="border-b">
-                  <td className="p-2 font-mono text-xs">{x.code}</td>
-                  <td>
-                    <b>{x.name}</b>
-                    <br />
-                    <span className="text-xs text-[#718078]">
-                      {x.address} · {x.phone}
-                    </span>
-                  </td>
-                  <td>{x.dist_customer_classifications?.name}</td>
-                  <td>{uiLabel(x.status)}</td>
-                  <td>
-                    {x.has_credit
-                      ? `${Number(x.credit_limit).toLocaleString("es-CL")} / ${x.credit_days} días`
-                      : "No"}
-                  </td>
-                  <td>
-                    <Link
-                      className="font-semibold text-[var(--oasis-primary)] underline"
-                      href={`/finance/distribution/customers/${x.id}`}
-                    >
-                      {canEditCustomers
-                        ? "Editar y gestionar"
-                        : ctx.permissions.has(
-                              "finance.distribution.catalogs.manage",
-                            )
-                          ? "Gestionar precios"
-                          : "Ver detalle"}
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
+        <CustomersTable customers={rows} />
       </div>
     </>
   );

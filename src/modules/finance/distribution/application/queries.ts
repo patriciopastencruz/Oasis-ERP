@@ -148,7 +148,8 @@ export async function distributionOrderDetail(orderId: string) {
       .order("created_at", { ascending: false }),
   ]);
   const error = order.error ?? products.error ?? requests.error;
-  if (error) throw new Error(`No se pudo consultar el pedido: ${error.message}`);
+  if (error)
+    throw new Error(`No se pudo consultar el pedido: ${error.message}`);
   return {
     ctx,
     unit,
@@ -163,3 +164,86 @@ export const clp = new Intl.NumberFormat("es-CL", {
   currency: "CLP",
   maximumFractionDigits: 0,
 });
+
+export type CustomerBalance = {
+  sold: number;
+  paid: number;
+  balance: number;
+  overdue: number;
+  nextDue?: string;
+  oldestDue?: string;
+};
+
+function addDays(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+type CreditOrder = {
+  id: string;
+  customer_id: string | null;
+  delivery_date: string;
+  total: number | string;
+};
+
+/**
+ * Saldo pendiente y vencido por cliente, a partir de pedidos a crédito
+ * entregados y lo ya abonado por pedido.
+ * Única fuente de verdad: se reutiliza en Clientes y Estado de pago para
+ * que ambas pantallas nunca muestren una deuda distinta para el mismo cliente.
+ */
+export function aggregateCustomerBalances(
+  orders: CreditOrder[],
+  paidByOrder: Map<string, number>,
+  creditDaysById: Map<string, number>,
+) {
+  const today = new Date().toLocaleDateString("en-CA", {
+    timeZone: "America/Santiago",
+  });
+  const balances = new Map<string, CustomerBalance>();
+  for (const order of orders) {
+    if (!order.customer_id) continue;
+    const paid = Math.min(Number(order.total), paidByOrder.get(order.id) ?? 0);
+    const balance = Math.max(0, Number(order.total) - paid);
+    const due = addDays(
+      order.delivery_date,
+      creditDaysById.get(order.customer_id) ?? 0,
+    );
+    const current = balances.get(order.customer_id) ?? {
+      sold: 0,
+      paid: 0,
+      balance: 0,
+      overdue: 0,
+    };
+    current.sold += Number(order.total);
+    current.paid += paid;
+    current.balance += balance;
+    if (balance > 0 && due < today) {
+      current.overdue += balance;
+      if (!current.oldestDue || due < current.oldestDue)
+        current.oldestDue = due;
+    }
+    if (
+      balance > 0 &&
+      due >= today &&
+      (!current.nextDue || due < current.nextDue)
+    )
+      current.nextDue = due;
+    balances.set(order.customer_id, current);
+  }
+  return balances;
+}
+
+export function paidAmountsByOrder(
+  allocations: { order_id: string; amount: number | string }[],
+) {
+  const paidByOrder = new Map<string, number>();
+  for (const allocation of allocations) {
+    paidByOrder.set(
+      allocation.order_id,
+      (paidByOrder.get(allocation.order_id) ?? 0) + Number(allocation.amount),
+    );
+  }
+  return paidByOrder;
+}

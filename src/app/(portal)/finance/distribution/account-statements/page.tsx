@@ -1,21 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
-import { CollectionOrderSelector } from "@/components/finance/distribution/collection-order-selector";
+import { AccountStatementsResults } from "@/components/finance/distribution/account-statements-results";
 import { inputClass } from "@/components/finance/distribution/module-nav";
 import { PageHeader, Panel } from "@/components/ui/page";
 import {
-  clp,
+  aggregateCustomerBalances,
   distributionContext,
+  paidAmountsByOrder,
 } from "@/modules/finance/distribution/application/queries";
-
-const todayInChile = () =>
-  new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
-
-const addDays = (date: string, days: number) => {
-  const value = new Date(`${date}T12:00:00Z`);
-  value.setUTCDate(value.getUTCDate() + days);
-  return value.toISOString().slice(0, 10);
-};
 
 const dateLabel = (value?: string | null) =>
   value
@@ -86,69 +78,27 @@ export default async function AccountStatements({
   if (error)
     throw new Error(`No se pudo calcular el estado de pago: ${error.message}`);
 
-  const paidByOrder = new Map<string, number>();
-  for (const allocation of allocationsResult.data ?? []) {
-    paidByOrder.set(
-      allocation.order_id,
-      (paidByOrder.get(allocation.order_id) ?? 0) + Number(allocation.amount),
-    );
-  }
+  const paidByOrder = paidAmountsByOrder(allocationsResult.data ?? []);
   const lastPaymentByCustomer = new Map<string, string>();
   for (const payment of paymentsResult.data ?? []) {
     if (payment.customer_id && !lastPaymentByCustomer.has(payment.customer_id))
       lastPaymentByCustomer.set(payment.customer_id, payment.paid_at);
   }
+  const creditDaysById = new Map(
+    (customersResult.data ?? []).map((c: any) => [
+      c.id,
+      Number(c.credit_days ?? 0),
+    ]),
+  );
+  const aggregates = aggregateCustomerBalances(
+    ordersResult.data ?? [],
+    paidByOrder,
+    creditDaysById,
+  );
 
-  const today = todayInChile();
-  const aggregates = new Map<
-    string,
-    {
-      sold: number;
-      paid: number;
-      balance: number;
-      overdue: number;
-      nextDue?: string;
-      oldestDue?: string;
-    }
-  >();
-  for (const order of ordersResult.data ?? []) {
-    if (!order.customer_id) continue;
-    const customer = (customersResult.data ?? []).find(
-      (item) => item.id === order.customer_id,
-    );
-    const paid = Math.min(Number(order.total), paidByOrder.get(order.id) ?? 0);
-    const balance = Math.max(0, Number(order.total) - paid);
-    const due = addDays(
-      order.delivery_date,
-      Number(customer?.credit_days ?? 0),
-    );
-    const current = aggregates.get(order.customer_id) ?? {
-      sold: 0,
-      paid: 0,
-      balance: 0,
-      overdue: 0,
-    };
-    current.sold += Number(order.total);
-    current.paid += paid;
-    current.balance += balance;
-    if (balance > 0 && due < today) {
-      current.overdue += balance;
-      if (!current.oldestDue || due < current.oldestDue)
-        current.oldestDue = due;
-    }
-    if (
-      balance > 0 &&
-      due >= today &&
-      (!current.nextDue || due < current.nextDue)
-    )
-      current.nextDue = due;
-    aggregates.set(order.customer_id, current);
-  }
-
-  const search = q.search?.trim().toLocaleLowerCase("es-CL") ?? "";
   const classification = q.classification ?? "all";
   const state = q.state ?? "debt";
-  const rows = (customersResult.data ?? [])
+  const filtered = (customersResult.data ?? [])
     .map((customer: any) => ({
       ...customer,
       ...(aggregates.get(customer.id) ?? {
@@ -160,10 +110,6 @@ export default async function AccountStatements({
       lastPayment: lastPaymentByCustomer.get(customer.id),
     }))
     .filter((customer: any) => {
-      const matchesSearch =
-        !search ||
-        customer.name.toLocaleLowerCase("es-CL").includes(search) ||
-        customer.code.toLocaleLowerCase("es-CL").includes(search);
       const matchesClass =
         classification === "all" ||
         customer.classification_id === classification;
@@ -175,19 +121,10 @@ export default async function AccountStatements({
           customer.balance > 0 &&
           customer.overdue === 0) ||
         (state === "paid" && customer.sold > 0 && customer.balance === 0);
-      return matchesSearch && matchesClass && matchesState;
+      return matchesClass && matchesState;
     });
 
-  const totals = rows.reduce(
-    (sum, row) => ({
-      sold: sum.sold + row.sold,
-      paid: sum.paid + row.paid,
-      balance: sum.balance + row.balance,
-      overdue: sum.overdue + row.overdue,
-    }),
-    { sold: 0, paid: 0, balance: 0, overdue: 0 },
-  );
-  const visibleCustomerIds = new Set(rows.map((row: any) => row.id));
+  const visibleCustomerIds = new Set(filtered.map((row: any) => row.id));
   const outstandingByCustomer = new Map<string, any[]>();
   for (const order of ordersResult.data ?? []) {
     if (!order.customer_id || !visibleCustomerIds.has(order.customer_id))
@@ -202,6 +139,36 @@ export default async function AccountStatements({
     outstandingByCustomer.set(order.customer_id, list);
   }
 
+  const canExport = ctx.permissions.has("finance.distribution.reports.export");
+  const rows = filtered.map((customer: any) => ({
+    id: customer.id,
+    code: customer.code,
+    name: customer.name,
+    classificationName: customer.dist_customer_classifications?.name ?? "—",
+    sold: customer.sold,
+    paid: customer.paid,
+    balance: customer.balance,
+    overdue: customer.overdue,
+    dueLabel: dateLabel(customer.oldestDue ?? customer.nextDue),
+    lastPaymentLabel: dateLabel(customer.lastPayment),
+    orders: (outstandingByCustomer.get(customer.id) ?? []).map(
+      (order: any) => ({
+        id: order.id,
+        orderNumber: order.order_number,
+        date: dateLabel(order.created_at),
+        products: (order.dist_order_lines ?? [])
+          .map((line: any) => {
+            const product = line.dist_products;
+            const quantity = line.delivered_quantity ?? line.planned_quantity;
+            return `${product?.name ?? "Producto"} (${quantity}${product?.presentation ? ` ${product.presentation}` : ""})`;
+          })
+          .join(", "),
+        total: Number(order.total),
+        balance: order.balance,
+      }),
+    ),
+  }));
+
   return (
     <>
       <PageHeader
@@ -210,16 +177,7 @@ export default async function AccountStatements({
         description="Cartera por cliente, saldos vigentes, deuda vencida y estados de pago exportables."
       />
       <Panel className="mb-5">
-        <form className="grid gap-3 md:grid-cols-4">
-          <label className="text-sm">
-            Buscar cliente
-            <input
-              className={inputClass}
-              name="search"
-              defaultValue={q.search}
-              placeholder="Código o nombre"
-            />
-          </label>
+        <form className="grid gap-3 md:grid-cols-3">
           <label className="text-sm">
             Clasificación
             <select
@@ -259,158 +217,7 @@ export default async function AccountStatements({
         </form>
       </Panel>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Venta a crédito", totals.sold],
-          ["Total abonado", totals.paid],
-          ["Saldo pendiente", totals.balance],
-          ["Deuda vencida", totals.overdue],
-        ].map(([label, value]) => (
-          <Panel key={label as string}>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#718078]">
-              {label}
-            </p>
-            <p className="mt-2 text-2xl font-bold">
-              {clp.format(value as number)}
-            </p>
-          </Panel>
-        ))}
-      </div>
-
-      <Panel className="overflow-x-auto">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold">Cartera de clientes</h2>
-            <p className="text-sm text-[#718078]">
-              {rows.length} cliente(s) según los filtros seleccionados.
-            </p>
-          </div>
-        </div>
-        <table className="w-full min-w-[980px] text-sm">
-          <thead>
-            <tr className="border-b text-left text-xs uppercase text-[#718078]">
-              <th className="p-2">Cliente</th>
-              <th>Clasificación</th>
-              <th className="text-right">Venta crédito</th>
-              <th className="text-right">Abonado</th>
-              <th className="text-right">Saldo</th>
-              <th className="text-right">Vencido</th>
-              <th>Vencimiento</th>
-              <th>Último pago</th>
-              <th>Estado</th>
-              <th>Documento</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((customer: any) => (
-              <tr key={customer.id} className="border-b align-top">
-                <td className="p-2">
-                  <b>{customer.name}</b>
-                  <div className="font-mono text-xs text-[#718078]">
-                    {customer.code}
-                  </div>
-                </td>
-                <td>{customer.dist_customer_classifications?.name ?? "—"}</td>
-                <td className="text-right">{clp.format(customer.sold)}</td>
-                <td className="text-right">{clp.format(customer.paid)}</td>
-                <td className="text-right font-semibold">
-                  {clp.format(customer.balance)}
-                </td>
-                <td className="text-right font-semibold text-red-700">
-                  {clp.format(customer.overdue)}
-                </td>
-                <td>{dateLabel(customer.oldestDue ?? customer.nextDue)}</td>
-                <td>{dateLabel(customer.lastPayment)}</td>
-                <td>
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs font-semibold ${customer.overdue > 0 ? "bg-red-100 text-red-800" : customer.balance > 0 ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}
-                  >
-                    {customer.overdue > 0
-                      ? "Vencido"
-                      : customer.balance > 0
-                        ? "Al día"
-                        : "Pagado"}
-                  </span>
-                </td>
-                <td>
-                  {ctx.permissions.has(
-                    "finance.distribution.reports.export",
-                  ) ? (
-                    <Link
-                      className="font-semibold text-[var(--oasis-primary)] underline"
-                      href={`/api/finance/distribution/statement.pdf?customer=${customer.id}`}
-                    >
-                      PDF
-                    </Link>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={10} className="p-8 text-center text-[#718078]">
-                  No hay clientes que coincidan con estos filtros.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </Panel>
-
-      <div className="mt-5 space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold">Pedidos por cobrar</h2>
-          <p className="text-sm text-[#718078]">
-            Selecciona únicamente los pedidos que se incluirán en el reporte
-            para el cliente.
-          </p>
-        </div>
-        {rows.map((customer: any) => {
-          const orders = outstandingByCustomer.get(customer.id) ?? [];
-          if (orders.length === 0) return null;
-          return (
-            <Panel key={customer.id}>
-              <details>
-                <summary className="cursor-pointer list-none">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{customer.name}</p>
-                      <p className="text-xs text-[#718078]">
-                        {customer.code} · {orders.length} pedido(s) con saldo
-                      </p>
-                    </div>
-                    <p className="font-semibold text-[var(--oasis-primary)]">
-                      {clp.format(customer.balance)} pendiente
-                    </p>
-                  </div>
-                </summary>
-                <div className="mt-4 border-t pt-3">
-                  <CollectionOrderSelector
-                    customerId={customer.id}
-                    orders={orders.map((order: any) => ({
-                      id: order.id,
-                      orderNumber: order.order_number,
-                      date: dateLabel(order.created_at),
-                      products: (order.dist_order_lines ?? [])
-                        .map((line: any) => {
-                          const product = line.dist_products;
-                          const quantity =
-                            line.delivered_quantity ?? line.planned_quantity;
-                          return `${product?.name ?? "Producto"} (${quantity}${product?.presentation ? ` ${product.presentation}` : ""})`;
-                        })
-                        .join(", "),
-                      total: clp.format(Number(order.total)),
-                      balance: clp.format(order.balance),
-                    }))}
-                  />
-                </div>
-              </details>
-            </Panel>
-          );
-        })}
-      </div>
+      <AccountStatementsResults rows={rows} canExport={canExport} />
     </>
   );
 }
