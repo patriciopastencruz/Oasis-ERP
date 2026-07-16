@@ -61,6 +61,13 @@ export default async function DistributionOrders({
       "text-[var(--oasis-primary)]",
     ],
   ] as const;
+  const voidedStatuses = ["cancelled", "voided"];
+  const activeOrders = data.orders.filter(
+    (o: any) => !voidedStatuses.includes(o.status),
+  );
+  const voidedOrders = data.orders.filter((o: any) =>
+    voidedStatuses.includes(o.status),
+  );
   return (
     <>
       <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -77,6 +84,32 @@ export default async function DistributionOrders({
         </div>
       </header>
       <Flash success={query.success} error={query.error} />
+      {voidedOrders.length > 0 && (
+        <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">
+            {voidedOrders.length}{" "}
+            {voidedOrders.length === 1
+              ? "pedido anulado este día"
+              : "pedidos anulados este día"}
+          </p>
+          <ul className="mt-2 space-y-1">
+            {voidedOrders.map((o: any) => (
+              <li key={o.id}>
+                <Link
+                  className="font-mono text-xs font-semibold underline"
+                  href={`/finance/distribution/orders/${o.id}`}
+                >
+                  {o.order_number}
+                </Link>{" "}
+                — {o.dist_customers?.name ?? o.occasional_customer_name}
+                {o.void_reason && (
+                  <span className="text-amber-700"> · {o.void_reason}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <Panel className="mb-3 p-3">
         <div className="flex flex-wrap items-center gap-2">
           <Link
@@ -158,7 +191,7 @@ export default async function DistributionOrders({
               </tr>
             </thead>
             <tbody>
-              {data.orders.map((o: any) => (
+              {activeOrders.map((o: any) => (
                 <tr key={o.id} className="border-b border-[#e4ebe7]">
                   <td className="px-3 py-3 font-bold">
                     {o.route_position ?? "—"}
@@ -238,7 +271,7 @@ export default async function DistributionOrders({
               ))}
             </tbody>
           </table>
-          {!data.orders.length && (
+          {!activeOrders.length && (
             <p className="p-10 text-center text-sm text-[#6d7c73]">
               No hay pedidos para esta fecha.
             </p>
