@@ -149,7 +149,7 @@ export async function periodDistributionData(
   dateTo: string,
   permission = "finance.distribution.reports.view",
 ) {
-  const { unit, supabase } = await distributionContext(permission);
+  const { ctx, unit, supabase } = await distributionContext(permission);
   const { data, error } = await supabase.rpc("dist_period_summary", {
     target_unit: unit.id,
     date_from: dateFrom,
@@ -158,6 +158,7 @@ export async function periodDistributionData(
   if (error)
     throw new Error(`No se pudo consultar el período: ${error.message}`);
   return {
+    ctx,
     dateFrom,
     dateTo,
     summary: data as DistributionPeriodSummary,
