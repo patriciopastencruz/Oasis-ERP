@@ -249,7 +249,10 @@ export async function createPriceAction(form: FormData) {
   );
 }
 
-export type OrderPricePreview = { amount: number; origin: "standard" | "customer" };
+export type OrderPricePreview = {
+  amount: number;
+  origin: "standard" | "customer";
+};
 
 export async function resolveOrderPricesAction(
   customerId: string,
@@ -274,8 +277,7 @@ export async function resolveOrderPricesAction(
         target_date: date.data,
       });
       const priced = data?.[0] as
-        | { price_id: string | null; amount: number; origin: string }
-        | undefined;
+        { price_id: string | null; amount: number; origin: string } | undefined;
       return [p.id, priced] as const;
     }),
   );
@@ -284,7 +286,10 @@ export async function resolveOrderPricesAction(
       .filter(([, priced]) => priced?.price_id)
       .map(([id, priced]) => [
         id,
-        { amount: Number(priced!.amount), origin: priced!.origin as "standard" | "customer" },
+        {
+          amount: Number(priced!.amount),
+          origin: priced!.origin as "standard" | "customer",
+        },
       ]),
   );
 }
@@ -443,8 +448,12 @@ function parseOrderEdit(form: FormData, returnPath: string) {
   } catch {
     done(returnPath, "error", "Productos inválidos.");
   }
-  const parsed = orderEditSchema.safeParse({ ...Object.fromEntries(form), lines });
-  if (!parsed.success) done(returnPath, "error", parsed.error.issues[0].message);
+  const parsed = orderEditSchema.safeParse({
+    ...Object.fromEntries(form),
+    lines,
+  });
+  if (!parsed.success)
+    done(returnPath, "error", parsed.error.issues[0].message);
   return parsed.data;
 }
 
@@ -494,6 +503,56 @@ export async function assignOrderAction(form: FormData) {
   if (error) done("/finance/distribution", "error", errorMessage(error));
   revalidatePath("/finance/distribution");
   done("/finance/distribution", "success", "Chofer asignado.");
+}
+
+export async function reorderOrderAction(form: FormData) {
+  const { unit, supabase } = await distributionContext(
+    "finance.distribution.routes.manage",
+  );
+  const orderId = uuid.parse(form.get("order_id"));
+  const direction = z.enum(["up", "down"]).parse(form.get("direction"));
+
+  const { data: order, error: orderError } = await supabase
+    .from("dist_orders")
+    .select("delivery_date,driver_id")
+    .eq("id", orderId)
+    .single();
+  if (orderError || !order?.driver_id)
+    done(
+      "/finance/distribution",
+      "error",
+      "El pedido no tiene chofer asignado.",
+    );
+
+  const { data: route } = await supabase
+    .from("dist_orders")
+    .select("id")
+    .eq("business_unit_id", unit.id)
+    .eq("delivery_date", order.delivery_date)
+    .eq("driver_id", order.driver_id)
+    .not("status", "in", "(cancelled,voided)")
+    .order("route_position");
+
+  const ids = (route ?? []).map((o) => o.id);
+  const index = ids.indexOf(orderId);
+  const swapIndex = direction === "up" ? index - 1 : index + 1;
+  if (index === -1 || swapIndex < 0 || swapIndex >= ids.length)
+    done(
+      "/finance/distribution",
+      "error",
+      "No se puede mover en esa dirección.",
+    );
+  [ids[index], ids[swapIndex]] = [ids[swapIndex], ids[index]];
+
+  const { error } = await supabase.rpc("dist_reorder_route", {
+    target_unit: unit.id,
+    target_date: order.delivery_date,
+    target_driver: order.driver_id,
+    ordered_ids: ids,
+  });
+  if (error) done("/finance/distribution", "error", errorMessage(error));
+  revalidatePath("/finance/distribution");
+  done("/finance/distribution", "success", "Orden de ruta actualizada.");
 }
 
 export async function changeOrderStatusAction(form: FormData) {

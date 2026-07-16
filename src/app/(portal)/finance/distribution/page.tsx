@@ -5,6 +5,8 @@ import { uiLabel } from "@/lib/ui-labels";
 import {
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock3,
   PackageX,
   Truck,
@@ -16,7 +18,10 @@ import {
   inputClass,
 } from "@/components/finance/distribution/module-nav";
 import { Panel } from "@/components/ui/page";
-import { assignOrderAction } from "@/modules/finance/distribution/application/actions";
+import {
+  assignOrderAction,
+  reorderOrderAction,
+} from "@/modules/finance/distribution/application/actions";
 import {
   clp,
   dailyDistributionData,
@@ -68,6 +73,23 @@ export default async function DistributionOrders({
   const voidedOrders = data.orders.filter((o: any) =>
     voidedStatuses.includes(o.status),
   );
+  const canManageRoutes = data.ctx.permissions.has(
+    "finance.distribution.routes.manage",
+  );
+  const routeBounds = new Map<string, { first: string; last: string }>();
+  for (const driverId of new Set(
+    activeOrders.filter((o: any) => o.driver_id).map((o: any) => o.driver_id),
+  )) {
+    const route = activeOrders
+      .filter((o: any) => o.driver_id === driverId)
+      .sort(
+        (a: any, b: any) => (a.route_position ?? 0) - (b.route_position ?? 0),
+      );
+    routeBounds.set(driverId as string, {
+      first: route[0]?.id,
+      last: route[route.length - 1]?.id,
+    });
+  }
   return (
     <>
       <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -239,7 +261,45 @@ export default async function DistributionOrders({
               {activeOrders.map((o: any) => (
                 <tr key={o.id} className="border-b border-[#e4ebe7]">
                   <td className="px-3 py-3 font-bold">
-                    {o.route_position ?? "—"}
+                    <div className="flex items-center gap-1.5">
+                      <span>{o.route_position ?? "—"}</span>
+                      {canManageRoutes && o.driver_id && (
+                        <div className="flex flex-col">
+                          <form action={reorderOrderAction}>
+                            <input type="hidden" name="order_id" value={o.id} />
+                            <input type="hidden" name="direction" value="up" />
+                            <button
+                              type="submit"
+                              aria-label={`Subir pedido ${o.order_number} en la ruta`}
+                              disabled={
+                                routeBounds.get(o.driver_id)?.first === o.id
+                              }
+                              className="text-[#66776d] hover:text-[var(--oasis-primary)] disabled:pointer-events-none disabled:opacity-30"
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                          </form>
+                          <form action={reorderOrderAction}>
+                            <input type="hidden" name="order_id" value={o.id} />
+                            <input
+                              type="hidden"
+                              name="direction"
+                              value="down"
+                            />
+                            <button
+                              type="submit"
+                              aria-label={`Bajar pedido ${o.order_number} en la ruta`}
+                              disabled={
+                                routeBounds.get(o.driver_id)?.last === o.id
+                              }
+                              className="text-[#66776d] hover:text-[var(--oasis-primary)] disabled:pointer-events-none disabled:opacity-30"
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </form>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-3 font-mono text-xs">
                     {o.order_number}
