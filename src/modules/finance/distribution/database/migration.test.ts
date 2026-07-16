@@ -15,6 +15,7 @@ const sql = [
   "supabase/migrations/20260715040000_distribution_delivery_payment_capture.sql",
   "supabase/migrations/20260715040440_distribution_order_void.sql",
   "supabase/migrations/20260715210123_deterministic_price_resolution.sql",
+  "supabase/migrations/20260715220000_fix_inventory_movements_negative_stock_before.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -223,6 +224,14 @@ describe("resolución determinística de precios por cliente", () => {
   it("desempata precios con la misma fecha de vigencia por el más reciente", () => {
     expect(sql).toContain(
       "order by (p.customer_id is not null) desc,p.valid_from desc,p.created_at desc limit 1",
+    );
+  });
+});
+
+describe("consumo automático de materia prima con stock negativo", () => {
+  it("permite que el stock previo a un movimiento quede negativo", () => {
+    expect(sql).toContain(
+      "alter table public.inventory_movements drop constraint inventory_movements_stock_before_check",
     );
   });
 });

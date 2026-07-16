@@ -1,17 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  MapPin,
-  Phone,
-  Truck,
-  CheckCircle2,
-  PackageX,
-  Plus,
-} from "lucide-react";
+import { MapPin, Phone, Plus } from "lucide-react";
+import { DeliveryActions } from "@/components/finance/distribution/delivery-actions";
 import { Flash } from "@/components/finance/distribution/module-nav";
 import { RouteOrderForm } from "@/components/finance/distribution/route-order-form";
 import { PageHeader } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
-import { changeOrderStatusAction } from "@/modules/finance/distribution/application/actions";
 import {
   clp,
   distributionContext,
@@ -144,80 +137,13 @@ export default async function Driver({
                 </span>
                 <b>{clp.format(Number(o.total))}</b>
               </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                {o.status === "assigned" && (
-                  <form action={changeOrderStatusAction}>
-                    <input type="hidden" name="order_id" value={o.id} />
-                    <button
-                      name="status"
-                      value="en_route"
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 py-3 text-sm font-semibold text-white"
-                    >
-                      <Truck size={18} />
-                      En ruta
-                    </button>
-                  </form>
-                )}
-                {o.status === "en_route" && (
-                  <>
-                    <form
-                      action={changeOrderStatusAction}
-                      className={
-                        o.payment_condition === "credit"
-                          ? undefined
-                          : "sm:col-span-3"
-                      }
-                    >
-                      <input type="hidden" name="order_id" value={o.id} />
-                      {o.payment_condition !== "credit" && (
-                        <select
-                          name="payment_method"
-                          required
-                          defaultValue={
-                            ["cash", "transfer"].includes(o.payment_method)
-                              ? o.payment_method
-                              : "cash"
-                          }
-                          className="mb-2 w-full rounded-xl border p-2 text-sm"
-                        >
-                          <option value="cash">Cobrar en efectivo</option>
-                          <option value="transfer">
-                            Cobrar por transferencia
-                          </option>
-                        </select>
-                      )}
-                      <button
-                        name="status"
-                        value="delivered"
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 py-3 text-sm font-semibold text-white"
-                      >
-                        <CheckCircle2 size={18} />
-                        Entregado
-                      </button>
-                    </form>
-                    <form
-                      action={changeOrderStatusAction}
-                      className="sm:col-span-2"
-                    >
-                      <input type="hidden" name="order_id" value={o.id} />
-                      <input
-                        name="reason"
-                        className="mb-2 w-full rounded-xl border p-2 text-sm"
-                        placeholder="Motivo obligatorio"
-                        required
-                      />
-                      <button
-                        name="status"
-                        value="not_delivered"
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-700 py-3 text-sm font-semibold text-white"
-                      >
-                        <PackageX size={18} />
-                        No entregado
-                      </button>
-                    </form>
-                  </>
-                )}
-              </div>
+              {(o.status === "assigned" || o.status === "en_route") && (
+                <DeliveryActions
+                  orderId={o.id}
+                  paymentCondition={o.payment_condition}
+                  paymentMethod={o.payment_method}
+                />
+              )}
             </div>
           </article>
         ))}
