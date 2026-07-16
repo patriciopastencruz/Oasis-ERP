@@ -1,10 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { MapPin, Phone, Plus } from "lucide-react";
+import { MapPin, Phone, Plus, Wallet } from "lucide-react";
 import { DeliveryActions } from "@/components/finance/distribution/delivery-actions";
-import { Flash } from "@/components/finance/distribution/module-nav";
+import {
+  Flash,
+  buttonClass,
+  inputClass,
+} from "@/components/finance/distribution/module-nav";
 import { RouteOrderForm } from "@/components/finance/distribution/route-order-form";
 import { PageHeader } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
+import { submitDriverClosureAction } from "@/modules/finance/distribution/application/actions";
 import {
   clp,
   distributionContext,
@@ -30,7 +35,7 @@ export default async function Driver({
     .order("route_position");
   const isDriver = ctx.role?.key === "driver";
   if (isDriver) query = query.eq("driver_id", ctx.user.id);
-  const [orders, customers, products] = await Promise.all([
+  const [orders, customers, products, closure] = await Promise.all([
     query,
     supabase
       .from("dist_customers")
@@ -46,8 +51,18 @@ export default async function Driver({
       .eq("active", true)
       .is("deleted_at", null)
       .order("display_order"),
+    isDriver
+      ? supabase
+          .from("dist_driver_closures")
+          .select("declared_cash,pending_amount,observations")
+          .eq("business_unit_id", unit.id)
+          .eq("driver_id", ctx.user.id)
+          .eq("closure_date", date)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const data = orders.data;
+  const existingClosure = closure.data;
   return (
     <>
       <PageHeader
@@ -151,6 +166,72 @@ export default async function Driver({
           <div className="rounded-2xl border bg-white p-8 text-center text-sm text-[#718078]">
             No tienes entregas asignadas para hoy.
           </div>
+        )}
+        {isDriver && (
+          <details className="group overflow-hidden rounded-2xl border border-[var(--oasis-border)] bg-white shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 font-semibold text-[var(--oasis-primary)] [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center gap-2">
+                <span className="grid size-9 place-items-center rounded-full bg-[var(--oasis-primary)] text-white">
+                  <Wallet size={20} />
+                </span>
+                Cierre de caja
+              </span>
+              <span className="text-xs font-normal text-[#66776d] group-open:hidden">
+                {existingClosure ? "Ya declarado" : "Fin de la ruta"}
+              </span>
+            </summary>
+            <div className="border-t border-[#e0e8e3] p-4">
+              <form action={submitDriverClosureAction} className="space-y-3">
+                <input type="hidden" name="date" value={date} />
+                <label className="block text-sm">
+                  Fecha
+                  <input
+                    className={`${inputClass} mt-1`}
+                    type="date"
+                    value={date}
+                    disabled
+                  />
+                </label>
+                <label className="block text-sm">
+                  Efectivo declarado
+                  <input
+                    className={`${inputClass} mt-1`}
+                    name="declared_cash"
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    defaultValue={existingClosure?.declared_cash ?? 0}
+                  />
+                </label>
+                <label className="block text-sm">
+                  Pendiente de pago
+                  <input
+                    className={`${inputClass} mt-1`}
+                    name="pending_amount"
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    defaultValue={existingClosure?.pending_amount ?? 0}
+                  />
+                </label>
+                <label className="block text-sm">
+                  Observaciones generales
+                  <textarea
+                    className={`${inputClass} mt-1 min-h-24 resize-y`}
+                    name="observations"
+                    maxLength={1500}
+                    defaultValue={existingClosure?.observations ?? ""}
+                    placeholder="Incidencias, clientes ausentes, detalle del efectivo, etc."
+                  />
+                </label>
+                <button className={`${buttonClass} w-full`}>
+                  {existingClosure ? "Actualizar cierre" : "Enviar cierre"}
+                </button>
+              </form>
+            </div>
+          </details>
         )}
       </div>
     </>

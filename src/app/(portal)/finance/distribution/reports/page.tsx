@@ -205,6 +205,43 @@ export default async function Reports({
           </Panel>
 
           <Panel>
+            <h2 className="mb-3 font-semibold">Declaración de caja de choferes</h2>
+            {summary.driver_closures?.length ? (
+              <div className="space-y-3">
+                {summary.driver_closures.map((d) => (
+                  <div
+                    key={d.driver_id}
+                    className="rounded-xl border border-[#dce4df] p-3 text-sm"
+                  >
+                    <p className="font-semibold">{d.driver_name}</p>
+                    <div className="mt-1 flex justify-between text-[#607168]">
+                      <span>Efectivo declarado</span>
+                      <b className="text-[#173f2d]">
+                        {clp.format(d.declared_cash)}
+                      </b>
+                    </div>
+                    <div className="flex justify-between text-[#607168]">
+                      <span>Pendiente de pago</span>
+                      <b className="text-[#173f2d]">
+                        {clp.format(d.pending_amount)}
+                      </b>
+                    </div>
+                    {d.observations && (
+                      <p className="mt-2 whitespace-pre-wrap text-xs text-[#718078]">
+                        {d.observations}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[#718078]">
+                Ningún chofer ha declarado su cierre de caja para este día.
+              </p>
+            )}
+          </Panel>
+
+          <Panel>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="font-semibold">Cierre formal</h2>

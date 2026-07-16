@@ -661,3 +661,37 @@ export async function closeDayAction(form: FormData) {
     "Jornada cerrada con snapshot auditable.",
   );
 }
+
+export async function submitDriverClosureAction(form: FormData) {
+  const { ctx, unit, supabase } = await distributionContext(
+    "finance.distribution.driver",
+  );
+  const date = z.string().date().parse(form.get("date"));
+  const declaredCash = z.coerce.number().min(0).parse(form.get("declared_cash"));
+  const pendingAmount = z.coerce
+    .number()
+    .min(0)
+    .parse(form.get("pending_amount"));
+  const observations = z
+    .string()
+    .trim()
+    .max(1500)
+    .parse(String(form.get("observations") ?? ""));
+  const { error } = await supabase.from("dist_driver_closures").upsert(
+    {
+      company_id: unit.company_id,
+      business_unit_id: unit.id,
+      driver_id: ctx.user.id,
+      closure_date: date,
+      declared_cash: declaredCash,
+      pending_amount: pendingAmount,
+      observations: observations || null,
+      created_by: ctx.user.id,
+    },
+    { onConflict: "business_unit_id,driver_id,closure_date" },
+  );
+  if (error) done("/finance/distribution/driver", "error", errorMessage(error));
+  revalidatePath("/finance/distribution/driver");
+  revalidatePath("/finance/distribution/reports");
+  done("/finance/distribution/driver", "success", "Cierre de caja registrado.");
+}

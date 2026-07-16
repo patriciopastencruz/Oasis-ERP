@@ -16,6 +16,7 @@ const sql = [
   "supabase/migrations/20260715040440_distribution_order_void.sql",
   "supabase/migrations/20260715210123_deterministic_price_resolution.sql",
   "supabase/migrations/20260715220000_fix_inventory_movements_negative_stock_before.sql",
+  "supabase/migrations/20260716010000_distribution_driver_closures.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -232,6 +233,41 @@ describe("consumo automático de materia prima con stock negativo", () => {
   it("permite que el stock previo a un movimiento quede negativo", () => {
     expect(sql).toContain(
       "alter table public.inventory_movements drop constraint inventory_movements_stock_before_check",
+    );
+  });
+});
+
+describe("cierre de caja simple del chofer", () => {
+  it("crea la tabla con un cierre único por chofer, unidad y fecha", () => {
+    expect(sql).toContain("create table public.dist_driver_closures");
+    expect(sql).toContain("unique(business_unit_id,driver_id,closure_date)");
+  });
+
+  it("solo el propio chofer puede declarar o corregir su cierre", () => {
+    expect(sql).toContain(
+      "create policy dist_driver_closures_insert on public.dist_driver_closures for insert to authenticated with check(public.can_access_unit(company_id,business_unit_id) and public.has_permission('finance.distribution.driver') and driver_id=(select auth.uid()) and not public.dist_closed(business_unit_id,closure_date))",
+    );
+    expect(sql).toContain(
+      "create policy dist_driver_closures_update on public.dist_driver_closures for update to authenticated using(public.can_access_unit(company_id,business_unit_id) and driver_id=(select auth.uid()) and not public.dist_closed(business_unit_id,closure_date))",
+    );
+  });
+
+  it("bloquea la declaración una vez cerrada formalmente la jornada", () => {
+    expect(sql).toContain("not public.dist_closed(business_unit_id,closure_date)");
+  });
+
+  it("hace dist_closed security definer para que el chofer también vea la jornada cerrada", () => {
+    expect(sql).toContain(
+      "function public.dist_closed(target_unit uuid,target_date date) returns boolean language sql stable security definer",
+    );
+  });
+
+  it("incorpora las declaraciones de los choferes al snapshot del cierre diario", () => {
+    expect(sql).toContain(
+      "function public.dist_driver_closures_summary(target_unit uuid,target_date date)",
+    );
+    expect(sql).toContain(
+      "'driver_closures',public.dist_driver_closures_summary(target_unit,target_date)",
     );
   });
 });

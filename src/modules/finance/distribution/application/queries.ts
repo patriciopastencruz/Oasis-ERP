@@ -50,6 +50,15 @@ export type DistributionDailySummary = {
   ice_kg: number;
   water_units: number;
   product_details: DistributionProductSummary[];
+  driver_closures: DistributionDriverClosure[];
+};
+
+export type DistributionDriverClosure = {
+  driver_id: string;
+  driver_name: string;
+  declared_cash: number;
+  pending_amount: number;
+  observations: string | null;
 };
 
 export async function dailyDistributionData(
