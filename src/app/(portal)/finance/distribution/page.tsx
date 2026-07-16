@@ -85,30 +85,75 @@ export default async function DistributionOrders({
       </header>
       <Flash success={query.success} error={query.error} />
       {voidedOrders.length > 0 && (
-        <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <p className="font-semibold">
+        <details className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900">
+          <summary className="cursor-pointer select-none p-4 text-sm font-semibold marker:text-amber-700">
             {voidedOrders.length}{" "}
             {voidedOrders.length === 1
               ? "pedido anulado este día"
               : "pedidos anulados este día"}
-          </p>
-          <ul className="mt-2 space-y-1">
+            <span className="ml-2 text-xs font-normal text-amber-700">
+              (clic para ver el detalle)
+            </span>
+          </summary>
+          <div className="space-y-3 border-t border-amber-200 p-4 pt-3">
             {voidedOrders.map((o: any) => (
-              <li key={o.id}>
-                <Link
-                  className="font-mono text-xs font-semibold underline"
-                  href={`/finance/distribution/orders/${o.id}`}
-                >
-                  {o.order_number}
-                </Link>{" "}
-                — {o.dist_customers?.name ?? o.occasional_customer_name}
+              <div
+                key={o.id}
+                className="rounded-xl border border-amber-100 bg-white p-3 text-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Link
+                    className="font-mono text-xs font-semibold text-[var(--oasis-primary)] underline"
+                    href={`/finance/distribution/orders/${o.id}`}
+                  >
+                    {o.order_number}
+                  </Link>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
+                    {uiLabel(o.status)}
+                  </span>
+                  {o.voided_at && (
+                    <span className="text-xs text-[#6d7c73]">
+                      Anulado el{" "}
+                      {new Date(o.voided_at).toLocaleString("es-CL", {
+                        timeZone: "America/Santiago",
+                      })}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 font-semibold">
+                  {o.dist_customers?.name ?? o.occasional_customer_name}
+                </p>
+                <p className="text-xs text-[#6d7c73]">
+                  {o.delivery_address}
+                  {o.customer_phone ? ` · ${o.customer_phone}` : ""}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {o.dist_order_lines.map((l: any) => (
+                    <span
+                      key={l.id}
+                      className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-800"
+                    >
+                      {l.dist_products?.name} ×{l.planned_quantity}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold">
+                    {clp.format(Number(o.total))}
+                  </span>
+                  <span className="text-xs text-[#6d7c73]">
+                    {uiLabel(o.payment_method)} · {uiLabel(o.payment_condition)}
+                  </span>
+                </div>
                 {o.void_reason && (
-                  <span className="text-amber-700"> · {o.void_reason}</span>
+                  <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs">
+                    <b>Motivo:</b> {o.void_reason}
+                  </p>
                 )}
-              </li>
+              </div>
             ))}
-          </ul>
-        </div>
+          </div>
+        </details>
       )}
       <Panel className="mb-3 p-3">
         <div className="flex flex-wrap items-center gap-2">
