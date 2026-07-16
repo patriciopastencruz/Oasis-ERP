@@ -505,76 +505,68 @@ export async function assignOrderAction(form: FormData) {
   done("/finance/distribution", "success", "Chofer asignado.");
 }
 
-export async function setOrderPositionAction(form: FormData) {
+export async function reorderRouteAction(
+  driverId: string,
+  deliveryDate: string,
+  orderedIds: string[],
+) {
   const { unit, supabase } = await distributionContext(
     "finance.distribution.routes.manage",
   );
-  const orderId = uuid.parse(form.get("order_id"));
-  const requestedPosition = z.coerce
-    .number()
-    .int()
-    .min(1)
-    .safeParse(form.get("position"));
-  if (!requestedPosition.success)
-    done("/finance/distribution", "error", "Posición inválida.");
-
-  const { data: order, error: orderError } = await supabase
-    .from("dist_orders")
-    .select("delivery_date,driver_id")
-    .eq("id", orderId)
-    .single();
-  if (orderError || !order?.driver_id)
-    done(
-      "/finance/distribution",
-      "error",
-      "El pedido no tiene chofer asignado.",
-    );
-
-  const { data: route } = await supabase
-    .from("dist_orders")
-    .select("id")
-    .eq("business_unit_id", unit.id)
-    .eq("delivery_date", order.delivery_date)
-    .eq("driver_id", order.driver_id)
-    .not("status", "in", "(cancelled,voided)")
-    .order("route_position");
-
-  const ids = (route ?? []).map((o) => o.id);
-  const currentIndex = ids.indexOf(orderId);
-  if (currentIndex === -1)
-    done("/finance/distribution", "error", "Pedido no encontrado en la ruta.");
-  const targetIndex = Math.min(requestedPosition.data - 1, ids.length - 1);
-  ids.splice(currentIndex, 1);
-  ids.splice(targetIndex, 0, orderId);
+  const parsed = z
+    .object({
+      driverId: uuid,
+      deliveryDate: z.string().date(),
+      orderedIds: z.array(uuid).min(1),
+    })
+    .safeParse({ driverId, deliveryDate, orderedIds });
+  if (!parsed.success)
+    done("/finance/distribution", "error", "Datos de ruta inválidos.");
 
   const { error } = await supabase.rpc("dist_reorder_route", {
     target_unit: unit.id,
-    target_date: order.delivery_date,
-    target_driver: order.driver_id,
-    ordered_ids: ids,
+    target_date: parsed.data.deliveryDate,
+    target_driver: parsed.data.driverId,
+    ordered_ids: parsed.data.orderedIds,
   });
   if (error) done("/finance/distribution", "error", errorMessage(error));
   revalidatePath("/finance/distribution");
   done("/finance/distribution", "success", "Orden de ruta actualizada.");
 }
 
-export async function changeOrderStatusAction(form: FormData) {
+export async function deliverOrderAction(form: FormData) {
   const { supabase } = await distributionContext();
   const id = uuid.parse(form.get("order_id"));
-  const status = text.parse(form.get("status"));
+  const status = z.enum(["delivered", "not_delivered"]).parse(form.get("status"));
   const reason = String(form.get("reason") ?? "");
+  const paymentMethod = String(form.get("payment_method") ?? "");
+  const { data: current } = await supabase
+    .from("dist_orders")
+    .select("status")
+    .eq("id", id)
+    .single();
+  if (current?.status === "assigned") {
+    const { error: routeError } = await supabase.rpc("dist_change_order_status", {
+      target_order: id,
+      target_status: "en_route",
+      details: {},
+    });
+    if (routeError)
+      done("/finance/distribution/driver", "error", errorMessage(routeError));
+  }
   const { error } = await supabase.rpc("dist_change_order_status", {
     target_order: id,
     target_status: status,
-    details: {
-      reason,
-      notes: String(form.get("notes") ?? ""),
-      payment_method: String(form.get("payment_method") ?? ""),
-    },
+    details: { reason, notes: "", payment_method: paymentMethod },
   });
   if (error) done("/finance/distribution/driver", "error", errorMessage(error));
+  revalidatePath("/finance/distribution");
   revalidatePath("/finance/distribution/driver");
-  done("/finance/distribution/driver", "success", "Estado actualizado.");
+  done(
+    "/finance/distribution/driver",
+    "success",
+    status === "delivered" ? "Pedido entregado." : "Pedido marcado como no entregado.",
+  );
 }
 
 export async function requestOrderChangeAction(form: FormData) {

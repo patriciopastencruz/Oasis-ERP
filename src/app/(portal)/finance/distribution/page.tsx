@@ -6,20 +6,19 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  GripVertical,
   PackageX,
   Truck,
   WalletCards,
 } from "lucide-react";
+import { DraggableOrderRows } from "@/components/finance/distribution/draggable-order-rows";
 import {
   Flash,
   buttonClass,
   inputClass,
 } from "@/components/finance/distribution/module-nav";
 import { Panel } from "@/components/ui/page";
-import {
-  assignOrderAction,
-  setOrderPositionAction,
-} from "@/modules/finance/distribution/application/actions";
+import { assignOrderAction } from "@/modules/finance/distribution/application/actions";
 import {
   clp,
   dailyDistributionData,
@@ -241,110 +240,99 @@ export default async function DistributionOrders({
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {activeOrders.map((o: any) => (
-                <tr key={o.id} className="border-b border-[#e4ebe7]">
-                  <td className="px-3 py-3 font-bold">
-                    {canManageRoutes && o.driver_id ? (
-                      <form
-                        action={setOrderPositionAction}
-                        className="flex items-center gap-1"
-                      >
-                        <input type="hidden" name="order_id" value={o.id} />
-                        <input
-                          type="number"
-                          name="position"
-                          min={1}
-                          defaultValue={o.route_position ?? 1}
-                          aria-label={`Posición del pedido ${o.order_number} en la ruta`}
-                          className="w-14 rounded border p-1 text-center text-xs font-bold"
-                        />
-                        <button
-                          type="submit"
-                          aria-label={`Guardar posición del pedido ${o.order_number}`}
-                          className="rounded bg-[var(--oasis-primary)] px-2 py-1 text-white"
+            <DraggableOrderRows
+              key={activeOrders
+                .map((o: any) => `${o.id}:${o.route_position}`)
+                .join(",")}
+              rows={activeOrders.map((o: any) => ({
+                id: o.id,
+                driverId: canManageRoutes ? (o.driver_id ?? null) : null,
+                deliveryDate: o.delivery_date,
+                content: (
+                  <>
+                    <td className="px-3 py-3 font-bold">
+                      <div className="flex items-center gap-1.5">
+                        {canManageRoutes && o.driver_id && (
+                          <GripVertical size={14} className="text-[#9aa79f]" />
+                        )}
+                        <span>{o.route_position ?? "—"}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 font-mono text-xs">
+                      {o.order_number}
+                      {o.route_sale && (
+                        <span className="mt-1 block w-fit rounded-full bg-violet-100 px-2 py-0.5 font-sans text-[10px] font-semibold text-violet-800">
+                          Venta en ruta
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3">
+                      {o.estimated_time?.slice(0, 5) ?? "—"}
+                    </td>
+                    <td className="px-3 py-3 font-semibold">
+                      {o.dist_customers?.name ?? o.occasional_customer_name}
+                    </td>
+                    <td className="max-w-48 px-3 py-3">{o.delivery_address}</td>
+                    <td className="px-3 py-3">
+                      {o.dist_order_lines.map((l: any) => (
+                        <span
+                          key={l.id}
+                          className="mr-1 inline-block rounded bg-blue-50 px-2 py-1 text-xs text-blue-800"
                         >
-                          ✓
-                        </button>
-                      </form>
-                    ) : (
-                      (o.route_position ?? "—")
-                    )}
-                  </td>
-                  <td className="px-3 py-3 font-mono text-xs">
-                    {o.order_number}
-                    {o.route_sale && (
-                      <span className="mt-1 block w-fit rounded-full bg-violet-100 px-2 py-0.5 font-sans text-[10px] font-semibold text-violet-800">
-                        Venta en ruta
+                          {l.dist_products?.name} ×{l.planned_quantity}
+                        </span>
+                      ))}
+                    </td>
+                    <td className="px-3 py-3 font-semibold">
+                      {clp.format(Number(o.total))}
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-xs">
+                        {uiLabel(o.payment_status)}
                       </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-3">
-                    {o.estimated_time?.slice(0, 5) ?? "—"}
-                  </td>
-                  <td className="px-3 py-3 font-semibold">
-                    {o.dist_customers?.name ?? o.occasional_customer_name}
-                  </td>
-                  <td className="max-w-48 px-3 py-3">{o.delivery_address}</td>
-                  <td className="px-3 py-3">
-                    {o.dist_order_lines.map((l: any) => (
-                      <span
-                        key={l.id}
-                        className="mr-1 inline-block rounded bg-blue-50 px-2 py-1 text-xs text-blue-800"
+                    </td>
+                    <td className="px-3 py-3">
+                      {o.driver_id ? (
+                        data.drivers.find((d: any) => d.id === o.driver_id)
+                          ?.first_name
+                      ) : (
+                        <form action={assignOrderAction} className="flex gap-1">
+                          <input type="hidden" name="order_id" value={o.id} />
+                          <select
+                            name="driver_id"
+                            className="rounded border p-1"
+                            required
+                          >
+                            <option value="">Asignar</option>
+                            {data.drivers.map((d: any) => (
+                              <option key={d.id} value={d.id}>
+                                {d.first_name} {d.last_name}
+                              </option>
+                            ))}
+                          </select>
+                          <button className="rounded bg-[var(--oasis-primary)] px-2 text-white">
+                            ✓
+                          </button>
+                        </form>
+                      )}
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs">
+                        {uiLabel(o.status)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <Link
+                        className="text-xs font-semibold text-[var(--oasis-primary)]"
+                        href={`/finance/distribution/orders/${o.id}`}
                       >
-                        {l.dist_products?.name} ×{l.planned_quantity}
-                      </span>
-                    ))}
-                  </td>
-                  <td className="px-3 py-3 font-semibold">
-                    {clp.format(Number(o.total))}
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="rounded-full bg-amber-50 px-2 py-1 text-xs">
-                      {uiLabel(o.payment_status)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">
-                    {o.driver_id ? (
-                      data.drivers.find((d: any) => d.id === o.driver_id)
-                        ?.first_name
-                    ) : (
-                      <form action={assignOrderAction} className="flex gap-1">
-                        <input type="hidden" name="order_id" value={o.id} />
-                        <select
-                          name="driver_id"
-                          className="rounded border p-1"
-                          required
-                        >
-                          <option value="">Asignar</option>
-                          {data.drivers.map((d: any) => (
-                            <option key={d.id} value={d.id}>
-                              {d.first_name} {d.last_name}
-                            </option>
-                          ))}
-                        </select>
-                        <button className="rounded bg-[var(--oasis-primary)] px-2 text-white">
-                          ✓
-                        </button>
-                      </form>
-                    )}
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs">
-                      {uiLabel(o.status)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <Link
-                      className="text-xs font-semibold text-[var(--oasis-primary)]"
-                      href={`/finance/distribution/orders/${o.id}`}
-                    >
-                      Ver / Editar
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+                        Ver / Editar
+                      </Link>
+                    </td>
+                  </>
+                ),
+              }))}
+            />
           </table>
           {!activeOrders.length && (
             <p className="p-10 text-center text-sm text-[#6d7c73]">
