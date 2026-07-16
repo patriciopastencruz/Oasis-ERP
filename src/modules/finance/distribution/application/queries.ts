@@ -131,6 +131,39 @@ export async function dailyDistributionData(
   };
 }
 
+export type DistributionDailySales = { date: string; sales: number };
+
+export type DistributionPeriodSummary = {
+  days: number;
+  orders_total: number;
+  delivered_sales: number;
+  planned_sales: number;
+  total_kg: number;
+  total_units: number;
+  outstanding_credit: number;
+  daily: DistributionDailySales[];
+};
+
+export async function periodDistributionData(
+  dateFrom: string,
+  dateTo: string,
+  permission = "finance.distribution.reports.view",
+) {
+  const { unit, supabase } = await distributionContext(permission);
+  const { data, error } = await supabase.rpc("dist_period_summary", {
+    target_unit: unit.id,
+    date_from: dateFrom,
+    date_to: dateTo,
+  });
+  if (error)
+    throw new Error(`No se pudo consultar el período: ${error.message}`);
+  return {
+    dateFrom,
+    dateTo,
+    summary: data as DistributionPeriodSummary,
+  };
+}
+
 export async function distributionOrderDetail(orderId: string) {
   const { ctx, unit, supabase } = await distributionContext();
   const [order, products, requests] = await Promise.all([

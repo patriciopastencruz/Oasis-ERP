@@ -17,6 +17,7 @@ const sql = [
   "supabase/migrations/20260715210123_deterministic_price_resolution.sql",
   "supabase/migrations/20260715220000_fix_inventory_movements_negative_stock_before.sql",
   "supabase/migrations/20260716010000_distribution_driver_closures.sql",
+  "supabase/migrations/20260716020000_distribution_period_summary.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -268,6 +269,27 @@ describe("cierre de caja simple del chofer", () => {
     );
     expect(sql).toContain(
       "'driver_closures',public.dist_driver_closures_summary(target_unit,target_date)",
+    );
+  });
+});
+
+describe("reporte por período de Distribuidora Altiplánica", () => {
+  it("valida el rango de fechas antes de agregar", () => {
+    expect(sql).toContain(
+      "if date_from is null or date_to is null or date_from>date_to or (date_to-date_from)>366 then",
+    );
+    expect(sql).toContain("raise exception 'Rango de fechas inválido'");
+  });
+
+  it("incluye días sin ventas en la serie diaria del gráfico", () => {
+    expect(sql).toContain("generate_series(date_from,date_to,'1 day'::interval)::date as day");
+    expect(sql).toContain("from days d left join daily_sales ds on ds.day=d.day");
+  });
+
+  it("calcula la deuda a crédito vigente sin filtrar por el rango consultado", () => {
+    expect(sql).toContain("credit_orders as (");
+    expect(sql).toContain(
+      "select coalesce(sum(greatest(co.total-coalesce(cp.paid,0),0)),0) total",
     );
   });
 });

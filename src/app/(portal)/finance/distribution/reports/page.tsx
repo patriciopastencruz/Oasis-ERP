@@ -18,9 +18,92 @@ import { closeDayAction } from "@/modules/finance/distribution/application/actio
 import {
   clp,
   dailyDistributionData,
+  periodDistributionData,
+  type DistributionDailySales,
 } from "@/modules/finance/distribution/application/queries";
 
 const number = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 3 });
+
+function addDays(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+function mondayOf(date: string) {
+  const value = new Date(`${date}T12:00:00Z`);
+  const day = value.getUTCDay();
+  return addDays(date, day === 0 ? -6 : 1 - day);
+}
+function monthBounds(date: string, monthOffset: number) {
+  const value = new Date(`${date}T12:00:00Z`);
+  const year = value.getUTCFullYear();
+  const month = value.getUTCMonth() + monthOffset;
+  const first = new Date(Date.UTC(year, month, 1, 12));
+  const last = new Date(Date.UTC(year, month + 1, 0, 12));
+  return [first.toISOString().slice(0, 10), last.toISOString().slice(0, 10)];
+}
+
+function Kpi({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <Panel className="p-3">
+      <p className="text-[10px] font-semibold uppercase leading-3 text-[#718078]">
+        {label}
+      </p>
+      <p className="mt-1.5 text-lg font-bold leading-5">{value}</p>
+      {hint && <p className="mt-1 text-[10px] text-[#9aa79e]">{hint}</p>}
+    </Panel>
+  );
+}
+
+function PeriodSalesChart({ daily }: { daily: DistributionDailySales[] }) {
+  const max = Math.max(...daily.map((d) => d.sales), 1);
+  const chartHeight = 140;
+  return (
+    <div className="overflow-x-auto pb-1">
+      <div className="flex min-w-fit items-end gap-2">
+        {daily.map((d) => {
+          const barHeight = Math.max(
+            3,
+            Math.round((d.sales / max) * chartHeight),
+          );
+          return (
+            <div
+              key={d.date}
+              className="flex w-12 shrink-0 flex-col items-center gap-1"
+            >
+              <span className="text-center text-[10px] font-semibold leading-tight text-[#173f2d]">
+                {d.sales > 0 ? clp.format(d.sales) : ""}
+              </span>
+              <div
+                className="flex items-end"
+                style={{ height: chartHeight }}
+              >
+                <div
+                  className="w-7 rounded-t bg-[var(--oasis-primary)]"
+                  style={{ height: barHeight }}
+                />
+              </div>
+              <span className="text-[10px] text-[#718078]">
+                {new Date(`${d.date}T12:00:00Z`).toLocaleDateString("es-CL", {
+                  day: "2-digit",
+                  month: "2-digit",
+                })}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default async function Reports({
   searchParams,
@@ -58,6 +141,20 @@ export default async function Reports({
   ] as const;
   const productRows = summary.product_details ?? [];
   const isClosed = d.closure?.status === "closed";
+
+  const periodFrom = q.from ?? mondayOf(date);
+  const periodTo = q.to ?? addDays(periodFrom, 6);
+  const [weekFrom, weekTo] = [mondayOf(date), addDays(mondayOf(date), 6)];
+  const [monthFrom, monthTo] = monthBounds(date, 0);
+  const [prevMonthFrom, prevMonthTo] = monthBounds(date, -1);
+  let period = null;
+  let periodError = "";
+  try {
+    period = (await periodDistributionData(periodFrom, periodTo)).summary;
+  } catch (error) {
+    periodError =
+      error instanceof Error ? error.message : "No se pudo consultar el período.";
+  }
 
   return (
     <>
@@ -291,6 +388,103 @@ export default async function Reports({
           </Panel>
         </div>
       </div>
+
+      <section className="mt-5">
+        <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Reporte por período</h2>
+            <p className="text-xs text-[#718078]">
+              Resumen agregado de ventas, kilos y productos para el rango de
+              fechas seleccionado.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs font-semibold">
+            <Link
+              href={`?date=${date}&from=${weekFrom}&to=${weekTo}`}
+              className="rounded-lg border px-3 py-1.5"
+            >
+              Esta semana
+            </Link>
+            <Link
+              href={`?date=${date}&from=${monthFrom}&to=${monthTo}`}
+              className="rounded-lg border px-3 py-1.5"
+            >
+              Este mes
+            </Link>
+            <Link
+              href={`?date=${date}&from=${prevMonthFrom}&to=${prevMonthTo}`}
+              className="rounded-lg border px-3 py-1.5"
+            >
+              Mes anterior
+            </Link>
+          </div>
+        </div>
+        <Panel className="mb-4">
+          <form className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="date" value={date} />
+            <label className="min-w-40 flex-1 text-[10px] font-semibold uppercase tracking-wide text-[#607168] lg:flex-none">
+              Desde
+              <input
+                className={`${inputClass} mt-1 rounded-lg py-2 text-sm`}
+                type="date"
+                name="from"
+                defaultValue={periodFrom}
+              />
+            </label>
+            <label className="min-w-40 flex-1 text-[10px] font-semibold uppercase tracking-wide text-[#607168] lg:flex-none">
+              Hasta
+              <input
+                className={`${inputClass} mt-1 rounded-lg py-2 text-sm`}
+                type="date"
+                name="to"
+                defaultValue={periodTo}
+              />
+            </label>
+            <button className={`${buttonClass} rounded-lg px-4 py-2 text-sm`}>
+              Consultar
+            </button>
+          </form>
+        </Panel>
+        {periodError ? (
+          <Panel className="text-sm text-red-700">{periodError}</Panel>
+        ) : (
+          period && (
+            <>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <Kpi
+                  label="Ventas totales del período"
+                  value={clp.format(period.delivered_sales)}
+                />
+                <Kpi
+                  label="Kilos vendidos"
+                  value={`${number.format(period.total_kg)} kg`}
+                />
+                <Kpi
+                  label="Cantidad de productos"
+                  value={number.format(period.total_units)}
+                />
+                <Kpi
+                  label="Créditos pendientes de cobro"
+                  value={clp.format(period.outstanding_credit)}
+                  hint="Saldo vigente hoy, no solo del período"
+                />
+                <Kpi
+                  label="Venta promedio de kilos/día"
+                  value={`${number.format(period.total_kg / period.days)} kg`}
+                />
+                <Kpi
+                  label="Venta promedio total/día"
+                  value={clp.format(period.delivered_sales / period.days)}
+                />
+              </div>
+              <Panel className="mt-4">
+                <h3 className="mb-3 font-semibold">Ventas por día</h3>
+                <PeriodSalesChart daily={period.daily} />
+              </Panel>
+            </>
+          )
+        )}
+      </section>
     </>
   );
 }
