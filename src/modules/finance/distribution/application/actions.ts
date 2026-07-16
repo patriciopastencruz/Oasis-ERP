@@ -505,12 +505,18 @@ export async function assignOrderAction(form: FormData) {
   done("/finance/distribution", "success", "Chofer asignado.");
 }
 
-export async function reorderOrderAction(form: FormData) {
+export async function setOrderPositionAction(form: FormData) {
   const { unit, supabase } = await distributionContext(
     "finance.distribution.routes.manage",
   );
   const orderId = uuid.parse(form.get("order_id"));
-  const direction = z.enum(["up", "down"]).parse(form.get("direction"));
+  const requestedPosition = z.coerce
+    .number()
+    .int()
+    .min(1)
+    .safeParse(form.get("position"));
+  if (!requestedPosition.success)
+    done("/finance/distribution", "error", "Posición inválida.");
 
   const { data: order, error: orderError } = await supabase
     .from("dist_orders")
@@ -534,15 +540,12 @@ export async function reorderOrderAction(form: FormData) {
     .order("route_position");
 
   const ids = (route ?? []).map((o) => o.id);
-  const index = ids.indexOf(orderId);
-  const swapIndex = direction === "up" ? index - 1 : index + 1;
-  if (index === -1 || swapIndex < 0 || swapIndex >= ids.length)
-    done(
-      "/finance/distribution",
-      "error",
-      "No se puede mover en esa dirección.",
-    );
-  [ids[index], ids[swapIndex]] = [ids[swapIndex], ids[index]];
+  const currentIndex = ids.indexOf(orderId);
+  if (currentIndex === -1)
+    done("/finance/distribution", "error", "Pedido no encontrado en la ruta.");
+  const targetIndex = Math.min(requestedPosition.data - 1, ids.length - 1);
+  ids.splice(currentIndex, 1);
+  ids.splice(targetIndex, 0, orderId);
 
   const { error } = await supabase.rpc("dist_reorder_route", {
     target_unit: unit.id,

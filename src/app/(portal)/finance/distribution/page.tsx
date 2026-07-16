@@ -5,8 +5,6 @@ import { uiLabel } from "@/lib/ui-labels";
 import {
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Clock3,
   PackageX,
   Truck,
@@ -20,7 +18,7 @@ import {
 import { Panel } from "@/components/ui/page";
 import {
   assignOrderAction,
-  reorderOrderAction,
+  setOrderPositionAction,
 } from "@/modules/finance/distribution/application/actions";
 import {
   clp,
@@ -76,20 +74,6 @@ export default async function DistributionOrders({
   const canManageRoutes = data.ctx.permissions.has(
     "finance.distribution.routes.manage",
   );
-  const routeBounds = new Map<string, { first: string; last: string }>();
-  for (const driverId of new Set(
-    activeOrders.filter((o: any) => o.driver_id).map((o: any) => o.driver_id),
-  )) {
-    const route = activeOrders
-      .filter((o: any) => o.driver_id === driverId)
-      .sort(
-        (a: any, b: any) => (a.route_position ?? 0) - (b.route_position ?? 0),
-      );
-    routeBounds.set(driverId as string, {
-      first: route[0]?.id,
-      last: route[route.length - 1]?.id,
-    });
-  }
   return (
     <>
       <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -261,45 +245,31 @@ export default async function DistributionOrders({
               {activeOrders.map((o: any) => (
                 <tr key={o.id} className="border-b border-[#e4ebe7]">
                   <td className="px-3 py-3 font-bold">
-                    <div className="flex items-center gap-1.5">
-                      <span>{o.route_position ?? "—"}</span>
-                      {canManageRoutes && o.driver_id && (
-                        <div className="flex flex-col">
-                          <form action={reorderOrderAction}>
-                            <input type="hidden" name="order_id" value={o.id} />
-                            <input type="hidden" name="direction" value="up" />
-                            <button
-                              type="submit"
-                              aria-label={`Subir pedido ${o.order_number} en la ruta`}
-                              disabled={
-                                routeBounds.get(o.driver_id)?.first === o.id
-                              }
-                              className="text-[#66776d] hover:text-[var(--oasis-primary)] disabled:pointer-events-none disabled:opacity-30"
-                            >
-                              <ChevronUp size={14} />
-                            </button>
-                          </form>
-                          <form action={reorderOrderAction}>
-                            <input type="hidden" name="order_id" value={o.id} />
-                            <input
-                              type="hidden"
-                              name="direction"
-                              value="down"
-                            />
-                            <button
-                              type="submit"
-                              aria-label={`Bajar pedido ${o.order_number} en la ruta`}
-                              disabled={
-                                routeBounds.get(o.driver_id)?.last === o.id
-                              }
-                              className="text-[#66776d] hover:text-[var(--oasis-primary)] disabled:pointer-events-none disabled:opacity-30"
-                            >
-                              <ChevronDown size={14} />
-                            </button>
-                          </form>
-                        </div>
-                      )}
-                    </div>
+                    {canManageRoutes && o.driver_id ? (
+                      <form
+                        action={setOrderPositionAction}
+                        className="flex items-center gap-1"
+                      >
+                        <input type="hidden" name="order_id" value={o.id} />
+                        <input
+                          type="number"
+                          name="position"
+                          min={1}
+                          defaultValue={o.route_position ?? 1}
+                          aria-label={`Posición del pedido ${o.order_number} en la ruta`}
+                          className="w-14 rounded border p-1 text-center text-xs font-bold"
+                        />
+                        <button
+                          type="submit"
+                          aria-label={`Guardar posición del pedido ${o.order_number}`}
+                          className="rounded bg-[var(--oasis-primary)] px-2 py-1 text-white"
+                        >
+                          ✓
+                        </button>
+                      </form>
+                    ) : (
+                      (o.route_position ?? "—")
+                    )}
                   </td>
                   <td className="px-3 py-3 font-mono text-xs">
                     {o.order_number}
