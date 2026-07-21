@@ -7,6 +7,14 @@ import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
 import { reviewOrderChangeAction } from "@/modules/finance/distribution/application/actions";
 import { distributionContext } from "@/modules/finance/distribution/application/queries";
+
+const dateLabel = (value?: string | null) =>
+  value
+    ? new Intl.DateTimeFormat("es-CL", { timeZone: "UTC" }).format(
+        new Date(`${value.slice(0, 10)}T12:00:00Z`),
+      )
+    : "—";
+
 export default async function Requests({
   searchParams,
 }: {
@@ -17,7 +25,9 @@ export default async function Requests({
   const [{ data }, { data: products }] = await Promise.all([
     supabase
       .from("dist_change_requests")
-      .select("*,dist_orders(order_number)")
+      .select(
+        "*,dist_orders(order_number,delivery_date,delivery_address,dist_customers(name),occasional_customer_name,dist_order_lines(planned_quantity,dist_products(name,presentation)))",
+      )
       .eq("business_unit_id", unit.id)
       .order("created_at", { ascending: false }),
     supabase
@@ -48,7 +58,32 @@ export default async function Requests({
                 <h2 className="font-semibold">
                   Pedido {x.dist_orders?.order_number}
                 </h2>
-                <p className="mt-2 text-sm">{x.reason}</p>
+                <p className="text-sm font-semibold text-[var(--oasis-primary)]">
+                  {x.dist_orders?.dist_customers?.name ??
+                    x.dist_orders?.occasional_customer_name ??
+                    "Cliente no disponible"}
+                </p>
+                <div className="mt-2 rounded-lg border border-[#e4ebe7] p-3 text-xs">
+                  <p className="font-semibold">Pedido a revisar</p>
+                  <p>Entrega: {dateLabel(x.dist_orders?.delivery_date)}</p>
+                  <p>Dirección: {x.dist_orders?.delivery_address}</p>
+                  <ul className="mt-1">
+                    {(x.dist_orders?.dist_order_lines ?? []).map(
+                      (l: any, i: number) => (
+                        <li key={i}>
+                          {l.dist_products?.name}
+                          {l.dist_products?.presentation
+                            ? ` (${l.dist_products.presentation})`
+                            : ""}{" "}
+                          × {l.planned_quantity}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </div>
+                <p className="mt-2 text-sm">
+                  <b>Motivo:</b> {x.reason}
+                </p>
                 {x.type === "edit" && x.proposed_data?.lines && (
                   <div className="mt-2 rounded-lg bg-[var(--oasis-soft)] p-3 text-xs">
                     <p className="font-semibold">Cambios propuestos</p>
