@@ -27,6 +27,16 @@ function isCurrent(price: any, today: string) {
   );
 }
 
+// Debe reflejar el mismo criterio que dist_resolve_price: entre precios
+// vigentes, gana el más reciente (valid_from y luego created_at como
+// desempate), sea general o específico del cliente.
+function mostRecent(a: any, b: any) {
+  if (!a) return b;
+  if (!b) return a;
+  if (a.valid_from !== b.valid_from) return a.valid_from > b.valid_from ? a : b;
+  return (a.created_at ?? "") > (b.created_at ?? "") ? a : b;
+}
+
 export default async function CustomerDetail({
   params,
   searchParams,
@@ -63,10 +73,13 @@ export default async function CustomerDetail({
       .order("display_order"),
     supabase
       .from("dist_prices")
-      .select("id,product_id,amount,valid_from,valid_until,active,deleted_at")
+      .select(
+        "id,product_id,amount,valid_from,valid_until,active,deleted_at,created_at",
+      )
       .eq("business_unit_id", unit.id)
       .is("customer_id", null)
-      .order("valid_from", { ascending: false }),
+      .order("valid_from", { ascending: false })
+      .order("created_at", { ascending: false }),
     supabase
       .from("dist_prices")
       .select(
@@ -74,7 +87,8 @@ export default async function CustomerDetail({
       )
       .eq("business_unit_id", unit.id)
       .eq("customer_id", id)
-      .order("valid_from", { ascending: false }),
+      .order("valid_from", { ascending: false })
+      .order("created_at", { ascending: false }),
     supabase
       .from("dist_customer_classifications")
       .select("id,name")
@@ -393,7 +407,7 @@ export default async function CustomerDetail({
                 {products.map((product: any) => {
                   const general = currentStandard.get(product.id);
                   const special = currentCustomer.get(product.id);
-                  const applied = special ?? general;
+                  const applied = mostRecent(general, special);
                   return (
                     <tr key={product.id} className="border-b">
                       <td className="p-2">
@@ -416,7 +430,13 @@ export default async function CustomerDetail({
                           ? clp.format(Number(applied.amount))
                           : "Sin precio"}
                       </td>
-                      <td>{special ? "Cliente" : general ? "General" : "—"}</td>
+                      <td>
+                        {!applied
+                          ? "—"
+                          : applied === special
+                            ? "Cliente"
+                            : "General"}
+                      </td>
                     </tr>
                   );
                 })}
