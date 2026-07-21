@@ -42,6 +42,7 @@ export default async function QuotationDetail({
   const lines = linesResult.data ?? [];
   const isOwner = quotation.created_by === ctx.user.id;
   const editable = isOwner && ["draft", "rejected"].includes(quotation.status);
+  const canApprove = ctx.permissions.has("sales.quotations.approve");
   const seller = quotation.seller;
   const reviewer = quotation.reviewer;
 
@@ -114,15 +115,18 @@ export default async function QuotationDetail({
             />
           </Panel>
           <Panel>
-            <h2 className="mb-2 font-semibold">Enviar a aprobación</h2>
+            <h2 className="mb-2 font-semibold">
+              {canApprove ? "Confirmar cotización" : "Enviar a aprobación"}
+            </h2>
             <p className="mb-3 text-sm text-[#718078]">
-              Guarda los cambios primero si acabas de editar. Al enviar, el
-              Gerente de Operaciones recibirá una notificación para revisarla.
+              {canApprove
+                ? "Guarda los cambios primero si acabas de editar. Al confirmar, la cotización queda aprobada de inmediato y podrás descargar el PDF."
+                : "Guarda los cambios primero si acabas de editar. Al enviar, el Gerente de Operaciones recibirá una notificación para revisarla."}
             </p>
             <form action={submitQuotationAction}>
               <input type="hidden" name="quotation_id" value={quotation.id} />
               <button className="rounded-xl bg-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-white">
-                Enviar a aprobación
+                {canApprove ? "Confirmar cotización" : "Enviar a aprobación"}
               </button>
             </form>
           </Panel>
