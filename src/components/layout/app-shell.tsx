@@ -234,6 +234,28 @@ const inventoryNav = [
   },
 ];
 
+const salesNav = [
+  {
+    href: "/sales/quotations",
+    label: "Cotizaciones",
+    icon: ReceiptText,
+    permission: "sales.quotations.create",
+    legacyPermission: "sales.quotations.approve",
+  },
+  {
+    href: "/sales/quotations/new",
+    label: "Nueva cotización",
+    icon: FilePlus2,
+    permission: "sales.quotations.create",
+  },
+  {
+    href: "/sales/quotations/approvals",
+    label: "Aprobaciones",
+    icon: ClipboardCheck,
+    permission: "sales.quotations.approve",
+  },
+];
+
 const lodgingNav = [
   {
     href: "/lodging",
@@ -345,6 +367,9 @@ export async function AppShell({
   const visibleInventoryNav = inventoryNav.filter((item) =>
     ctx.permissions.has(item.permission),
   );
+  const visibleSalesNav = salesNav.filter((item) =>
+    canView(item, ctx.permissions),
+  );
   const visibleLodgingNav = lodgingNav.filter((item) =>
     ctx.permissions.has(item.permission),
   );
@@ -417,6 +442,30 @@ export async function AppShell({
               {label}
             </Link>
           ))}
+          {isOasisModulares && visibleSalesNav.length > 0 && (
+            <details className="group/sales">
+              <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                <ReceiptText size={17} />
+                <span className="flex-1">Cotizaciones</span>
+                <ChevronDown
+                  size={15}
+                  className="transition-transform group-open/sales:rotate-180"
+                />
+              </summary>
+              <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
+                {visibleSalesNav.map(({ href, label, icon: Icon }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </details>
+          )}
           {isOasisModulares && visibleInventoryNav.length > 0 && (
             <details className="group/inventory">
               <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">

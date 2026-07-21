@@ -28,6 +28,7 @@ const moduleNames: Record<string, string> = {
   audit: "Auditoría",
   finance: "Finanzas",
   reports: "Reportes",
+  sales: "Ventas",
 };
 
 export default async function Roles({
