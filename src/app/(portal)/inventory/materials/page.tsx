@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { uiLabel } from "@/lib/ui-labels";
-import { requirePermission } from "@/modules/platform/auth/application/session";
+import { inventoryContext } from "@/modules/inventory/application/queries";
 import {
   InventoryTabs,
   Notice,
@@ -16,13 +16,14 @@ export default async function Page({
   searchParams: Promise<{ q?: string; success?: string; error?: string }>;
 }) {
   const p = await searchParams,
-    ctx = await requirePermission("inventory.materials.view"),
+    { ctx, unit } = await inventoryContext("inventory.materials.view"),
     s = await createSupabaseServerClient();
   let q = s
     .from("inventory_materials")
     .select(
       "id,code,name,category,unit_of_measure,current_stock,average_price,status,business_units(name)",
     )
+    .eq("business_unit_id", unit?.id ?? "")
     .order("name");
   if (p.q)
     q = q.or(`code.ilike.%${p.q}%,name.ilike.%${p.q}%,category.ilike.%${p.q}%`);
