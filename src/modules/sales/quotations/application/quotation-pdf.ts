@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { PDFDocument, PDFFont, StandardFonts, rgb } from "pdf-lib";
 
 export type QuotationPdfLine = {
@@ -116,29 +118,41 @@ export async function buildQuotationPdf({
     drawTableHeader();
   };
 
-  page.drawRectangle({ x: 0, y: 760, width: 595, height: 82, color: primary });
-  page.drawText("OASIS MODULARES & CONSTRUCCIÓN SPA.", {
+  const logoBytes = await readFile(
+    path.join(process.cwd(), "public/oasis-modulares-quotation-logo.png"),
+  );
+  const logoImage = await pdf.embedPng(logoBytes);
+  const logoWidth = 170;
+  const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
+  const logoY = 842 - 24 - logoHeight;
+  page.drawImage(logoImage, {
     x: 44,
-    y: 810,
-    size: 15,
-    font: bold,
-    color: rgb(1, 1, 1),
+    y: logoY,
+    width: logoWidth,
+    height: logoHeight,
   });
-  page.drawText("RUT: 78.271.136-9 · +56 9 39468154 / +56 9 56632039", {
-    x: 44,
-    y: 793,
-    size: 9,
-    font: regular,
-    color: rgb(1, 1, 1),
+  const drawRight = (
+    value: string,
+    yPos: number,
+    size: number,
+    font: PDFFont,
+    color = muted,
+  ) => {
+    const text = safeText(value);
+    const width = font.widthOfTextAtSize(text, size);
+    page.drawText(text, { x: 551 - width, y: yPos, size, font, color });
+  };
+  drawRight("OASIS MODULARES Y CONSTRUCCIÓN SPA.", 818, 12, bold, primary);
+  drawRight("RUT: 78.271.136-9", 802, 9, regular, muted);
+  drawRight("+56 9 39468154 / +56 9 56632039", 790, 9, regular, muted);
+  drawRight("Calama - La Serena", 778, 9, regular, muted);
+  page.drawLine({
+    start: { x: 44, y: logoY - 12 },
+    end: { x: 551, y: logoY - 12 },
+    thickness: 1.5,
+    color: primary,
   });
-  page.drawText("Calama - La Serena", {
-    x: 44,
-    y: 779,
-    size: 9,
-    font: regular,
-    color: rgb(1, 1, 1),
-  });
-  y = 724;
+  y = logoY - 36;
   draw("COTIZACIÓN DE SERVICIOS", 44, 14, bold, primary);
   draw(`N° ${quotationNumber}`, 420, 12, bold, primary);
   y -= 18;
