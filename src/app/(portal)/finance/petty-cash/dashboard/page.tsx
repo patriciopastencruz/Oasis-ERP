@@ -1,8 +1,27 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireSession } from "@/modules/platform/auth/application/session";
-import { chileWeek, clp } from "@/modules/finance/petty-cash/domain/petty-cash";
+import {
+  chileWeek,
+  clp,
+  formatWeek,
+} from "@/modules/finance/petty-cash/domain/petty-cash";
+
+function addDays(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00`);
+  value.setDate(value.getDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function weekHref(params: Record<string, string | undefined>, week: string) {
+  const query = new URLSearchParams();
+  if (params.unit) query.set("unit", params.unit);
+  if (params.status) query.set("status", params.status);
+  query.set("week", week);
+  return `/finance/petty-cash/dashboard?${query.toString()}`;
+}
 
 export default async function PettyCashDashboard({
   searchParams,
@@ -13,7 +32,9 @@ export default async function PettyCashDashboard({
   if (!ctx.permissions.has("finance.petty_cash.reports.view"))
     redirect("/no-access");
   const params = await searchParams;
-  const week = params.week || chileWeek().start;
+  const currentWeekStart = chileWeek().start;
+  const week = params.week || currentWeekStart;
+  const isCurrentWeek = week === currentWeekStart;
   const supabase = await createSupabaseServerClient();
   let reportQuery = supabase
     .from("petty_cash_reports")
@@ -100,6 +121,33 @@ export default async function PettyCashDashboard({
         description="Indicadores semanales dentro de tus unidades autorizadas."
         eyebrow="Finanzas · Caja Chica"
       />
+      <Panel className="mb-3 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            className="rounded-lg border px-3 py-2 text-xs font-medium"
+            href={weekHref(params, addDays(week, -7))}
+          >
+            ← Semana anterior
+          </Link>
+          <span className="text-sm font-semibold">
+            Semana del {formatWeek(week, addDays(week, 6))}
+          </span>
+          <Link
+            className="rounded-lg border px-3 py-2 text-xs font-medium"
+            href={weekHref(params, addDays(week, 7))}
+          >
+            Semana siguiente →
+          </Link>
+          {!isCurrentWeek && (
+            <Link
+              className="ml-auto rounded-lg border px-3 py-2 text-xs font-medium"
+              href={weekHref(params, currentWeekStart)}
+            >
+              Volver a la semana actual
+            </Link>
+          )}
+        </div>
+      </Panel>
       <Panel>
         <form className="grid gap-2 md:grid-cols-4">
           <select
