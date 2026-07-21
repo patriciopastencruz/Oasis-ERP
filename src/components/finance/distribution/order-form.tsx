@@ -66,7 +66,15 @@ export function OrderForm({
     [lines],
   );
   return (
-    <form action={createOrderAction} className="space-y-5">
+    <form
+      action={createOrderAction}
+      className="space-y-5"
+      onSubmit={(e) => {
+        if (!confirm("¿Confirmas que deseas crear este pedido?")) {
+          e.preventDefault();
+        }
+      }}
+    >
       <input type="hidden" name="lines" value={payload} />
       <div className="grid gap-4 md:grid-cols-3">
         <label className="text-sm font-medium">
@@ -157,7 +165,9 @@ export function OrderForm({
         <legend className="text-sm font-semibold">Productos</legend>
         {lines.map((line, index) => {
           const price = prices[line.product_id];
-          const lineTotal = price ? price.amount * Number(line.quantity || 0) : 0;
+          const lineTotal = price
+            ? price.amount * Number(line.quantity || 0)
+            : 0;
           return (
             <div key={index} className="space-y-1">
               <div className="grid grid-cols-[1fr_110px_auto] gap-2">
