@@ -11,6 +11,7 @@ import { PageHeader, Panel } from "@/components/ui/page";
 import { StatusBadge } from "@/components/finance/status-badge";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
+  chileWeek,
   clp,
   formatWeek,
 } from "@/modules/finance/petty-cash/domain/petty-cash";
@@ -19,9 +20,23 @@ import {
   pettyCashContext,
 } from "@/modules/finance/petty-cash/application/queries";
 
-export default async function PettyCashHome() {
+function addDays(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00`);
+  value.setDate(value.getDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+export default async function PettyCashHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
+  const params = await searchParams;
+  const currentWeekStart = chileWeek().start;
+  const week = params.week || currentWeekStart;
+  const isCurrentWeek = week === currentWeekStart;
   const { ctx, selected } = await pettyCashContext();
-  const summary = await currentWeekSummary(selected?.id);
+  const summary = await currentWeekSummary(selected?.id, undefined, week);
   const supabase = await createSupabaseServerClient();
   const { data: recent } = await supabase
     .from("petty_cash_reports")
@@ -82,11 +97,35 @@ export default async function PettyCashHome() {
         description="Registra y rinde gastos menores con control semanal."
         eyebrow="Finanzas · Rendiciones semanales"
       />
+      <Panel className="mb-3 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            className="rounded-lg border px-3 py-2 text-xs font-medium"
+            href={`/finance/petty-cash?week=${addDays(week, -7)}`}
+          >
+            ← Semana anterior
+          </Link>
+          <span className="text-sm font-semibold">
+            Semana del {formatWeek(week, addDays(week, 6))}
+          </span>
+          <Link
+            className="rounded-lg border px-3 py-2 text-xs font-medium"
+            href={`/finance/petty-cash?week=${addDays(week, 7)}`}
+          >
+            Semana siguiente →
+          </Link>
+          {!isCurrentWeek && (
+            <Link
+              className="ml-auto rounded-lg border px-3 py-2 text-xs font-medium"
+              href="/finance/petty-cash"
+            >
+              Volver a la semana actual
+            </Link>
+          )}
+        </div>
+      </Panel>
       {summary && (
         <>
-          <p className="mb-3 text-sm font-semibold">
-            Semana del {formatWeek(summary.week_start, summary.week_end)}
-          </p>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Kpi label="Límite semanal" value={clp(summary.weekly_limit)} />
             <Kpi label="Total comprometido" value={clp(summary.committed)} />

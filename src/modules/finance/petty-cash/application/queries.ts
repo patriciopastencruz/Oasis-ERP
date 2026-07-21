@@ -7,8 +7,13 @@ import { chileWeek } from "../domain/petty-cash";
 export async function pettyCashContext() {
   const ctx = await requireSession();
   const store = await cookies();
+  const savedUnitId = store.get("oasis_unit")?.value;
+  // Mismo criterio de selección por defecto que el layout (app-shell):
+  // la unidad guardada, si no hay ninguna la de Oasis Modulares, y si el
+  // usuario no tiene acceso a esa, la primera disponible.
   const selected =
-    ctx.units.find((unit) => unit.id === store.get("oasis_unit")?.value) ??
+    ctx.units.find((unit) => unit.id === savedUnitId) ??
+    ctx.units.find((unit) => unit.code === "OM") ??
     ctx.units[0];
   return { ctx, selected };
 }
