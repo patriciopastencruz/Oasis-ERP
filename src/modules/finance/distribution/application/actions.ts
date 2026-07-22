@@ -537,7 +537,9 @@ export async function reorderRouteAction(
 export async function deliverOrderAction(form: FormData) {
   const { supabase } = await distributionContext();
   const id = uuid.parse(form.get("order_id"));
-  const status = z.enum(["delivered", "not_delivered"]).parse(form.get("status"));
+  const status = z
+    .enum(["delivered", "not_delivered"])
+    .parse(form.get("status"));
   const reason = String(form.get("reason") ?? "");
   const paymentMethod = String(form.get("payment_method") ?? "");
   const { data: current } = await supabase
@@ -546,11 +548,14 @@ export async function deliverOrderAction(form: FormData) {
     .eq("id", id)
     .single();
   if (current?.status === "assigned") {
-    const { error: routeError } = await supabase.rpc("dist_change_order_status", {
-      target_order: id,
-      target_status: "en_route",
-      details: {},
-    });
+    const { error: routeError } = await supabase.rpc(
+      "dist_change_order_status",
+      {
+        target_order: id,
+        target_status: "en_route",
+        details: {},
+      },
+    );
     if (routeError)
       done("/finance/distribution/driver", "error", errorMessage(routeError));
   }
@@ -565,7 +570,9 @@ export async function deliverOrderAction(form: FormData) {
   done(
     "/finance/distribution/driver",
     "success",
-    status === "delivered" ? "Pedido entregado." : "Pedido marcado como no entregado.",
+    status === "delivered"
+      ? "Pedido entregado."
+      : "Pedido marcado como no entregado.",
   );
 }
 
@@ -595,14 +602,18 @@ export async function reviewOrderChangeAction(form: FormData) {
   const { supabase } = await distributionContext(
     "finance.distribution.requests.review",
   );
+  const returnPath =
+    form.get("return_to") === "/admin/approvals"
+      ? "/admin/approvals"
+      : "/finance/distribution/requests";
   const { error } = await supabase.rpc("dist_review_order_change", {
     target_request: uuid.parse(form.get("request_id")),
     decision: z.enum(["approved", "rejected"]).parse(form.get("decision")),
     comment_text: text.min(3).parse(form.get("comment")),
   });
-  if (error)
-    done("/finance/distribution/requests", "error", errorMessage(error));
-  done("/finance/distribution/requests", "success", "Solicitud resuelta.");
+  if (error) done(returnPath, "error", errorMessage(error));
+  revalidatePath("/admin/approvals");
+  done(returnPath, "success", "Solicitud resuelta.");
 }
 
 export async function registerPaymentAction(form: FormData) {
@@ -667,7 +678,10 @@ export async function submitDriverClosureAction(form: FormData) {
     "finance.distribution.driver",
   );
   const date = z.string().date().parse(form.get("date"));
-  const declaredCash = z.coerce.number().min(0).parse(form.get("declared_cash"));
+  const declaredCash = z.coerce
+    .number()
+    .min(0)
+    .parse(form.get("declared_cash"));
   const pendingAmount = z.coerce
     .number()
     .min(0)

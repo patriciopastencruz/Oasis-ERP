@@ -285,7 +285,11 @@ export async function decideMaterialChangeAction(form: FormData) {
   await requirePermission("inventory.approvals.decide");
   const request = uuid.parse(form.get("request_id")),
     decision = z.enum(["approved", "rejected"]).parse(form.get("decision")),
-    note = String(form.get("note") || "");
+    note = String(form.get("note") || ""),
+    returnPath =
+      form.get("return_to") === "/admin/approvals"
+        ? "/admin/approvals"
+        : "/inventory/approvals";
   const s = await createSupabaseServerClient();
   const { error } = await s.rpc("decide_inventory_material_change", {
     request,
@@ -294,15 +298,12 @@ export async function decideMaterialChangeAction(form: FormData) {
   });
   if (error) {
     console.error(error);
-    go(
-      "/inventory/approvals",
-      "error",
-      "No fue posible registrar la decisión.",
-    );
+    go(returnPath, "error", "No fue posible registrar la decisión.");
   }
   revalidatePath("/inventory");
+  revalidatePath("/admin/approvals");
   go(
-    "/inventory/approvals",
+    returnPath,
     "success",
     decision === "approved" ? "Solicitud aprobada." : "Solicitud rechazada.",
   );

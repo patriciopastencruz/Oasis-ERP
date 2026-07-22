@@ -156,6 +156,12 @@ const distributionNav = [
 
 const administrationNav = [
   {
+    href: "/admin/approvals",
+    label: "Bandeja de aprobaciones",
+    icon: ClipboardCheck,
+    permission: "administration.approvals.view",
+  },
+  {
     href: "/finance/payment-control/categories",
     label: "Categorías de gasto",
     icon: Tags,
@@ -514,8 +520,31 @@ export async function AppShell({
               </div>
             </details>
           )}
-          {(visibleTransversalNav.length > 0 ||
-            visibleAdministrationNav.length > 0) && (
+          {visibleAdministrationNav.length > 0 && (
+            <details className="group/admin">
+              <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                <Settings2 size={17} />
+                <span className="flex-1">Administración General</span>
+                <ChevronDown
+                  size={15}
+                  className="transition-transform group-open/admin:rotate-180"
+                />
+              </summary>
+              <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
+                {visibleAdministrationNav.map(({ href, label, icon: Icon }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </details>
+          )}
+          {visibleTransversalNav.length > 0 && (
             <div className="mt-4 border-t border-white/10 pt-3">
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
                 Gestión transversal
@@ -532,32 +561,6 @@ export async function AppShell({
                     : label}
                 </Link>
               ))}
-              {visibleAdministrationNav.length > 0 && (
-                <details className="group/admin">
-                  <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
-                    <Settings2 size={17} />
-                    <span className="flex-1">Administración</span>
-                    <ChevronDown
-                      size={15}
-                      className="transition-transform group-open/admin:rotate-180"
-                    />
-                  </summary>
-                  <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
-                    {visibleAdministrationNav.map(
-                      ({ href, label, icon: Icon }) => (
-                        <Link
-                          key={href}
-                          href={href}
-                          className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/65 hover:bg-white/10 hover:text-white"
-                        >
-                          <Icon size={15} />
-                          {label}
-                        </Link>
-                      ),
-                    )}
-                  </div>
-                </details>
-              )}
             </div>
           )}
         </nav>

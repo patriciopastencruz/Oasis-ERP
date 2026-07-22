@@ -87,17 +87,22 @@ export async function reviewQuotationAction(form: FormData) {
   const id = uuid.parse(form.get("quotation_id"));
   const decision = z.enum(["approved", "rejected"]).parse(form.get("decision"));
   const comment = String(form.get("comment") ?? "");
+  const returnPath =
+    form.get("return_to") === "/admin/approvals"
+      ? "/admin/approvals"
+      : "/sales/quotations/approvals";
   const { error } = await supabase.rpc("om_review_quotation", {
     target_quotation: id,
     decision,
     comment_text: comment,
   });
-  if (error) done("/sales/quotations/approvals", "error", errorMessage(error));
+  if (error) done(returnPath, "error", errorMessage(error));
   revalidatePath("/sales/quotations");
   revalidatePath("/sales/quotations/approvals");
+  revalidatePath("/admin/approvals");
   revalidatePath(`/sales/quotations/${id}`);
   done(
-    "/sales/quotations/approvals",
+    returnPath,
     "success",
     decision === "approved" ? "Cotización aprobada." : "Cotización rechazada.",
   );
