@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import Link from "next/link";
 import { MapPin, Phone, Plus, Wallet } from "lucide-react";
 import { DeliveryActions } from "@/components/finance/distribution/delivery-actions";
 import {
@@ -7,7 +8,7 @@ import {
   inputClass,
 } from "@/components/finance/distribution/module-nav";
 import { RouteOrderForm } from "@/components/finance/distribution/route-order-form";
-import { PageHeader } from "@/components/ui/page";
+import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
 import { submitDriverClosureAction } from "@/modules/finance/distribution/application/actions";
 import {
@@ -20,9 +21,14 @@ export default async function Driver({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const q = await searchParams;
-  const date =
-    q.date ??
-    new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
+  const today = new Date().toLocaleDateString("en-CA", {
+    timeZone: "America/Santiago",
+  });
+  const date = q.date ?? today;
+  const previous = new Date(`${date}T12:00:00`);
+  previous.setDate(previous.getDate() - 1);
+  const next = new Date(`${date}T12:00:00`);
+  next.setDate(next.getDate() + 1);
   const { ctx, unit, supabase } = await distributionContext();
   let query = supabase
     .from("dist_orders")
@@ -72,6 +78,47 @@ export default async function Driver({
       />
       <Flash success={q.success} error={q.error} />
       <div className="mx-auto max-w-2xl space-y-4">
+        <Panel className="p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              className="rounded-lg border px-3 py-2 text-xs font-medium"
+              href={`/finance/distribution/driver?date=${previous.toLocaleDateString("en-CA")}`}
+            >
+              ← Día anterior
+            </Link>
+            <form className="flex items-center gap-2">
+              <label className="sr-only" htmlFor="driver-route-date">
+                Fecha de la ruta
+              </label>
+              <div className="w-40">
+                <input
+                  id="driver-route-date"
+                  className={`${inputClass} rounded-lg py-2 text-xs`}
+                  type="date"
+                  name="date"
+                  defaultValue={date}
+                />
+              </div>
+              <button className={`${buttonClass} rounded-lg px-3 py-2 text-xs`}>
+                Ir
+              </button>
+            </form>
+            <Link
+              className="rounded-lg border px-3 py-2 text-xs font-medium"
+              href={`/finance/distribution/driver?date=${next.toLocaleDateString("en-CA")}`}
+            >
+              Día siguiente →
+            </Link>
+            {date !== today && (
+              <Link
+                className={`${buttonClass} ml-auto rounded-lg px-3 py-2 text-xs`}
+                href="/finance/distribution/driver"
+              >
+                Volver a hoy
+              </Link>
+            )}
+          </div>
+        </Panel>
         {isDriver && (
           <details className="group overflow-hidden rounded-2xl border border-[var(--oasis-border)] bg-white shadow-sm">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 font-semibold text-[var(--oasis-primary)] [&::-webkit-details-marker]:hidden">
@@ -164,7 +211,9 @@ export default async function Driver({
         ))}
         {!data?.length && (
           <div className="rounded-2xl border bg-white p-8 text-center text-sm text-[#718078]">
-            No tienes entregas asignadas para hoy.
+            {date === today
+              ? "No tienes entregas asignadas para hoy."
+              : "No tienes entregas asignadas para esta fecha."}
           </div>
         )}
         {isDriver && (
