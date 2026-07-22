@@ -411,6 +411,9 @@ export async function AppShell({
             companyId={company.id}
             unitId={unit?.id}
             units={companyUnits}
+            showAdminOption={ctx.permissions.has(
+              "administration.approvals.view",
+            )}
           />
         )}
         <nav className="mt-4 flex-1 space-y-1">

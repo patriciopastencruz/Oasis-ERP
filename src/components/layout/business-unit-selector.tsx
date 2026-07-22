@@ -1,7 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { setContextAction } from "@/modules/platform/auth/application/actions";
+
+const ADMIN_OPTION = "__administracion_general__";
 
 type BusinessUnit = {
   id: string;
@@ -12,14 +15,20 @@ export function BusinessUnitSelector({
   companyId,
   unitId,
   units,
+  showAdminOption,
 }: {
   companyId: string;
   unitId?: string;
   units: BusinessUnit[];
+  showAdminOption?: boolean;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
+  const pathname = usePathname();
   const [selectedUnit, setSelectedUnit] = useState(
-    unitId ?? units[0]?.id ?? "",
+    showAdminOption && pathname?.startsWith("/admin")
+      ? ADMIN_OPTION
+      : (unitId ?? units[0]?.id ?? ""),
   );
 
   return (
@@ -31,11 +40,21 @@ export function BusinessUnitSelector({
           name="unit_id"
           value={selectedUnit}
           onChange={(event) => {
-            setSelectedUnit(event.target.value);
+            const value = event.target.value;
+            setSelectedUnit(value);
+            if (value === ADMIN_OPTION) {
+              router.push("/admin/approvals");
+              return;
+            }
             requestAnimationFrame(() => formRef.current?.requestSubmit());
           }}
           className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-sm normal-case tracking-normal text-white outline-none focus:border-white/40"
         >
+          {showAdminOption && (
+            <option value={ADMIN_OPTION} className="text-slate-900">
+              Administración General
+            </option>
+          )}
           {units.map((unit) => (
             <option value={unit.id} key={unit.id} className="text-slate-900">
               {unit.name}
