@@ -545,18 +545,25 @@ export async function AppShell({
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
                 Gestión transversal
               </p>
-              {visibleTransversalNav.map(({ href, label, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10"
-                >
-                  <Icon size={17} />
-                  {isHostalUruguay && href === "/dashboard"
-                    ? "Dashboard Ejecutivo"
-                    : label}
-                </Link>
-              ))}
+              {visibleTransversalNav.map(({ href, label, icon: Icon }) => {
+                const link = (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10"
+                  >
+                    <Icon size={17} />
+                    {isHostalUruguay && href === "/dashboard"
+                      ? "Dashboard Ejecutivo"
+                      : label}
+                  </Link>
+                );
+                return href === "/dashboard" ? (
+                  <HideInAdminGeneral key={href}>{link}</HideInAdminGeneral>
+                ) : (
+                  link
+                );
+              })}
             </div>
           )}
         </nav>

@@ -19,9 +19,10 @@ export function SidebarBrand({
   const inAdminGeneral = useIsAdminGeneral();
   const name = inAdminGeneral ? GENERIC_NAME : (unitName ?? "OASIS ERP");
   const logo = inAdminGeneral ? GENERIC_LOGO : unitLogo;
+  const href = inAdminGeneral ? "/admin/approvals" : homeHref;
 
   return (
-    <Link href={homeHref} className="mx-auto block w-fit">
+    <Link href={href} className="mx-auto block w-fit">
       <span className="grid size-36 place-items-center">
         <Image
           src={logo}
