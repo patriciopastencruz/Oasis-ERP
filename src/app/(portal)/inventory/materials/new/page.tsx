@@ -1,6 +1,7 @@
 import { PageHeader, Panel } from "@/components/ui/page";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { createMaterialAction } from "@/modules/inventory/application/actions";
+import { MaterialSubmitButton } from "@/components/inventory/material-submit-button";
 import { Field, inputClass, Notice } from "@/modules/inventory/ui";
 import {
   constructionUnits,
@@ -128,9 +129,7 @@ export default async function Page({
               />
             </Field>
           </div>
-          <button className="rounded-xl bg-[#173f2d] px-4 py-3 font-semibold text-white md:col-span-2">
-            Crear material
-          </button>
+          <MaterialSubmitButton />
         </form>
       </Panel>
     </>
