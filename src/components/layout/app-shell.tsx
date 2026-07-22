@@ -37,6 +37,7 @@ import { SidebarBrand } from "@/components/layout/sidebar-brand";
 import { TopBarTitle } from "@/components/layout/top-bar-title";
 import { ShellRoot } from "@/components/layout/shell-root";
 import { HideInAdminGeneral } from "@/components/layout/hide-in-admin-general";
+import { ShowOnlyInAdminGeneral } from "@/components/layout/show-only-in-admin-general";
 import { getBusinessUnitBrand } from "@/config/business-units";
 type Ctx = Awaited<
   ReturnType<
@@ -517,28 +518,32 @@ export async function AppShell({
             </HideInAdminGeneral>
           )}
           {visibleAdministrationNav.length > 0 && (
-            <details className="group/admin">
-              <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
-                <Settings2 size={17} />
-                <span className="flex-1">Administración General</span>
-                <ChevronDown
-                  size={15}
-                  className="transition-transform group-open/admin:rotate-180"
-                />
-              </summary>
-              <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
-                {visibleAdministrationNav.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
-                  >
-                    <Icon size={16} />
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </details>
+            <ShowOnlyInAdminGeneral>
+              <details className="group/admin" open>
+                <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                  <Settings2 size={17} />
+                  <span className="flex-1">Administración General</span>
+                  <ChevronDown
+                    size={15}
+                    className="transition-transform group-open/admin:rotate-180"
+                  />
+                </summary>
+                <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
+                  {visibleAdministrationNav.map(
+                    ({ href, label, icon: Icon }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+                      >
+                        <Icon size={16} />
+                        {label}
+                      </Link>
+                    ),
+                  )}
+                </div>
+              </details>
+            </ShowOnlyInAdminGeneral>
           )}
           {visibleTransversalNav.length > 0 && (
             <div className="mt-4 border-t border-white/10 pt-3">
