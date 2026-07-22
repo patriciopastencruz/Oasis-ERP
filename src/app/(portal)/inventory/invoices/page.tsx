@@ -2,7 +2,12 @@ import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
-import { InventoryTabs, Notice, money } from "@/modules/inventory/ui";
+import {
+  InventoryTabs,
+  Notice,
+  money,
+  paymentMethodLabels,
+} from "@/modules/inventory/ui";
 import { inventorySignedUrl } from "@/modules/inventory/application/actions";
 export default async function Page({
   searchParams,
@@ -15,7 +20,7 @@ export default async function Page({
   const { data } = await s
     .from("inventory_purchase_invoices")
     .select(
-      "id,invoice_number,purchase_date,entered_at,attachment_path,attachment_name,suppliers(legal_name),profiles!inventory_purchase_invoices_entered_by_fkey(first_name,last_name),inventory_purchase_lines(quantity,line_total)",
+      "id,invoice_number,purchase_date,payment_method,entered_at,attachment_path,attachment_name,suppliers(legal_name),profiles!inventory_purchase_invoices_entered_by_fkey(first_name,last_name),inventory_purchase_lines(quantity,line_total)",
     )
     .order("purchase_date", { ascending: false });
   return (
@@ -43,6 +48,7 @@ export default async function Page({
                 <th>Factura</th>
                 <th>Proveedor</th>
                 <th>Fecha</th>
+                <th>Método de pago</th>
                 <th>Productos</th>
                 <th>Total</th>
                 <th>Respaldo</th>
@@ -64,6 +70,9 @@ export default async function Page({
                     {new Date(`${x.purchase_date}T12:00:00`).toLocaleDateString(
                       "es-CL",
                     )}
+                  </td>
+                  <td>
+                    {paymentMethodLabels[x.payment_method] ?? x.payment_method}
                   </td>
                   <td>{x.inventory_purchase_lines?.length || 0}</td>
                   <td>

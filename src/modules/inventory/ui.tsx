@@ -55,6 +55,12 @@ export function InventoryTabs() {
     </nav>
   );
 }
+export const paymentMethodLabels: Record<string, string> = {
+  cash: "Contado",
+  debit_card: "Tarjeta de débito",
+  credit_card: "Tarjeta de crédito",
+  bank_transfer: "Transferencia",
+};
 export const money = (value: number | string | null | undefined) =>
   new Intl.NumberFormat("es-CL", {
     style: "currency",

@@ -110,6 +110,12 @@ export async function registerInvoiceAction(form: FormData) {
       invoice_number: text.max(80),
       supplier_id: uuid,
       purchase_date: z.string().date(),
+      payment_method: z.enum([
+        "cash",
+        "debit_card",
+        "credit_card",
+        "bank_transfer",
+      ]),
       observations: z.string().trim().max(500),
     })
     .safeParse(Object.fromEntries(form));

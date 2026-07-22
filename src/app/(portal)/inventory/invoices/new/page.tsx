@@ -2,7 +2,12 @@ import { PageHeader, Panel } from "@/components/ui/page";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { registerInvoiceAction } from "@/modules/inventory/application/actions";
-import { Field, inputClass, Notice } from "@/modules/inventory/ui";
+import {
+  Field,
+  inputClass,
+  Notice,
+  paymentMethodLabels,
+} from "@/modules/inventory/ui";
 import { InvoiceLines } from "@/components/inventory/invoice-lines";
 export default async function Page({
   searchParams,
@@ -82,6 +87,16 @@ export default async function Page({
                 defaultValue={new Date().toISOString().slice(0, 10)}
                 className={inputClass}
               />
+            </Field>
+            <Field label="Método de pago">
+              <select name="payment_method" required className={inputClass}>
+                <option value="">Selecciona</option>
+                {Object.entries(paymentMethodLabels).map(([value, label]) => (
+                  <option value={value} key={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="Factura adjunta">
               <input
