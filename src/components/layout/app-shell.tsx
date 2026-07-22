@@ -35,6 +35,8 @@ import { logoutAction } from "@/modules/platform/auth/application/actions";
 import { BusinessUnitSelector } from "@/components/layout/business-unit-selector";
 import { SidebarBrand } from "@/components/layout/sidebar-brand";
 import { TopBarTitle } from "@/components/layout/top-bar-title";
+import { ShellRoot } from "@/components/layout/shell-root";
+import { HideInAdminGeneral } from "@/components/layout/hide-in-admin-general";
 import { getBusinessUnitBrand } from "@/config/business-units";
 type Ctx = Awaited<
   ReturnType<
@@ -381,10 +383,7 @@ export async function AppShell({
     ctx.permissions.has(item.permission),
   );
   return (
-    <div
-      style={unitTheme}
-      className="min-h-screen bg-[var(--oasis-page)] text-[#17251e] lg:grid lg:grid-cols-[260px_1fr]"
-    >
+    <ShellRoot theme={unitTheme}>
       <aside className="flex min-h-screen flex-col border-r bg-[var(--oasis-sidebar)] p-5 text-white">
         <SidebarBrand
           homeHref={homeHref}
@@ -427,87 +426,95 @@ export async function AppShell({
               </div>
             </details>
           )}
-          {visibleDistributionNav.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 hover:text-white"
-            >
-              <Icon size={17} />
-              {label}
-            </Link>
-          ))}
+          <HideInAdminGeneral>
+            {visibleDistributionNav.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 hover:text-white"
+              >
+                <Icon size={17} />
+                {label}
+              </Link>
+            ))}
+          </HideInAdminGeneral>
           {isOasisModulares && visibleSalesNav.length > 0 && (
-            <details className="group/sales">
-              <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
-                <ReceiptText size={17} />
-                <span className="flex-1">Cotizaciones</span>
-                <ChevronDown
-                  size={15}
-                  className="transition-transform group-open/sales:rotate-180"
-                />
-              </summary>
-              <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
-                {visibleSalesNav.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
-                  >
-                    <Icon size={16} />
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </details>
+            <HideInAdminGeneral>
+              <details className="group/sales">
+                <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                  <ReceiptText size={17} />
+                  <span className="flex-1">Cotizaciones</span>
+                  <ChevronDown
+                    size={15}
+                    className="transition-transform group-open/sales:rotate-180"
+                  />
+                </summary>
+                <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
+                  {visibleSalesNav.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            </HideInAdminGeneral>
           )}
           {isOasisModulares && visibleInventoryNav.length > 0 && (
-            <details className="group/inventory">
-              <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
-                <Boxes size={17} />
-                <span className="flex-1">Inventario y Materiales</span>
-                <ChevronDown
-                  size={15}
-                  className="transition-transform group-open/inventory:rotate-180"
-                />
-              </summary>
-              <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
-                {visibleInventoryNav.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
-                  >
-                    <Icon size={16} />
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </details>
+            <HideInAdminGeneral>
+              <details className="group/inventory">
+                <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                  <Boxes size={17} />
+                  <span className="flex-1">Inventario y Materiales</span>
+                  <ChevronDown
+                    size={15}
+                    className="transition-transform group-open/inventory:rotate-180"
+                  />
+                </summary>
+                <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
+                  {visibleInventoryNav.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            </HideInAdminGeneral>
           )}
           {isHostalUruguay && visibleLodgingNav.length > 0 && (
-            <details className="group/lodging">
-              <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
-                <BedDouble size={17} />
-                <span className="flex-1">Gestión de reservas</span>
-                <ChevronDown
-                  size={15}
-                  className="transition-transform group-open/lodging:rotate-180"
-                />
-              </summary>
-              <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
-                {visibleLodgingNav.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
-                  >
-                    <Icon size={16} />
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </details>
+            <HideInAdminGeneral>
+              <details className="group/lodging">
+                <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                  <BedDouble size={17} />
+                  <span className="flex-1">Gestión de reservas</span>
+                  <ChevronDown
+                    size={15}
+                    className="transition-transform group-open/lodging:rotate-180"
+                  />
+                </summary>
+                <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
+                  {visibleLodgingNav.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            </HideInAdminGeneral>
           )}
           {visibleAdministrationNav.length > 0 && (
             <details className="group/admin">
@@ -598,6 +605,6 @@ export async function AppShell({
         </header>
         <main className="p-5 lg:p-8">{children}</main>
       </div>
-    </div>
+    </ShellRoot>
   );
 }
