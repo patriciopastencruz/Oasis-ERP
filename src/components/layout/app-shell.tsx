@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { CSSProperties } from "react";
 import {
   LayoutDashboard,
@@ -34,6 +33,8 @@ import {
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
 import { BusinessUnitSelector } from "@/components/layout/business-unit-selector";
+import { SidebarBrand } from "@/components/layout/sidebar-brand";
+import { TopBarTitle } from "@/components/layout/top-bar-title";
 import { getBusinessUnitBrand } from "@/config/business-units";
 type Ctx = Awaited<
   ReturnType<
@@ -385,26 +386,11 @@ export async function AppShell({
       className="min-h-screen bg-[var(--oasis-page)] text-[#17251e] lg:grid lg:grid-cols-[260px_1fr]"
     >
       <aside className="flex min-h-screen flex-col border-r bg-[var(--oasis-sidebar)] p-5 text-white">
-        <Link href={homeHref} className="mx-auto block w-fit">
-          <span className="grid size-36 place-items-center">
-            <Image
-              src={unitBrand.logo}
-              alt={`Logo de ${unit?.name ?? "OASIS ERP"}`}
-              width={144}
-              height={144}
-              priority
-              className="size-32 rounded-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,.18)]"
-            />
-          </span>
-          <span className="mt-1 block text-center">
-            <b className="block text-sm tracking-[.08em]">
-              {unit?.name ?? "OASIS ERP"}
-            </b>
-            <span className="mt-1 block text-[11px] font-semibold uppercase tracking-[.16em] text-white/60">
-              ERP OASIS
-            </span>
-          </span>
-        </Link>
+        <SidebarBrand
+          homeHref={homeHref}
+          unitName={unit?.name}
+          unitLogo={unitBrand.logo}
+        />
         {company && companyUnits.length > 0 && (
           <BusinessUnitSelector
             key={unit?.id}
@@ -577,7 +563,10 @@ export async function AppShell({
       <div>
         <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-white px-5 py-3">
           <div className="text-sm">
-            <b>{unit?.name ?? company?.trade_name}</b>
+            <TopBarTitle
+              unitName={unit?.name}
+              companyName={company?.trade_name}
+            />
           </div>
           <div className="flex items-center gap-3">
             <Link
