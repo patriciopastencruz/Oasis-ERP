@@ -64,7 +64,7 @@ export default async function Page() {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <header>
           <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#277a55]">
-            Hostal Uruguay
+            {data.unit.name}
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             Calendario de reservas

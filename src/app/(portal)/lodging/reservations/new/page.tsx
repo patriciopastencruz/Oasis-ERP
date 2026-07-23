@@ -37,7 +37,7 @@ export default async function Page({
   return (
     <>
       <PageHeader
-        eyebrow="Hostal Uruguay · Gestión de reservas"
+        eyebrow={`${unit.name} · Gestión de reservas`}
         title="Nueva reserva"
         description="Registra una reserva directa, WhatsApp o empresa. La disponibilidad se verifica nuevamente en el servidor al guardar."
       />

@@ -18,7 +18,7 @@ export default async function Page() {
   return (
     <>
       <PageHeader
-        eyebrow="Hostal Uruguay"
+        eyebrow={unit.name}
         title="Salidas de hoy"
         description="Control de saldo, check-out y limpieza de habitaciones."
       />

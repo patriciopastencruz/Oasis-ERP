@@ -111,7 +111,7 @@ export async function setContextAction(form: FormData) {
         : "/finance/distribution",
     );
   }
-  if (unitCode === "HU") redirect("/lodging");
+  if (unitCode === "HU" || unitCode === "HOC") redirect("/lodging");
   redirect("/dashboard");
 }
 export async function markOwnNotificationReadAction(form: FormData) {

@@ -21,7 +21,7 @@ export default async function Page() {
     <>
       <div className="flex justify-between gap-4">
         <PageHeader
-          eyebrow="Hostal Uruguay"
+          eyebrow={unit.name}
           title="Reservas"
           description="Reservas directas e importadas, con información operativa centralizada."
         />

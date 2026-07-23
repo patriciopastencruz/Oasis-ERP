@@ -24,7 +24,7 @@ export default async function Page({
   return (
     <>
       <PageHeader
-        eyebrow="Hostal Uruguay"
+        eyebrow={unit.name}
         title="Habitaciones"
         description="Las habitaciones activas aparecen automáticamente en el calendario. Desactivar una habitación conserva todo su historial."
       />

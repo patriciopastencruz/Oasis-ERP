@@ -2,11 +2,11 @@ import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { lodgingContext } from "@/modules/lodging/application/queries";
 export default async function Page() {
-  const { ctx } = await lodgingContext();
+  const { ctx, unit } = await lodgingContext();
   return (
     <>
       <PageHeader
-        eyebrow="Hostal Uruguay"
+        eyebrow={unit.name}
         title="Configuración"
         description="Opciones operativas del módulo de Gestión de reservas."
       />

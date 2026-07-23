@@ -30,7 +30,7 @@ export default async function Page({
     <>
       <div className="flex flex-wrap justify-between gap-4">
         <PageHeader
-          eyebrow="Hostal Uruguay"
+          eyebrow={unit.name}
           title="Sincronización iCal"
           description="Importa disponibilidad de Booking y Airbnb y comparte el calendario privado de cada habitación."
         />

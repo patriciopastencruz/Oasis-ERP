@@ -338,7 +338,7 @@ export async function AppShell({
     companyUnits.find((u) => u.code === "OM") ??
     [...companyUnits].sort((a, b) => a.name.localeCompare(b.name, "es"))[0];
   const isOasisModulares = unit?.code === "OM";
-  const isHostalUruguay = unit?.code === "HU";
+  const isHostalUruguay = ["HU", "HOC"].includes(unit?.code ?? "");
   const isAltiplanica = unit?.code === "DA";
   const isDriver = ctx.role?.key === "driver";
   const unitBrand = getBusinessUnitBrand(unit?.code);

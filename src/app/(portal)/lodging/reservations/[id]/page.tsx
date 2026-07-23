@@ -25,7 +25,7 @@ export default async function Page({
 }) {
   const { id } = await params,
     q = await searchParams;
-  const { supabase, ctx } = await lodgingContext();
+  const { supabase, ctx, unit } = await lodgingContext();
   const { data: r } = await supabase
     .from("lodging_reservations")
     .select("*,lodging_rooms(name),lodging_guests(*)")
@@ -55,7 +55,7 @@ export default async function Page({
   return (
     <>
       <PageHeader
-        eyebrow="Hostal Uruguay · Reserva"
+        eyebrow={`${unit.name} · Reserva`}
         title={
           guest?.full_name || `Reserva ${r.origin} — información pendiente`
         }
