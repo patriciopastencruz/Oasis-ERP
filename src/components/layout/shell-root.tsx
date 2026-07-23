@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useIsAdminGeneral } from "@/components/layout/admin-mode";
+import { useIsTransversalRoute } from "@/components/layout/transversal-mode";
 
 const GENERIC_THEME = {
   "--oasis-page": "#f2f5f3",
@@ -22,9 +23,10 @@ export function ShellRoot({
   children: ReactNode;
 }) {
   const inAdminGeneral = useIsAdminGeneral();
+  const inTransversalRoute = useIsTransversalRoute();
   return (
     <div
-      style={inAdminGeneral ? GENERIC_THEME : theme}
+      style={inAdminGeneral || inTransversalRoute ? GENERIC_THEME : theme}
       className="min-h-screen bg-[var(--oasis-page)] text-[#17251e] lg:grid lg:grid-cols-[260px_1fr]"
     >
       {children}

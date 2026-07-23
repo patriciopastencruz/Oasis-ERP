@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useIsAdminGeneral } from "@/components/layout/admin-mode";
+import { useIsTransversalRoute } from "@/components/layout/transversal-mode";
 
 export const GENERIC_LOGO = "/oasis-logo-crane.png";
 export const GENERIC_NAME = "Oasis Company";
@@ -17,8 +18,10 @@ export function SidebarBrand({
   unitLogo: string;
 }) {
   const inAdminGeneral = useIsAdminGeneral();
-  const name = inAdminGeneral ? GENERIC_NAME : (unitName ?? "OASIS ERP");
-  const logo = inAdminGeneral ? GENERIC_LOGO : unitLogo;
+  const inTransversalRoute = useIsTransversalRoute();
+  const inGenericMode = inAdminGeneral || inTransversalRoute;
+  const name = inGenericMode ? GENERIC_NAME : (unitName ?? "OASIS ERP");
+  const logo = inGenericMode ? GENERIC_LOGO : unitLogo;
   const href = inAdminGeneral ? "/admin/approvals" : homeHref;
 
   return (
