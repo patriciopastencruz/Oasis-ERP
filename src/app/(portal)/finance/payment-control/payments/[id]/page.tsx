@@ -88,7 +88,7 @@ export default async function Detail({
         </div>
         <Link
           href="/finance/payment-control/payments"
-          className="font-semibold text-[#277a55]"
+          className="font-semibold text-[#0b4f9c]"
         >
           Volver
         </Link>
@@ -230,7 +230,7 @@ export default async function Detail({
               return (
                 <div key={x} className="flex gap-3 pb-5">
                   <span
-                    className={`mt-1 size-4 rounded-full ${i <= current ? "bg-[#277a55]" : "bg-slate-200"}`}
+                    className={`mt-1 size-4 rounded-full ${i <= current ? "bg-[#0b4f9c]" : "bg-slate-200"}`}
                   />
                   <StatusBadge value={x} />
                 </div>

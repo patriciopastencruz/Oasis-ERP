@@ -125,7 +125,7 @@ export function AssistantMessageBubble({
             ? "bg-[var(--oasis-primary)] text-white"
             : isProblem
               ? "bg-amber-50 text-amber-900"
-              : "bg-[var(--oasis-soft)] text-[#17251e]"
+              : "bg-[var(--oasis-soft)] text-[#151d27]"
         }`}
       >
         <p className="whitespace-pre-wrap">{message.content}</p>

@@ -45,14 +45,14 @@ export default async function Page({
             placeholder="Código, nombre o categoría"
             className={inputClass}
           />
-          <button className="rounded-xl bg-[#173f2d] px-4 text-white">
+          <button className="rounded-xl bg-[#083f7d] px-4 text-white">
             Buscar
           </button>
         </form>
         {ctx.permissions.has("inventory.materials.create") && (
           <Link
             href="/inventory/materials/new"
-            className="rounded-xl bg-[#173f2d] px-4 py-2.5 text-white"
+            className="rounded-xl bg-[#083f7d] px-4 py-2.5 text-white"
           >
             Nuevo material
           </Link>
@@ -95,7 +95,7 @@ export default async function Page({
                   <td>{uiLabel(x.status)}</td>
                   <td>
                     <Link
-                      className="font-semibold text-[#277a55]"
+                      className="font-semibold text-[#0b4f9c]"
                       href={`/inventory/materials/${x.id}`}
                     >
                       Ver detalle

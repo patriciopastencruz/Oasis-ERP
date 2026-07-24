@@ -23,7 +23,7 @@ export default async function Setup({
         <Field label="Contraseña inicial" name="password" type="password" />
         <Submit>Crear primer Superadministrador</Submit>
       </form>
-      <p className="mt-4 text-xs text-[#718078]">
+      <p className="mt-4 text-xs text-[#63778e]">
         La operación se bloquea permanentemente cuando ya existe un perfil.
       </p>
     </AuthCard>

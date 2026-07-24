@@ -238,7 +238,7 @@ export function RouteOrderForm({
                 </button>
               </div>
               {line.product_id && (
-                <p className="text-xs text-[#66776d]">
+                <p className="text-xs text-[#5b6d82]">
                   {loadingPrices && !price ? (
                     "Calculando precio…"
                   ) : price ? (
@@ -274,7 +274,7 @@ export function RouteOrderForm({
       </fieldset>
       {lines.some((l) => l.product_id) && (
         <div className="rounded-xl bg-[var(--oasis-soft)] p-4 text-right">
-          <span className="text-sm text-[#66776d]">Total estimado </span>
+          <span className="text-sm text-[#5b6d82]">Total estimado </span>
           <span className="text-lg font-bold">{clp.format(total)}</span>
         </div>
       )}

@@ -86,7 +86,7 @@ export default async function Users({
           <option value="active">Activos</option>
           <option value="inactive">Inactivos</option>
         </select>
-        <button className="rounded-xl bg-[#173f2d] px-4 py-2 text-white">
+        <button className="rounded-xl bg-[#083f7d] px-4 py-2 text-white">
           Filtrar
         </button>
       </form>
@@ -96,7 +96,7 @@ export default async function Users({
             <h2 className="font-semibold">
               Editar {editUser.first_name} {editUser.last_name}
             </h2>
-            <Link href="/admin/users" className="text-sm text-[#277a55]">
+            <Link href="/admin/users" className="text-sm text-[#0b4f9c]">
               Cerrar
             </Link>
           </div>
@@ -148,7 +148,7 @@ export default async function Users({
                       <div className="flex items-center gap-3">
                         <Link
                           href={`/admin/users?edit=${u.id}`}
-                          className="text-xs font-semibold text-[#277a55]"
+                          className="text-xs font-semibold text-[#0b4f9c]"
                         >
                           Editar
                         </Link>
@@ -159,7 +159,7 @@ export default async function Users({
                             name="active"
                             value={String(!u.active)}
                           />
-                          <button className="text-xs font-semibold text-[#277a55]">
+                          <button className="text-xs font-semibold text-[#0b4f9c]">
                             {u.active ? "Desactivar" : "Activar"}
                           </button>
                         </form>

@@ -77,7 +77,7 @@ export function CustomerCombobox({
         autoComplete="off"
       />
       {open && matches.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-[#d6e0da] bg-white shadow-lg">
+        <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-[#d3dbe3] bg-white shadow-lg">
           {matches.map((x) => (
             <li key={x.id}>
               <button
@@ -85,7 +85,7 @@ export function CustomerCombobox({
                 className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--oasis-soft)]"
                 onClick={() => select(x)}
               >
-                <span className="font-mono text-xs text-[#66776d]">
+                <span className="font-mono text-xs text-[#5b6d82]">
                   {x.code}
                 </span>{" "}
                 {x.name}
@@ -95,7 +95,7 @@ export function CustomerCombobox({
         </ul>
       )}
       {open && term && matches.length === 0 && (
-        <div className="absolute z-10 mt-1 w-full rounded-xl border border-[#d6e0da] bg-white p-3 text-sm text-[#66776d] shadow-lg">
+        <div className="absolute z-10 mt-1 w-full rounded-xl border border-[#d3dbe3] bg-white p-3 text-sm text-[#5b6d82] shadow-lg">
           Sin coincidencias.
         </div>
       )}

@@ -35,7 +35,7 @@ export default async function Page({
       {ctx.permissions.has("inventory.purchases.create") && (
         <Link
           href="/inventory/invoices/new"
-          className="mb-4 inline-block rounded-xl bg-[#173f2d] px-4 py-2.5 text-white"
+          className="mb-4 inline-block rounded-xl bg-[#083f7d] px-4 py-2.5 text-white"
         >
           Ingresar factura
         </Link>
@@ -92,7 +92,7 @@ export default async function Page({
                           x.attachment_path,
                         )}
                       >
-                        <button className="font-semibold text-[#277a55]">
+                        <button className="font-semibold text-[#0b4f9c]">
                           {x.attachment_name || "Abrir"}
                         </button>
                       </form>

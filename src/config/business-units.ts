@@ -16,7 +16,7 @@ export const businessUnitBrands = {
   },
   OM: {
     logo: "/business-units/om.png",
-    accent: "#277a55",
+    accent: "#0b4f9c",
     description: "Producción, materiales y operación modular",
   },
   DA: {
@@ -33,7 +33,7 @@ export function getBusinessUnitBrand(code?: string | null) {
     ? businessUnitBrands[code as BusinessUnitCode]
     : {
         logo: "/oasis-logo-crane.png",
-        accent: "#277a55",
+        accent: "#0b4f9c",
         description: "Gestión ejecutiva de la unidad de negocio",
       };
 }

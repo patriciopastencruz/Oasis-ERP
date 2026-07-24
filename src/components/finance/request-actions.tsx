@@ -37,14 +37,14 @@ export function SubmitRequest({ id }: { id: string }) {
       <button
         onClick={inspect}
         disabled={pending}
-        className="rounded-xl bg-[#173f2d] px-4 py-2.5 text-sm font-semibold text-white"
+        className="rounded-xl bg-[#083f7d] px-4 py-2.5 text-sm font-semibold text-white"
       >
         {pending ? "Procesando…" : "Enviar a aprobación"}
       </button>
       {preview && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded-2xl bg-white p-6 shadow-2xl">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#277a55]">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#0b4f9c]">
               Confirmación
             </p>
             <h2 className="mt-2 text-xl font-semibold">
@@ -88,7 +88,7 @@ export function SubmitRequest({ id }: { id: string }) {
               <button
                 onClick={submit}
                 disabled={pending}
-                className="rounded-xl bg-[#173f2d] px-4 py-2 text-white"
+                className="rounded-xl bg-[#083f7d] px-4 py-2 text-white"
               >
                 Confirmar envío
               </button>

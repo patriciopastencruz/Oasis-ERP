@@ -70,7 +70,7 @@ export default async function Dashboard() {
           width={88}
           height={88}
           priority
-          className="size-20 rounded-full border border-[#dce4df] bg-white object-contain p-1 shadow-sm"
+          className="size-20 rounded-full border border-[#d9dfe6] bg-white object-contain p-1 shadow-sm"
         />
         <div>
           <p
@@ -84,18 +84,18 @@ export default async function Dashboard() {
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             {data.unit.name}
           </h1>
-          <p className="mt-1 text-sm text-[#69786f]">{brand.description}</p>
+          <p className="mt-1 text-sm text-[#5c6f85]">{brand.description}</p>
         </div>
       </header>
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map(([label, value, Icon]) => (
           <Panel key={label} className="flex items-center gap-3 p-4">
-            <span className="grid size-10 place-items-center rounded-xl bg-[#edf5f0] text-[#176b46]">
+            <span className="grid size-10 place-items-center rounded-xl bg-[#ebf1f7] text-[#083f7d]">
               <Icon size={19} />
             </span>
             <div>
-              <p className="text-xs uppercase text-[#718078]">{label}</p>
+              <p className="text-xs uppercase text-[#63778e]">{label}</p>
               <p className="mt-1 text-xl font-bold">{value}</p>
             </div>
           </Panel>
@@ -107,7 +107,7 @@ export default async function Dashboard() {
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h2 className="font-semibold">Operación de la unidad</h2>
-              <p className="text-xs text-[#718078]">
+              <p className="text-xs text-[#63778e]">
                 Indicadores actualizados para {data.today}.
               </p>
             </div>
@@ -116,9 +116,9 @@ export default async function Dashboard() {
             {operationalCards.map(([label, value]) => (
               <div
                 key={label}
-                className="rounded-xl border bg-[#f8faf9] px-4 py-3"
+                className="rounded-xl border bg-[#f7f9fb] px-4 py-3"
               >
-                <p className="text-xs uppercase text-[#718078]">{label}</p>
+                <p className="text-xs uppercase text-[#63778e]">{label}</p>
                 <p className="mt-1 text-xl font-bold">{value}</p>
               </div>
             ))}
@@ -129,10 +129,10 @@ export default async function Dashboard() {
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
         <Panel>
           <h2 className="font-semibold">Evolución de solicitudes</h2>
-          <p className="mb-5 text-xs text-[#718078]">
+          <p className="mb-5 text-xs text-[#63778e]">
             Últimos seis meses de la unidad seleccionada.
           </p>
-          <div className="flex h-48 items-end gap-3 border-b border-[#dce4df] px-2">
+          <div className="flex h-48 items-end gap-3 border-b border-[#d9dfe6] px-2">
             {data.trend.map((item) => {
               const requested = Number(item.requested ?? 0);
               return (
@@ -140,23 +140,23 @@ export default async function Dashboard() {
                   key={String(item.month_start)}
                   className="flex h-full flex-1 flex-col justify-end gap-2 text-center"
                 >
-                  <span className="text-[10px] font-semibold text-[#526158]">
+                  <span className="text-[10px] font-semibold text-[#48586b]">
                     {clp.format(requested)}
                   </span>
                   <div
-                    className="mx-auto w-full max-w-14 rounded-t-lg bg-[#277a55]"
+                    className="mx-auto w-full max-w-14 rounded-t-lg bg-[#0b4f9c]"
                     style={{
                       height: `${Math.max(4, (requested / maxTrend) * 130)}px`,
                     }}
                   />
-                  <span className="pb-2 text-[10px] uppercase text-[#718078]">
+                  <span className="pb-2 text-[10px] uppercase text-[#63778e]">
                     {monthLabel(String(item.month_start))}
                   </span>
                 </div>
               );
             })}
             {data.trend.length === 0 && (
-              <p className="m-auto text-sm text-[#718078]">
+              <p className="m-auto text-sm text-[#63778e]">
                 Aún no existen movimientos financieros para esta unidad.
               </p>
             )}
@@ -164,7 +164,7 @@ export default async function Dashboard() {
         </Panel>
         <Panel>
           <h2 className="font-semibold">Estado financiero del mes</h2>
-          <p className="mb-4 text-xs text-[#718078]">
+          <p className="mb-4 text-xs text-[#63778e]">
             Solicitudes agrupadas por estado.
           </p>
           <div className="space-y-3">
@@ -177,7 +177,7 @@ export default async function Dashboard() {
                   <p className="text-sm font-semibold capitalize">
                     {uiLabel(item.status)}
                   </p>
-                  <p className="text-xs text-[#718078]">
+                  <p className="text-xs text-[#63778e]">
                     {Number(item.request_count)} solicitud(es)
                   </p>
                 </div>
@@ -187,7 +187,7 @@ export default async function Dashboard() {
               </div>
             ))}
             {data.statuses.length === 0 && (
-              <p className="rounded-xl bg-[#f8faf9] p-4 text-sm text-[#718078]">
+              <p className="rounded-xl bg-[#f7f9fb] p-4 text-sm text-[#63778e]">
                 Sin solicitudes durante el período.
               </p>
             )}

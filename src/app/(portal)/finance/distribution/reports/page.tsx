@@ -54,11 +54,11 @@ function Kpi({
 }) {
   return (
     <Panel className="p-3">
-      <p className="text-[10px] font-semibold uppercase leading-3 text-[#718078]">
+      <p className="text-[10px] font-semibold uppercase leading-3 text-[#63778e]">
         {label}
       </p>
       <p className="mt-1.5 text-lg font-bold leading-5">{value}</p>
-      {hint && <p className="mt-1 text-[10px] text-[#9aa79e]">{hint}</p>}
+      {hint && <p className="mt-1 text-[10px] text-[#909fb1]">{hint}</p>}
     </Panel>
   );
 }
@@ -79,7 +79,7 @@ function PeriodSalesChart({ daily }: { daily: DistributionDailySales[] }) {
               key={d.date}
               className="flex w-12 shrink-0 flex-col items-center gap-1"
             >
-              <span className="text-center text-[10px] font-semibold leading-tight text-[#173f2d]">
+              <span className="text-center text-[10px] font-semibold leading-tight text-[#083f7d]">
                 {d.sales > 0 ? clp.format(d.sales) : ""}
               </span>
               <div
@@ -91,7 +91,7 @@ function PeriodSalesChart({ daily }: { daily: DistributionDailySales[] }) {
                   style={{ height: barHeight }}
                 />
               </div>
-              <span className="text-[10px] text-[#718078]">
+              <span className="text-[10px] text-[#63778e]">
                 {new Date(`${d.date}T12:00:00Z`).toLocaleDateString("es-CL", {
                   day: "2-digit",
                   month: "2-digit",
@@ -165,7 +165,7 @@ export default async function Reports({
         <h1 className="mt-1.5 text-3xl font-semibold tracking-tight">
           Cierre diario y reportes
         </h1>
-        <p className="mt-1.5 max-w-3xl text-sm leading-5 text-[#69786f]">
+        <p className="mt-1.5 max-w-3xl text-sm leading-5 text-[#5c6f85]">
           Elige qué quieres revisar: el cierre de un día puntual o un
           resumen agregado por período.
         </p>
@@ -175,15 +175,15 @@ export default async function Reports({
       <details className="group mb-4 overflow-hidden rounded-2xl border border-[var(--oasis-border)] bg-white shadow-sm">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 font-semibold text-[var(--oasis-primary)] [&::-webkit-details-marker]:hidden">
           <span>Cierre diario</span>
-          <span className="text-xs font-normal text-[#66776d] group-open:hidden">
+          <span className="text-xs font-normal text-[#5b6d82] group-open:hidden">
             Control operativo, productos, ventas, cobros y gastos de la
             jornada
           </span>
         </summary>
-        <div className="space-y-4 border-t border-[#e0e8e3] p-4">
-          <div className="w-full rounded-2xl border border-[#dce4df] bg-white p-2.5 shadow-[0_8px_24px_rgba(20,57,39,.04)] lg:w-fit">
+        <div className="space-y-4 border-t border-[#dee4ea] p-4">
+          <div className="w-full rounded-2xl border border-[#d9dfe6] bg-white p-2.5 shadow-[0_8px_24px_rgba(20,57,39,.04)] lg:w-fit">
             <form className="flex flex-wrap items-end gap-2">
-              <label className="min-w-44 flex-1 text-[10px] font-semibold uppercase tracking-wide text-[#607168] lg:flex-none">
+              <label className="min-w-44 flex-1 text-[10px] font-semibold uppercase tracking-wide text-[#56677b] lg:flex-none">
                 Fecha
                 <input
                   className={`${inputClass} mt-1 rounded-lg py-2 text-sm`}
@@ -217,7 +217,7 @@ export default async function Reports({
                   <Icon size={16} />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase leading-3 text-[#718078]">
+                  <p className="text-[10px] font-semibold uppercase leading-3 text-[#63778e]">
                     {label}
                   </p>
                   <p className="text-lg font-bold leading-5">{value}</p>
@@ -230,14 +230,14 @@ export default async function Reports({
             <Panel className="overflow-hidden p-0">
               <div className="border-b px-5 py-4">
                 <h2 className="font-semibold">Detalle por producto</h2>
-                <p className="text-xs text-[#718078]">
+                <p className="text-xs text-[#63778e]">
                   Cantidades planificadas y efectivamente entregadas, con su
                   venta en pesos chilenos.
                 </p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[650px] text-sm">
-                  <thead className="bg-[#f3f7f5] text-left text-xs uppercase text-[#607168]">
+                  <thead className="bg-[#f2f5f8] text-left text-xs uppercase text-[#56677b]">
                     <tr>
                       <th className="px-5 py-3">Producto</th>
                       <th className="px-3 py-3">Presentación</th>
@@ -251,7 +251,7 @@ export default async function Reports({
                       <tr key={product.id} className="border-b last:border-0">
                         <td className="px-5 py-3 font-semibold">
                           {product.name}
-                          <span className="ml-2 font-mono text-xs font-normal text-[#718078]">
+                          <span className="ml-2 font-mono text-xs font-normal text-[#63778e]">
                             {product.code}
                           </span>
                         </td>
@@ -271,14 +271,14 @@ export default async function Reports({
                       <tr>
                         <td
                           colSpan={5}
-                          className="p-8 text-center text-[#718078]"
+                          className="p-8 text-center text-[#63778e]"
                         >
                           No hay productos asociados a pedidos de esta fecha.
                         </td>
                       </tr>
                     )}
                   </tbody>
-                  <tfoot className="bg-[#f8faf9] font-bold">
+                  <tfoot className="bg-[#f7f9fb] font-bold">
                     <tr>
                       <td colSpan={4} className="px-5 py-3 text-right">
                         Venta total entregada
@@ -301,7 +301,7 @@ export default async function Reports({
                       key={label}
                       className="flex items-center justify-between gap-4 py-2.5"
                     >
-                      <dt className="text-[#607168]">{label}</dt>
+                      <dt className="text-[#56677b]">{label}</dt>
                       <dd className="font-semibold">{value}</dd>
                     </div>
                   ))}
@@ -317,23 +317,23 @@ export default async function Reports({
                     {summary.driver_closures.map((dc) => (
                       <div
                         key={dc.driver_id}
-                        className="rounded-xl border border-[#dce4df] p-3 text-sm"
+                        className="rounded-xl border border-[#d9dfe6] p-3 text-sm"
                       >
                         <p className="font-semibold">{dc.driver_name}</p>
-                        <div className="mt-1 flex justify-between text-[#607168]">
+                        <div className="mt-1 flex justify-between text-[#56677b]">
                           <span>Efectivo declarado</span>
-                          <b className="text-[#173f2d]">
+                          <b className="text-[#083f7d]">
                             {clp.format(dc.declared_cash)}
                           </b>
                         </div>
-                        <div className="flex justify-between text-[#607168]">
+                        <div className="flex justify-between text-[#56677b]">
                           <span>Pendiente de pago</span>
-                          <b className="text-[#173f2d]">
+                          <b className="text-[#083f7d]">
                             {clp.format(dc.pending_amount)}
                           </b>
                         </div>
                         {dc.observations && (
-                          <p className="mt-2 whitespace-pre-wrap text-xs text-[#718078]">
+                          <p className="mt-2 whitespace-pre-wrap text-xs text-[#63778e]">
                             {dc.observations}
                           </p>
                         )}
@@ -341,7 +341,7 @@ export default async function Reports({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-[#718078]">
+                  <p className="text-sm text-[#63778e]">
                     Ningún chofer ha declarado su cierre de caja para este
                     día.
                   </p>
@@ -352,7 +352,7 @@ export default async function Reports({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="font-semibold">Cierre formal</h2>
-                    <p className="mt-1 text-xs text-[#718078]">
+                    <p className="mt-1 text-xs text-[#63778e]">
                       Guarda un snapshot auditable y bloquea modificaciones
                       normales del {date}.
                     </p>
@@ -364,8 +364,8 @@ export default async function Reports({
                   </span>
                 </div>
                 {isClosed ? (
-                  <div className="mt-4 rounded-xl bg-[#f3f7f5] p-3 text-sm">
-                    <p className="text-xs font-semibold uppercase text-[#718078]">
+                  <div className="mt-4 rounded-xl bg-[#f2f5f8] p-3 text-sm">
+                    <p className="text-xs font-semibold uppercase text-[#63778e]">
                       Observaciones
                     </p>
                     <p className="mt-1 whitespace-pre-wrap">
@@ -392,7 +392,7 @@ export default async function Reports({
                     </button>
                   </form>
                 ) : (
-                  <p className="mt-4 text-sm text-[#718078]">
+                  <p className="mt-4 text-sm text-[#63778e]">
                     No tienes permiso para cerrar esta jornada.
                   </p>
                 )}
@@ -405,11 +405,11 @@ export default async function Reports({
       <details className="group overflow-hidden rounded-2xl border border-[var(--oasis-border)] bg-white shadow-sm">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 font-semibold text-[var(--oasis-primary)] [&::-webkit-details-marker]:hidden">
           <span>Reporte por período</span>
-          <span className="text-xs font-normal text-[#66776d] group-open:hidden">
+          <span className="text-xs font-normal text-[#5b6d82] group-open:hidden">
             Ventas, kilos y créditos agregados por semana, mes, etc.
           </span>
         </summary>
-        <div className="space-y-4 border-t border-[#e0e8e3] p-4">
+        <div className="space-y-4 border-t border-[#dee4ea] p-4">
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
             <Link
               href={`?date=${date}&from=${weekFrom}&to=${weekTo}`}
@@ -433,7 +433,7 @@ export default async function Reports({
           <Panel>
             <form className="flex flex-wrap items-end gap-2">
               <input type="hidden" name="date" value={date} />
-              <label className="min-w-40 flex-1 text-[10px] font-semibold uppercase tracking-wide text-[#607168] lg:flex-none">
+              <label className="min-w-40 flex-1 text-[10px] font-semibold uppercase tracking-wide text-[#56677b] lg:flex-none">
                 Desde
                 <input
                   className={`${inputClass} mt-1 rounded-lg py-2 text-sm`}
@@ -442,7 +442,7 @@ export default async function Reports({
                   defaultValue={periodFrom}
                 />
               </label>
-              <label className="min-w-40 flex-1 text-[10px] font-semibold uppercase tracking-wide text-[#607168] lg:flex-none">
+              <label className="min-w-40 flex-1 text-[10px] font-semibold uppercase tracking-wide text-[#56677b] lg:flex-none">
                 Hasta
                 <input
                   className={`${inputClass} mt-1 rounded-lg py-2 text-sm`}

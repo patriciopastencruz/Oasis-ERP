@@ -115,7 +115,7 @@ export function OrderForm({
       {customer && (
         <div className="rounded-xl bg-[var(--oasis-soft)] p-4 text-sm">
           <b>{customer.address}</b>
-          <span className="ml-3 text-[#66776d]">{customer.phone}</span>
+          <span className="ml-3 text-[#5b6d82]">{customer.phone}</span>
           <p className="mt-1">
             Crédito:{" "}
             {customer.has_credit
@@ -220,7 +220,7 @@ export function OrderForm({
                 </button>
               </div>
               {line.product_id && (
-                <p className="text-xs text-[#66776d]">
+                <p className="text-xs text-[#5b6d82]">
                   {loadingPrices && !price ? (
                     "Calculando precio…"
                   ) : price ? (
@@ -250,7 +250,7 @@ export function OrderForm({
       </button>
       {lines.some((l) => l.product_id) && (
         <div className="rounded-xl bg-[var(--oasis-soft)] p-4 text-right">
-          <span className="text-sm text-[#66776d]">Total estimado </span>
+          <span className="text-sm text-[#5b6d82]">Total estimado </span>
           <span className="text-lg font-bold">{clp.format(total)}</span>
         </div>
       )}
@@ -258,7 +258,7 @@ export function OrderForm({
         Observaciones
         <textarea className={inputClass} name="notes" rows={3} />
       </label>
-      <p className="text-xs text-[#66776d]">
+      <p className="text-xs text-[#5b6d82]">
         Los precios, el crédito disponible y el total se validan nuevamente en
         el servidor al confirmar.
       </p>

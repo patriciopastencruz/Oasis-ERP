@@ -98,7 +98,7 @@ export default async function Payments({
               >
                 <div>
                   <b>{x.dist_customers?.name ?? "Cliente ocasional"}</b>
-                  <p className="text-xs text-[#718078]">
+                  <p className="text-xs text-[#63778e]">
                     {new Date(x.paid_at).toLocaleString("es-CL")} · {x.method} ·{" "}
                     {x.receipt_number || "sin comprobante"}
                   </p>

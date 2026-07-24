@@ -179,7 +179,7 @@ export default async function PettyCashDashboard({
             <option value="approved">Aprobadas</option>
             <option value="rejected">Rechazadas</option>
           </select>
-          <button className="rounded-xl bg-[#173f2d] px-4 text-sm font-semibold text-white">
+          <button className="rounded-xl bg-[#083f7d] px-4 text-sm font-semibold text-white">
             Actualizar
           </button>
         </form>
@@ -242,7 +242,7 @@ function Breakdown({
             </div>
             <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-[#277a55]"
+                className="h-full rounded-full bg-[#0b4f9c]"
                 style={{ width: `${Math.max(3, (value / max) * 100)}%` }}
               />
             </div>

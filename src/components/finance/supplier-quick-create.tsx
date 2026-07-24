@@ -16,8 +16,8 @@ export function SupplierQuickCreate({
     if (state.success) router.refresh();
   }, [state.success, router]);
   return (
-    <details className="mb-5 rounded-2xl border border-dashed border-[#91baa5] bg-[#f7fbf8] p-4">
-      <summary className="cursor-pointer text-sm font-semibold text-[#277a55]">
+    <details className="mb-5 rounded-2xl border border-dashed border-[#7da3ce] bg-[#f6f9fc] p-4">
+      <summary className="cursor-pointer text-sm font-semibold text-[#0b4f9c]">
         Crear proveedor nuevo
       </summary>
       <form action={action} className="mt-4 grid gap-3 md:grid-cols-4">
@@ -36,7 +36,7 @@ export function SupplierQuickCreate({
         />
         <button
           disabled={pending}
-          className="rounded-xl bg-[#277a55] px-4 text-sm font-semibold text-white"
+          className="rounded-xl bg-[#0b4f9c] px-4 text-sm font-semibold text-white"
         >
           {pending ? "Creando…" : "Crear proveedor"}
         </button>

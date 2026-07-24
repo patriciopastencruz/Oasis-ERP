@@ -89,7 +89,7 @@ export function AccountStatementsResults({
           ["Deuda vencida", totals.overdue],
         ].map(([label, value]) => (
           <Panel key={label as string}>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#718078]">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#63778e]">
               {label}
             </p>
             <p className="mt-2 text-2xl font-bold">
@@ -103,14 +103,14 @@ export function AccountStatementsResults({
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold">Cartera de clientes</h2>
-            <p className="text-sm text-[#718078]">
+            <p className="text-sm text-[#63778e]">
               {visible.length} cliente(s) según los filtros seleccionados.
             </p>
           </div>
         </div>
         <table className="w-full min-w-[980px] text-sm">
           <thead>
-            <tr className="border-b text-left text-xs uppercase text-[#718078]">
+            <tr className="border-b text-left text-xs uppercase text-[#63778e]">
               <th className="p-2">Cliente</th>
               <th>Clasificación</th>
               <th className="text-right">Venta crédito</th>
@@ -128,7 +128,7 @@ export function AccountStatementsResults({
               <tr key={customer.id} className="border-b align-top">
                 <td className="p-2">
                   <b>{customer.name}</b>
-                  <div className="font-mono text-xs text-[#718078]">
+                  <div className="font-mono text-xs text-[#63778e]">
                     {customer.code}
                   </div>
                 </td>
@@ -170,7 +170,7 @@ export function AccountStatementsResults({
             ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-[#718078]">
+                <td colSpan={10} className="p-8 text-center text-[#63778e]">
                   No hay clientes que coincidan con estos filtros.
                 </td>
               </tr>
@@ -182,7 +182,7 @@ export function AccountStatementsResults({
       <div className="mt-5 space-y-4">
         <div>
           <h2 className="text-lg font-semibold">Pedidos por cobrar</h2>
-          <p className="text-sm text-[#718078]">
+          <p className="text-sm text-[#63778e]">
             Selecciona únicamente los pedidos que se incluirán en el reporte
             para el cliente.
           </p>
@@ -196,7 +196,7 @@ export function AccountStatementsResults({
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold">{customer.name}</p>
-                      <p className="text-xs text-[#718078]">
+                      <p className="text-xs text-[#63778e]">
                         {customer.code} · {customer.orders.length} pedido(s) con
                         saldo
                       </p>

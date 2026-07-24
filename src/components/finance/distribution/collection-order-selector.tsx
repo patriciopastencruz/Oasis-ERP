@@ -30,7 +30,7 @@ export function CollectionOrderSelector({
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-sm">
           <thead>
-            <tr className="border-b text-left text-xs uppercase text-[#718078]">
+            <tr className="border-b text-left text-xs uppercase text-[#63778e]">
               <th className="w-12 p-2">Cobrar</th>
               <th>Fecha</th>
               <th>Pedido</th>
@@ -74,7 +74,7 @@ export function CollectionOrderSelector({
         </table>
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-[#718078]">
+        <p className="text-xs text-[#63778e]">
           {selected.length} de {orders.length} pedido(s) seleccionados.
         </p>
         <button

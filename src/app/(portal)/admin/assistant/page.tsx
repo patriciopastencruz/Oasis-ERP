@@ -151,7 +151,7 @@ export default async function AssistantAdminPage({
               className={inputClass}
             />
           </div>
-          <button className="rounded-xl bg-[#173f2d] px-4 py-2.5 text-sm font-semibold text-white md:col-span-2">
+          <button className="rounded-xl bg-[#083f7d] px-4 py-2.5 text-sm font-semibold text-white md:col-span-2">
             Guardar configuración
           </button>
         </form>
@@ -241,7 +241,7 @@ export default async function AssistantAdminPage({
                       placeholder="palabras clave, separadas por coma"
                       className={inputClass}
                     />
-                    <button className="rounded-lg bg-[#277a55] px-3 py-1.5 text-xs font-semibold text-white">
+                    <button className="rounded-lg bg-[#0b4f9c] px-3 py-1.5 text-xs font-semibold text-white">
                       Crear artículo desde esta pregunta
                     </button>
                   </form>

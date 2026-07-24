@@ -82,7 +82,7 @@ export default async function PettyCashReportPage({
           <StatusBadge value={report.status} />
           <Link
             href="/finance/petty-cash/my-reports"
-            className="text-sm font-semibold text-[#277a55]"
+            className="text-sm font-semibold text-[#0b4f9c]"
           >
             Volver
           </Link>
@@ -112,7 +112,7 @@ export default async function PettyCashReportPage({
                     href={String(attachment.url)}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-semibold text-[#277a55]"
+                    className="font-semibold text-[#0b4f9c]"
                   >
                     {String(attachment.original_name)}
                   </a>
@@ -151,7 +151,7 @@ export default async function PettyCashReportPage({
         <StatusBadge value={report.status} />
         <Link
           href="/finance/petty-cash/my-reports"
-          className="text-sm font-semibold text-[#277a55]"
+          className="text-sm font-semibold text-[#0b4f9c]"
         >
           Volver
         </Link>

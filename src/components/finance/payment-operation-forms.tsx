@@ -114,7 +114,7 @@ export function ExecuteForm({
           )
             e.preventDefault();
         }}
-        className="w-full rounded-xl bg-[#173f2d] p-3 font-semibold text-white"
+        className="w-full rounded-xl bg-[#083f7d] p-3 font-semibold text-white"
       >
         {pending ? "Registrando…" : "Confirmar pago ejecutado"}
       </button>

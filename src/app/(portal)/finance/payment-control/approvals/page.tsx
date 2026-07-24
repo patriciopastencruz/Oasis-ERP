@@ -89,7 +89,7 @@ export default async function Approvals({
         eyebrow="Finanzas · Solicitud de Pagos"
       />
       <details className="group/notifications mb-5">
-        <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-xl border border-[#dce4df] bg-white px-4 py-2.5 text-sm font-semibold text-[#173f2d] shadow-sm transition hover:bg-[#edf5f0] [&::-webkit-details-marker]:hidden">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-xl border border-[#d9dfe6] bg-white px-4 py-2.5 text-sm font-semibold text-[#083f7d] shadow-sm transition hover:bg-[#ebf1f7] [&::-webkit-details-marker]:hidden">
           <Bell size={17} />
           Notificaciones
           {(notifications?.length ?? 0) > 0 && (
@@ -118,7 +118,7 @@ export default async function Approvals({
                   </Link>
                   <form action={markNotificationReadAction}>
                     <input type="hidden" name="id" value={n.id} />
-                    <button className="font-semibold text-[#277a55]">
+                    <button className="font-semibold text-[#0b4f9c]">
                       Marcar leída
                     </button>
                   </form>
@@ -126,7 +126,7 @@ export default async function Approvals({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-[#718078]">
+            <p className="text-sm text-[#63778e]">
               No tienes notificaciones pendientes.
             </p>
           )}
@@ -209,7 +209,7 @@ export default async function Approvals({
             placeholder="Monto máx."
             className="rounded-xl border p-2 text-sm"
           />
-          <button className="rounded-xl bg-[#173f2d] text-sm text-white">
+          <button className="rounded-xl bg-[#083f7d] text-sm text-white">
             Filtrar
           </button>
         </form>
@@ -262,7 +262,7 @@ export default async function Approvals({
                     <td>
                       <Link
                         href={`/finance/payment-control/approvals/${r?.id}`}
-                        className="font-semibold text-[#277a55]"
+                        className="font-semibold text-[#0b4f9c]"
                       >
                         Revisar
                       </Link>

@@ -121,7 +121,7 @@ export function WeeklyCalendar({
           aria-label="Filtrar por habitación"
           value={room}
           onChange={(event) => setRoom(event.target.value)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#277a55]"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#0b4f9c]"
         >
           <option value="all">Todas las habitaciones</option>
           {rooms.map((item) => (
@@ -134,7 +134,7 @@ export function WeeklyCalendar({
           aria-label="Filtrar por origen"
           value={origin}
           onChange={(event) => setOrigin(event.target.value)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#277a55]"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#0b4f9c]"
         >
           <option value="all">Todos los orígenes</option>
           {Object.entries(originLabels).map(([value, text]) => (

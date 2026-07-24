@@ -90,7 +90,7 @@ export default async function Page({
               <textarea name="reason" maxLength={500} className={inputClass} />
             </Field>
           </div>
-          <button className="rounded-xl bg-[#173f2d] px-4 py-3 font-semibold text-white md:col-span-2">
+          <button className="rounded-xl bg-[#083f7d] px-4 py-3 font-semibold text-white md:col-span-2">
             Confirmar salida
           </button>
         </form>

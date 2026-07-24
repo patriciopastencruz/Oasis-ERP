@@ -52,7 +52,7 @@ export default async function Page({
               ))}
             </select>
           </label>
-          <button className="rounded-xl bg-[#173f2d] px-5 py-2 text-sm font-semibold text-white">
+          <button className="rounded-xl bg-[#083f7d] px-5 py-2 text-sm font-semibold text-white">
             Editar habitación
           </button>
         </form>
@@ -68,7 +68,7 @@ export default async function Page({
             </div>
             <Link
               href="/lodging/rooms"
-              className="text-sm font-semibold text-[#277a55]"
+              className="text-sm font-semibold text-[#0b4f9c]"
             >
               Cerrar edición
             </Link>
@@ -158,7 +158,7 @@ export default async function Page({
                   No modificará reservas ya confirmadas ni los precios
                   publicados en Booking o Airbnb.
                 </p>
-                <button className="rounded-xl bg-[#277a55] px-4 py-2 text-sm font-semibold text-white sm:col-span-2">
+                <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white sm:col-span-2">
                   Guardar cambios
                 </button>
               </>
@@ -213,7 +213,7 @@ export default async function Page({
               defaultValue={(rooms?.length ?? 0) + 1}
               className={field}
             />
-            <button className="rounded-xl bg-[#277a55] px-4 py-2 text-sm font-semibold text-white md:col-span-2">
+            <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white md:col-span-2">
               Crear habitación
             </button>
           </form>

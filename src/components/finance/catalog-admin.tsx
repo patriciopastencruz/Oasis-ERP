@@ -64,7 +64,7 @@ export function CatalogAdmin({
                       <div className="flex gap-3">
                         <a
                           href={`?edit=${r.id}`}
-                          className="font-semibold text-[#277a55]"
+                          className="font-semibold text-[#0b4f9c]"
                         >
                           Editar
                         </a>
@@ -148,7 +148,7 @@ export function CatalogAdmin({
               className={`${input} min-h-20`}
             />
           </label>
-          <button className="w-full rounded-xl bg-[#173f2d] px-4 py-3 font-semibold text-white">
+          <button className="w-full rounded-xl bg-[#083f7d] px-4 py-3 font-semibold text-white">
             Guardar
           </button>
         </form>

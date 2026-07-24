@@ -39,11 +39,11 @@ export default async function QuotationApprovals({
             <Panel key={x.id}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase text-[#718078]">
+                  <p className="text-xs uppercase text-[#63778e]">
                     {x.quotation_number}
                   </p>
                   <h2 className="font-semibold">{x.client_company}</h2>
-                  <p className="text-sm text-[#718078]">{x.client_place}</p>
+                  <p className="text-sm text-[#63778e]">{x.client_place}</p>
                   <p className="mt-1 text-sm">
                     Vendedor/a: {seller?.first_name} {seller?.last_name}
                   </p>
@@ -91,7 +91,7 @@ export default async function QuotationApprovals({
         })}
         {!quotations?.length && (
           <Panel>
-            <p className="text-sm text-[#718078]">
+            <p className="text-sm text-[#63778e]">
               No hay cotizaciones pendientes de aprobación.
             </p>
           </Panel>

@@ -51,7 +51,7 @@ function Section({
   return (
     <section className="mb-6">
       <div className="mb-3 flex items-center gap-2">
-        <Icon size={18} className="text-[var(--oasis-primary,#173f2d)]" />
+        <Icon size={18} className="text-[var(--oasis-primary,#083f7d)]" />
         <h2 className="text-lg font-semibold">{title}</h2>
         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
           {count}
@@ -61,7 +61,7 @@ function Section({
         <div className="space-y-3">{children}</div>
       ) : (
         <Panel>
-          <p className="text-sm text-[#718078]">
+          <p className="text-sm text-[#63778e]">
             No hay pendientes en este módulo.
           </p>
         </Panel>
@@ -151,19 +151,19 @@ export default async function AdministrationApprovals({
               <Panel key={x.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase text-[#718078]">
+                    <p className="text-xs uppercase text-[#63778e]">
                       {x.quotation_number} · {unit?.name}
                     </p>
                     <h3 className="font-semibold">{x.client_company}</h3>
-                    <p className="text-sm text-[#718078]">
+                    <p className="text-sm text-[#63778e]">
                       Vendedor/a: {seller?.first_name} {seller?.last_name}
                     </p>
-                    <p className="mt-1 font-bold text-[var(--oasis-primary,#173f2d)]">
+                    <p className="mt-1 font-bold text-[var(--oasis-primary,#083f7d)]">
                       {money.format(Number(x.total))}
                     </p>
                     <Link
                       href={`/sales/quotations/${x.id}`}
-                      className="mt-2 inline-block text-sm font-semibold text-[var(--oasis-primary,#173f2d)] underline"
+                      className="mt-2 inline-block text-sm font-semibold text-[var(--oasis-primary,#083f7d)] underline"
                     >
                       Ver detalle completo
                     </Link>
@@ -196,21 +196,21 @@ export default async function AdministrationApprovals({
               <Panel key={x.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase text-[#718078]">
+                    <p className="text-xs uppercase text-[#63778e]">
                       {r?.request_number} · {unit?.name}
                     </p>
                     <h3 className="font-semibold">{r?.supplier_legal_name}</h3>
-                    <p className="text-sm text-[#718078]">
+                    <p className="text-sm text-[#63778e]">
                       Solicita: {profile?.first_name} {profile?.last_name} ·
                       Etapa: {x.step_name_snapshot}
                     </p>
-                    <p className="mt-1 font-bold text-[var(--oasis-primary,#173f2d)]">
+                    <p className="mt-1 font-bold text-[var(--oasis-primary,#083f7d)]">
                       {money.format(Number(r?.amount))}
                     </p>
                   </div>
                   <Link
                     href={`/finance/payment-control/approvals/${r?.id}`}
-                    className="h-fit rounded-lg bg-[#173f2d] px-4 py-2 text-sm font-semibold text-white"
+                    className="h-fit rounded-lg bg-[#083f7d] px-4 py-2 text-sm font-semibold text-white"
                   >
                     Revisar
                   </Link>
@@ -234,22 +234,22 @@ export default async function AdministrationApprovals({
               <Panel key={x.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase text-[#718078]">
+                    <p className="text-xs uppercase text-[#63778e]">
                       {x.report_number} · {unit?.name}
                     </p>
                     <h3 className="font-semibold">
                       {profile?.first_name} {profile?.last_name}
                     </h3>
-                    <p className="mt-1 font-bold text-[var(--oasis-primary,#173f2d)]">
+                    <p className="mt-1 font-bold text-[var(--oasis-primary,#083f7d)]">
                       {money.format(Number(x.total_registered))}
                     </p>
-                    <p className="text-sm text-[#718078]">
+                    <p className="text-sm text-[#63778e]">
                       Enviada: {dateLabel(x.submitted_at)}
                     </p>
                   </div>
                   <Link
                     href={`/finance/petty-cash/reviews/${x.id}`}
-                    className="h-fit rounded-lg bg-[#173f2d] px-4 py-2 text-sm font-semibold text-white"
+                    className="h-fit rounded-lg bg-[#083f7d] px-4 py-2 text-sm font-semibold text-white"
                   >
                     Revisar
                   </Link>
@@ -274,14 +274,14 @@ export default async function AdministrationApprovals({
               <Panel key={x.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase text-[#718078]">
+                    <p className="text-xs uppercase text-[#63778e]">
                       {x.request_type === "edit" ? "Edición" : "Desactivación"}{" "}
                       · {unit?.name}
                     </p>
                     <h3 className="font-semibold">
                       {material?.code} · {material?.name}
                     </h3>
-                    <p className="text-sm text-[#718078]">
+                    <p className="text-sm text-[#63778e]">
                       Solicita: {profile?.first_name} {profile?.last_name}
                     </p>
                     <p className="mt-1 text-sm">
@@ -311,14 +311,14 @@ export default async function AdministrationApprovals({
               <Panel key={x.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase text-[#718078]">
+                    <p className="text-xs uppercase text-[#63778e]">
                       {x.type === "edit" ? "Edición" : "Anulación"} ·{" "}
                       {unit?.name}
                     </p>
                     <h3 className="font-semibold">
                       Pedido {order?.order_number}
                     </h3>
-                    <p className="text-sm text-[#718078]">
+                    <p className="text-sm text-[#63778e]">
                       {customer?.name ?? order?.occasional_customer_name}
                     </p>
                     <p className="mt-1 text-sm">

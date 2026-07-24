@@ -128,11 +128,11 @@ export default async function Driver({
                 </span>
                 Registrar venta en ruta
               </span>
-              <span className="text-xs font-normal text-[#66776d] group-open:hidden">
+              <span className="text-xs font-normal text-[#5b6d82] group-open:hidden">
                 Habitual o express
               </span>
             </summary>
-            <div className="border-t border-[#e0e8e3] p-4">
+            <div className="border-t border-[#dee4ea] p-4">
               <RouteOrderForm
                 customers={(customers.data ?? []) as any}
                 products={(products.data ?? []) as any}
@@ -144,7 +144,7 @@ export default async function Driver({
         {data?.map((o: any) => (
           <article
             key={o.id}
-            className="overflow-hidden rounded-2xl border border-[#dce4df] bg-white shadow-sm"
+            className="overflow-hidden rounded-2xl border border-[#d9dfe6] bg-white shadow-sm"
           >
             <div className="flex items-center justify-between bg-[var(--oasis-sidebar)] px-4 py-3 text-white">
               <span className="text-sm font-semibold">
@@ -210,7 +210,7 @@ export default async function Driver({
           </article>
         ))}
         {!data?.length && (
-          <div className="rounded-2xl border bg-white p-8 text-center text-sm text-[#718078]">
+          <div className="rounded-2xl border bg-white p-8 text-center text-sm text-[#63778e]">
             {date === today
               ? "No tienes entregas asignadas para hoy."
               : "No tienes entregas asignadas para esta fecha."}
@@ -225,11 +225,11 @@ export default async function Driver({
                 </span>
                 Cierre de caja
               </span>
-              <span className="text-xs font-normal text-[#66776d] group-open:hidden">
+              <span className="text-xs font-normal text-[#5b6d82] group-open:hidden">
                 {existingClosure ? "Ya declarado" : "Fin de la ruta"}
               </span>
             </summary>
-            <div className="border-t border-[#e0e8e3] p-4">
+            <div className="border-t border-[#dee4ea] p-4">
               <form action={submitDriverClosureAction} className="space-y-3">
                 <input type="hidden" name="date" value={date} />
                 <label className="block text-sm">

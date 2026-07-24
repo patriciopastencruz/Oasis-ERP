@@ -251,12 +251,12 @@ export function WorkflowEditor({
             },
           ])
         }
-        className="text-sm font-semibold text-[#277a55]"
+        className="text-sm font-semibold text-[#0b4f9c]"
       >
         + Agregar etapa
       </button>
       <input type="hidden" name="steps_json" value={JSON.stringify(steps)} />
-      <button className="w-full rounded-xl bg-[#173f2d] px-4 py-3 font-semibold text-white">
+      <button className="w-full rounded-xl bg-[#083f7d] px-4 py-3 font-semibold text-white">
         Guardar flujo de aprobación
       </button>
     </form>

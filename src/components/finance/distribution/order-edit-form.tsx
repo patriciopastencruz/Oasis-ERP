@@ -99,7 +99,7 @@ export function OrderEditForm({
           />
         </label>
       )}
-      <p className="text-xs text-[#66776d]">
+      <p className="text-xs text-[#5b6d82]">
         {mode === "edit"
           ? "Los precios y el total se recalculan en el servidor al guardar."
           : "Un Administrador debe aprobar esta solicitud antes de aplicar los cambios; los precios y el total se recalculan al aprobar."}

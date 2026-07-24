@@ -23,7 +23,7 @@ export default async function Page() {
           <F n="email" l="Correo" t="email" />
           <F n="phone" l="Teléfono" />
           <F n="address" l="Dirección" />
-          <button className="rounded-xl bg-[#173f2d] p-3 font-semibold text-white md:col-span-2">
+          <button className="rounded-xl bg-[#083f7d] p-3 font-semibold text-white md:col-span-2">
             Crear proveedor
           </button>
         </form>

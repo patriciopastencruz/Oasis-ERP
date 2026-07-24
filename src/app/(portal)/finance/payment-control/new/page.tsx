@@ -44,7 +44,7 @@ export default async function NewRequest() {
           }))}
         />
       )}
-      <div className="mb-5 flex flex-wrap gap-3 text-sm font-semibold text-[#277a55]">
+      <div className="mb-5 flex flex-wrap gap-3 text-sm font-semibold text-[#0b4f9c]">
         {(ctx.permissions.has("finance.expense_categories.manage") ||
           ctx.permissions.has("administration.categories.manage")) && (
           <Link href="/finance/payment-control/categories">

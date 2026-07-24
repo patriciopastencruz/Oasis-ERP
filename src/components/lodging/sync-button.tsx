@@ -31,7 +31,7 @@ export function SyncButton({ unitId }: { unitId: string }) {
       <button
         onClick={run}
         disabled={busy}
-        className="inline-flex items-center gap-2 rounded-xl border border-[#277a55] bg-white px-4 py-2.5 text-sm font-semibold text-[#1c6748] disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-xl border border-[#0b4f9c] bg-white px-4 py-2.5 text-sm font-semibold text-[#0b4f9c] disabled:opacity-60"
       >
         <RefreshCw size={16} className={busy ? "animate-spin" : ""} />
         {busy ? "Actualizando calendarios…" : "Actualizar calendarios"}
@@ -39,7 +39,7 @@ export function SyncButton({ unitId }: { unitId: string }) {
       {message && (
         <div
           role="status"
-          className="absolute right-0 top-12 z-30 w-72 rounded-xl bg-[#173f2d] px-4 py-3 text-sm text-white shadow-xl"
+          className="absolute right-0 top-12 z-30 w-72 rounded-xl bg-[#083f7d] px-4 py-3 text-sm text-white shadow-xl"
         >
           {message}
         </div>

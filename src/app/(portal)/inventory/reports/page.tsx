@@ -43,7 +43,7 @@ export default async function Page() {
                 Hasta
                 <input name="to" type="date" className={inputClass} />
               </label>
-              <button className="rounded-xl bg-[#173f2d] px-4 py-2.5 text-sm font-semibold text-white sm:col-span-2">
+              <button className="rounded-xl bg-[#083f7d] px-4 py-2.5 text-sm font-semibold text-white sm:col-span-2">
                 Descargar Excel
               </button>
             </form>

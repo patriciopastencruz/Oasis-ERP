@@ -52,7 +52,7 @@ export function DraggableOrderRows({ rows }: { rows: Row[] }) {
             e.preventDefault();
             handleDrop(row.id);
           }}
-          className={`border-b border-[#e4ebe7] ${row.driverId ? "cursor-grab active:cursor-grabbing" : ""} ${draggingId === row.id ? "opacity-40" : ""}`}
+          className={`border-b border-[#e2e7ed] ${row.driverId ? "cursor-grab active:cursor-grabbing" : ""} ${draggingId === row.id ? "opacity-40" : ""}`}
         >
           {row.content}
         </tr>

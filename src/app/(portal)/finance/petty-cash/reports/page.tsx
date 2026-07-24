@@ -107,7 +107,7 @@ export default async function PettyCashReports({
               </option>
             ))}
           </select>
-          <button className="rounded-xl bg-[#173f2d] px-4 py-2.5 text-sm font-semibold text-white">
+          <button className="rounded-xl bg-[#083f7d] px-4 py-2.5 text-sm font-semibold text-white">
             Aplicar filtros
           </button>
         </form>
@@ -168,7 +168,7 @@ export default async function PettyCashReports({
               </a>
               <a
                 href={`/api/finance/petty-cash/reports.xlsx?${query}`}
-                className="flex items-center gap-2 rounded-xl bg-[#173f2d] px-4 py-2.5 text-sm font-semibold text-white"
+                className="flex items-center gap-2 rounded-xl bg-[#083f7d] px-4 py-2.5 text-sm font-semibold text-white"
               >
                 <Download size={16} /> Descargar Excel
               </a>

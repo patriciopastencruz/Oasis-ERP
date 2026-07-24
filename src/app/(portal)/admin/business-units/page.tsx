@@ -33,7 +33,7 @@ export default async function Units() {
               <form action={toggleUnitAction} className="mt-3">
                 <input type="hidden" name="id" value={u.id} />
                 <input type="hidden" name="active" value={String(!u.active)} />
-                <button className="text-xs font-semibold text-[#277a55]">
+                <button className="text-xs font-semibold text-[#0b4f9c]">
                   {u.active ? "Desactivar" : "Activar"}
                 </button>
               </form>

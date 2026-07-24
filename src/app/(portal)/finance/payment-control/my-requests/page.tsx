@@ -106,7 +106,7 @@ export default async function MyRequests({
             defaultValue={p.from}
             className="rounded-xl border p-2.5 text-sm"
           />
-          <button className="rounded-xl bg-[#173f2d] px-4 text-sm font-semibold text-white">
+          <button className="rounded-xl bg-[#083f7d] px-4 text-sm font-semibold text-white">
             Filtrar
           </button>
         </form>
@@ -157,7 +157,7 @@ export default async function MyRequests({
                     </td>
                     <td>
                       <Link
-                        className="font-semibold text-[#277a55]"
+                        className="font-semibold text-[#0b4f9c]"
                         href={`/finance/payment-control/requests/${r.id}`}
                       >
                         {r.status === "draft" ? "Continuar" : "Ver"}

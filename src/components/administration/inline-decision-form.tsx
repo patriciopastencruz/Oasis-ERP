@@ -1,5 +1,5 @@
 const inputClass =
-  "mt-0 flex-1 rounded-xl border border-[#d8e1dc] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--oasis-primary)]";
+  "mt-0 flex-1 rounded-xl border border-[#d5dce4] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--oasis-primary)]";
 
 export function InlineDecisionForm({
   action,

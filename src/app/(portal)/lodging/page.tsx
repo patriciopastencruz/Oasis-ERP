@@ -63,7 +63,7 @@ export default async function Page() {
     <>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <header>
-          <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#277a55]">
+          <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#0b4f9c]">
             {data.unit.name}
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
@@ -76,7 +76,7 @@ export default async function Page() {
         <div className="flex flex-wrap gap-2">
           <Link
             href="/lodging/reservations/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#277a55] px-4 py-2.5 text-sm font-semibold text-white"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#0b4f9c] px-4 py-2.5 text-sm font-semibold text-white"
           >
             <Plus size={16} />
             Nueva reserva
@@ -90,7 +90,7 @@ export default async function Page() {
             key={title}
             className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(15,23,42,.025)]"
           >
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-[#277a55]">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-[#0b4f9c]">
               <Icon size={15} />
             </span>
             <span className="min-w-0">

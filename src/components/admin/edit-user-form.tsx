@@ -87,7 +87,7 @@ export function EditUserForm({
         </span>
       </label>
       <div className="flex items-end gap-2 md:col-span-2">
-        <button className="rounded-xl bg-[#173f2d] px-4 py-3 font-semibold text-white">
+        <button className="rounded-xl bg-[#083f7d] px-4 py-3 font-semibold text-white">
           Guardar cambios
         </button>
         <Link href="/admin/users" className="rounded-xl border px-4 py-3">

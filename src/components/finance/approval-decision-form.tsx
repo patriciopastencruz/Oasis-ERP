@@ -25,7 +25,7 @@ export function ApprovalDecisionForm({
     }
   }, [state.success, router]);
   return (
-    <div className="rounded-2xl border border-[#b8d3c5] bg-white p-5">
+    <div className="rounded-2xl border border-[#b0c4db] bg-white p-5">
       <h2 className="font-semibold">Decidir etapa actual</h2>
       <p className="mt-1 text-sm text-slate-600">
         {String(step.step_name_snapshot)}
@@ -52,7 +52,7 @@ export function ApprovalDecisionForm({
           ].map(([v, l]) => (
             <label
               key={v}
-              className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-semibold ${decision === v ? "border-[#277a55] bg-[#edf5f0]" : ""}`}
+              className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-semibold ${decision === v ? "border-[#0b4f9c] bg-[#ebf1f7]" : ""}`}
             >
               <input
                 className="sr-only"
@@ -89,7 +89,7 @@ export function ApprovalDecisionForm({
         )}
         <button
           disabled={pending || !decision}
-          className="w-full rounded-xl bg-[#173f2d] px-4 py-3 font-semibold text-white disabled:opacity-50"
+          className="w-full rounded-xl bg-[#083f7d] px-4 py-3 font-semibold text-white disabled:opacity-50"
         >
           {pending ? "Registrando…" : "Confirmar decisión"}
         </button>

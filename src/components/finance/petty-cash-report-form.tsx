@@ -48,7 +48,7 @@ type Line = {
 };
 
 const input =
-  "mt-1.5 w-full rounded-xl border border-[#d8e1dc] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#277a55]";
+  "mt-1.5 w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b4f9c]";
 function blankLine(date: string, index: number): Line {
   return {
     client_id: crypto.randomUUID(),
@@ -607,7 +607,7 @@ export function PettyCashReportForm({
                       [line.client_id]: Array.from(event.target.files ?? []),
                     }))
                   }
-                  className={`${input} file:mr-3 file:rounded-lg file:border-0 file:bg-[#e4f2ea] file:px-3 file:py-1 file:text-[#173f2d]`}
+                  className={`${input} file:mr-3 file:rounded-lg file:border-0 file:bg-[#e0eaf6] file:px-3 file:py-1 file:text-[#083f7d]`}
                 />
               </Field>
             </div>
@@ -624,7 +624,7 @@ export function PettyCashReportForm({
                       href={attachment.url ?? "#"}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-2 rounded-lg border bg-white p-2 text-xs font-medium text-[#173f2d]"
+                      className="flex items-center gap-2 rounded-lg border bg-white p-2 text-xs font-medium text-[#083f7d]"
                     >
                       <FileText size={18} />
                       <span className="truncate">
@@ -652,14 +652,14 @@ export function PettyCashReportForm({
             blankLine(selectedWeek.start, current.length),
           ])
         }
-        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-sm font-semibold text-[#277a55]"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-sm font-semibold text-[#0b4f9c]"
       >
         <Plus size={18} /> Agregar otro gasto
       </button>
       <div className="flex justify-end">
         <button
           disabled={pending || uploading}
-          className="rounded-xl bg-[#173f2d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+          className="rounded-xl bg-[#083f7d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
         >
           {uploading
             ? "Subiendo comprobantes…"
@@ -704,7 +704,7 @@ function Metric({
     <div>
       <span className="block text-slate-500">{label}</span>
       <b
-        className={`mt-1 block text-sm md:text-base ${danger ? "text-red-700" : "text-[#173f2d]"}`}
+        className={`mt-1 block text-sm md:text-base ${danger ? "text-red-700" : "text-[#083f7d]"}`}
       >
         {value}
       </b>
@@ -721,7 +721,7 @@ function ReceiptPreview({ file }: { file: File }) {
         href={url}
         target="_blank"
         rel="noreferrer"
-        className="flex items-center gap-2 rounded-lg border bg-white p-2 text-xs font-medium text-[#173f2d]"
+        className="flex items-center gap-2 rounded-lg border bg-white p-2 text-xs font-medium text-[#083f7d]"
       >
         <span className="relative h-10 w-10 overflow-hidden rounded-md bg-slate-100">
           <Image
@@ -741,7 +741,7 @@ function ReceiptPreview({ file }: { file: File }) {
       href={url}
       target="_blank"
       rel="noreferrer"
-      className="flex items-center gap-2 rounded-lg border bg-white p-2 text-xs font-medium text-[#173f2d]"
+      className="flex items-center gap-2 rounded-lg border bg-white p-2 text-xs font-medium text-[#083f7d]"
     >
       <FileText size={18} />
       <span className="truncate">{file.name}</span>

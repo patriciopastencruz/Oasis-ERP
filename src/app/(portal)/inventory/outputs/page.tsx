@@ -29,7 +29,7 @@ export default async function Page({
       {ctx.permissions.has("inventory.outputs.create") && (
         <Link
           href="/inventory/outputs/new"
-          className="mb-4 inline-block rounded-xl bg-[#173f2d] px-4 py-2.5 text-white"
+          className="mb-4 inline-block rounded-xl bg-[#083f7d] px-4 py-2.5 text-white"
         >
           Registrar salida
         </Link>

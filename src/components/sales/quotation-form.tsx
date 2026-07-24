@@ -233,19 +233,19 @@ export function QuotationForm({
       <div className="rounded-xl bg-[var(--oasis-soft)] p-4">
         <div className="grid gap-1 text-sm sm:w-72 sm:ml-auto">
           <div className="flex justify-between">
-            <span className="text-[#66776d]">Subtotal</span>
+            <span className="text-[#5b6d82]">Subtotal</span>
             <span>{clp.format(subtotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#66776d]">Descuento</span>
+            <span className="text-[#5b6d82]">Descuento</span>
             <span>{clp.format(Number(discount || 0))}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#66776d]">Neto</span>
+            <span className="text-[#5b6d82]">Neto</span>
             <span>{clp.format(net)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#66776d]">IVA (19%)</span>
+            <span className="text-[#5b6d82]">IVA (19%)</span>
             <span>{clp.format(iva)}</span>
           </div>
           <div className="flex justify-between border-t pt-1 text-base font-bold">

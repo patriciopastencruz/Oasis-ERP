@@ -8,7 +8,7 @@ export default function NoAccess() {
         description="Tu cuenta no posee el permiso necesario para esta sección."
       />
       <Panel>
-        <Link className="font-semibold text-[#277a55]" href="/">
+        <Link className="font-semibold text-[#0b4f9c]" href="/">
           Volver al inicio
         </Link>
       </Panel>

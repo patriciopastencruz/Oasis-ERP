@@ -66,7 +66,7 @@ export default async function QuotationDetail({
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <StatusBadge value={quotation.status} />
         {seller && (
-          <span className="text-sm text-[#718078]">
+          <span className="text-sm text-[#63778e]">
             Vendedor/a: {seller.first_name} {seller.last_name}
           </span>
         )}
@@ -118,7 +118,7 @@ export default async function QuotationDetail({
             <h2 className="mb-2 font-semibold">
               {canApprove ? "Confirmar cotización" : "Enviar a aprobación"}
             </h2>
-            <p className="mb-3 text-sm text-[#718078]">
+            <p className="mb-3 text-sm text-[#63778e]">
               {canApprove
                 ? "Guarda los cambios primero si acabas de editar. Al confirmar, la cotización queda aprobada de inmediato y podrás descargar el PDF."
                 : "Guarda los cambios primero si acabas de editar. Al enviar, el Gerente de Operaciones recibirá una notificación para revisarla."}
@@ -136,25 +136,25 @@ export default async function QuotationDetail({
           <h2 className="mb-3 font-semibold">Datos del cliente</h2>
           <dl className="mb-5 grid grid-cols-2 gap-3 text-sm">
             <div>
-              <dt className="text-xs text-[#718078]">Rut</dt>
+              <dt className="text-xs text-[#63778e]">Rut</dt>
               <dd>{quotation.client_rut ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-xs text-[#718078]">Contacto</dt>
+              <dt className="text-xs text-[#63778e]">Contacto</dt>
               <dd>{quotation.client_contact ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-xs text-[#718078]">Correo</dt>
+              <dt className="text-xs text-[#63778e]">Correo</dt>
               <dd>{quotation.client_email ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-xs text-[#718078]">Lugar</dt>
+              <dt className="text-xs text-[#63778e]">Lugar</dt>
               <dd>{quotation.client_place ?? "—"}</dd>
             </div>
           </dl>
           <table className="w-full min-w-[560px] text-sm">
             <thead>
-              <tr className="border-b text-left text-xs uppercase text-[#718078]">
+              <tr className="border-b text-left text-xs uppercase text-[#63778e]">
                 <th className="p-2">Producto</th>
                 <th className="text-right">Cantidad</th>
                 <th className="text-right">Precio</th>
@@ -178,19 +178,19 @@ export default async function QuotationDetail({
           </table>
           <div className="mt-4 grid gap-1 text-sm sm:ml-auto sm:w-72">
             <div className="flex justify-between">
-              <span className="text-[#66776d]">Subtotal</span>
+              <span className="text-[#5b6d82]">Subtotal</span>
               <span>{clp.format(Number(quotation.subtotal))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#66776d]">Descuento</span>
+              <span className="text-[#5b6d82]">Descuento</span>
               <span>{clp.format(Number(quotation.discount))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#66776d]">Neto</span>
+              <span className="text-[#5b6d82]">Neto</span>
               <span>{clp.format(Number(quotation.net))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#66776d]">IVA (19%)</span>
+              <span className="text-[#5b6d82]">IVA (19%)</span>
               <span>{clp.format(Number(quotation.iva))}</span>
             </div>
             <div className="flex justify-between border-t pt-1 text-base font-bold">
@@ -199,7 +199,7 @@ export default async function QuotationDetail({
             </div>
           </div>
           {quotation.terms && (
-            <div className="mt-5 border-t pt-4 text-xs text-[#718078] whitespace-pre-line">
+            <div className="mt-5 border-t pt-4 text-xs text-[#63778e] whitespace-pre-line">
               {quotation.terms}
             </div>
           )}
@@ -224,7 +224,7 @@ export default async function QuotationDetail({
                 </form>
               )}
               {quotation.status === "delivered" && (
-                <span className="text-sm text-[#718078]">
+                <span className="text-sm text-[#63778e]">
                   Entregada el{" "}
                   {new Date(quotation.delivered_at).toLocaleDateString(
                     "es-CL",

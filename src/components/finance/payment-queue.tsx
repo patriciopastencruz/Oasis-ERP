@@ -101,7 +101,7 @@ export async function PaymentQueue({
             placeholder="Monto mín."
             className="rounded-xl border p-2 text-sm"
           />
-          <button className="rounded-xl bg-[#173f2d] text-sm text-white">
+          <button className="rounded-xl bg-[#083f7d] text-sm text-white">
             Filtrar
           </button>
         </form>
@@ -165,7 +165,7 @@ export async function PaymentQueue({
                     <td>
                       <Link
                         href={`/finance/payment-control/payments/${r.id}`}
-                        className="font-semibold text-[#277a55]"
+                        className="font-semibold text-[#0b4f9c]"
                       >
                         Gestionar
                       </Link>

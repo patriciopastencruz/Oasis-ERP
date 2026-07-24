@@ -145,21 +145,21 @@ export default async function CustomerDetail({
             <h2 className="font-semibold">Ficha comercial</h2>
             <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div className="col-span-2">
-                <dt className="text-xs text-[#718078]">Dirección</dt>
+                <dt className="text-xs text-[#63778e]">Dirección</dt>
                 <dd className="mt-1 font-medium">{customer.address}</dd>
               </div>
               <div>
-                <dt className="text-xs text-[#718078]">Clasificación</dt>
+                <dt className="text-xs text-[#63778e]">Clasificación</dt>
                 <dd className="mt-1 font-medium">
                   {customer.dist_customer_classifications?.name}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-[#718078]">Estado</dt>
+                <dt className="text-xs text-[#63778e]">Estado</dt>
                 <dd className="mt-1 font-medium">{uiLabel(customer.status)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-[#718078]">Crédito</dt>
+                <dt className="text-xs text-[#63778e]">Crédito</dt>
                 <dd className="mt-1 font-medium">
                   {customer.has_credit
                     ? clp.format(Number(customer.credit_limit))
@@ -167,7 +167,7 @@ export default async function CustomerDetail({
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-[#718078]">Plazo</dt>
+                <dt className="text-xs text-[#63778e]">Plazo</dt>
                 <dd className="mt-1 font-medium">
                   {customer.has_credit ? `${customer.credit_days} días` : "—"}
                 </dd>
@@ -178,7 +178,7 @@ export default async function CustomerDetail({
           {canEditCustomer && (
             <Panel>
               <h2 className="font-semibold">Editar cliente</h2>
-              <p className="mt-1 text-xs leading-5 text-[#718078]">
+              <p className="mt-1 text-xs leading-5 text-[#63778e]">
                 Los cambios comerciales quedan registrados en auditoría.
               </p>
               <form action={updateCustomerAction} className="mt-4 space-y-3">
@@ -285,7 +285,7 @@ export default async function CustomerDetail({
           {canManagePrices ? (
             <Panel>
               <h2 className="font-semibold">Asignar precio al cliente</h2>
-              <p className="mt-1 text-xs leading-5 text-[#718078]">
+              <p className="mt-1 text-xs leading-5 text-[#63778e]">
                 Este precio tendrá prioridad sobre el precio general al crear
                 pedidos para este cliente.
               </p>
@@ -353,7 +353,7 @@ export default async function CustomerDetail({
           ) : (
             <Panel>
               <h2 className="font-semibold">Asignación de precios</h2>
-              <p className="mt-2 text-sm text-[#718078]">
+              <p className="mt-2 text-sm text-[#63778e]">
                 Puedes consultar los precios del cliente. La asignación está
                 reservada a roles con permiso para administrar precios.
               </p>
@@ -366,7 +366,7 @@ export default async function CustomerDetail({
                 <summary className="cursor-pointer font-semibold text-red-700">
                   Eliminar cliente
                 </summary>
-                <p className="mt-3 text-sm leading-6 text-[#718078]">
+                <p className="mt-3 text-sm leading-6 text-[#63778e]">
                   El cliente dejará de estar disponible para nuevos pedidos. Sus
                   pedidos, pagos y precios históricos se conservarán.
                 </p>
@@ -413,7 +413,7 @@ export default async function CustomerDetail({
                       <td className="p-2">
                         <b>{product.name}</b>
                         <br />
-                        <span className="font-mono text-xs text-[#718078]">
+                        <span className="font-mono text-xs text-[#63778e]">
                           {product.code} · {product.presentation}
                         </span>
                       </td>
@@ -482,7 +482,7 @@ export default async function CustomerDetail({
                 </tbody>
               </table>
             ) : (
-              <p className="text-sm text-[#718078]">
+              <p className="text-sm text-[#63778e]">
                 Este cliente todavía no tiene precios específicos. Mientras
                 tanto, sus pedidos utilizan los precios generales vigentes.
               </p>

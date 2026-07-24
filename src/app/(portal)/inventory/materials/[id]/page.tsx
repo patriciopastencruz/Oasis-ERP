@@ -94,7 +94,7 @@ export default async function Page({
                   m.image_path,
                 )}
               >
-                <button className="mt-4 text-sm font-semibold text-[#277a55]">
+                <button className="mt-4 text-sm font-semibold text-[#0b4f9c]">
                   Abrir imagen referencial
                 </button>
               </form>
@@ -179,7 +179,7 @@ export default async function Page({
                       required
                     />
                   </Field>
-                  <button className="rounded-xl bg-[#173f2d] px-4 py-2.5 text-white">
+                  <button className="rounded-xl bg-[#083f7d] px-4 py-2.5 text-white">
                     Enviar solicitud
                   </button>
                 </form>

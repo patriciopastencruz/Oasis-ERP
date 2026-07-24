@@ -50,7 +50,7 @@ export default async function Notifications() {
                 {n.status === "unread" && (
                   <form action={markOwnNotificationReadAction}>
                     <input type="hidden" name="id" value={n.id} />
-                    <button className="text-sm font-semibold text-[#277a55]">
+                    <button className="text-sm font-semibold text-[#0b4f9c]">
                       Marcar leída
                     </button>
                   </form>

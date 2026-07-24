@@ -48,25 +48,25 @@ export default async function OrderDetail({
       <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">
         <div className="space-y-4">
           <Panel>
-            <p className="text-xs uppercase text-[#718078]">Estado</p>
+            <p className="text-xs uppercase text-[#63778e]">Estado</p>
             <p className="mt-1 font-semibold">
               {uiLabel(order.status)} · {uiLabel(order.payment_status)}
             </p>
-            <p className="mt-3 text-xs uppercase text-[#718078]">Cliente</p>
+            <p className="mt-3 text-xs uppercase text-[#63778e]">Cliente</p>
             <p className="font-semibold">
               {order.dist_customers?.name ?? order.occasional_customer_name}
             </p>
             <p className="text-sm">{order.delivery_address}</p>
-            <p className="text-sm text-[#66776d]">{order.customer_phone}</p>
-            <p className="mt-3 text-xs uppercase text-[#718078]">Entrega</p>
+            <p className="text-sm text-[#5b6d82]">{order.customer_phone}</p>
+            <p className="mt-3 text-xs uppercase text-[#63778e]">Entrega</p>
             <p className="text-sm">
               {order.delivery_date} {order.estimated_time?.slice(0, 5) ?? ""}
             </p>
-            <p className="mt-3 text-xs uppercase text-[#718078]">Total</p>
+            <p className="mt-3 text-xs uppercase text-[#63778e]">Total</p>
             <p className="text-lg font-bold">{clp.format(Number(order.total))}</p>
             {order.notes && (
               <>
-                <p className="mt-3 text-xs uppercase text-[#718078]">
+                <p className="mt-3 text-xs uppercase text-[#63778e]">
                   Observaciones
                 </p>
                 <p className="text-sm">{order.notes}</p>
@@ -74,14 +74,14 @@ export default async function OrderDetail({
             )}
           </Panel>
           <Panel>
-            <p className="text-xs uppercase text-[#718078]">Productos actuales</p>
+            <p className="text-xs uppercase text-[#63778e]">Productos actuales</p>
             <ul className="mt-2 space-y-1 text-sm">
               {(order.dist_order_lines ?? []).map((l: any) => (
                 <li key={l.id} className="flex justify-between">
                   <span>
                     {l.dist_products?.name} × {l.planned_quantity}
                   </span>
-                  <span className="text-[#66776d]">
+                  <span className="text-[#5b6d82]">
                     {clp.format(Number(l.line_total))}
                   </span>
                 </li>
@@ -90,14 +90,14 @@ export default async function OrderDetail({
           </Panel>
           {requests.length > 0 && (
             <Panel>
-              <p className="text-xs uppercase text-[#718078]">Solicitudes</p>
+              <p className="text-xs uppercase text-[#63778e]">Solicitudes</p>
               <ul className="mt-2 space-y-2 text-sm">
                 {requests.map((r) => (
-                  <li key={r.id} className="border-b border-[#e4ebe7] pb-2 last:border-0">
+                  <li key={r.id} className="border-b border-[#e2e7ed] pb-2 last:border-0">
                     <p className="font-semibold">
                       {uiLabel(r.type)} · {uiLabel(r.status)}
                     </p>
-                    <p className="text-[#66776d]">{r.reason}</p>
+                    <p className="text-[#5b6d82]">{r.reason}</p>
                   </li>
                 ))}
               </ul>
@@ -106,7 +106,7 @@ export default async function OrderDetail({
         </div>
         <Panel>
           {!editable && (
-            <p className="text-sm text-[#66776d]">
+            <p className="text-sm text-[#5b6d82]">
               Este pedido ya no admite edición porque está{" "}
               {uiLabel(order.status).toLowerCase()}.
             </p>
@@ -138,12 +138,12 @@ export default async function OrderDetail({
             />
           )}
           {voidable && canEditDirectly && (
-            <div className="mt-5 border-t border-[#e4ebe7] pt-4">
+            <div className="mt-5 border-t border-[#e2e7ed] pt-4">
               <OrderVoidForm mode="void" orderId={order.id} />
             </div>
           )}
           {voidable && !canEditDirectly && canRequestEdit && (
-            <div className="mt-5 border-t border-[#e4ebe7] pt-4">
+            <div className="mt-5 border-t border-[#e2e7ed] pt-4">
               <OrderVoidForm mode="request" orderId={order.id} />
             </div>
           )}

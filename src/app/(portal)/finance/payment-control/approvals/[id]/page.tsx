@@ -105,7 +105,7 @@ export default async function ApprovalDetail({
         </div>
         <Link
           href="/finance/payment-control/approvals"
-          className="font-semibold text-[#277a55]"
+          className="font-semibold text-[#0b4f9c]"
         >
           Volver a la bandeja
         </Link>
@@ -192,7 +192,7 @@ export default async function ApprovalDetail({
                 return (
                   <div
                     key={d.id}
-                    className="border-l-2 border-[#91baa5] pb-5 pl-4 text-sm"
+                    className="border-l-2 border-[#7da3ce] pb-5 pl-4 text-sm"
                   >
                     <div className="flex gap-2">
                       <StatusBadge value={d.action} />
@@ -242,7 +242,7 @@ export default async function ApprovalDetail({
                 return (
                   <div
                     key={String(x.id)}
-                    className={`rounded-xl border p-3 text-sm ${x.id === actionable?.id ? "border-[#277a55] bg-[#f2faf5]" : ""}`}
+                    className={`rounded-xl border p-3 text-sm ${x.id === actionable?.id ? "border-[#0b4f9c] bg-[#f1f6fb]" : ""}`}
                   >
                     <div className="flex justify-between">
                       <b>{String(x.step_name_snapshot)}</b>

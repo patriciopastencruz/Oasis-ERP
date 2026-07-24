@@ -112,7 +112,7 @@ export default async function Page({
               </option>
             ))}
           </select>
-          <button className="rounded-xl bg-[#173f2d] text-white">
+          <button className="rounded-xl bg-[#083f7d] text-white">
             Filtrar
           </button>
         </form>

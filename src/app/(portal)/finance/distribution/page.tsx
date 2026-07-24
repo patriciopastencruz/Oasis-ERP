@@ -82,7 +82,7 @@ export default async function DistributionOrders({
           </p>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">Pedidos</h1>
-            <p className="text-xs text-[#69786f]">
+            <p className="text-xs text-[#5c6f85]">
               Planificación diaria, reparto, entrega y cobranza.
             </p>
           </div>
@@ -117,7 +117,7 @@ export default async function DistributionOrders({
                     {uiLabel(o.status)}
                   </span>
                   {o.voided_at && (
-                    <span className="text-xs text-[#6d7c73]">
+                    <span className="text-xs text-[#60738a]">
                       Anulado el{" "}
                       {new Date(o.voided_at).toLocaleString("es-CL", {
                         timeZone: "America/Santiago",
@@ -128,7 +128,7 @@ export default async function DistributionOrders({
                 <p className="mt-2 font-semibold">
                   {o.dist_customers?.name ?? o.occasional_customer_name}
                 </p>
-                <p className="text-xs text-[#6d7c73]">
+                <p className="text-xs text-[#60738a]">
                   {o.delivery_address}
                   {o.customer_phone ? ` · ${o.customer_phone}` : ""}
                 </p>
@@ -146,7 +146,7 @@ export default async function DistributionOrders({
                   <span className="font-semibold">
                     {clp.format(Number(o.total))}
                   </span>
-                  <span className="text-xs text-[#6d7c73]">
+                  <span className="text-xs text-[#60738a]">
                     {uiLabel(o.payment_method)} · {uiLabel(o.payment_condition)}
                   </span>
                 </div>
@@ -202,11 +202,11 @@ export default async function DistributionOrders({
       <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {cards.map(([label, value, Icon, color]) => (
           <Panel key={label} className="flex items-center gap-2.5 p-2.5">
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#f3f7f5]">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#f2f5f8]">
               <Icon className={color} size={17} />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-[10px] font-semibold uppercase leading-3 text-[#68786e]">
+              <p className="truncate text-[10px] font-semibold uppercase leading-3 text-[#5c6f84]">
                 {label}
               </p>
               <p className="mt-0.5 truncate text-lg font-bold leading-5">
@@ -253,7 +253,7 @@ export default async function DistributionOrders({
                     <td className="px-3 py-3 font-bold">
                       <div className="flex items-center gap-1.5">
                         {canManageRoutes && o.driver_id && (
-                          <GripVertical size={14} className="text-[#9aa79f]" />
+                          <GripVertical size={14} className="text-[#909fb1]" />
                         )}
                         <span>{o.route_position ?? "—"}</span>
                       </div>
@@ -335,7 +335,7 @@ export default async function DistributionOrders({
             />
           </table>
           {!activeOrders.length && (
-            <p className="p-10 text-center text-sm text-[#6d7c73]">
+            <p className="p-10 text-center text-sm text-[#60738a]">
               No hay pedidos para esta fecha.
             </p>
           )}

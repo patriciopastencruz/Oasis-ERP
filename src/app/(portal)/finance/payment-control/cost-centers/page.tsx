@@ -68,7 +68,7 @@ export default async function Page({
           <option value="active">Activos</option>
           <option value="inactive">Inactivos</option>
         </select>
-        <button className="rounded-xl bg-[#173f2d] px-4 text-sm text-white">
+        <button className="rounded-xl bg-[#083f7d] px-4 text-sm text-white">
           Filtrar
         </button>
       </form>

@@ -152,7 +152,7 @@ export default async function PettyCashHome({
           .map(({ href, label, description, icon: Icon }) => (
             <Link key={href} href={href}>
               <Panel className="h-full transition hover:-translate-y-0.5 hover:shadow-lg">
-                <Icon className="text-[#277a55]" />
+                <Icon className="text-[#0b4f9c]" />
                 <h2 className="mt-3 font-semibold">{label}</h2>
                 <p className="mt-1 text-sm text-slate-600">{description}</p>
               </Panel>
@@ -161,7 +161,7 @@ export default async function PettyCashHome({
       </div>
       <Panel className="mt-5">
         <div className="flex items-center gap-2">
-          <ReceiptText size={18} className="text-[#277a55]" />
+          <ReceiptText size={18} className="text-[#0b4f9c]" />
           <h2 className="font-semibold">Rendiciones recientes</h2>
         </div>
         <div className="mt-3 divide-y">

@@ -107,7 +107,7 @@ export default async function Page({
                 placeholder="https://…/calendar.ics"
                 className={field}
               />
-              <button className="rounded-xl bg-[#277a55] px-4 py-2 text-sm font-semibold text-white sm:col-span-2">
+              <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white sm:col-span-2">
                 Validar, guardar e importar
               </button>
             </form>
@@ -132,7 +132,7 @@ export default async function Page({
                   />
                   <a
                     href={url}
-                    className="mt-2 inline-block text-xs font-semibold text-[#1c6748]"
+                    className="mt-2 inline-block text-xs font-semibold text-[#0b4f9c]"
                   >
                     Verificar / descargar
                   </a>

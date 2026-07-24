@@ -7,7 +7,7 @@ export function MaterialSubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-xl bg-[#173f2d] px-4 py-3 font-semibold text-white disabled:opacity-60 md:col-span-2"
+      className="rounded-xl bg-[#083f7d] px-4 py-3 font-semibold text-white disabled:opacity-60 md:col-span-2"
     >
       {pending ? "Creando…" : "Crear material"}
     </button>

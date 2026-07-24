@@ -76,7 +76,7 @@ export default async function Workflows({
                         name="active"
                         value={String(!w.active)}
                       />
-                      <button className="text-xs font-semibold text-[#277a55]">
+                      <button className="text-xs font-semibold text-[#0b4f9c]">
                         {w.active ? "Desactivar" : "Activar"}
                       </button>
                     </form>

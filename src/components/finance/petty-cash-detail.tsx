@@ -45,7 +45,7 @@ export function PettyCashExpenseLine({
             href={String(attachment.url)}
             target="_blank"
             rel="noreferrer"
-            className="rounded-lg bg-[#e4f2ea] px-3 py-1.5 text-xs font-semibold text-[#173f2d]"
+            className="rounded-lg bg-[#e0eaf6] px-3 py-1.5 text-xs font-semibold text-[#083f7d]"
           >
             Ver {String(attachment.original_name)}
           </a>
@@ -72,7 +72,7 @@ export function PettyCashReviewHistory({
           return (
             <div
               key={String(action.id)}
-              className="border-l-2 border-[#277a55] pl-3 text-sm"
+              className="border-l-2 border-[#0b4f9c] pl-3 text-sm"
             >
               <b>{uiLabel(action.decision)}</b>
               <span className="block text-xs text-slate-500">

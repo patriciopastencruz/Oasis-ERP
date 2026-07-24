@@ -78,7 +78,7 @@ export default async function MyPettyCashReports({
               </option>
             ))}
           </select>
-          <button className="rounded-xl bg-[#173f2d] px-4 text-sm font-semibold text-white">
+          <button className="rounded-xl bg-[#083f7d] px-4 text-sm font-semibold text-white">
             Filtrar
           </button>
         </form>
@@ -117,7 +117,7 @@ export default async function MyPettyCashReports({
                     <td>
                       <Link
                         href={`/finance/petty-cash/reports/${report.id}`}
-                        className="font-semibold text-[#277a55]"
+                        className="font-semibold text-[#0b4f9c]"
                       >
                         {["draft", "correction_requested"].includes(
                           report.status,

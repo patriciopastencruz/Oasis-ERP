@@ -163,7 +163,7 @@ export default async function Page({
               placeholder="Observaciones"
               className={`${field} md:col-span-2`}
             />
-            <button className="rounded-xl bg-[#277a55] px-4 py-2 text-sm font-semibold text-white md:col-span-4">
+            <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white md:col-span-4">
               Guardar información interna
             </button>
           </form>
@@ -199,7 +199,7 @@ export default async function Page({
               <form action={checkInAction}>
                 <input type="hidden" name="reservation_id" value={id} />
                 <input type="hidden" name="room_id" value={r.room_id} />
-                <button className="rounded-xl bg-[#277a55] px-4 py-2 text-sm font-semibold text-white">
+                <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">
                   Realizar check-in
                 </button>
               </form>
@@ -208,7 +208,7 @@ export default async function Page({
               <form action={checkOutAction}>
                 <input type="hidden" name="reservation_id" value={id} />
                 <input type="hidden" name="room_id" value={r.room_id} />
-                <button className="rounded-xl bg-[#173f2d] px-4 py-2 text-sm font-semibold text-white">
+                <button className="rounded-xl bg-[#083f7d] px-4 py-2 text-sm font-semibold text-white">
                   Realizar check-out
                 </button>
               </form>
@@ -287,7 +287,7 @@ export default async function Page({
           />
           <input name="bank" placeholder="Banco" className={field} />
           <input name="notes" placeholder="Observación" className={field} />
-          <button className="rounded-xl bg-[#277a55] px-4 py-2 text-sm font-semibold text-white">
+          <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">
             Registrar pago
           </button>
         </form>
@@ -324,7 +324,7 @@ export default async function Page({
                         name="path"
                         value={receipt.private_path}
                       />
-                      <button className="text-xs font-semibold text-[#1c6748]">
+                      <button className="text-xs font-semibold text-[#0b4f9c]">
                         Ver {receipt.original_name}
                       </button>
                     </form>

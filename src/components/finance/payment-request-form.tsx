@@ -58,7 +58,7 @@ export function PaymentRequestForm({
   }, [supplier]);
   const error = (name: string) => state.fieldErrors?.[name]?.[0];
   const input =
-    "mt-1.5 w-full rounded-xl border border-[#d8e1dc] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#277a55]";
+    "mt-1.5 w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b4f9c]";
   const visibleUnits = units.filter((u) => u.company_id === company);
   const visibleCategories = categories.filter(
     (x) =>
@@ -317,7 +317,7 @@ export function PaymentRequestForm({
       <div className="flex justify-end">
         <button
           disabled={pending}
-          className="rounded-xl bg-[#173f2d] px-6 py-3 font-semibold text-white disabled:opacity-50"
+          className="rounded-xl bg-[#083f7d] px-6 py-3 font-semibold text-white disabled:opacity-50"
         >
           {pending ? "Guardando…" : "Guardar borrador"}
         </button>
@@ -333,7 +333,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[#dce4df] bg-white p-5">
+    <section className="rounded-2xl border border-[#d9dfe6] bg-white p-5">
       <h2 className="mb-4 font-semibold">{title}</h2>
       {children}
     </section>
@@ -349,7 +349,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block text-sm font-medium text-[#33483d]">
+    <label className="block text-sm font-medium text-[#2c3c4f]">
       {label}
       {children}
       {error && (

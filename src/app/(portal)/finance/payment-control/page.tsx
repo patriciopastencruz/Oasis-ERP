@@ -65,7 +65,7 @@ export default async function PaymentControl() {
           .map(({ href, title, description, icon: Icon }) => (
             <Link key={title} href={href}>
               <Panel className="h-full transition hover:-translate-y-0.5 hover:shadow-lg">
-                <Icon className="text-[#277a55]" />
+                <Icon className="text-[#0b4f9c]" />
                 <h2 className="mt-4 font-semibold">{title}</h2>
                 <p className="mt-2 text-sm text-slate-600">{description}</p>
               </Panel>

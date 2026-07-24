@@ -51,7 +51,7 @@ export default async function PettyCashReviewDetail({
         <StatusBadge value={report.status} />
         <Link
           href="/finance/petty-cash/reviews"
-          className="text-sm font-semibold text-[#277a55]"
+          className="text-sm font-semibold text-[#0b4f9c]"
         >
           Volver a la bandeja
         </Link>

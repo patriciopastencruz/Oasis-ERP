@@ -5,14 +5,14 @@ import { useIsAdminGeneral } from "@/components/layout/admin-mode";
 import { useIsTransversalRoute } from "@/components/layout/transversal-mode";
 
 const GENERIC_THEME = {
-  "--oasis-page": "#f2f5f3",
-  "--oasis-sidebar": "#123525",
-  "--oasis-primary": "#176b46",
-  "--oasis-primary-dark": "#12583a",
-  "--oasis-accent": "#277a55",
-  "--oasis-soft": "#f2f7f4",
-  "--oasis-border": "#bcd2c5",
-  "--oasis-avatar": "#dceee4",
+  "--oasis-page": "#f2f6fb",
+  "--oasis-sidebar": "#082b59",
+  "--oasis-primary": "#0b4f9c",
+  "--oasis-primary-dark": "#083f7d",
+  "--oasis-accent": "#0b4f9c",
+  "--oasis-soft": "#edf4fc",
+  "--oasis-border": "#b8cde6",
+  "--oasis-avatar": "#dbe9f8",
 } as CSSProperties;
 
 export function ShellRoot({
@@ -27,7 +27,7 @@ export function ShellRoot({
   return (
     <div
       style={inAdminGeneral || inTransversalRoute ? GENERIC_THEME : theme}
-      className="min-h-screen bg-[var(--oasis-page)] text-[#17251e] lg:grid lg:grid-cols-[260px_1fr]"
+      className="min-h-screen bg-[var(--oasis-page)] text-[#151d27] lg:grid lg:grid-cols-[260px_1fr]"
     >
       {children}
     </div>

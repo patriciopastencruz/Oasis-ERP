@@ -159,7 +159,7 @@ function Chart({ title, data }: { title: string; data: [string, number][] }) {
           </div>
           <div className="mt-1 h-2 rounded bg-slate-100">
             <div
-              className="h-2 rounded bg-[#277a55]"
+              className="h-2 rounded bg-[#0b4f9c]"
               style={{ width: `${(100 * v) / max}%` }}
             />
           </div>

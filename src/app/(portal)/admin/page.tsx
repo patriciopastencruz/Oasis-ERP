@@ -20,7 +20,7 @@ export default async function Admin() {
           <Link href={href} key={href}>
             <Panel className="transition hover:-translate-y-0.5">
               <b>{label}</b>
-              <p className="mt-2 text-sm text-[#718078]">Abrir configuración</p>
+              <p className="mt-2 text-sm text-[#63778e]">Abrir configuración</p>
             </Panel>
           </Link>
         ))}

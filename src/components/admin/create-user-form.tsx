@@ -103,7 +103,7 @@ export function CreateUserForm({
       </label>
       <button
         disabled={pending}
-        className="w-full rounded-xl bg-[#173f2d] px-4 py-3 font-semibold text-white disabled:opacity-50"
+        className="w-full rounded-xl bg-[#083f7d] px-4 py-3 font-semibold text-white disabled:opacity-50"
       >
         {pending ? "Creando…" : "Crear usuario"}
       </button>

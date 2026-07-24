@@ -90,7 +90,7 @@ export default async function Page({
                   <button
                     name="decision"
                     value="approved"
-                    className="rounded-xl bg-[#173f2d] px-4 text-white"
+                    className="rounded-xl bg-[#083f7d] px-4 text-white"
                   >
                     Aprobar
                   </button>

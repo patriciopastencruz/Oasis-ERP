@@ -92,7 +92,7 @@ export default async function Roles({
                 <div className="flex items-center gap-3">
                   <Link
                     href={`/admin/roles?edit=${role.id}`}
-                    className="text-xs font-semibold text-[#277a55]"
+                    className="text-xs font-semibold text-[#0b4f9c]"
                   >
                     Editar
                   </Link>
@@ -103,7 +103,7 @@ export default async function Roles({
                       name="active"
                       value={String(!role.active)}
                     />
-                    <button className="text-xs font-semibold text-[#277a55]">
+                    <button className="text-xs font-semibold text-[#0b4f9c]">
                       {role.active ? "Desactivar" : "Activar"}
                     </button>
                   </form>
@@ -124,7 +124,7 @@ export default async function Roles({
                   .flatMap((item) => item.permissions ?? [])
                   .map((permission) => (
                     <span
-                      className="rounded-lg bg-[#edf5f0] px-3 py-2 text-xs leading-4"
+                      className="rounded-lg bg-[#ebf1f7] px-3 py-2 text-xs leading-4"
                       key={permission.key}
                       title={permission.key}
                     >
@@ -141,7 +141,7 @@ export default async function Roles({
               {editing ? `Editar ${editing.name}` : "Nuevo rol"}
             </h2>
             {editing && (
-              <Link href="/admin/roles" className="text-sm text-[#277a55]">
+              <Link href="/admin/roles" className="text-sm text-[#0b4f9c]">
                 Cancelar
               </Link>
             )}
@@ -159,7 +159,7 @@ export default async function Roles({
                 required
                 readOnly={Boolean(editing)}
                 defaultValue={editing?.key}
-                className={`mt-2 w-full rounded-xl border border-[#cfdbd3] px-4 py-3 ${editing ? "bg-slate-50 text-slate-600" : "bg-white"}`}
+                className={`mt-2 w-full rounded-xl border border-[#c9dbee] px-4 py-3 ${editing ? "bg-slate-50 text-slate-600" : "bg-white"}`}
               />
               {editing && (
                 <span className="mt-1 block text-xs text-slate-500">
@@ -187,14 +187,14 @@ export default async function Roles({
               <div className="mt-3 max-h-[32rem] space-y-4 overflow-y-auto rounded-xl border p-3">
                 {groupedPermissions.map(([module, items]) => (
                   <section key={module}>
-                    <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#277a55]">
+                    <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#0b4f9c]">
                       {moduleNames[module] ?? module}
                     </h3>
                     <div className="space-y-2">
                       {items?.map((permission) => (
                         <label
                           key={permission.id}
-                          className="flex cursor-pointer items-start gap-3 rounded-lg p-2 text-sm hover:bg-[#f4f8f5]"
+                          className="flex cursor-pointer items-start gap-3 rounded-lg p-2 text-sm hover:bg-[#f3f6f9]"
                         >
                           <input
                             type="checkbox"
@@ -203,7 +203,7 @@ export default async function Roles({
                             defaultChecked={editing?.role_permissions.some(
                               (item) => item.permission_id === permission.id,
                             )}
-                            className="mt-1 size-4 accent-[#277a55]"
+                            className="mt-1 size-4 accent-[#0b4f9c]"
                           />
                           <span>
                             <span className="block font-medium">

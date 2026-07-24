@@ -30,7 +30,7 @@ export default async function Profile() {
           />
           <Submit>Guardar perfil</Submit>
         </form>
-        <p className="mt-5 text-xs text-[#718078]">
+        <p className="mt-5 text-xs text-[#63778e]">
           La foto y preferencias visuales se incorporarán cuando exista
           almacenamiento dedicado en el modelo aprobado.
         </p>

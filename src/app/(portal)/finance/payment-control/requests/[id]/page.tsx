@@ -137,7 +137,7 @@ export default async function RequestDetail({
           <StatusBadge value={r.status} />
           <Link
             href="/finance/payment-control/my-requests"
-            className="text-sm font-semibold text-[#277a55]"
+            className="text-sm font-semibold text-[#0b4f9c]"
           >
             Volver a mis solicitudes
           </Link>
@@ -155,7 +155,7 @@ export default async function RequestDetail({
                     href={a.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-medium text-[#277a55]"
+                    className="font-medium text-[#0b4f9c]"
                   >
                     {a.original_name}
                   </a>
@@ -208,7 +208,7 @@ export default async function RequestDetail({
         <StatusBadge value={r.status} />
         <Link
           href="/finance/payment-control/my-requests"
-          className="text-sm font-semibold text-[#277a55]"
+          className="text-sm font-semibold text-[#0b4f9c]"
         >
           Volver
         </Link>
@@ -305,7 +305,7 @@ export default async function RequestDetail({
                               {(receipt.size_bytes / 1024).toFixed(1)} KB
                             </small>
                           </span>
-                          <span className="font-semibold text-[#277a55]">
+                          <span className="font-semibold text-[#0b4f9c]">
                             Descargar
                           </span>
                         </a>
@@ -348,7 +348,7 @@ export default async function RequestDetail({
               {decisions?.map((d) => (
                 <div
                   key={d.id}
-                  className="border-l-2 border-[#91baa5] pb-4 pl-4 text-sm"
+                  className="border-l-2 border-[#7da3ce] pb-4 pl-4 text-sm"
                 >
                   <b>{uiLabel(d.action)}</b>
                   <p>{d.comment || "Sin comentario"}</p>
@@ -442,7 +442,7 @@ function Timeline({ status }: { status: string }) {
       {main.map((x, i) => (
         <div key={x} className="flex gap-3 pb-4 last:pb-0">
           <span
-            className={`mt-0.5 size-4 rounded-full border-4 ${i <= current ? "border-[#277a55] bg-[#277a55]" : "border-slate-200"}`}
+            className={`mt-0.5 size-4 rounded-full border-4 ${i <= current ? "border-[#0b4f9c] bg-[#0b4f9c]" : "border-slate-200"}`}
           />
           <div>
             <StatusBadge value={x} />

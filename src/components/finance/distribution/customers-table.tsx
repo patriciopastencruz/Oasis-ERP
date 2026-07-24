@@ -50,7 +50,7 @@ export function CustomersTable({ customers }: { customers: CustomerRow[] }) {
           autoComplete="off"
         />
       </label>
-      <p className="mb-3 text-xs text-[#718078]">
+      <p className="mb-3 text-xs text-[#63778e]">
         {visible.length} de {customers.length} cliente(s)
       </p>
       <table className="w-full text-sm">
@@ -72,7 +72,7 @@ export function CustomersTable({ customers }: { customers: CustomerRow[] }) {
               <td>
                 <b>{x.name}</b>
                 <br />
-                <span className="text-xs text-[#718078]">
+                <span className="text-xs text-[#63778e]">
                   {x.address} · {x.phone}
                 </span>
               </td>
@@ -88,7 +88,7 @@ export function CustomersTable({ customers }: { customers: CustomerRow[] }) {
                     {x.overdue > 0 ? " · vencida" : ""}
                   </span>
                 ) : (
-                  <span className="text-[#718078]">Sin deuda</span>
+                  <span className="text-[#63778e]">Sin deuda</span>
                 )}
               </td>
               <td>
@@ -103,7 +103,7 @@ export function CustomersTable({ customers }: { customers: CustomerRow[] }) {
           ))}
           {visible.length === 0 && (
             <tr>
-              <td colSpan={7} className="p-8 text-center text-[#718078]">
+              <td colSpan={7} className="p-8 text-center text-[#63778e]">
                 Sin coincidencias.
               </td>
             </tr>

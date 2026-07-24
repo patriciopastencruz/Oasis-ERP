@@ -27,7 +27,7 @@ export default async function Page() {
         />
         <Link
           href="/lodging/reservations/new"
-          className="mt-1 inline-flex h-11 items-center gap-2 rounded-xl bg-[#277a55] px-4 text-sm font-semibold text-white"
+          className="mt-1 inline-flex h-11 items-center gap-2 rounded-xl bg-[#0b4f9c] px-4 text-sm font-semibold text-white"
         >
           <Plus size={16} />
           Nueva reserva
@@ -58,7 +58,7 @@ export default async function Page() {
                   <td className="py-3">
                     <Link
                       href={`/lodging/reservations/${r.id}`}
-                      className="font-semibold text-[#1c6748]"
+                      className="font-semibold text-[#0b4f9c]"
                     >
                       {guest?.full_name ||
                         `Reserva ${r.origin} — información pendiente`}

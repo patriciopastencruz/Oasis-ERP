@@ -39,7 +39,7 @@ export default async function Page({
       />
       <Link
         href="/suppliers"
-        className="mb-4 inline-block font-semibold text-[#277a55]"
+        className="mb-4 inline-block font-semibold text-[#0b4f9c]"
       >
         Volver
       </Link>

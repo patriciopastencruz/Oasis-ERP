@@ -23,7 +23,7 @@ export default async function Login({
         <Submit>Iniciar sesión</Submit>
       </form>
       <Link
-        className="mt-5 block text-center text-sm font-medium text-[#277a55]"
+        className="mt-5 block text-center text-sm font-medium text-[#0b4f9c]"
         href="/forgot-password"
       >
         ¿Olvidaste tu contraseña?

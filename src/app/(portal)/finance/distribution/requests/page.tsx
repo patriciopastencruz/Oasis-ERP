@@ -52,7 +52,7 @@ export default async function Requests({
           <Panel key={x.id}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase text-[#718078]">
+                <p className="text-xs uppercase text-[#63778e]">
                   {uiLabel(x.type)} · {uiLabel(x.status)}
                 </p>
                 <h2 className="font-semibold">
@@ -63,7 +63,7 @@ export default async function Requests({
                     x.dist_orders?.occasional_customer_name ??
                     "Cliente no disponible"}
                 </p>
-                <div className="mt-2 rounded-lg border border-[#e4ebe7] p-3 text-xs">
+                <div className="mt-2 rounded-lg border border-[#e2e7ed] p-3 text-xs">
                   <p className="font-semibold">Pedido a revisar</p>
                   <p>Entrega: {dateLabel(x.dist_orders?.delivery_date)}</p>
                   <p>Dirección: {x.dist_orders?.delivery_address}</p>
@@ -110,7 +110,7 @@ export default async function Requests({
                     </ul>
                   </div>
                 )}
-                <p className="mt-2 text-xs text-[#718078]">
+                <p className="mt-2 text-xs text-[#63778e]">
                   {new Date(x.created_at).toLocaleString("es-CL")}
                 </p>
               </div>
@@ -150,7 +150,7 @@ export default async function Requests({
         ))}
         {!data?.length && (
           <Panel>
-            <p className="text-sm text-[#718078]">No hay solicitudes.</p>
+            <p className="text-sm text-[#63778e]">No hay solicitudes.</p>
           </Panel>
         )}
       </div>

@@ -351,14 +351,14 @@ export async function AppShell({
   const isDriver = ctx.role?.key === "driver";
   const unitBrand = getBusinessUnitBrand(unit?.code);
   const unitTheme = {
-    "--oasis-page": isAltiplanica ? "#f2f6fb" : "#f2f5f3",
-    "--oasis-sidebar": isAltiplanica ? "#082b59" : "#123525",
-    "--oasis-primary": isAltiplanica ? "#0b4f9c" : "#176b46",
-    "--oasis-primary-dark": isAltiplanica ? "#083f7d" : "#12583a",
-    "--oasis-accent": isAltiplanica ? "#0b4f9c" : "#277a55",
-    "--oasis-soft": isAltiplanica ? "#edf4fc" : "#f2f7f4",
-    "--oasis-border": isAltiplanica ? "#b8cde6" : "#bcd2c5",
-    "--oasis-avatar": isAltiplanica ? "#dbe9f8" : "#dceee4",
+    "--oasis-page": "#f2f6fb",
+    "--oasis-sidebar": "#082b59",
+    "--oasis-primary": "#0b4f9c",
+    "--oasis-primary-dark": "#083f7d",
+    "--oasis-accent": "#0b4f9c",
+    "--oasis-soft": "#edf4fc",
+    "--oasis-border": "#b8cde6",
+    "--oasis-avatar": "#dbe9f8",
   } as CSSProperties;
   const homeHref = ctx.permissions.has("reports.executive_dashboard.view")
     ? "/dashboard"

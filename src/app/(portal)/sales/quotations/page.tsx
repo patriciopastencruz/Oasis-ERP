@@ -52,7 +52,7 @@ export default async function Quotations({
       <Panel className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
-            <tr className="border-b text-xs uppercase text-[#718078]">
+            <tr className="border-b text-xs uppercase text-[#63778e]">
               <th className="p-2">N°</th>
               <th>Cliente</th>
               <th>Vendedor</th>
@@ -100,7 +100,7 @@ export default async function Quotations({
             })}
             {!quotations?.length && (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-[#718078]">
+                <td colSpan={7} className="p-8 text-center text-[#63778e]">
                   No hay cotizaciones para este filtro.
                 </td>
               </tr>

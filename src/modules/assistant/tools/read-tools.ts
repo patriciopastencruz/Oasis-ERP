@@ -8,6 +8,17 @@ import type { AssistantTool } from "@/modules/assistant/tools/types";
  * autorización adicional, solo consultan.
  */
 
+/**
+ * `,`, `(` y `)` son caracteres estructurales en la sintaxis de filtros
+ * de PostgREST (`.or(...)`): separan condiciones y agrupan lógica. El
+ * `query` que arma el modelo se interpola directo en un `.or()`, así
+ * que hay que quitarlos antes — de lo contrario el texto de búsqueda
+ * podría inyectar condiciones de filtro no previstas.
+ */
+function sanitizeSearchTerm(input: string): string {
+  return input.replace(/[,()]/g, " ").trim().slice(0, 200);
+}
+
 const searchPaymentRequest: AssistantTool<{ query: string }> = {
   name: "search_payment_request",
   description:
@@ -26,12 +37,11 @@ const searchPaymentRequest: AssistantTool<{ query: string }> = {
     required: ["query"],
   },
   async execute(input, { supabase }) {
+    const term = sanitizeSearchTerm(input.query);
     const { data, error } = await supabase
       .from("payment_requests")
       .select("id,request_number,status,amount,priority,description")
-      .or(
-        `request_number.ilike.%${input.query}%,description.ilike.%${input.query}%`,
-      )
+      .or(`request_number.ilike.%${term}%,description.ilike.%${term}%`)
       .order("updated_at", { ascending: false })
       .limit(5);
     if (error)
@@ -61,14 +71,13 @@ const checkMaterialStock: AssistantTool<{ query: string }> = {
     required: ["query"],
   },
   async execute(input, { supabase }) {
+    const term = sanitizeSearchTerm(input.query);
     const { data, error } = await supabase
       .from("inventory_materials")
       .select(
         "id,code,name,category,unit_of_measure,current_stock,average_price,status",
       )
-      .or(
-        `code.ilike.%${input.query}%,name.ilike.%${input.query}%,category.ilike.%${input.query}%`,
-      )
+      .or(`code.ilike.%${term}%,name.ilike.%${term}%,category.ilike.%${term}%`)
       .order("name")
       .limit(5);
     if (error)
@@ -94,14 +103,13 @@ const checkPettyCashReport: AssistantTool<{ query: string }> = {
     required: ["query"],
   },
   async execute(input, { supabase }) {
+    const term = sanitizeSearchTerm(input.query);
     const { data, error } = await supabase
       .from("petty_cash_reports")
       .select(
         "id,report_number,status,total_registered,week_start,week_end,general_reason",
       )
-      .or(
-        `report_number.ilike.%${input.query}%,general_reason.ilike.%${input.query}%`,
-      )
+      .or(`report_number.ilike.%${term}%,general_reason.ilike.%${term}%`)
       .order("created_at", { ascending: false })
       .limit(5);
     if (error)
@@ -131,12 +139,11 @@ const checkDistributionOrder: AssistantTool<{ query: string }> = {
     required: ["query"],
   },
   async execute(input, { supabase }) {
+    const term = sanitizeSearchTerm(input.query);
     const { data, error } = await supabase
       .from("dist_orders")
       .select("id,status,delivery_date,delivery_address,total,payment_status")
-      .or(
-        `delivery_address.ilike.%${input.query}%,notes.ilike.%${input.query}%`,
-      )
+      .or(`delivery_address.ilike.%${term}%,notes.ilike.%${term}%`)
       .order("delivery_date", { ascending: false })
       .limit(5);
     if (error)
@@ -166,12 +173,11 @@ const checkQuotationStatus: AssistantTool<{ query: string }> = {
     required: ["query"],
   },
   async execute(input, { supabase }) {
+    const term = sanitizeSearchTerm(input.query);
     const { data, error } = await supabase
       .from("om_quotations")
       .select("id,quotation_number,client_company,status,total")
-      .or(
-        `quotation_number.ilike.%${input.query}%,client_company.ilike.%${input.query}%`,
-      )
+      .or(`quotation_number.ilike.%${term}%,client_company.ilike.%${term}%`)
       .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(5);

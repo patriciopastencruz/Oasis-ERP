@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const inputClass =
-  "mt-1.5 w-full rounded-xl border border-[#d8e1dc] bg-white px-3 py-2.5 text-sm outline-none focus:border-[var(--oasis-primary)]";
+  "mt-1.5 w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-2.5 text-sm outline-none focus:border-[var(--oasis-primary)]";
 export function Notice({
   success,
   error,
@@ -47,7 +47,7 @@ export function InventoryTabs() {
         <Link
           key={href}
           href={href}
-          className="rounded-full border bg-white px-3 py-1.5 font-medium hover:border-[#277a55]"
+          className="rounded-full border bg-white px-3 py-1.5 font-medium hover:border-[#0b4f9c]"
         >
           {label}
         </Link>

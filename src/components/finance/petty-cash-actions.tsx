@@ -17,7 +17,7 @@ export function SubmitPettyCashReport({ id, total, available }: { id: string; to
     <button type="button" disabled={pending || total > available} onClick={() => {
       if (!confirm(`¿Enviar esta rendición por ${new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(total)}?`)) return;
       start(async () => { const result = await submitPettyCashReportAction(id); setMessage(result.message); if (result.success) router.refresh(); });
-    }} className="rounded-xl bg-[#173f2d] px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+    }} className="rounded-xl bg-[#083f7d] px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
       {pending ? "Enviando…" : "Enviar rendición"}
     </button>
   </div>;

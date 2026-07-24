@@ -103,7 +103,7 @@ export function SupplierBankForm({
           {save.message && <p className="mb-2 text-sm">{save.message}</p>}
           <button
             disabled={saving}
-            className="rounded-xl bg-[#173f2d] px-5 py-3 font-semibold text-white"
+            className="rounded-xl bg-[#083f7d] px-5 py-3 font-semibold text-white"
           >
             Guardar cuenta
           </button>

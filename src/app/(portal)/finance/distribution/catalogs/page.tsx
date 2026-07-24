@@ -112,7 +112,7 @@ export default async function Catalogs({
               {products?.map((x: any) => (
                 <div key={x.id} className="rounded-xl border p-3">
                   <b>{x.name}</b>
-                  <p className="text-xs text-[#718078]">
+                  <p className="text-xs text-[#63778e]">
                     {x.code} · {x.presentation} ·{" "}
                     {x.dist_product_categories?.name}
                     {Number(x.ice_weight_kg) > 0

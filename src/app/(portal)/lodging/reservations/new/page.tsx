@@ -33,7 +33,7 @@ export default async function Page({
   const selectedRoom =
     rooms?.find((r) => r.id === parent?.room_id) ?? rooms?.[0];
   const field =
-    "rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-[#277a55]";
+    "rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-[#0b4f9c]";
   return (
     <>
       <PageHeader
@@ -275,7 +275,7 @@ export default async function Page({
               />
             </div>
           </fieldset>
-          <button className="rounded-xl bg-[#277a55] px-5 py-3 font-semibold text-white md:col-span-2 xl:col-span-3">
+          <button className="rounded-xl bg-[#0b4f9c] px-5 py-3 font-semibold text-white md:col-span-2 xl:col-span-3">
             Guardar reserva
           </button>
         </form>
