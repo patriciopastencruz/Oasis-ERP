@@ -29,6 +29,7 @@ import {
   UserRound,
   Route,
   PackageOpen,
+  Bot,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -38,6 +39,7 @@ import { TopBarTitle } from "@/components/layout/top-bar-title";
 import { ShellRoot } from "@/components/layout/shell-root";
 import { HideInAdminGeneral } from "@/components/layout/hide-in-admin-general";
 import { ShowOnlyInAdminGeneral } from "@/components/layout/show-only-in-admin-general";
+import { AssistantMount } from "@/components/assistant/assistant-mount";
 import { getBusinessUnitBrand } from "@/config/business-units";
 type Ctx = Awaited<
   ReturnType<
@@ -196,6 +198,12 @@ const administrationNav = [
     label: "Flujos de aprobación",
     icon: Workflow,
     permission: "administration.approval_rules.manage",
+  },
+  {
+    href: "/admin/assistant",
+    label: "Asistente ERP",
+    icon: Bot,
+    permission: "assistant.admin.manage",
   },
 ];
 
@@ -617,6 +625,7 @@ export async function AppShell({
         </header>
         <main className="p-5 lg:p-8">{children}</main>
       </div>
+      <AssistantMount />
     </ShellRoot>
   );
 }

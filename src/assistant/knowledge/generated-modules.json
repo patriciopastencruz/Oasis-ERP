@@ -1,0 +1,470 @@
+[
+  {
+    "key": "administration",
+    "name": "Administración General",
+    "isActive": true,
+    "permissions": [
+      "administration.users.manage",
+      "administration.business_units.manage",
+      "administration.companies.manage",
+      "administration.roles.manage",
+      "administration.approval_rules.manage",
+      "administration.approvals.view",
+      "administration.categories.manage",
+      "administration.cost_centers.manage"
+    ],
+    "routes": [
+      {
+        "path": "/admin",
+        "label": "Administración",
+        "permission": "administration.users.manage"
+      },
+      {
+        "path": "/admin/approvals",
+        "label": "Bandeja de aprobaciones",
+        "permission": "administration.approvals.view"
+      },
+      {
+        "path": "/admin/business-units",
+        "label": "Unidades de negocio",
+        "permission": "administration.business_units.manage"
+      },
+      { "path": "/admin/profile", "label": "Mi perfil", "permission": null },
+      {
+        "path": "/admin/users",
+        "label": "Usuarios",
+        "permission": "administration.users.manage"
+      },
+      {
+        "path": "/admin/roles",
+        "label": "Roles y permisos",
+        "permission": "administration.roles.manage"
+      },
+      {
+        "path": "/admin/workflows",
+        "label": "Flujos de aprobación",
+        "permission": "administration.approval_rules.manage"
+      }
+    ]
+  },
+  {
+    "key": "suppliers",
+    "name": "Proveedores",
+    "isActive": true,
+    "permissions": [
+      "finance.suppliers.view",
+      "finance.suppliers.manage",
+      "finance.supplier_bank_accounts.view",
+      "finance.supplier_bank_accounts.manage"
+    ],
+    "routes": [
+      {
+        "path": "/suppliers",
+        "label": "Proveedores",
+        "permission": "finance.suppliers.view"
+      },
+      {
+        "path": "/suppliers/new",
+        "label": "Nuevo proveedor",
+        "permission": "finance.suppliers.manage"
+      },
+      {
+        "path": "/suppliers/*",
+        "label": "Ficha de proveedor",
+        "permission": "finance.supplier_bank_accounts.view"
+      }
+    ]
+  },
+  {
+    "key": "dashboard",
+    "name": "Panel ejecutivo",
+    "isActive": true,
+    "permissions": ["reports.executive_dashboard.view"],
+    "routes": [
+      {
+        "path": "/dashboard",
+        "label": "Panel ejecutivo",
+        "permission": "reports.executive_dashboard.view"
+      }
+    ]
+  },
+  {
+    "key": "notifications",
+    "name": "Notificaciones",
+    "isActive": true,
+    "permissions": [],
+    "routes": [
+      {
+        "path": "/notifications",
+        "label": "Notificaciones",
+        "permission": null
+      }
+    ]
+  },
+  {
+    "key": "payment_control",
+    "name": "Solicitud de Pagos",
+    "isActive": true,
+    "permissions": [
+      "finance.payment_requests.create",
+      "finance.approvals.decide",
+      "finance.payments.view",
+      "finance.payments.execute",
+      "finance.payments.manage",
+      "finance.reports.view",
+      "finance.reports.export",
+      "finance.expense_categories.manage",
+      "finance.cost_centers.manage"
+    ],
+    "routes": [
+      {
+        "path": "/finance/payment-control",
+        "label": "Solicitud de Pagos",
+        "permission": null
+      },
+      {
+        "path": "/finance/payment-control/new",
+        "label": "Nueva solicitud de pago",
+        "permission": "finance.payment_requests.create"
+      },
+      {
+        "path": "/finance/payment-control/my-requests",
+        "label": "Mis solicitudes",
+        "permission": null
+      },
+      {
+        "path": "/finance/payment-control/requests/*",
+        "label": "Detalle de solicitud de pago",
+        "permission": null
+      },
+      {
+        "path": "/finance/payment-control/approvals",
+        "label": "Aprobaciones de pago pendientes",
+        "permission": "finance.approvals.decide"
+      },
+      {
+        "path": "/finance/payment-control/approvals/*",
+        "label": "Decidir aprobación de pago",
+        "permission": "finance.approvals.decide"
+      },
+      {
+        "path": "/finance/payment-control/payments",
+        "label": "Pagos",
+        "permission": "finance.payments.view"
+      },
+      {
+        "path": "/finance/payment-control/payments/*",
+        "label": "Detalle de pago",
+        "permission": "finance.payments.view"
+      },
+      {
+        "path": "/finance/payment-control/payments/paid",
+        "label": "Pagos ejecutados",
+        "permission": "finance.payments.view"
+      },
+      {
+        "path": "/finance/payment-control/reports",
+        "label": "Reportes financieros",
+        "permission": "finance.reports.view"
+      },
+      {
+        "path": "/finance/payment-control/dashboard",
+        "label": "Dashboard financiero",
+        "permission": "finance.reports.view"
+      },
+      {
+        "path": "/finance/payment-control/categories",
+        "label": "Categorías de gasto",
+        "permission": "finance.expense_categories.manage"
+      },
+      {
+        "path": "/finance/payment-control/cost-centers",
+        "label": "Centros de costo",
+        "permission": "finance.cost_centers.manage"
+      }
+    ]
+  },
+  {
+    "key": "petty_cash",
+    "name": "Caja Chica",
+    "isActive": true,
+    "permissions": [
+      "finance.petty_cash.create",
+      "finance.petty_cash.view_own",
+      "finance.petty_cash.view_unit",
+      "finance.petty_cash.review",
+      "finance.petty_cash.approve",
+      "finance.petty_cash.manage",
+      "finance.petty_cash.reports.view",
+      "finance.petty_cash.reports.export"
+    ],
+    "routes": [
+      {
+        "path": "/finance/petty-cash",
+        "label": "Caja Chica",
+        "permission": null
+      },
+      {
+        "path": "/finance/petty-cash/new",
+        "label": "Nueva rendición",
+        "permission": "finance.petty_cash.create"
+      },
+      {
+        "path": "/finance/petty-cash/my-reports",
+        "label": "Mis rendiciones",
+        "permission": null
+      },
+      {
+        "path": "/finance/petty-cash/reports",
+        "label": "Reportes de Caja Chica",
+        "permission": "finance.petty_cash.reports.view"
+      },
+      {
+        "path": "/finance/petty-cash/reports/*",
+        "label": "Detalle de rendición",
+        "permission": null
+      },
+      {
+        "path": "/finance/petty-cash/approved",
+        "label": "Rendiciones aprobadas",
+        "permission": "finance.petty_cash.reports.view"
+      },
+      {
+        "path": "/finance/petty-cash/dashboard",
+        "label": "Dashboard de Caja Chica",
+        "permission": "finance.petty_cash.reports.view"
+      },
+      {
+        "path": "/finance/petty-cash/reviews/*",
+        "label": "Revisar rendición",
+        "permission": "finance.petty_cash.review"
+      }
+    ]
+  },
+  {
+    "key": "distribution",
+    "name": "Distribuidora Altiplánica",
+    "isActive": true,
+    "permissions": [
+      "finance.distribution.view",
+      "finance.distribution.stock.view",
+      "finance.distribution.stock.manage",
+      "finance.distribution.reports.view",
+      "finance.distribution.reports.export",
+      "finance.distribution.catalogs.manage",
+      "finance.distribution.customers.manage",
+      "finance.distribution.customers.edit",
+      "finance.distribution.orders.create",
+      "finance.distribution.orders.manage",
+      "finance.distribution.requests.create",
+      "finance.distribution.requests.review",
+      "finance.distribution.payments.manage",
+      "finance.distribution.driver",
+      "finance.distribution.closures.manage"
+    ],
+    "routes": [
+      {
+        "path": "/finance/distribution/catalogs",
+        "label": "Catálogo de productos y precios",
+        "permission": "finance.distribution.view"
+      },
+      {
+        "path": "/finance/distribution/stock",
+        "label": "Stock de materia prima",
+        "permission": "finance.distribution.stock.view"
+      },
+      {
+        "path": "/finance/distribution/account-statements",
+        "label": "Estado de cuenta por cliente",
+        "permission": "finance.distribution.reports.view"
+      },
+      {
+        "path": "/finance/distribution/payments",
+        "label": "Cobros",
+        "permission": "finance.distribution.view"
+      },
+      {
+        "path": "/finance/distribution/reports",
+        "label": "Reportes de Distribuidora",
+        "permission": "finance.distribution.reports.view"
+      },
+      {
+        "path": "/finance/distribution/customers",
+        "label": "Clientes",
+        "permission": "finance.distribution.view"
+      },
+      {
+        "path": "/finance/distribution/customers/*",
+        "label": "Ficha de cliente",
+        "permission": "finance.distribution.view"
+      },
+      {
+        "path": "/finance/distribution/orders/new",
+        "label": "Nuevo pedido",
+        "permission": "finance.distribution.orders.create"
+      },
+      {
+        "path": "/finance/distribution/orders/*",
+        "label": "Detalle de pedido",
+        "permission": "finance.distribution.view"
+      }
+    ]
+  },
+  {
+    "key": "sales_quotations",
+    "name": "Ventas / Cotizaciones",
+    "isActive": true,
+    "permissions": ["sales.quotations.create", "sales.quotations.approve"],
+    "routes": [
+      {
+        "path": "/sales/quotations",
+        "label": "Cotizaciones",
+        "permission": "sales.quotations.create"
+      },
+      {
+        "path": "/sales/quotations/new",
+        "label": "Nueva cotización",
+        "permission": "sales.quotations.create"
+      },
+      {
+        "path": "/sales/quotations/approvals",
+        "label": "Aprobación de cotizaciones",
+        "permission": "sales.quotations.approve"
+      },
+      {
+        "path": "/sales/quotations/*",
+        "label": "Detalle de cotización",
+        "permission": "sales.quotations.create"
+      }
+    ]
+  },
+  {
+    "key": "inventory",
+    "name": "Inventario",
+    "isActive": true,
+    "permissions": [
+      "inventory.materials.view",
+      "inventory.materials.create",
+      "inventory.materials.request_change",
+      "inventory.purchases.create",
+      "inventory.outputs.create",
+      "inventory.reports.export",
+      "inventory.approvals.decide"
+    ],
+    "routes": [
+      {
+        "path": "/inventory",
+        "label": "Inventario",
+        "permission": "inventory.materials.view"
+      },
+      {
+        "path": "/inventory/materials/new",
+        "label": "Nuevo material",
+        "permission": "inventory.materials.create"
+      },
+      {
+        "path": "/inventory/materials",
+        "label": "Maestro de materiales",
+        "permission": "inventory.materials.view"
+      },
+      {
+        "path": "/inventory/materials/*",
+        "label": "Detalle de material",
+        "permission": "inventory.materials.view"
+      },
+      {
+        "path": "/inventory/invoices/new",
+        "label": "Ingreso de factura",
+        "permission": "inventory.purchases.create"
+      },
+      {
+        "path": "/inventory/invoices",
+        "label": "Facturas de compra",
+        "permission": "inventory.materials.view"
+      },
+      {
+        "path": "/inventory/outputs/new",
+        "label": "Registrar salida",
+        "permission": "inventory.outputs.create"
+      },
+      {
+        "path": "/inventory/outputs",
+        "label": "Salidas de material",
+        "permission": "inventory.materials.view"
+      },
+      {
+        "path": "/inventory/movements",
+        "label": "Historial de movimientos",
+        "permission": "inventory.materials.view"
+      },
+      {
+        "path": "/inventory/reports",
+        "label": "Reportes de inventario",
+        "permission": "inventory.reports.export"
+      },
+      {
+        "path": "/inventory/approvals",
+        "label": "Solicitudes de materiales",
+        "permission": "inventory.approvals.decide"
+      }
+    ]
+  },
+  {
+    "key": "lodging",
+    "name": "Reservas / Hospedaje",
+    "isActive": true,
+    "permissions": [
+      "lodging.reservations.view",
+      "lodging.reservations.manage",
+      "lodging.ical.sync",
+      "lodging.payments.void"
+    ],
+    "routes": [
+      {
+        "path": "/lodging",
+        "label": "Calendario de reservas",
+        "permission": "lodging.reservations.view"
+      },
+      {
+        "path": "/lodging/arrivals",
+        "label": "Llegadas de hoy",
+        "permission": "lodging.reservations.view"
+      },
+      {
+        "path": "/lodging/departures",
+        "label": "Salidas de hoy",
+        "permission": "lodging.reservations.view"
+      },
+      {
+        "path": "/lodging/ical",
+        "label": "Sincronización iCal",
+        "permission": "lodging.ical.sync"
+      },
+      {
+        "path": "/lodging/reservations",
+        "label": "Reservas",
+        "permission": "lodging.reservations.view"
+      },
+      {
+        "path": "/lodging/reservations/new",
+        "label": "Nueva reserva",
+        "permission": "lodging.reservations.manage"
+      },
+      {
+        "path": "/lodging/reservations/*",
+        "label": "Detalle de reserva",
+        "permission": "lodging.reservations.view"
+      },
+      {
+        "path": "/lodging/rooms",
+        "label": "Habitaciones",
+        "permission": "lodging.reservations.view"
+      },
+      {
+        "path": "/lodging/settings",
+        "label": "Configuración de Reservas",
+        "permission": "lodging.reservations.view"
+      }
+    ]
+  }
+]
