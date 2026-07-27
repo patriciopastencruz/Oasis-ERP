@@ -22,7 +22,7 @@ export default async function QuotationDetail({
 }) {
   const [{ id }, q] = await Promise.all([params, searchParams]);
   const { ctx, supabase } = await salesContext("sales.quotations.create");
-  const [quotationResult, linesResult] = await Promise.all([
+  const [quotationResult, linesResult, projectResult] = await Promise.all([
     supabase
       .from("om_quotations")
       .select(
@@ -36,13 +36,18 @@ export default async function QuotationDetail({
       .select("description,quantity,unit_price,line_total")
       .eq("quotation_id", id)
       .order("position"),
+    supabase.from("om_projects").select("id").eq("quotation_id", id).maybeSingle(),
   ]);
   const quotation = quotationResult.data;
   if (!quotation) notFound();
   const lines = linesResult.data ?? [];
+  const project = projectResult.data;
   const isOwner = quotation.created_by === ctx.user.id;
   const editable = isOwner && ["draft", "rejected"].includes(quotation.status);
   const canApprove = ctx.permissions.has("sales.quotations.approve");
+  const canConvert = ctx.permissions.has(
+    "sales.projects.convert_from_quotation",
+  );
   const seller = quotation.seller;
   const reviewer = quotation.reviewer;
 
@@ -231,6 +236,23 @@ export default async function QuotationDetail({
                     { timeZone: "America/Santiago" },
                   )}
                 </span>
+              )}
+              {project ? (
+                <Link
+                  className="rounded-xl border border-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--oasis-primary)]"
+                  href={`/sales/projects/${project.id}`}
+                >
+                  Ver proyecto
+                </Link>
+              ) : (
+                canConvert && (
+                  <Link
+                    className="rounded-xl bg-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-white"
+                    href={`/sales/projects/new?fromQuotation=${quotation.id}`}
+                  >
+                    Convertir en proyecto
+                  </Link>
+                )
               )}
             </div>
           )}
