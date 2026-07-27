@@ -86,6 +86,9 @@ const UI_LABELS: Record<string, string> = {
   payment_request: "Solicitud de pago",
   petty_cash_report: "Rendición de caja chica",
   inventory_material: "Material de inventario",
+  manufacturing: "En fabricación",
+  installation: "En instalación",
+  done: "Finalizado",
 };
 
 /**

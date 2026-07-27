@@ -30,6 +30,7 @@ import {
   Route,
   PackageOpen,
   Bot,
+  FolderKanban,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -271,6 +272,18 @@ const salesNav = [
     label: "Aprobaciones",
     icon: ClipboardCheck,
     permission: "sales.quotations.approve",
+  },
+  {
+    href: "/sales/projects",
+    label: "Proyectos",
+    icon: FolderKanban,
+    permission: "sales.projects.view",
+  },
+  {
+    href: "/sales/projects/new",
+    label: "Nuevo proyecto",
+    icon: FolderKanban,
+    permission: "sales.projects.create",
   },
 ];
 
