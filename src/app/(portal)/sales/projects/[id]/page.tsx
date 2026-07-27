@@ -22,7 +22,7 @@ import {
   loadProjectStatusHistory,
   listUnitMembers,
   signProjectAttachment,
-  projectsContext,
+  projectDetailContext,
 } from "@/modules/sales/projects/application/queries";
 import { ProjectStatusActions } from "@/components/sales/project-status-actions";
 import { ProjectExpenseForm } from "@/components/sales/project-expense-form";
@@ -66,9 +66,7 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const q = await searchParams;
   const tab = q.tab || "resumen";
-  const { ctx, company, unit, supabase } = await projectsContext(
-    "sales.projects.view",
-  );
+  const { ctx, company, unit, supabase } = await projectDetailContext();
   const project = await loadProject(supabase, id);
   if (!project) notFound();
 

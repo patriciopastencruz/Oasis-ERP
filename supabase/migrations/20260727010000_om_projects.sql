@@ -261,11 +261,18 @@ begin
  if not public.can_access_unit(p.company_id,p.business_unit_id) then raise exception 'Unidad no autorizada'; end if;
  if p.status in('done','cancelled') then raise exception 'El proyecto esta cerrado y no admite ediciones'; end if;
  if nullif(trim(payload->>'name'),'') is null then raise exception 'El proyecto requiere un nombre'; end if;
+ -- client_contact/client_email/client_place quedan fuera de este set a
+ -- proposito: no forman parte del formulario de "informacion general"
+ -- (solo se capturan al crear o se copian al convertir), y tocarlas
+ -- aqui las pondria en null cada vez que ese formulario se guarda sin
+ -- incluirlas. client_company/client_rut si son editables ahi, asi que
+ -- se protegen igual con coalesce para no perder el valor existente
+ -- cuando el campo no viene en el payload (p.ej. proyecto convertido,
+ -- donde el formulario los oculta).
  update public.om_projects set
    name=trim(payload->>'name'),description=nullif(trim(payload->>'description'),''),
    client_company=coalesce(nullif(trim(payload->>'client_company'),''),client_company),
-   client_rut=nullif(trim(payload->>'client_rut'),''),client_contact=nullif(trim(payload->>'client_contact'),''),
-   client_email=nullif(trim(payload->>'client_email'),''),client_place=nullif(trim(payload->>'client_place'),''),
+   client_rut=coalesce(nullif(trim(payload->>'client_rut'),''),client_rut),
    execution_address=nullif(trim(payload->>'execution_address'),''),
    net_income=coalesce((payload->>'net_income')::numeric,net_income),
    estimated_start_date=nullif(payload->>'estimated_start_date','')::date,

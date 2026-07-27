@@ -1,5 +1,8 @@
 import "server-only";
+import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireSession } from "@/modules/platform/auth/application/session";
 import { salesContext } from "@/modules/sales/quotations/application/queries";
 import type {
   ProjectExpenseCategory,
@@ -10,6 +13,28 @@ import type {
 
 /** Mismo contexto de autenticación/unidad que usa Cotizaciones — no se duplica. */
 export const projectsContext = salesContext;
+
+/**
+ * Para el listado y las acciones, exigir `sales.projects.view` (u otro
+ * permiso específico) está bien. Pero la política RLS `om_projects_read`
+ * también deja ver un proyecto puntual a su responsable o a quien lo
+ * creó, aunque no tengan ese permiso general — así que la ficha
+ * individual (`/sales/projects/[id]`) no debe exigirlo de entrada, o
+ * bloquearía a ese mismo responsable con un redirect a /no-access antes
+ * de llegar a la comprobación (más fina) que ya hace RLS al cargar el
+ * proyecto. Aquí solo se exige sesión + unidad OM; si el proyecto
+ * cargado resulta null, la página trata eso como "no encontrado" (no
+ * hay forma de distinguir "no existe" de "no autorizado" bajo RLS, y es
+ * el mismo criterio que ya usa el detalle de Cotizaciones).
+ */
+export async function projectDetailContext() {
+  const ctx = await requireSession();
+  const unit = ctx.units.find((u) => u.code === "OM");
+  if (!unit) redirect("/no-access");
+  const company = ctx.companies.find((c) => c.id === unit.company_id);
+  if (!company) redirect("/no-access");
+  return { ctx, unit, company, supabase: await createSupabaseServerClient() };
+}
 
 type PersonRef = { id?: string; first_name?: string; last_name?: string } | null;
 

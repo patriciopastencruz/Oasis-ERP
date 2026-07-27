@@ -167,6 +167,27 @@ describe("permisos y RLS", () => {
   });
 });
 
+describe("edición de información general no borra datos ausentes del formulario", () => {
+  it("protege client_company y client_rut con coalesce en vez de sobrescribir con null", () => {
+    expect(sql).toContain(
+      "client_company=coalesce(nullif(trim(payload->>'client_company'),''),client_company)",
+    );
+    expect(sql).toContain(
+      "client_rut=coalesce(nullif(trim(payload->>'client_rut'),''),client_rut)",
+    );
+  });
+
+  it("no permite que om_update_project toque client_contact/client_email/client_place", () => {
+    const fn = sql.slice(
+      sql.indexOf("function public.om_update_project"),
+      sql.indexOf("function public.om_set_project_responsible"),
+    );
+    expect(fn).not.toContain("client_contact=");
+    expect(fn).not.toContain("client_email=");
+    expect(fn).not.toContain("client_place=");
+  });
+});
+
 describe("listado de integrantes de la unidad para los selectores", () => {
   it("reutiliza el patron security definer de shares_business_unit en vez de exponer user_business_units", () => {
     expect(sql).toContain("public.om_list_unit_members");
