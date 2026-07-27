@@ -84,7 +84,11 @@ El IVA de la venta (`iva_reference`) y el IVA de los gastos se muestran aparte, 
 
 Todas las mutaciones pasan por funciones `security invoker` que verifican `has_permission(...)` y `can_access_unit(company,unit)` antes de escribir — la autorización real ocurre en la base de datos, no ocultando botones en la interfaz. Un proyecto finalizado o cancelado bloquea ediciones, gastos, equipo y documentos nuevos a nivel de función (no solo de UI); reabrir requiere el permiso especial `sales.projects.reopen`. Los archivos se guardan en el bucket privado `modular-project-attachments` (10MB, PDF/JPG/PNG), con políticas de storage que verifican pertenencia al proyecto + permiso, igual patrón que `payment-request-attachments`/`petty-cash-attachments`. Nunca se confía en montos calculados en el navegador: IVA y total de cada gasto se recalculan en un trigger `before insert/update`.
 
-## Cómo aplicar la migración
+## Estado de la migración
+
+Aplicada en producción (proyecto Supabase `oasiscompany`) el 2026-07-27. Un primer intento falló a mitad de camino por una columna ambigua (`name`) en las políticas de storage que hacen join con `om_project_documents`/`om_project_expense_attachments` (ambas tienen su propia columna `name`/`original_name`); como toda la migración está envuelta en `begin;`/`commit;`, el fallo revirtió atómicamente sin dejar nada a medio crear — se verificó con `supabase db dump` que no quedó ningún rastro antes de corregir y reintentar. El fix califica explícitamente `storage.objects.name` en esas dos políticas.
+
+Para aplicar en otro entorno:
 
 ```bash
 supabase db push --linked --dry-run   # confirmar qué migraciones quedan pendientes
@@ -100,4 +104,4 @@ supabase db dump --linked -s public | grep -A5 "create table public.om_projects"
 
 No implementado a propósito (alcance explícito de este MVP): carta Gantt, calendario, tareas/subtareas, etapas detalladas de fabricación, dependencias, presupuesto vs. gasto, horas trabajadas, remuneraciones, consumo automático de inventario, órdenes de compra, alertas automáticas, paneles avanzados, IA para proyectos.
 
-Seguimiento manual pendiente: verificar RLS en vivo contra una instancia real de Supabase (esta entrega no aplicó la migración a producción, según las reglas de no ejecutar cambios en la base de datos sin revisión).
+Seguimiento manual pendiente: probar el flujo completo end-to-end en la app desplegada (conversión, gastos, cierre) con un usuario real de Oasis Modulares — la migración ya está aplicada en producción, pero el código de la app (este PR) todavía no se ha desplegado ni fusionado a `main`.

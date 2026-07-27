@@ -624,7 +624,7 @@ on conflict (id) do update set public=false, file_size_limit=excluded.file_size_
 create policy storage_modular_project_expense_select on storage.objects for select to authenticated using(
  bucket_id='modular-project-attachments' and exists(
    select 1 from public.om_project_expense_attachments a join public.om_project_expenses e on e.id=a.expense_id join public.om_projects p on p.id=e.project_id
-   where a.object_path=name and public.can_access_unit(p.company_id,p.business_unit_id)
+   where a.object_path=storage.objects.name and public.can_access_unit(p.company_id,p.business_unit_id)
      and (p.created_by=(select auth.uid()) or p.responsible_id=(select auth.uid()) or public.has_permission('sales.projects.view') or public.has_permission('sales.projects.manage_expenses'))
  )
 );
@@ -638,7 +638,7 @@ create policy storage_modular_project_expense_delete on storage.objects for dele
 create policy storage_modular_project_document_select on storage.objects for select to authenticated using(
  bucket_id='modular-project-attachments' and exists(
    select 1 from public.om_project_documents d join public.om_projects p on p.id=d.project_id
-   where d.object_path=name and public.can_access_unit(p.company_id,p.business_unit_id)
+   where d.object_path=storage.objects.name and public.can_access_unit(p.company_id,p.business_unit_id)
      and (p.created_by=(select auth.uid()) or p.responsible_id=(select auth.uid()) or public.has_permission('sales.projects.view') or public.has_permission('sales.projects.manage_documents'))
  )
 );

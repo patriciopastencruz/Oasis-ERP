@@ -210,4 +210,14 @@ describe("almacenamiento privado de documentos", () => {
     expect(sql).toContain("storage_modular_project_document_select");
     expect(sql).toContain("public.storage_company_id(name)");
   });
+
+  it("califica storage.objects.name en los selects con join, para evitar 'column reference name is ambiguous'", () => {
+    // om_project_documents.name colisiona con storage.objects.name en el
+    // mismo subquery — sin calificar, Postgres rechaza la política con
+    // 42702 (column reference "name" is ambiguous) al aplicar la migración.
+    expect(sql).toContain("a.object_path=storage.objects.name");
+    expect(sql).toContain("d.object_path=storage.objects.name");
+    expect(sql).not.toContain("a.object_path=name");
+    expect(sql).not.toContain("d.object_path=name");
+  });
 });
