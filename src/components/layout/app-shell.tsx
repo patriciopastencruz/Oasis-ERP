@@ -253,7 +253,7 @@ const inventoryNav = [
   },
 ];
 
-const salesNav = [
+const commercialManagementNav = [
   {
     href: "/sales/quotations",
     label: "Cotizaciones",
@@ -273,9 +273,12 @@ const salesNav = [
     icon: ClipboardCheck,
     permission: "sales.quotations.approve",
   },
+];
+
+const operationNav = [
   {
     href: "/sales/projects",
-    label: "Proyectos",
+    label: "Seguimiento de proyectos",
     icon: FolderKanban,
     permission: "sales.projects.view",
   },
@@ -398,7 +401,10 @@ export async function AppShell({
   const visibleInventoryNav = inventoryNav.filter((item) =>
     ctx.permissions.has(item.permission),
   );
-  const visibleSalesNav = salesNav.filter((item) =>
+  const visibleCommercialManagementNav = commercialManagementNav.filter(
+    (item) => canView(item, ctx.permissions),
+  );
+  const visibleOperationNav = operationNav.filter((item) =>
     canView(item, ctx.permissions),
   );
   const visibleLodgingNav = lodgingNav.filter((item) =>
@@ -460,19 +466,47 @@ export async function AppShell({
               </Link>
             ))}
           </HideInAdminGeneral>
-          {isOasisModulares && visibleSalesNav.length > 0 && (
+          {isOasisModulares && visibleCommercialManagementNav.length > 0 && (
             <HideInAdminGeneral>
               <details className="group/sales">
                 <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
                   <ReceiptText size={17} />
-                  <span className="flex-1">Cotizaciones</span>
+                  <span className="flex-1">Gestión Comercial</span>
                   <ChevronDown
                     size={15}
                     className="transition-transform group-open/sales:rotate-180"
                   />
                 </summary>
                 <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
-                  {visibleSalesNav.map(({ href, label, icon: Icon }) => (
+                  {visibleCommercialManagementNav.map(
+                    ({ href, label, icon: Icon }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+                      >
+                        <Icon size={16} />
+                        {label}
+                      </Link>
+                    ),
+                  )}
+                </div>
+              </details>
+            </HideInAdminGeneral>
+          )}
+          {isOasisModulares && visibleOperationNav.length > 0 && (
+            <HideInAdminGeneral>
+              <details className="group/operation">
+                <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                  <FolderKanban size={17} />
+                  <span className="flex-1">Operación</span>
+                  <ChevronDown
+                    size={15}
+                    className="transition-transform group-open/operation:rotate-180"
+                  />
+                </summary>
+                <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
+                  {visibleOperationNav.map(({ href, label, icon: Icon }) => (
                     <Link
                       key={href}
                       href={href}
