@@ -10,7 +10,8 @@ const uuid = z.string().uuid();
 const BUCKET = "modular-project-attachments";
 
 function done(path: string, type: "success" | "error", message: string): never {
-  redirect(`${path}?${type}=${encodeURIComponent(message)}`);
+  const separator = path.includes("?") ? "&" : "?";
+  redirect(`${path}${separator}${type}=${encodeURIComponent(message)}`);
 }
 function errorMessage(error: { message?: string } | null) {
   const value = error?.message ?? "No fue posible completar la operación.";
