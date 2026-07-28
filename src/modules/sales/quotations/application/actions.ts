@@ -108,6 +108,17 @@ export async function reviewQuotationAction(form: FormData) {
   );
 }
 
+export async function deleteQuotationAction(form: FormData) {
+  const { supabase } = await salesContext("sales.quotations.create");
+  const id = uuid.parse(form.get("quotation_id"));
+  const { error } = await supabase.rpc("om_delete_quotation", {
+    target_quotation: id,
+  });
+  if (error) done("/sales/quotations", "error", errorMessage(error));
+  revalidatePath("/sales/quotations");
+  done("/sales/quotations", "success", "Cotización eliminada.");
+}
+
 export async function markDeliveredAction(form: FormData) {
   const { supabase } = await salesContext("sales.quotations.create");
   const id = uuid.parse(form.get("quotation_id"));

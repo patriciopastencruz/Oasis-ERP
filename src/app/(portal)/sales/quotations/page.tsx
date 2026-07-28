@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import { StatusBadge } from "@/components/finance/status-badge";
+import { ConfirmButton } from "@/components/sales/confirm-button";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { clp } from "@/modules/sales/quotations/domain/quotation";
+import { deleteQuotationAction } from "@/modules/sales/quotations/application/actions";
 import { salesContext } from "@/modules/sales/quotations/application/queries";
 import { Notice, QuotationTabs, inputClass } from "@/modules/sales/ui";
 
@@ -88,12 +90,30 @@ export default async function Quotations({
                     })}
                   </td>
                   <td>
-                    <Link
-                      className="font-semibold text-[var(--oasis-primary)] underline"
-                      href={`/sales/quotations/${x.id}`}
-                    >
-                      Ver
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <Link
+                        className="font-semibold text-[var(--oasis-primary)] underline"
+                        href={`/sales/quotations/${x.id}`}
+                      >
+                        Ver
+                      </Link>
+                      {x.created_by === ctx.user.id &&
+                        (x.status === "draft" || x.status === "rejected") && (
+                          <form action={deleteQuotationAction}>
+                            <input
+                              type="hidden"
+                              name="quotation_id"
+                              value={x.id}
+                            />
+                            <ConfirmButton
+                              className="font-semibold text-red-700 underline"
+                              message={`¿Confirmas eliminar la cotización de ${x.client_company}? Esta acción no se puede deshacer.`}
+                            >
+                              Borrar
+                            </ConfirmButton>
+                          </form>
+                        )}
+                    </div>
                   </td>
                 </tr>
               );
