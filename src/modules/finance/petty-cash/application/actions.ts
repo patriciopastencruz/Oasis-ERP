@@ -387,6 +387,23 @@ export async function deletePettyCashAttachmentAction(
   }
 }
 
+export async function deletePettyCashReportAction(
+  id: string,
+): Promise<PettyCashActionResult> {
+  try {
+    await createContext("finance.petty_cash.create");
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.rpc("delete_petty_cash_report", {
+      target_report_id: id,
+    });
+    if (error) throw error;
+    revalidatePettyCash(id);
+    return { success: true, message: "Rendición eliminada." };
+  } catch (error) {
+    return { success: false, message: friendlyError(error) };
+  }
+}
+
 export async function decidePettyCashReportAction(
   id: string,
   decision: "approved" | "rejected" | "correction_requested" | "comment",

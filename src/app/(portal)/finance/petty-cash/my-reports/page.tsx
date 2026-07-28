@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { StatusBadge } from "@/components/finance/status-badge";
+import { DeletePettyCashReport } from "@/components/finance/petty-cash-actions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireSession } from "@/modules/platform/auth/application/session";
 import { uiLabel } from "@/lib/ui-labels";
@@ -115,16 +116,21 @@ export default async function MyPettyCashReports({
                       <StatusBadge value={report.status} />
                     </td>
                     <td>
-                      <Link
-                        href={`/finance/petty-cash/reports/${report.id}`}
-                        className="font-semibold text-[#0b4f9c]"
-                      >
-                        {["draft", "correction_requested"].includes(
-                          report.status,
-                        )
-                          ? "Continuar"
-                          : "Ver"}
-                      </Link>
+                      <div className="flex items-center gap-3">
+                        <Link
+                          href={`/finance/petty-cash/reports/${report.id}`}
+                          className="font-semibold text-[#0b4f9c]"
+                        >
+                          {["draft", "correction_requested"].includes(
+                            report.status,
+                          )
+                            ? "Continuar"
+                            : "Ver"}
+                        </Link>
+                        {report.status === "draft" && (
+                          <DeletePettyCashReport id={report.id} />
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
