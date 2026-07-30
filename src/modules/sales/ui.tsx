@@ -67,6 +67,7 @@ const PROJECT_DETAIL_TABS = [
   ["gastos", "Gastos"],
   ["resultados", "Estado de resultados"],
   ["equipo", "Equipo"],
+  ["contrato", "Contrato"],
   ["documentos", "Documentos"],
   ["observaciones", "Observaciones"],
 ] as const;

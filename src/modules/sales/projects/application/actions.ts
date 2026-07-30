@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { projectsContext } from "@/modules/sales/projects/application/queries";
 import { validateProjectAttachment } from "@/modules/sales/projects/application/schemas";
+import { buildProjectContractPdf } from "@/modules/sales/projects/application/project-contract-pdf";
 
 const uuid = z.string().uuid();
 const BUCKET = "modular-project-attachments";
@@ -73,14 +74,14 @@ export async function convertQuotationToProjectAction(form: FormData) {
     { target_quotation: quotationId, payload },
   );
   if (error)
-    done(
-      `/sales/quotations/${quotationId}`,
-      "error",
-      errorMessage(error),
-    );
+    done(`/sales/quotations/${quotationId}`, "error", errorMessage(error));
   revalidatePath("/sales/projects");
   revalidatePath(`/sales/quotations/${quotationId}`);
-  done(`/sales/projects/${data}`, "success", "Proyecto creado desde la cotización.");
+  done(
+    `/sales/projects/${data}`,
+    "success",
+    "Proyecto creado desde la cotización.",
+  );
 }
 
 export async function updateProjectAction(form: FormData) {
@@ -164,7 +165,7 @@ export async function closeProjectAction(form: FormData) {
   const returnPath = `/sales/projects/${id}`;
   const { data: project, error: loadError } = await supabase
     .from("om_projects")
-    .select("company_id")
+    .select("company_id,business_unit_id")
     .eq("id", id)
     .maybeSingle();
   if (loadError || !project)
@@ -191,6 +192,7 @@ export async function closeProjectAction(form: FormData) {
       if (!upload.error) {
         const meta = await supabase.from("om_project_documents").insert({
           company_id: project!.company_id,
+          business_unit_id: project!.business_unit_id,
           project_id: id,
           document_type: documentType,
           name: file.name,
@@ -269,7 +271,7 @@ export async function createProjectExpenseAction(form: FormData) {
     if (!invalid) {
       const { data: project } = await supabase
         .from("om_projects")
-        .select("company_id")
+        .select("company_id,business_unit_id")
         .eq("id", projectId)
         .maybeSingle();
       if (project) {
@@ -282,6 +284,7 @@ export async function createProjectExpenseAction(form: FormData) {
             .from("om_project_expense_attachments")
             .insert({
               company_id: project.company_id,
+              business_unit_id: project.business_unit_id,
               expense_id: expenseId,
               object_path: path,
               original_name: file.name,
@@ -353,7 +356,8 @@ export async function deleteExpenseAttachmentAction(form: FormData) {
     .delete()
     .eq("id", attachmentId);
   if (error) done(returnPath, "error", errorMessage(error));
-  if (attachment) await supabase.storage.from(BUCKET).remove([attachment.object_path]);
+  if (attachment)
+    await supabase.storage.from(BUCKET).remove([attachment.object_path]);
   revalidatePath(returnPath);
   done(returnPath, "success", "Respaldo eliminado.");
 }
@@ -371,7 +375,7 @@ export async function uploadProjectDocumentAction(form: FormData) {
   if (invalid) done(returnPath, "error", invalid);
   const { data: project } = await supabase
     .from("om_projects")
-    .select("company_id")
+    .select("company_id,business_unit_id")
     .eq("id", projectId)
     .maybeSingle();
   if (!project) done(returnPath, "error", "No fue posible cargar el proyecto.");
@@ -385,6 +389,7 @@ export async function uploadProjectDocumentAction(form: FormData) {
   if (upload.error) done(returnPath, "error", errorMessage(upload.error));
   const meta = await supabase.from("om_project_documents").insert({
     company_id: project!.company_id,
+    business_unit_id: project!.business_unit_id,
     project_id: projectId,
     document_type: String(form.get("document_type") ?? "otro"),
     name: String(form.get("name") ?? (file as File).name),
@@ -420,6 +425,96 @@ export async function deleteProjectDocumentAction(form: FormData) {
   if (doc) await supabase.storage.from(BUCKET).remove([doc.object_path]);
   revalidatePath(returnPath);
   done(returnPath, "success", "Documento eliminado.");
+}
+
+export async function generateProjectContractAction(form: FormData) {
+  const { ctx, supabase } = await projectsContext(
+    "sales.projects.manage_documents",
+  );
+  const projectId = uuid.parse(form.get("project_id"));
+  const returnPath = `/sales/projects/${projectId}?tab=contrato`;
+
+  const { data: project } = await supabase
+    .from("om_projects")
+    .select(
+      "company_id,business_unit_id,project_number,client_company,client_rut,net_income,quotation_id",
+    )
+    .eq("id", projectId)
+    .maybeSingle();
+  if (!project) done(returnPath, "error", "No fue posible cargar el proyecto.");
+
+  let quotationNumber: string | null = null;
+  let quotationDate: string | null = null;
+  if (project!.quotation_id) {
+    const { data: quotation } = await supabase
+      .from("om_quotations")
+      .select("quotation_number,submitted_at")
+      .eq("id", project!.quotation_id)
+      .maybeSingle();
+    quotationNumber = quotation?.quotation_number ?? null;
+    quotationDate = quotation?.submitted_at ?? null;
+  }
+
+  const activities = String(form.get("activities") ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (activities.length === 0)
+    done(returnPath, "error", "Describe al menos una actividad del contrato.");
+  const paymentTerms = String(form.get("payment_terms") ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (paymentTerms.length === 0)
+    done(returnPath, "error", "Describe la forma de pago.");
+  const contractCity =
+    String(form.get("contract_city") ?? "").trim() || "Calama";
+  const contractDateRaw = String(form.get("contract_date") ?? "");
+  const contractDate = contractDateRaw
+    ? new Date(`${contractDateRaw}T12:00:00`)
+    : new Date();
+
+  const bytes = await buildProjectContractPdf({
+    projectNumber: project!.project_number ?? "",
+    contractCity,
+    contractDate,
+    client: { company: project!.client_company, rut: project!.client_rut },
+    quotationNumber,
+    quotationDate: quotationDate ? new Date(quotationDate) : null,
+    netIncome: Number(project!.net_income),
+    activities,
+    paymentTerms,
+  });
+
+  const path = `${project!.company_id}/${projectId}/documents/${crypto.randomUUID()}.pdf`;
+  const upload = await supabase.storage.from(BUCKET).upload(path, bytes, {
+    contentType: "application/pdf",
+    upsert: false,
+  });
+  if (upload.error) done(returnPath, "error", errorMessage(upload.error));
+
+  const meta = await supabase.from("om_project_documents").insert({
+    company_id: project!.company_id,
+    business_unit_id: project!.business_unit_id,
+    project_id: projectId,
+    document_type: "contrato",
+    name: `Contrato ${project!.project_number ?? ""}.pdf`.trim(),
+    description: "Generado desde Oasis ERP — pendiente de firma.",
+    object_path: path,
+    mime_type: "application/pdf",
+    size_bytes: bytes.byteLength,
+    uploaded_by: ctx.user.id,
+  });
+  if (meta.error) {
+    await supabase.storage.from(BUCKET).remove([path]);
+    done(returnPath, "error", errorMessage(meta.error));
+  }
+  revalidatePath(`/sales/projects/${projectId}?tab=documentos`);
+  done(
+    `/sales/projects/${projectId}?tab=documentos`,
+    "success",
+    "Contrato generado. Descárgalo, fírmalo junto al cliente y vuelve a subirlo aquí como versión firmada.",
+  );
 }
 
 export async function addProjectNoteAction(form: FormData) {

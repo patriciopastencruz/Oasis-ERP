@@ -36,6 +36,7 @@ import {
   deleteExpenseAttachmentAction,
   uploadProjectDocumentAction,
   deleteProjectDocumentAction,
+  generateProjectContractAction,
   addProjectNoteAction,
   deleteProjectNoteAction,
 } from "@/modules/sales/projects/application/actions";
@@ -129,7 +130,11 @@ export default async function ProjectDetailPage({
   const signedAttachments = await Promise.all(
     attachments.map(async (a) => ({
       ...a,
-      url: await signProjectAttachment(supabase, a.object_path, a.original_name),
+      url: await signProjectAttachment(
+        supabase,
+        a.object_path,
+        a.original_name,
+      ),
     })),
   );
   const signedDocuments = await Promise.all(
@@ -376,13 +381,13 @@ export default async function ProjectDetailPage({
                 <li key={h.id} className="border-b pb-2 last:border-0">
                   <p>
                     {h.from_status ? `${uiLabel(h.from_status)} → ` : ""}
-                    <span className="font-semibold">{uiLabel(h.to_status)}</span>
+                    <span className="font-semibold">
+                      {uiLabel(h.to_status)}
+                    </span>
                     {" — "}
                     {personName(h.changer)}, {formatDateTime(h.changed_at)}
                   </p>
-                  {h.comment && (
-                    <p className="text-[#5b6d82]">{h.comment}</p>
-                  )}
+                  {h.comment && <p className="text-[#5b6d82]">{h.comment}</p>}
                 </li>
               ))}
               {!statusHistory.length && (
@@ -423,16 +428,12 @@ export default async function ProjectDetailPage({
           </div>
 
           <Panel>
-            <p className="mb-2 text-sm font-semibold">
-              Desglose por categoría
-            </p>
+            <p className="mb-2 text-sm font-semibold">Desglose por categoría</p>
             <ul className="space-y-1 text-sm">
               {byCategory.map((row) => (
                 <li key={row.category} className="flex justify-between">
                   <span>{uiLabel(row.category)}</span>
-                  <span className="font-semibold">
-                    {clp.format(row.total)}
-                  </span>
+                  <span className="font-semibold">{clp.format(row.total)}</span>
                 </li>
               ))}
               {!byCategory.length && (
@@ -510,9 +511,7 @@ export default async function ProjectDetailPage({
                                 {f.original_name}
                               </a>
                             ) : (
-                              <span className="text-xs">
-                                {f.original_name}
-                              </span>
+                              <span className="text-xs">{f.original_name}</span>
                             )}
                             {canManageExpenses && !isClosed && (
                               <form
@@ -601,9 +600,7 @@ export default async function ProjectDetailPage({
             {byCategory.map((row) => (
               <div key={row.category} className="flex justify-between pl-2">
                 <span>{uiLabel(row.category)}</span>
-                <span className="text-red-600">
-                  −{clp.format(row.total)}
-                </span>
+                <span className="text-red-600">−{clp.format(row.total)}</span>
               </div>
             ))}
             <div className="flex justify-between border-t pt-1 font-semibold">
@@ -682,9 +679,7 @@ export default async function ProjectDetailPage({
                     {m.member_type === "user"
                       ? personName(m.profile)
                       : m.external_name}{" "}
-                    <span className="text-[#5b6d82]">
-                      · {uiLabel(m.role)}
-                    </span>
+                    <span className="text-[#5b6d82]">· {uiLabel(m.role)}</span>
                     {m.note && (
                       <span className="text-[#5b6d82]"> — {m.note}</span>
                     )}
@@ -763,6 +758,87 @@ export default async function ProjectDetailPage({
               </details>
             )}
           </Panel>
+        </div>
+      )}
+
+      {tab === "contrato" && (
+        <div className="space-y-4">
+          <Panel className="bg-amber-50">
+            <p className="text-sm text-amber-900">
+              Completa los datos y genera el contrato en PDF. Quedará guardado
+              automáticamente en la pestaña Documentos, listo para imprimir y
+              firmar junto al cliente. Una vez firmado, súbelo ahí mismo como la
+              versión firmada (reemplazando o junto a la versión generada).
+            </p>
+          </Panel>
+          {canManageDocuments && !isClosed ? (
+            <Panel>
+              <form
+                action={generateProjectContractAction}
+                className="grid gap-3 md:grid-cols-2"
+              >
+                <input type="hidden" name="project_id" value={id} />
+                <label className="text-sm font-medium">
+                  Ciudad del contrato
+                  <input
+                    className={inputClass}
+                    name="contract_city"
+                    defaultValue="Calama"
+                  />
+                </label>
+                <label className="text-sm font-medium">
+                  Fecha del contrato
+                  <input
+                    className={inputClass}
+                    type="date"
+                    name="contract_date"
+                    defaultValue={new Date().toISOString().slice(0, 10)}
+                  />
+                </label>
+                <label className="text-sm font-medium md:col-span-2">
+                  Actividades y alcance (una por línea; se numeran
+                  automáticamente como a), b), c)…)
+                  <textarea
+                    className={inputClass}
+                    name="activities"
+                    rows={5}
+                    required
+                    defaultValue={[
+                      project.quotation
+                        ? `Realizar el suministro e instalación de los productos y/o servicios detallados en la cotización N° ${project.quotation.quotation_number ?? ""}, la cual es parte íntegra del presente contrato.`
+                        : "Realizar el suministro e instalación de los productos y/o servicios acordados con el cliente.",
+                      "La entrega comprende la instalación terminada (armado) de dichos productos.",
+                      "El Cliente declara estar en conocimiento de que los productos entregados corresponden a una estructura estándar según lo pactado; cualquier modificación adicional deberá solicitarse por escrito y cotizarse aparte.",
+                      `La entrega material se realizará en el sitio del cliente ubicado en ${project.execution_address || "dirección a definir"}.`,
+                      `El plazo de ejecución comenzará el ${formatDate(project.estimated_start_date) === "—" ? "una fecha a definir" : formatDate(project.estimated_start_date)}, día en que se iniciarán los trabajos de este contrato.`,
+                    ].join("\n")}
+                  />
+                </label>
+                <label className="text-sm font-medium md:col-span-2">
+                  Forma de pago (una por línea; se numeran automáticamente como
+                  a), b)…)
+                  <textarea
+                    className={inputClass}
+                    name="payment_terms"
+                    rows={2}
+                    required
+                    defaultValue={`Un pago inicial de ${clp.format(Number(project.net_income) / 2)} y el saldo de ${clp.format(Number(project.net_income) / 2)} el primer día hábil de trabajo de la empresa.`}
+                  />
+                </label>
+                <button className="rounded-xl bg-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-white md:col-span-2">
+                  Generar contrato (PDF)
+                </button>
+              </form>
+            </Panel>
+          ) : (
+            <Panel>
+              <p className="text-sm text-[#5b6d82]">
+                {isClosed
+                  ? "El proyecto está cerrado o cancelado; no se pueden generar nuevos contratos."
+                  : "No tienes permiso para generar contratos de este proyecto."}
+              </p>
+            </Panel>
+          )}
         </div>
       )}
 
