@@ -427,12 +427,80 @@ export async function deleteProjectDocumentAction(form: FormData) {
   done(returnPath, "success", "Documento eliminado.");
 }
 
-export async function generateProjectContractAction(form: FormData) {
+export async function saveProjectContractAction(form: FormData) {
   const { ctx, supabase } = await projectsContext(
     "sales.projects.manage_documents",
   );
   const projectId = uuid.parse(form.get("project_id"));
   const returnPath = `/sales/projects/${projectId}?tab=contrato`;
+  const contractIdRaw = form.get("contract_id");
+  const contractId = contractIdRaw ? uuid.parse(contractIdRaw) : null;
+
+  const activities = String(form.get("activities") ?? "").trim();
+  if (!activities)
+    done(returnPath, "error", "Describe al menos una actividad del contrato.");
+  const paymentTerms = String(form.get("payment_terms") ?? "").trim();
+  if (!paymentTerms) done(returnPath, "error", "Describe la forma de pago.");
+  const contractCity =
+    String(form.get("contract_city") ?? "").trim() || "Calama";
+  const contractDate =
+    String(form.get("contract_date") ?? "") ||
+    new Date().toISOString().slice(0, 10);
+
+  if (contractId) {
+    const { error } = await supabase
+      .from("om_project_contracts")
+      .update({
+        contract_city: contractCity,
+        contract_date: contractDate,
+        activities,
+        payment_terms: paymentTerms,
+        updated_by: ctx.user.id,
+      })
+      .eq("id", contractId);
+    if (error) done(returnPath, "error", errorMessage(error));
+    revalidatePath(returnPath);
+    done(returnPath, "success", "Contrato actualizado.");
+  }
+
+  const { data: project } = await supabase
+    .from("om_projects")
+    .select("company_id,business_unit_id")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (!project) done(returnPath, "error", "No fue posible cargar el proyecto.");
+  const { error } = await supabase.from("om_project_contracts").insert({
+    company_id: project!.company_id,
+    business_unit_id: project!.business_unit_id,
+    project_id: projectId,
+    contract_city: contractCity,
+    contract_date: contractDate,
+    activities,
+    payment_terms: paymentTerms,
+    created_by: ctx.user.id,
+  });
+  if (error) done(returnPath, "error", errorMessage(error));
+  revalidatePath(returnPath);
+  done(returnPath, "success", "Contrato guardado como borrador.");
+}
+
+export async function generateProjectContractPdfAction(form: FormData) {
+  const { ctx, supabase } = await projectsContext(
+    "sales.projects.manage_documents",
+  );
+  const projectId = uuid.parse(form.get("project_id"));
+  const contractId = uuid.parse(form.get("contract_id"));
+  const returnPath = `/sales/projects/${projectId}?tab=contrato`;
+
+  const { data: contract } = await supabase
+    .from("om_project_contracts")
+    .select(
+      "id,contract_city,contract_date,activities,payment_terms,pdf_object_path",
+    )
+    .eq("id", contractId)
+    .maybeSingle();
+  if (!contract)
+    done(returnPath, "error", "No fue posible cargar el contrato.");
 
   const { data: project } = await supabase
     .from("om_projects")
@@ -455,29 +523,19 @@ export async function generateProjectContractAction(form: FormData) {
     quotationDate = quotation?.submitted_at ?? null;
   }
 
-  const activities = String(form.get("activities") ?? "")
+  const activities = String(contract!.activities)
     .split("\n")
-    .map((l) => l.trim())
+    .map((l: string) => l.trim())
     .filter(Boolean);
-  if (activities.length === 0)
-    done(returnPath, "error", "Describe al menos una actividad del contrato.");
-  const paymentTerms = String(form.get("payment_terms") ?? "")
+  const paymentTerms = String(contract!.payment_terms)
     .split("\n")
-    .map((l) => l.trim())
+    .map((l: string) => l.trim())
     .filter(Boolean);
-  if (paymentTerms.length === 0)
-    done(returnPath, "error", "Describe la forma de pago.");
-  const contractCity =
-    String(form.get("contract_city") ?? "").trim() || "Calama";
-  const contractDateRaw = String(form.get("contract_date") ?? "");
-  const contractDate = contractDateRaw
-    ? new Date(`${contractDateRaw}T12:00:00`)
-    : new Date();
 
   const bytes = await buildProjectContractPdf({
     projectNumber: project!.project_number ?? "",
-    contractCity,
-    contractDate,
+    contractCity: contract!.contract_city,
+    contractDate: new Date(`${contract!.contract_date}T12:00:00`),
     client: { company: project!.client_company, rut: project!.client_rut },
     quotationNumber,
     quotationDate: quotationDate ? new Date(quotationDate) : null,
@@ -486,35 +544,55 @@ export async function generateProjectContractAction(form: FormData) {
     paymentTerms,
   });
 
-  const path = `${project!.company_id}/${projectId}/documents/${crypto.randomUUID()}.pdf`;
+  const path = `${project!.company_id}/${projectId}/contracts/${crypto.randomUUID()}.pdf`;
   const upload = await supabase.storage.from(BUCKET).upload(path, bytes, {
     contentType: "application/pdf",
     upsert: false,
   });
   if (upload.error) done(returnPath, "error", errorMessage(upload.error));
 
-  const meta = await supabase.from("om_project_documents").insert({
-    company_id: project!.company_id,
-    business_unit_id: project!.business_unit_id,
-    project_id: projectId,
-    document_type: "contrato",
-    name: `Contrato ${project!.project_number ?? ""}.pdf`.trim(),
-    description: "Generado desde Oasis ERP — pendiente de firma.",
-    object_path: path,
-    mime_type: "application/pdf",
-    size_bytes: bytes.byteLength,
-    uploaded_by: ctx.user.id,
-  });
-  if (meta.error) {
+  const oldPath = contract!.pdf_object_path;
+  const { error } = await supabase
+    .from("om_project_contracts")
+    .update({
+      pdf_object_path: path,
+      pdf_generated_at: new Date().toISOString(),
+      updated_by: ctx.user.id,
+    })
+    .eq("id", contractId);
+  if (error) {
     await supabase.storage.from(BUCKET).remove([path]);
-    done(returnPath, "error", errorMessage(meta.error));
+    done(returnPath, "error", errorMessage(error));
   }
-  revalidatePath(`/sales/projects/${projectId}?tab=documentos`);
+  if (oldPath) await supabase.storage.from(BUCKET).remove([oldPath]);
+
+  revalidatePath(returnPath);
   done(
-    `/sales/projects/${projectId}?tab=documentos`,
+    returnPath,
     "success",
-    "Contrato generado. Descárgalo, fírmalo junto al cliente y vuelve a subirlo aquí como versión firmada.",
+    "PDF generado. Descárgalo, fírmalo junto al cliente y súbelo en Documentos como versión firmada.",
   );
+}
+
+export async function deleteProjectContractAction(form: FormData) {
+  const { supabase } = await projectsContext("sales.projects.manage_documents");
+  const projectId = uuid.parse(form.get("project_id"));
+  const contractId = uuid.parse(form.get("contract_id"));
+  const returnPath = `/sales/projects/${projectId}?tab=contrato`;
+  const { data: contract } = await supabase
+    .from("om_project_contracts")
+    .select("pdf_object_path")
+    .eq("id", contractId)
+    .maybeSingle();
+  const { error } = await supabase
+    .from("om_project_contracts")
+    .delete()
+    .eq("id", contractId);
+  if (error) done(returnPath, "error", errorMessage(error));
+  if (contract?.pdf_object_path)
+    await supabase.storage.from(BUCKET).remove([contract.pdf_object_path]);
+  revalidatePath(returnPath);
+  done(returnPath, "success", "Contrato eliminado.");
 }
 
 export async function addProjectNoteAction(form: FormData) {

@@ -36,7 +36,11 @@ export async function projectDetailContext() {
   return { ctx, unit, company, supabase: await createSupabaseServerClient() };
 }
 
-type PersonRef = { id?: string; first_name?: string; last_name?: string } | null;
+type PersonRef = {
+  id?: string;
+  first_name?: string;
+  last_name?: string;
+} | null;
 
 // Nota sobre los `as unknown as`: el cliente de Supabase de este repo no
 // registra un tipo `Database`, así que el parser de tipos de
@@ -88,7 +92,8 @@ export async function listProjects(
     .is("deleted_at", null);
 
   if (filters.status) query = query.eq("status", filters.status);
-  if (filters.responsible) query = query.eq("responsible_id", filters.responsible);
+  if (filters.responsible)
+    query = query.eq("responsible_id", filters.responsible);
   if (filters.search) {
     const term = filters.search.replace(/[,()]/g, " ").trim();
     query = query.or(
@@ -162,7 +167,11 @@ export type ProjectDetail = {
   seller: PersonRef;
   creator: PersonRef;
   closer: PersonRef;
-  quotation: { id: string; quotation_number: string | null; status: string } | null;
+  quotation: {
+    id: string;
+    quotation_number: string | null;
+    status: string;
+  } | null;
 };
 
 const PROJECT_DETAIL_SELECT =
@@ -289,6 +298,31 @@ export async function loadProjectDocuments(
   return (data ?? []) as unknown as ProjectDocumentRow[];
 }
 
+export type ProjectContractRow = {
+  id: string;
+  contract_city: string;
+  contract_date: string;
+  activities: string;
+  payment_terms: string;
+  pdf_object_path: string | null;
+  pdf_generated_at: string | null;
+  created_at: string;
+};
+
+export async function loadProjectContracts(
+  supabase: SupabaseClient,
+  projectId: string,
+): Promise<ProjectContractRow[]> {
+  const { data } = await supabase
+    .from("om_project_contracts")
+    .select(
+      "id,contract_city,contract_date,activities,payment_terms,pdf_object_path,pdf_generated_at,created_at",
+    )
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as unknown as ProjectContractRow[];
+}
+
 export type ProjectNoteRow = {
   id: string;
   body: string;
@@ -345,7 +379,11 @@ export async function listUnitMembers(
     target_company: companyId,
     target_unit: unitId,
   });
-  return (data ?? []) as { id: string; first_name: string; last_name: string }[];
+  return (data ?? []) as {
+    id: string;
+    first_name: string;
+    last_name: string;
+  }[];
 }
 
 export async function signProjectAttachment(

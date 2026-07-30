@@ -18,6 +18,7 @@ import {
   loadExpenseAttachments,
   loadProjectMembers,
   loadProjectDocuments,
+  loadProjectContracts,
   loadProjectNotes,
   loadProjectStatusHistory,
   listUnitMembers,
@@ -36,7 +37,9 @@ import {
   deleteExpenseAttachmentAction,
   uploadProjectDocumentAction,
   deleteProjectDocumentAction,
-  generateProjectContractAction,
+  saveProjectContractAction,
+  generateProjectContractPdfAction,
+  deleteProjectContractAction,
   addProjectNoteAction,
   deleteProjectNoteAction,
 } from "@/modules/sales/projects/application/actions";
@@ -85,15 +88,23 @@ export default async function ProjectDetailPage({
   const canCancel = ctx.permissions.has("sales.projects.cancel");
   const isClosed = project.status === "done" || project.status === "cancelled";
 
-  const [expenses, members, documents, notes, statusHistory, unitMembers] =
-    await Promise.all([
-      loadProjectExpenses(supabase, id),
-      loadProjectMembers(supabase, id),
-      loadProjectDocuments(supabase, id),
-      loadProjectNotes(supabase, id),
-      loadProjectStatusHistory(supabase, id),
-      listUnitMembers(supabase, company.id, unit.id),
-    ]);
+  const [
+    expenses,
+    members,
+    documents,
+    contracts,
+    notes,
+    statusHistory,
+    unitMembers,
+  ] = await Promise.all([
+    loadProjectExpenses(supabase, id),
+    loadProjectMembers(supabase, id),
+    loadProjectDocuments(supabase, id),
+    loadProjectContracts(supabase, id),
+    loadProjectNotes(supabase, id),
+    loadProjectStatusHistory(supabase, id),
+    listUnitMembers(supabase, company.id, unit.id),
+  ]);
 
   const activeExpenses = expenses.filter((e) => e.status === "active");
   const netExpenses = activeExpenses.reduce(
@@ -141,6 +152,18 @@ export default async function ProjectDetailPage({
     documents.map(async (d) => ({
       ...d,
       url: await signProjectAttachment(supabase, d.object_path, d.name),
+    })),
+  );
+  const signedContracts = await Promise.all(
+    contracts.map(async (c) => ({
+      ...c,
+      url: c.pdf_object_path
+        ? await signProjectAttachment(
+            supabase,
+            c.pdf_object_path,
+            `Contrato ${project.project_number ?? ""}.pdf`.trim(),
+          )
+        : null,
     })),
   );
 
@@ -765,17 +788,21 @@ export default async function ProjectDetailPage({
         <div className="space-y-4">
           <Panel className="bg-amber-50">
             <p className="text-sm text-amber-900">
-              Completa los datos y genera el contrato en PDF. Quedará guardado
-              automáticamente en la pestaña Documentos, listo para imprimir y
-              firmar junto al cliente. Una vez firmado, súbelo ahí mismo como la
-              versión firmada (reemplazando o junto a la versión generada).
+              Cada contrato es un borrador editable: escribe el texto, guárdalo,
+              y genera (o regenera) su PDF cuando quede listo. El PDF es solo
+              para imprimir y firmar — una vez firmado junto al cliente, súbelo
+              en la pestaña Documentos como la versión oficial.
             </p>
           </Panel>
-          {canManageDocuments && !isClosed ? (
-            <Panel>
+
+          {canManageDocuments && !isClosed && (
+            <details className="rounded-xl border p-4">
+              <summary className="cursor-pointer text-sm font-semibold">
+                + Nuevo contrato
+              </summary>
               <form
-                action={generateProjectContractAction}
-                className="grid gap-3 md:grid-cols-2"
+                action={saveProjectContractAction}
+                className="mt-4 grid gap-3 md:grid-cols-2"
               >
                 <input type="hidden" name="project_id" value={id} />
                 <label className="text-sm font-medium">
@@ -826,19 +853,126 @@ export default async function ProjectDetailPage({
                   />
                 </label>
                 <button className="rounded-xl bg-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-white md:col-span-2">
-                  Generar contrato (PDF)
+                  Guardar borrador de contrato
                 </button>
               </form>
-            </Panel>
-          ) : (
-            <Panel>
-              <p className="text-sm text-[#5b6d82]">
-                {isClosed
-                  ? "El proyecto está cerrado o cancelado; no se pueden generar nuevos contratos."
-                  : "No tienes permiso para generar contratos de este proyecto."}
-              </p>
-            </Panel>
+            </details>
           )}
+
+          <div className="space-y-3">
+            {signedContracts.map((c) => (
+              <Panel key={c.id}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">
+                      Contrato del {formatDate(c.contract_date)} —{" "}
+                      {c.contract_city}
+                    </p>
+                    <p className="text-xs text-[#5b6d82]">
+                      {c.pdf_object_path
+                        ? `PDF generado el ${formatDateTime(c.pdf_generated_at!)}`
+                        : "Todavía no se ha generado el PDF."}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {c.url && (
+                      <a
+                        className="rounded-xl border px-3 py-1.5 text-xs font-semibold text-[var(--oasis-primary)]"
+                        href={c.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Descargar PDF
+                      </a>
+                    )}
+                    {canManageDocuments && !isClosed && (
+                      <form action={generateProjectContractPdfAction}>
+                        <input type="hidden" name="project_id" value={id} />
+                        <input type="hidden" name="contract_id" value={c.id} />
+                        <button className="rounded-xl bg-[var(--oasis-primary)] px-3 py-1.5 text-xs font-semibold text-white">
+                          {c.pdf_object_path ? "Regenerar PDF" : "Generar PDF"}
+                        </button>
+                      </form>
+                    )}
+                    {canManageDocuments && !isClosed && (
+                      <form action={deleteProjectContractAction}>
+                        <input type="hidden" name="project_id" value={id} />
+                        <input type="hidden" name="contract_id" value={c.id} />
+                        <ConfirmButton
+                          className="text-xs font-semibold text-red-700"
+                          message="¿Eliminar este contrato? También se eliminará su PDF generado."
+                        >
+                          Eliminar
+                        </ConfirmButton>
+                      </form>
+                    )}
+                  </div>
+                </div>
+
+                {canManageDocuments && !isClosed && (
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-[var(--oasis-primary)]">
+                      Editar
+                    </summary>
+                    <form
+                      action={saveProjectContractAction}
+                      className="mt-3 grid gap-3 md:grid-cols-2"
+                    >
+                      <input type="hidden" name="project_id" value={id} />
+                      <input type="hidden" name="contract_id" value={c.id} />
+                      <label className="text-sm font-medium">
+                        Ciudad del contrato
+                        <input
+                          className={inputClass}
+                          name="contract_city"
+                          defaultValue={c.contract_city}
+                        />
+                      </label>
+                      <label className="text-sm font-medium">
+                        Fecha del contrato
+                        <input
+                          className={inputClass}
+                          type="date"
+                          name="contract_date"
+                          defaultValue={c.contract_date}
+                        />
+                      </label>
+                      <label className="text-sm font-medium md:col-span-2">
+                        Actividades y alcance
+                        <textarea
+                          className={inputClass}
+                          name="activities"
+                          rows={5}
+                          required
+                          defaultValue={c.activities}
+                        />
+                      </label>
+                      <label className="text-sm font-medium md:col-span-2">
+                        Forma de pago
+                        <textarea
+                          className={inputClass}
+                          name="payment_terms"
+                          rows={2}
+                          required
+                          defaultValue={c.payment_terms}
+                        />
+                      </label>
+                      <button className="rounded-xl border border-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--oasis-primary)] md:col-span-2">
+                        Guardar cambios
+                      </button>
+                    </form>
+                  </details>
+                )}
+              </Panel>
+            ))}
+            {!signedContracts.length && (
+              <Panel>
+                <p className="text-sm text-[#5b6d82]">
+                  Todavía no hay contratos para este proyecto.
+                </p>
+              </Panel>
+            )}
+          </div>
         </div>
       )}
 
