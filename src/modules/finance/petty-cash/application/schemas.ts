@@ -16,7 +16,17 @@ export const expenseLineSchema = z.object({
     "electronic_receipt",
     "other",
   ]),
-  document_number: z.string().trim().max(100).optional().default(""),
+  // `.nullish()` (no solo `.optional()`) porque estos campos quedan
+  // `null` en la base de datos cuando el usuario los deja vacíos, y un
+  // borrador cargado desde ahí los reenvía tal cual al guardar de
+  // nuevo — `.optional()` por sí solo rechaza `null` con un error poco
+  // claro para la usuaria.
+  document_number: z
+    .string()
+    .trim()
+    .max(100)
+    .nullish()
+    .transform((value) => value ?? ""),
   expense_category_id: uuid,
   cost_center_id: uuid,
   description: required("La descripción", 3).max(500),
@@ -24,7 +34,12 @@ export const expenseLineSchema = z.object({
     .number({ error: "Ingresa un monto válido." })
     .int("El monto debe ser en pesos completos.")
     .positive("El monto debe ser mayor que cero."),
-  observation: z.string().trim().max(500).optional().default(""),
+  observation: z
+    .string()
+    .trim()
+    .max(500)
+    .nullish()
+    .transform((value) => value ?? ""),
   sort_order: z.number().int().nonnegative(),
 });
 
@@ -35,7 +50,12 @@ export const reportDraftSchema = z
     week_start: z.string().date(),
     week_end: z.string().date(),
     general_reason: required("El motivo general", 3).max(500),
-    general_observations: z.string().trim().max(1000).optional().default(""),
+    general_observations: z
+      .string()
+      .trim()
+      .max(1000)
+      .nullish()
+      .transform((value) => value ?? ""),
     lines: z.array(expenseLineSchema).min(1, "Agrega al menos un gasto."),
   })
   .superRefine((report, context) => {

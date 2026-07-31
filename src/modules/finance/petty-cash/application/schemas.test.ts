@@ -56,6 +56,32 @@ describe("validación de rendiciones", () => {
     });
     expect(result.success).toBe(false);
   });
+  it("acepta document_number/observation en null (borrador recargado desde la base de datos) y los normaliza a string vacío", () => {
+    const result = expenseLineSchema.safeParse({
+      ...line,
+      document_number: null,
+      observation: null,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.document_number).toBe("");
+      expect(result.data.observation).toBe("");
+    }
+  });
+  it("acepta general_observations en null al reenviar un borrador ya guardado", () => {
+    const result = reportDraftSchema.safeParse({
+      business_unit_id: "33333333-3333-4333-8333-333333333333",
+      week_start: "2026-07-13",
+      week_end: "2026-07-19",
+      general_reason: "Gastos semanales",
+      general_observations: null,
+      lines: [line],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.general_observations).toBe("");
+    }
+  });
   it("acepta metadatos de un comprobante de hasta 10 MB", () => {
     expect(
       attachmentMetadataSchema.safeParse({

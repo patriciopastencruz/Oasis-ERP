@@ -111,6 +111,14 @@ export function PettyCashReportForm({
     client_id: String(line.id ?? crypto.randomUUID()),
     amount: Number(line.amount),
     sort_order: index,
+    // Los campos opcionales quedan `null` en la base de datos cuando el
+    // usuario los deja vacíos. El schema de guardado exige `string`, no
+    // `null` (Zod `.optional()` solo acepta `undefined`), así que sin
+    // este fallback cualquier reintento de guardar un borrador con un
+    // campo opcional vacío fallaba con "Invalid input: expected string,
+    // received null" — un error críptico que bloqueaba a la usuaria.
+    document_number: line.document_number ?? "",
+    observation: line.observation ?? "",
     attachments:
       (line.petty_cash_line_attachments as Attachment[] | undefined) ?? [],
   })) as Line[];
