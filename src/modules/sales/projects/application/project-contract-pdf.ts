@@ -4,6 +4,7 @@ import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 
 export type ProjectContractPdfInput = {
   projectNumber: string;
+  contractNumber: string | null;
   contractCity: string;
   contractDate: Date;
   client: {
@@ -13,6 +14,7 @@ export type ProjectContractPdfInput = {
   quotationNumber: string | null;
   quotationDate: Date | null;
   netIncome: number;
+  estimatedEndDate: Date | null;
   activities: string[];
   paymentTerms: string[];
 };
@@ -44,12 +46,14 @@ function letterList(items: string[]): string[] {
 
 export async function buildProjectContractPdf({
   projectNumber,
+  contractNumber,
   contractCity,
   contractDate,
   client,
   quotationNumber,
   quotationDate,
   netIncome,
+  estimatedEndDate,
   activities,
   paymentTerms,
 }: ProjectContractPdfInput) {
@@ -167,6 +171,18 @@ export async function buildProjectContractPdf({
   }
 
   drawCentered("CONTRATO DE COMPRAVENTA Y SERVICIOS", 13, bold);
+  if (contractNumber) {
+    const label = `N° ${contractNumber}`;
+    const width = bold.widthOfTextAtSize(label, 10);
+    page.drawText(label, {
+      x: 551 - width,
+      y,
+      size: 10,
+      font: bold,
+      color: primary,
+    });
+    y -= 16;
+  }
   y -= 6;
 
   const dateText = `${contractDate.getDate()} de ${MONTHS[contractDate.getMonth()]} de ${contractDate.getFullYear()}`;
@@ -226,8 +242,19 @@ export async function buildProjectContractPdf({
     "OCTAVO:",
     "Los productos objeto del presente contrato serán entregados completamente terminados y habilitados, de acuerdo con las especificaciones técnicas y características pactadas entre las partes.",
   );
+  const deadlineText = estimatedEndDate
+    ? `${estimatedEndDate.getDate()} de ${MONTHS[estimatedEndDate.getMonth()]} de ${estimatedEndDate.getFullYear()}`
+    : "una fecha a convenir por escrito entre las partes";
   drawClause(
     "NOVENO:",
+    `El Vendedor se compromete a finalizar la instalación de los productos antes del ${deadlineText}. En caso de atraso no atribuible a fuerza mayor, caso fortuito, o al incumplimiento del Cliente respecto de sus propias obligaciones (entrega del terreno, accesos, pagos pactados), el Vendedor deberá informar por escrito al Cliente la nueva fecha estimada de término, sin perjuicio de los demás derechos que correspondan al Cliente conforme a la ley.`,
+  );
+  drawClause(
+    "DÉCIMO:",
+    "El Vendedor garantiza la correcta ejecución de la instalación de los productos entregados por un plazo de 90 días corridos contados desde la fecha de entrega, cubriendo defectos imputables a la instalación. Esta garantía no cubre daños derivados de mal uso, modificaciones no autorizadas por el Vendedor, ni desgaste normal de los materiales.",
+  );
+  drawClause(
+    "UNDÉCIMO:",
     `Toda controversia o diferencia relativa a este contrato, en cuanto a su interpretación o ejecución, será resuelta por los Juzgados Civiles de ${contractCity}.`,
   );
 

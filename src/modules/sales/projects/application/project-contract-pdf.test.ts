@@ -6,12 +6,14 @@ describe("PDF del contrato de proyecto", () => {
   it("genera un PDF válido con los datos del cliente y las cláusulas fijas", async () => {
     const bytes = await buildProjectContractPdf({
       projectNumber: "PRY-OM-2026-000001",
+      contractNumber: "CONT-OM-2026-000001",
       contractCity: "Calama",
       contractDate: new Date("2026-06-10T12:00:00"),
       client: { company: "Julia Chávez Núñez", rut: "8.306.538-9" },
       quotationNumber: "COT-2026-001294",
       quotationDate: new Date("2026-06-10T12:00:00"),
       netIncome: 9580000,
+      estimatedEndDate: new Date("2026-07-15T12:00:00"),
       activities: [
         "Realizar el armado de 02 módulos tipo container.",
         "La entrega comprende la instalación terminada.",
@@ -28,12 +30,14 @@ describe("PDF del contrato de proyecto", () => {
   it("pagina correctamente cuando hay muchas actividades y condiciones de pago", async () => {
     const bytes = await buildProjectContractPdf({
       projectNumber: "PRY-OM-2026-000002",
+      contractNumber: null,
       contractCity: "Calama",
       contractDate: new Date("2026-07-01T12:00:00"),
       client: { company: "Cliente de prueba con nombre largo SpA", rut: null },
       quotationNumber: null,
       quotationDate: null,
       netIncome: 15000000,
+      estimatedEndDate: null,
       activities: Array.from(
         { length: 20 },
         (_, i) =>

@@ -495,7 +495,7 @@ export async function generateProjectContractPdfAction(form: FormData) {
   const { data: contract } = await supabase
     .from("om_project_contracts")
     .select(
-      "id,contract_city,contract_date,activities,payment_terms,pdf_object_path",
+      "id,contract_number,contract_city,contract_date,activities,payment_terms,pdf_object_path",
     )
     .eq("id", contractId)
     .maybeSingle();
@@ -505,11 +505,21 @@ export async function generateProjectContractPdfAction(form: FormData) {
   const { data: project } = await supabase
     .from("om_projects")
     .select(
-      "company_id,business_unit_id,project_number,client_company,client_rut,net_income,quotation_id",
+      "company_id,business_unit_id,project_number,client_company,client_rut,net_income,quotation_id,estimated_end_date",
     )
     .eq("id", projectId)
     .maybeSingle();
   if (!project) done(returnPath, "error", "No fue posible cargar el proyecto.");
+
+  if (!project!.client_rut) {
+    done(
+      returnPath,
+      "error",
+      project!.quotation_id
+        ? "El proyecto no tiene RUT del cliente registrado. Complétalo en la cotización de origen antes de generar el contrato."
+        : "El proyecto no tiene RUT del cliente registrado. Complétalo en la pestaña Resumen antes de generar el contrato.",
+    );
+  }
 
   let quotationNumber: string | null = null;
   let quotationDate: string | null = null;
@@ -523,6 +533,16 @@ export async function generateProjectContractPdfAction(form: FormData) {
     quotationDate = quotation?.submitted_at ?? null;
   }
 
+  let contractNumber = contract!.contract_number;
+  if (!contractNumber) {
+    const { data: assigned, error: numberError } = await supabase.rpc(
+      "om_assign_project_contract_number",
+      { target_contract: contractId },
+    );
+    if (numberError) done(returnPath, "error", errorMessage(numberError));
+    contractNumber = assigned ?? null;
+  }
+
   const activities = String(contract!.activities)
     .split("\n")
     .map((l: string) => l.trim())
@@ -534,12 +554,16 @@ export async function generateProjectContractPdfAction(form: FormData) {
 
   const bytes = await buildProjectContractPdf({
     projectNumber: project!.project_number ?? "",
+    contractNumber,
     contractCity: contract!.contract_city,
     contractDate: new Date(`${contract!.contract_date}T12:00:00`),
     client: { company: project!.client_company, rut: project!.client_rut },
     quotationNumber,
     quotationDate: quotationDate ? new Date(quotationDate) : null,
     netIncome: Number(project!.net_income),
+    estimatedEndDate: project!.estimated_end_date
+      ? new Date(`${project!.estimated_end_date}T12:00:00`)
+      : null,
     activities,
     paymentTerms,
   });

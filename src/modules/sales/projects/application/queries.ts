@@ -300,6 +300,7 @@ export async function loadProjectDocuments(
 
 export type ProjectContractRow = {
   id: string;
+  contract_number: string | null;
   contract_city: string;
   contract_date: string;
   activities: string;
@@ -316,7 +317,7 @@ export async function loadProjectContracts(
   const { data } = await supabase
     .from("om_project_contracts")
     .select(
-      "id,contract_city,contract_date,activities,payment_terms,pdf_object_path,pdf_generated_at,created_at",
+      "id,contract_number,contract_city,contract_date,activities,payment_terms,pdf_object_path,pdf_generated_at,created_at",
     )
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });

@@ -865,8 +865,8 @@ export default async function ProjectDetailPage({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">
-                      Contrato del {formatDate(c.contract_date)} —{" "}
-                      {c.contract_city}
+                      {c.contract_number ?? "Contrato sin número asignado"} —{" "}
+                      {formatDate(c.contract_date)} — {c.contract_city}
                     </p>
                     <p className="text-xs text-[#5b6d82]">
                       {c.pdf_object_path
