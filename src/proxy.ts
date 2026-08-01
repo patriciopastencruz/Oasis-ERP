@@ -36,6 +36,12 @@ export async function proxy(request: NextRequest) {
 }
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Las rutas /api/* siempre validan su propia autenticación (sesión,
+    // permiso, secreto Bearer o firma de webhook) -- ver session.ts,
+    // api/cron/lodging-ical/route.ts, api/whatsapp/webhook/route.ts. El
+    // proxy nunca debe interceptarlas: hacerlo redirige a /login (que
+    // exige cookies de navegador) a llamadores externos sin sesión, como
+    // Twilio o los cron de Vercel, rompiendo esas rutas por completo.
+    "/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

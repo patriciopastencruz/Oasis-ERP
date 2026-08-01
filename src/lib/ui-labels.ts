@@ -89,6 +89,21 @@ const UI_LABELS: Record<string, string> = {
   manufacturing: "En fabricación",
   installation: "En instalación",
   done: "Finalizado",
+  ai_active: "IA respondiendo",
+  human_required: "Requiere vendedor",
+  human_active: "Atendida por vendedor",
+  closed: "Cerrada",
+  new: "Nuevo",
+  contacted: "Contactado",
+  qualifying: "Calificando",
+  qualified: "Calificado",
+  quotation_requested: "Cotización solicitada",
+  won: "Ganado",
+  lost: "Perdido",
+  discarded: "Descartado",
+  casa: "Casa modular",
+  oficina: "Oficina modular",
+  bano: "Baño modular",
 };
 
 /**
