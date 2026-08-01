@@ -31,6 +31,7 @@ import {
   PackageOpen,
   Bot,
   FolderKanban,
+  MessageCircle,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -59,6 +60,18 @@ const transversalNav = [
     label: "Proveedores",
     icon: Building2,
     permission: "finance.suppliers.view",
+  },
+  {
+    href: "/whatsapp",
+    label: "Leads WhatsApp",
+    icon: MessageCircle,
+    permission: "whatsapp.inbox.view",
+  },
+  {
+    href: "/whatsapp/settings",
+    label: "WhatsApp: configuración",
+    icon: SlidersHorizontal,
+    permission: "whatsapp.settings.manage",
   },
 ];
 
