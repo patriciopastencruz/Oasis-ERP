@@ -19,12 +19,16 @@ function mapTwilioStatus(status: string | undefined): string {
   }
 }
 
-/** Callback de estado de entrega de Twilio (StatusCallback). Misma validación de firma que el webhook principal. */
+/**
+ * Callback de estado de entrega de Twilio (StatusCallback). Meta no usa
+ * esta ruta: sus confirmaciones de entrega llegan como webhooks de
+ * "statuses" al mismo endpoint que los mensajes (/api/whatsapp/webhook),
+ * donde se ignoran de forma segura por ahora (ver comentario en esa ruta).
+ */
 export async function POST(request: Request) {
   const provider = getWhatsAppProvider();
-  const bodyText = await request.text();
-  const params = Object.fromEntries(new URLSearchParams(bodyText));
-  const signatureHeader = request.headers.get("x-twilio-signature");
+  const rawBody = await request.text();
+  const signatureHeader = request.headers.get(provider.signatureHeaderName);
   const webhookUrl =
     process.env.WHATSAPP_STATUS_CALLBACK_URL ||
     process.env.WHATSAPP_WEBHOOK_URL ||
@@ -33,7 +37,7 @@ export async function POST(request: Request) {
   const admin = createSupabaseAdminClient();
   const validSignature = provider.verifyWebhookSignature({
     url: webhookUrl,
-    params,
+    rawBody,
     signatureHeader,
   });
   if (!validSignature) {
@@ -46,6 +50,7 @@ export async function POST(request: Request) {
     return new Response("Firma inválida", { status: 403 });
   }
 
+  const params = Object.fromEntries(new URLSearchParams(rawBody));
   const messageSid = params.MessageSid;
   if (messageSid) {
     await admin.rpc("whatsapp_record_delivery_status", {

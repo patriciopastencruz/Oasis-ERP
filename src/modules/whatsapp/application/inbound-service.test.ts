@@ -81,9 +81,11 @@ const okIngestResult = {
 function fakeProvider(overrides: Partial<WhatsAppProvider> = {}): WhatsAppProvider {
   return {
     name: "twilio",
+    signatureHeaderName: "x-twilio-signature",
     isConfigured: () => true,
     normalizePhoneNumber: (v: string) => v,
     verifyWebhookSignature: () => true,
+    verifyChallenge: () => null,
     parseWebhook: () => null,
     sendTextMessage: vi.fn().mockResolvedValue({ externalMessageId: "SM_OUT_1" }),
     sendTemplateMessage: vi.fn().mockResolvedValue({ externalMessageId: "SM_OUT_1" }),

@@ -78,6 +78,7 @@ describe("integrationSettingsSchema", () => {
   it("exige nombre de agente y mensaje de respaldo", () => {
     expect(
       integrationSettingsSchema.safeParse({
+        provider: "twilio",
         phone_number_e164: "+14155238886",
         display_name: "Oasis Modulares",
         agent_name: "",
@@ -91,6 +92,7 @@ describe("integrationSettingsSchema", () => {
   it("rechaza un número que no está en formato E.164", () => {
     expect(
       integrationSettingsSchema.safeParse({
+        provider: "twilio",
         phone_number_e164: "56912345678",
         display_name: "Oasis Modulares",
         agent_name: "Asistente Oasis",
@@ -104,6 +106,7 @@ describe("integrationSettingsSchema", () => {
   it("acepta una configuración completa", () => {
     expect(
       integrationSettingsSchema.safeParse({
+        provider: "twilio",
         phone_number_e164: "+17372212163",
         display_name: "Oasis Modulares",
         agent_name: "Asistente Oasis",

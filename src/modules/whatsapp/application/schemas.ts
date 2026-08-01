@@ -45,6 +45,7 @@ export const leadEditSchema = z.object({
 export type LeadEditInput = z.infer<typeof leadEditSchema>;
 
 export const integrationSettingsSchema = z.object({
+  provider: z.enum(["twilio", "meta"]),
   phone_number_e164: z
     .string()
     .trim()

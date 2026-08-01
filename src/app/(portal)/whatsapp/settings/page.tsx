@@ -46,7 +46,8 @@ export default async function WhatsAppSettingsPage({
     loadRecentEvents(supabase, company.id),
   ]);
 
-  const provider = process.env.WHATSAPP_PROVIDER || "twilio";
+  const activeProvider = process.env.WHATSAPP_PROVIDER || "twilio";
+  const providerMismatch = integration && integration.provider !== activeProvider;
 
   return (
     <>
@@ -76,10 +77,6 @@ export default async function WhatsAppSettingsPage({
               <input type="hidden" name="integration_id" value={integration.id} />
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <p className="text-xs text-[#63778e]">Proveedor</p>
-                  <p className="font-semibold uppercase">{provider}</p>
-                </div>
-                <div>
                   <p className="text-xs text-[#63778e]">Estado de conexión</p>
                   <StatusBadge value={integration.connection_status} />
                 </div>
@@ -89,6 +86,27 @@ export default async function WhatsAppSettingsPage({
                 </div>
               </div>
 
+              {providerMismatch && (
+                <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+                  El proveedor guardado aquí (<strong>{integration.provider}</strong>)
+                  no coincide con la variable de entorno{" "}
+                  <code>WHATSAPP_PROVIDER={activeProvider}</code>. Deben ser el
+                  mismo valor, o los mensajes entrantes no van a resolver la
+                  integración (evento <code>unknown_number</code>).
+                </p>
+              )}
+              <label className="text-sm font-medium">
+                Proveedor (debe coincidir con WHATSAPP_PROVIDER)
+                <select
+                  className={inputClass}
+                  name="provider"
+                  defaultValue={integration.provider}
+                  required
+                >
+                  <option value="twilio">Twilio</option>
+                  <option value="meta">Meta WhatsApp Cloud API</option>
+                </select>
+              </label>
               <label className="text-sm font-medium">
                 Número (E.164, ej. +14155238886)
                 <input
@@ -180,6 +198,10 @@ export default async function WhatsAppSettingsPage({
               <div className="flex flex-wrap gap-2">
                 {envStatus("TWILIO_ACCOUNT_SID")}
                 {envStatus("TWILIO_AUTH_TOKEN")}
+                {envStatus("META_WHATSAPP_ACCESS_TOKEN")}
+                {envStatus("META_WHATSAPP_PHONE_NUMBER_ID")}
+                {envStatus("META_WHATSAPP_VERIFY_TOKEN")}
+                {envStatus("META_APP_SECRET")}
                 {envStatus("ANTHROPIC_API_KEY")}
               </div>
             </Panel>

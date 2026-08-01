@@ -10,10 +10,14 @@ const baseParams = {
   NumMedia: "0",
 };
 
+function rawBody(params: Record<string, string>): string {
+  return new URLSearchParams(params).toString();
+}
+
 describe("TwilioWhatsAppProvider.parseWebhook", () => {
   it("normaliza los números y arma un mensaje de texto", () => {
     const provider = new TwilioWhatsAppProvider();
-    const parsed = provider.parseWebhook(baseParams);
+    const parsed = provider.parseWebhook(rawBody(baseParams));
     expect(parsed).toEqual({
       provider: "twilio",
       toNumber: "+14155238886",
@@ -28,46 +32,56 @@ describe("TwilioWhatsAppProvider.parseWebhook", () => {
 
   it("devuelve null si falta From, To o MessageSid", () => {
     const provider = new TwilioWhatsAppProvider();
-    expect(provider.parseWebhook({ ...baseParams, From: "" })).toBeNull();
-    expect(provider.parseWebhook({ ...baseParams, To: "" })).toBeNull();
     expect(
-      provider.parseWebhook({ ...baseParams, MessageSid: "" }),
+      provider.parseWebhook(rawBody({ ...baseParams, From: "" })),
+    ).toBeNull();
+    expect(
+      provider.parseWebhook(rawBody({ ...baseParams, To: "" })),
+    ).toBeNull();
+    expect(
+      provider.parseWebhook(rawBody({ ...baseParams, MessageSid: "" })),
     ).toBeNull();
   });
 
   it("devuelve null si un número no se puede normalizar", () => {
     const provider = new TwilioWhatsAppProvider();
     expect(
-      provider.parseWebhook({ ...baseParams, From: "whatsapp:no-es-un-numero" }),
+      provider.parseWebhook(
+        rawBody({ ...baseParams, From: "whatsapp:no-es-un-numero" }),
+      ),
     ).toBeNull();
   });
 
   it("marca como imagen un mensaje con NumMedia > 0 y tipo image/*", () => {
     const provider = new TwilioWhatsAppProvider();
-    const parsed = provider.parseWebhook({
-      ...baseParams,
-      NumMedia: "1",
-      MediaContentType0: "image/jpeg",
-      Body: "",
-    });
+    const parsed = provider.parseWebhook(
+      rawBody({
+        ...baseParams,
+        NumMedia: "1",
+        MediaContentType0: "image/jpeg",
+        Body: "",
+      }),
+    );
     expect(parsed?.messageType).toBe("image");
     expect(parsed?.content).toBeNull();
   });
 
   it("marca como no soportado un tipo de medio desconocido", () => {
     const provider = new TwilioWhatsAppProvider();
-    const parsed = provider.parseWebhook({
-      ...baseParams,
-      NumMedia: "1",
-      MediaContentType0: "video/mp4",
-    });
+    const parsed = provider.parseWebhook(
+      rawBody({
+        ...baseParams,
+        NumMedia: "1",
+        MediaContentType0: "video/mp4",
+      }),
+    );
     expect(parsed?.messageType).toBe("unsupported");
   });
 
   it("acepta campos vacíos/ausentes sin reventar (ProfileName ausente)", () => {
     const provider = new TwilioWhatsAppProvider();
     const { ProfileName: _unused, ...withoutProfile } = baseParams;
-    const parsed = provider.parseWebhook(withoutProfile);
+    const parsed = provider.parseWebhook(rawBody(withoutProfile));
     expect(parsed?.profileName).toBeNull();
   });
 });

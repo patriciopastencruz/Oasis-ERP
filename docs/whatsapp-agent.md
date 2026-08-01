@@ -151,6 +151,29 @@ TWILIO_AUTH_TOKEN=
 6. En Supabase, verifica/crea la fila de `whatsapp_integrations` para la unidad `OM` con el número real del Sandbox (la migración intenta sembrarla automáticamente si `business_units` con `code='OM'` ya existe al aplicar la migración; en local, donde el seed de datos corre después de las migraciones, hay que crearla a mano una vez, o editarla desde `/whatsapp/settings`).
 7. Carga `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` (Account SID y Auth Token de la consola de Twilio) y `WHATSAPP_WEBHOOK_URL`/`WHATSAPP_STATUS_CALLBACK_URL` en las variables de entorno.
 
+**Limitación confirmada en la práctica**: los números de Sandbox individuales que Twilio asigna a cuentas nuevas (no el compartido histórico `+14155238886`) exigen `ContentSid` (plantilla) para **cualquier** mensaje saliente, incluso texto libre dentro de la ventana de 24 horas — y el Sandbox solo permite usar las 3 plantillas fijas predefinidas por Twilio, no plantillas propias. Esto hace inviable probar respuestas dinámicas de IA con este tipo de Sandbox. Confirmado con la respuesta cruda de la API: `{"code":21654,"message":"ContentSid Required",...}` al enviar `Body` sin `ContentSid`. Para texto libre real hace falta un WhatsApp Sender de producción en Twilio (cuenta con facturación + verificación de Meta, puede tardar semanas) o usar Meta directamente en modo de prueba (ver siguiente sección, gratis e inmediato).
+
+## Configurar Meta WhatsApp Cloud API (modo de prueba, recomendado para probar el agente)
+
+A diferencia del Sandbox nuevo de Twilio, el **número de prueba gratuito de Meta** sí permite texto libre dentro de la ventana de 24 horas, sin tarjeta ni verificación de negocio — ideal para probar el agente con respuestas reales de IA.
+
+1. Crea una app en [developers.facebook.com](https://developers.facebook.com/apps) → **Create App** → tipo **Business**.
+2. Dentro de la app, agrega el producto **WhatsApp**. Meta asigna automáticamente un **número de prueba** y un **WhatsApp Business Account (WABA)** de prueba.
+3. En **WhatsApp → API Setup**, copia el **Temporary access token** (`META_WHATSAPP_ACCESS_TOKEN`, expira cada 24h en modo prueba — para algo más estable, genera un token de sistema en Business Settings) y el **Phone number ID** (`META_WHATSAPP_PHONE_NUMBER_ID`).
+4. En **Add recipient number**, agrega hasta 5 números de teléfono propios (los que quieras usar para probar) y verifícalos con el código que llega por SMS/llamada.
+5. En **App settings → Basic**, copia el **App Secret** (`META_APP_SECRET`).
+6. Define tu propio `META_WHATSAPP_VERIFY_TOKEN` (cualquier string que tú elijas, ej. `oasis-verify-2026`).
+7. En **WhatsApp → Configuration → Webhook**, configura:
+   - **Callback URL**: `https://<tu-dominio>/api/whatsapp/webhook`
+   - **Verify token**: el mismo valor de `META_WHATSAPP_VERIFY_TOKEN`
+   - Haz clic en **Verify and Save** (Meta hace un `GET` con `hub.challenge` que nuestra ruta responde automáticamente).
+   - En **Webhook fields**, suscribe el campo **messages**.
+8. Carga las 4 variables (`META_WHATSAPP_ACCESS_TOKEN`, `META_WHATSAPP_PHONE_NUMBER_ID`, `META_WHATSAPP_VERIFY_TOKEN`, `META_APP_SECRET`) y cambia `WHATSAPP_PROVIDER=meta` en el entorno.
+9. En `/whatsapp/settings`, actualiza el campo **Número** al número de prueba que te asignó Meta (formato E.164, ej. `+15551234567`) y el **Proveedor** correspondiente en la base de datos (`whatsapp_integrations.provider='meta'` — por ahora se edita directo en Supabase si la UI no lo expone; ver limitaciones).
+10. Desde uno de los números destinatarios que verificaste, escríbele al número de prueba de Meta. El agente debería responder con texto libre generado por IA, sin el error de `ContentSid`.
+
+**Limitación del modo de prueba**: solo los 5 números destinatarios verificados pueden recibir mensajes — no sirve para atender clientes reales hasta pasar por la verificación de negocio de Meta (igual que con Twilio, es un requisito de la plataforma, no de este código).
+
 ## Probar localmente
 
 1. `supabase start` (o `supabase db reset` si ya estaba corriendo) para aplicar la migración.

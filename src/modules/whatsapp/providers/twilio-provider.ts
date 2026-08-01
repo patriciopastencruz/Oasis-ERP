@@ -26,6 +26,7 @@ function inferMediaType(params: Record<string, string>): MessageType {
 
 export class TwilioWhatsAppProvider implements WhatsAppProvider {
   readonly name = "twilio" as const;
+  readonly signatureHeaderName = "x-twilio-signature";
   private accountSid: string | undefined;
   private authToken: string | undefined;
   private webhookUrl: string | undefined;
@@ -52,20 +53,25 @@ export class TwilioWhatsAppProvider implements WhatsAppProvider {
    */
   verifyWebhookSignature(input: {
     url: string;
-    params: Record<string, string>;
+    rawBody: string;
     signatureHeader: string | null;
   }): boolean {
+    const params = Object.fromEntries(new URLSearchParams(input.rawBody));
     return verifyTwilioSignature({
       url: this.webhookUrl || input.url,
-      params: input.params,
+      params,
       signatureHeader: input.signatureHeader,
       authToken: this.authToken,
     });
   }
 
-  parseWebhook(
-    params: Record<string, string>,
-  ): NormalizedInboundMessage | null {
+  /** Twilio no usa un handshake de verificación por GET. */
+  verifyChallenge(): string | null {
+    return null;
+  }
+
+  parseWebhook(rawBody: string): NormalizedInboundMessage | null {
+    const params = Object.fromEntries(new URLSearchParams(rawBody));
     const from = params.From;
     const to = params.To;
     const messageSid = params.MessageSid || params.SmsMessageSid;

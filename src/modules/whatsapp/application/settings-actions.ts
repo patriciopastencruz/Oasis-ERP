@@ -23,6 +23,7 @@ export async function updateIntegrationAction(form: FormData) {
   const { supabase } = await whatsappContext("whatsapp.settings.manage");
   const id = uuid.parse(form.get("integration_id"));
   const parsed = integrationSettingsSchema.safeParse({
+    provider: form.get("provider"),
     phone_number_e164: form.get("phone_number_e164"),
     display_name: form.get("display_name"),
     agent_name: form.get("agent_name"),
@@ -36,6 +37,7 @@ export async function updateIntegrationAction(form: FormData) {
   const { error } = await supabase
     .from("whatsapp_integrations")
     .update({
+      provider: parsed.data.provider,
       phone_number_e164: parsed.data.phone_number_e164,
       display_name: parsed.data.display_name || null,
       agent_name: parsed.data.agent_name,
