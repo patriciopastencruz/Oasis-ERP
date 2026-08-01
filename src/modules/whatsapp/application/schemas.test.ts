@@ -78,6 +78,7 @@ describe("integrationSettingsSchema", () => {
   it("exige nombre de agente y mensaje de respaldo", () => {
     expect(
       integrationSettingsSchema.safeParse({
+        phone_number_e164: "+14155238886",
         display_name: "Oasis Modulares",
         agent_name: "",
         fallback_message: "",
@@ -87,9 +88,23 @@ describe("integrationSettingsSchema", () => {
     ).toBe(false);
   });
 
+  it("rechaza un número que no está en formato E.164", () => {
+    expect(
+      integrationSettingsSchema.safeParse({
+        phone_number_e164: "56912345678",
+        display_name: "Oasis Modulares",
+        agent_name: "Asistente Oasis",
+        fallback_message: "En breve un vendedor te responde.",
+        enabled: true,
+        automation_enabled: false,
+      }).success,
+    ).toBe(false);
+  });
+
   it("acepta una configuración completa", () => {
     expect(
       integrationSettingsSchema.safeParse({
+        phone_number_e164: "+17372212163",
         display_name: "Oasis Modulares",
         agent_name: "Asistente Oasis",
         fallback_message: "En breve un vendedor te responde.",

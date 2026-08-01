@@ -80,12 +80,6 @@ export default async function WhatsAppSettingsPage({
                   <p className="font-semibold uppercase">{provider}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-[#63778e]">Número</p>
-                  <p className="font-mono font-semibold">
-                    {integration.phone_number_e164}
-                  </p>
-                </div>
-                <div>
                   <p className="text-xs text-[#63778e]">Estado de conexión</p>
                   <StatusBadge value={integration.connection_status} />
                 </div>
@@ -95,6 +89,15 @@ export default async function WhatsAppSettingsPage({
                 </div>
               </div>
 
+              <label className="text-sm font-medium">
+                Número (E.164, ej. +14155238886)
+                <input
+                  className={`${inputClass} font-mono`}
+                  name="phone_number_e164"
+                  defaultValue={integration.phone_number_e164}
+                  required
+                />
+              </label>
               <label className="text-sm font-medium">
                 Nombre para mostrar
                 <input

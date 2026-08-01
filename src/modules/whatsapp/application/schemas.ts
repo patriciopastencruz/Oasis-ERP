@@ -45,6 +45,10 @@ export const leadEditSchema = z.object({
 export type LeadEditInput = z.infer<typeof leadEditSchema>;
 
 export const integrationSettingsSchema = z.object({
+  phone_number_e164: z
+    .string()
+    .trim()
+    .regex(/^\+[1-9][0-9]{7,14}$/, "Usa formato E.164, ej. +14155238886."),
   display_name: z
     .string()
     .trim()
