@@ -94,7 +94,7 @@ Cliente escribe por WhatsApp
       → si la IA falla → mensaje de respaldo (fallback_message) + escalamiento automático
 ```
 
-Si `after()` se corta antes de completar (cold start, timeout), la conversación queda con `ai_pending_since` marcado; el cron `/api/cron/whatsapp-retry` (cada 10 min) reprocesa esas conversaciones con el último mensaje del cliente.
+Si `after()` se corta antes de completar (cold start, timeout), la conversación queda con `ai_pending_since` marcado; el endpoint `/api/cron/whatsapp-retry` reprocesa esas conversaciones con el último mensaje del cliente. **No está registrado como cron de Vercel** (ver limitación más abajo) — hay que invocarlo desde un scheduler externo.
 
 ## Capa de IA
 
@@ -144,7 +144,7 @@ TWILIO_AUTH_TOKEN=
 ## Configurar Twilio WhatsApp Sandbox
 
 1. En la consola de Twilio: **Messaging → Try it out → Send a WhatsApp message** para activar el Sandbox.
-2. Anota el número del Sandbox (por defecto `+14155238886`) y la palabra de unión (`join <palabra>`).
+2. Anota el número del Sandbox y la palabra de unión (`join <palabra>`) — Twilio asigna un número de prueba propio por cuenta/región (no siempre el compartido `+14155238886`), así que confirma el que te muestra tu consola en "Try out WhatsApp" ("To: +XX... – Twilio trial number").
 3. Desde tu WhatsApp personal, envía `join <palabra>` al número del Sandbox para vincular tu número de pruebas.
 4. En **Sandbox settings**, configura *"When a message comes in"* con la URL pública de `/api/whatsapp/webhook` (método `POST`).
 5. Opcional: configura el *Status callback URL* apuntando a `/api/whatsapp/status` (o usa `WHATSAPP_STATUS_CALLBACK_URL`, que se envía automáticamente en cada mensaje saliente).
@@ -181,14 +181,17 @@ Igual que el resto del repo: `git push` a la rama (Vercel construye) + `supabase
 - **Firma inválida**: revisar que `WHATSAPP_WEBHOOK_URL` coincida byte a byte con la URL configurada en Twilio (protocolo, dominio, sin barra final si Twilio no la tiene). Ver el evento `invalid_signature` en `/whatsapp/settings` (incluye la URL usada para validar, sin secretos).
 - **La IA no responde pero el mensaje se guardó**: revisar `ai_error`/`ai_invalid_output` en los eventos recientes; la conversación queda escalada a `human_required` automáticamente.
 - **El envío por WhatsApp falla** (ventana de 24h vencida, número inválido): el mensaje queda registrado con `delivery_status='failed'` y aparece un evento `provider_error`; el vendedor puede responder manualmente.
-- **`after()` se cortó antes de enviar la respuesta**: el cron `/api/cron/whatsapp-retry` la reintenta a los 5 minutos; si vuelve a fallar, queda registrado como `ai_error` igual que el flujo normal.
+- **`after()` se cortó antes de enviar la respuesta**: `/api/cron/whatsapp-retry` reprocesa la conversación cuando algo lo invoca (ver limitación de cron abajo); si vuelve a fallar, queda registrado como `ai_error` igual que el flujo normal.
 
 ## Limitaciones conocidas (fuera de alcance de esta entrega)
 
+- **El reintento NO está automatizado vía cron de Vercel.** El plan Hobby (gratuito) de Vercel solo permite cron jobs que corran como máximo una vez al día — un cron cada 5-10 minutos (lo ideal para esta red de seguridad) **bloquea el despliegue completo** en ese plan (confirmado en la práctica: el primer intento de despliegue de esta rama falló exactamente por esto). Por eso `/api/cron/whatsapp-retry` existe como endpoint protegido por `CRON_SECRET` pero **no está registrado en `vercel.json`**. Para activarlo, dos opciones:
+  1. **Con plan Vercel Pro o superior**: agregar de nuevo la entrada en `vercel.json` (`{"path":"/api/cron/whatsapp-retry","schedule":"*/10 * * * *"}`) — ahí sí se permite sub-diario.
+  2. **Con plan Hobby**: usar un scheduler externo gratuito (ej. [cron-job.org](https://cron-job.org), GitHub Actions con `schedule:`, o Upstash QStash) que haga `GET` a `https://<tu-dominio>/api/whatsapp-retry` cada 5-10 minutos con el header `Authorization: Bearer <CRON_SECRET>`. Sin esto, la única red de seguridad ante un `after()` cortado es que un vendedor note manualmente la conversación sin respuesta en la bandeja.
 - Sin medios: imágenes, audio y documentos se registran como no-texto (`message_type` correspondiente) pero no se descargan ni procesan; no hay reconocimiento de imágenes ni transcripción de notas de voz.
 - Sin tarifario/catálogo automatizado: precios, plazos y disponibilidad siempre se derivan a un vendedor.
 - Rate limiting no distribuido: `SupabaseWindowRateLimiter` protege ráfagas de una misma conversación, no un ataque coordinado desde muchos números — eso requeriría infraestructura (Redis/WAF) fuera de este alcance.
-- `after()` no es una cola durable — el cron de reintento da garantía "al mejor esfuerzo", no exacta.
+- `after()` no es una cola durable — incluso con el reintento activado externamente, la garantía es "al mejor esfuerzo", no exacta.
 - Sin envío masivo, campañas, ni mensajes iniciados fuera de la ventana de 24 horas de WhatsApp (salvo plantillas aprobadas, que quedan implementadas en el proveedor pero sin plantillas registradas en esta entrega).
 - Sin pagos, sin cotizaciones finales automáticas, sin cálculo de transporte.
 
