@@ -38,12 +38,16 @@ export function DeletePettyCashAttachment({ id }: { id: string }) {
   }} className="text-xs font-semibold text-red-700">{pending ? "Eliminando…" : "Eliminar"}</button>{message && <span className="ml-2 text-xs text-red-600">{message}</span>}</span>;
 }
 
-export function DeletePettyCashReport({ id }: { id: string }) {
+export function DeletePettyCashReport({ id, redirectTo }: { id: string; redirectTo?: string }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [message, setMessage] = useState("");
   return <span><button type="button" disabled={pending} onClick={() => {
     if (!confirm("¿Eliminar esta rendición en borrador? Esta acción no se puede deshacer.")) return;
-    start(async () => { const result = await deletePettyCashReportAction(id); if (result.success) router.refresh(); else setMessage(result.message); });
-  }} className="text-sm font-semibold text-red-700">{pending ? "Eliminando…" : "Borrar"}</button>{message && <span className="ml-2 text-xs text-red-600">{message}</span>}</span>;
+    start(async () => {
+      const result = await deletePettyCashReportAction(id);
+      if (result.success) { if (redirectTo) router.push(redirectTo); else router.refresh(); }
+      else setMessage(result.message);
+    });
+  }} className="text-sm font-semibold text-red-700">{pending ? "Eliminando…" : "Borrar borrador"}</button>{message && <span className="ml-2 text-xs text-red-600">{message}</span>}</span>;
 }
 
 export function PettyCashDecisionForm({ id, lines, canApprove }: { id: string; lines: Array<{ id: string; label: string }>; canApprove: boolean }) {

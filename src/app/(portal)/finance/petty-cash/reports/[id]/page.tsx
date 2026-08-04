@@ -5,6 +5,7 @@ import { uiLabel } from "@/lib/ui-labels";
 import { LimitExceededBadge, StatusBadge } from "@/components/finance/status-badge";
 import {
   DeletePettyCashAttachment,
+  DeletePettyCashReport,
   SubmitPettyCashReport,
 } from "@/components/finance/petty-cash-actions";
 import { PettyCashReportForm } from "@/components/finance/petty-cash-report-form";
@@ -133,12 +134,18 @@ export default async function PettyCashReportPage({
             )}
           </div>
         </Panel>
-        <div className="mt-5">
+        <div className="mt-5 flex flex-wrap items-center gap-4">
           <SubmitPettyCashReport
             id={id}
             total={Number(report.total_registered)}
             available={capacity}
           />
+          {report.status === "draft" && (
+            <DeletePettyCashReport
+              id={id}
+              redirectTo="/finance/petty-cash/my-reports"
+            />
+          )}
         </div>
       </>
     );
