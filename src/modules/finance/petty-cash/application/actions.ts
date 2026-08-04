@@ -20,6 +20,9 @@ function friendlyError(error: unknown) {
   console.error("[petty-cash]", message);
   if (/límite|supera/i.test(message))
     return "Esta rendición supera el saldo semanal disponible.";
+  const missingReceipts = message.match(/^Falta comprobante en: (.+)$/i);
+  if (missingReceipts)
+    return `Falta adjuntar un comprobante en: ${missingReceipts[1]}.`;
   if (/comprobante/i.test(message))
     return "Cada gasto debe tener al menos un comprobante válido.";
   if (/categoría/i.test(message))
