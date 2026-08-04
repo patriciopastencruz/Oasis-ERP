@@ -10,13 +10,19 @@ import {
   updateTaskCardAction,
 } from "@/modules/tasks/application/actions";
 import type { BoardCard } from "@/modules/tasks/application/queries";
-import { taskColumns, taskStatuses, isOverdue, type TaskStatus } from "@/modules/tasks/domain/task";
+import {
+  taskColumns,
+  taskStatuses,
+  isOverdue,
+  unitColor,
+  type TaskStatus,
+} from "@/modules/tasks/domain/task";
 
 const input =
   "mt-1.5 w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b4f9c]";
 
 type Member = { id: string; first_name: string; last_name: string };
-type Unit = { id: string; code: string; name: string };
+type Unit = { id: string; code: string; name: string; color: string | null };
 
 function formatDate(value: string | null) {
   if (!value) return null;
@@ -28,39 +34,45 @@ export function TaskBoard({
   cards,
   members,
   units,
+  currentUserId,
+  canManage,
 }: {
   companyId: string;
   cards: BoardCard[];
   members: Member[];
   units: Unit[];
+  currentUserId: string;
+  canManage: boolean;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
 
   return (
     <div className="space-y-5">
-      <div>
-        {creating ? (
-          <CreateCardForm
-            companyId={companyId}
-            members={members}
-            units={units}
-            onDone={() => {
-              setCreating(false);
-              router.refresh();
-            }}
-            onCancel={() => setCreating(false)}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="rounded-xl bg-[#083f7d] px-4 py-2.5 text-sm font-semibold text-white"
-          >
-            + Nueva tarea
-          </button>
-        )}
-      </div>
+      {canManage && (
+        <div>
+          {creating ? (
+            <CreateCardForm
+              companyId={companyId}
+              members={members}
+              units={units}
+              onDone={() => {
+                setCreating(false);
+                router.refresh();
+              }}
+              onCancel={() => setCreating(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="rounded-xl bg-[#083f7d] px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              + Nueva tarea
+            </button>
+          )}
+        </div>
+      )}
       <div className="grid gap-4 md:grid-cols-3">
         {taskColumns.map((column) => (
           <div key={column.status} className="rounded-2xl bg-slate-100 p-3">
@@ -79,6 +91,8 @@ export function TaskBoard({
                     card={card}
                     members={members}
                     units={units}
+                    currentUserId={currentUserId}
+                    canManage={canManage}
                   />
                 ))}
               {!cards.some((c) => c.status === column.status) && (
@@ -228,10 +242,14 @@ function TaskCard({
   card,
   members,
   units,
+  currentUserId,
+  canManage,
 }: {
   card: BoardCard;
   members: Member[];
   units: Unit[];
+  currentUserId: string;
+  canManage: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -239,6 +257,8 @@ function TaskCard({
   const [message, setMessage] = useState("");
   const overdue = isOverdue(card.due_date, card.status);
   const index = taskStatuses.indexOf(card.status);
+  const canMove = canManage || card.assignee?.id === currentUserId;
+  const color = unitColor(card.business_unit);
 
   const move = (status: TaskStatus) => {
     start(async () => {
@@ -272,14 +292,20 @@ function TaskCard({
     );
 
   return (
-    <div className="rounded-xl border bg-white p-3 shadow-sm">
+    <div
+      className="rounded-xl border bg-white p-3 shadow-sm"
+      style={color ? { borderLeft: `4px solid ${color}` } : undefined}
+    >
       <p className="text-sm font-semibold">{card.title}</p>
       {card.description && (
         <p className="mt-1 text-xs text-slate-500">{card.description}</p>
       )}
       <div className="mt-2 flex flex-wrap gap-1.5">
         {card.business_unit && (
-          <span className="inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-800">
+          <span
+            className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium text-white"
+            style={{ backgroundColor: color ?? undefined }}
+          >
             {card.business_unit.name}
           </span>
         )}
@@ -300,46 +326,50 @@ function TaskCard({
       {message && (
         <p className="mt-2 text-xs font-medium text-red-700">{message}</p>
       )}
-      <div className="mt-3 flex items-center justify-between">
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            disabled={pending || index === 0}
-            onClick={() => move(taskStatuses[index - 1])}
-            className="rounded-lg border px-2 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-30"
-            title="Mover a la columna anterior"
-          >
-            ◀
-          </button>
-          <button
-            type="button"
-            disabled={pending || index === taskStatuses.length - 1}
-            onClick={() => move(taskStatuses[index + 1])}
-            className="rounded-lg border px-2 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-30"
-            title="Mover a la siguiente columna"
-          >
-            ▶
-          </button>
+      {(canMove || canManage) && (
+        <div className="mt-3 flex items-center justify-between">
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              disabled={pending || index === 0 || !canMove}
+              onClick={() => move(taskStatuses[index - 1])}
+              className="rounded-lg border px-2 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-30"
+              title="Mover a la columna anterior"
+            >
+              ◀
+            </button>
+            <button
+              type="button"
+              disabled={pending || index === taskStatuses.length - 1 || !canMove}
+              onClick={() => move(taskStatuses[index + 1])}
+              className="rounded-lg border px-2 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-30"
+              title="Mover a la siguiente columna"
+            >
+              ▶
+            </button>
+          </div>
+          {canManage && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-xs font-semibold text-[#0b4f9c]"
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={remove}
+                className="text-red-700"
+                title="Eliminar tarea"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="text-xs font-semibold text-[#0b4f9c]"
-          >
-            Editar
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={remove}
-            className="text-red-700"
-            title="Eliminar tarea"
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

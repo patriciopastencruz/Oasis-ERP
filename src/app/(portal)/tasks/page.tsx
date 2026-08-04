@@ -73,6 +73,8 @@ export default async function TasksPage({
         cards={cards}
         members={members}
         units={units}
+        currentUserId={ctx.user.id}
+        canManage={ctx.permissions.has("tasks.board.manage")}
       />
     </>
   );

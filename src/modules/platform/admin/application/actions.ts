@@ -541,11 +541,20 @@ export async function toggleCompanyAction(form: FormData) {
   revalidatePath("/admin/companies");
 }
 
+const hexColor = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^#[0-9a-f]{6}$/)
+  .optional()
+  .or(z.literal(""))
+  .transform((value) => value || undefined);
 const unitSchema = z.object({
   id: uuid.optional(),
   company_id: uuid,
   code,
   name: text,
+  color: hexColor,
 });
 export async function saveUnitAction(form: FormData) {
   const actor = await requirePermission("administration.business_units.manage");
@@ -570,12 +579,17 @@ export async function saveUnitAction(form: FormData) {
     }
     await admin
       .from("business_units")
-      .update({ company_id: v.company_id, code: v.code, name: v.name })
+      .update({
+        company_id: v.company_id,
+        code: v.code,
+        name: v.name,
+        color: v.color ?? null,
+      })
       .eq("id", v.id);
   } else
     await admin
       .from("business_units")
-      .insert({ ...v, created_by: actor.user.id });
+      .insert({ ...v, color: v.color ?? null, created_by: actor.user.id });
   revalidatePath("/admin/business-units");
   redirect("/admin/business-units?success=Unidad guardada");
 }

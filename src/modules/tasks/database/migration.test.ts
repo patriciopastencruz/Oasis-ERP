@@ -13,6 +13,20 @@ const businessUnitSql = readFileSync(
   ),
   "utf8",
 );
+const roleRestrictionsSql = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20260804050000_tasks_board_role_restrictions.sql",
+  ),
+  "utf8",
+);
+const colorSql = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20260804060000_business_units_color.sql",
+  ),
+  "utf8",
+);
 
 describe("esquema del tablero de tareas", () => {
   it("crea la tabla principal con los 3 estados básicos", () => {
@@ -33,9 +47,46 @@ describe("esquema del tablero de tareas", () => {
     expect(sql).not.toMatch(/using\s*\(\s*true\s*\)/i);
   });
 
-  it("da acceso de gestión a todos los roles, no solo a algunos", () => {
+  it("parte dando acceso de gestión a todos los roles (se restringe en una migración posterior)", () => {
     expect(sql).toContain(
       "select r.id,p.id from public.roles r cross join public.permissions p\nwhere p.key in('tasks.board.view','tasks.board.manage')",
+    );
+  });
+});
+
+describe("gestión reservada a roles gerenciales/administrativos", () => {
+  it("quita tasks.board.manage a los roles que no son de gestión, dejando solo los aprobados", () => {
+    expect(roleRestrictionsSql).toContain(
+      "r.key not in('superadmin','general_manager','area_manager','operations_manager','administrator')",
+    );
+  });
+
+  it("mover una tarjeta pasa a security definer para permitir que el responsable mueva la suya sin permiso de gestión", () => {
+    expect(roleRestrictionsSql).toContain(
+      "create or replace function public.tasks_move_card(target_card uuid,target_status text) returns void language plpgsql security definer",
+    );
+    expect(roleRestrictionsSql).toContain(
+      "if not (public.has_permission('tasks.board.manage') or c.assignee_id=me) then raise exception 'Sin autorizacion'; end if;",
+    );
+  });
+
+  it("no deja el tablero abierto a cualquiera: revoca el execute público de la función definer", () => {
+    expect(roleRestrictionsSql).toContain(
+      "revoke execute on function public.tasks_move_card(uuid,text) from public,anon",
+    );
+  });
+});
+
+describe("color por unidad de negocio", () => {
+  it("agrega la columna como hex opcional, validado con check", () => {
+    expect(colorSql).toContain(
+      "alter table public.business_units add column color text check(color ~ '^#[0-9a-f]{6}$')",
+    );
+  });
+
+  it("expone el color en tasks_list_company_units para pintar las tarjetas", () => {
+    expect(colorSql).toContain(
+      "returns table(id uuid,code text,name text,color text)",
     );
   });
 });
