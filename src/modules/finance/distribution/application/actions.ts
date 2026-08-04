@@ -28,7 +28,8 @@ function parseCustomer(form: FormData) {
 }
 
 function done(path: string, type: "success" | "error", message: string): never {
-  redirect(`${path}?${type}=${encodeURIComponent(message)}`);
+  const separator = path.includes("?") ? "&" : "?";
+  redirect(`${path}${separator}${type}=${encodeURIComponent(message)}`);
 }
 function errorMessage(error: { message?: string } | null) {
   const value = error?.message ?? "No fue posible completar la operación.";
@@ -542,6 +543,10 @@ export async function deliverOrderAction(form: FormData) {
     .parse(form.get("status"));
   const reason = String(form.get("reason") ?? "");
   const paymentMethod = String(form.get("payment_method") ?? "");
+  const deliveryDate = String(form.get("delivery_date") ?? "");
+  const returnPath = deliveryDate
+    ? `/finance/distribution/driver?date=${encodeURIComponent(deliveryDate)}`
+    : "/finance/distribution/driver";
   const { data: current } = await supabase
     .from("dist_orders")
     .select("status")
@@ -556,19 +561,18 @@ export async function deliverOrderAction(form: FormData) {
         details: {},
       },
     );
-    if (routeError)
-      done("/finance/distribution/driver", "error", errorMessage(routeError));
+    if (routeError) done(returnPath, "error", errorMessage(routeError));
   }
   const { error } = await supabase.rpc("dist_change_order_status", {
     target_order: id,
     target_status: status,
     details: { reason, notes: "", payment_method: paymentMethod },
   });
-  if (error) done("/finance/distribution/driver", "error", errorMessage(error));
+  if (error) done(returnPath, "error", errorMessage(error));
   revalidatePath("/finance/distribution");
   revalidatePath("/finance/distribution/driver");
   done(
-    "/finance/distribution/driver",
+    returnPath,
     "success",
     status === "delivered"
       ? "Pedido entregado."
@@ -704,8 +708,9 @@ export async function submitDriverClosureAction(form: FormData) {
     },
     { onConflict: "business_unit_id,driver_id,closure_date" },
   );
-  if (error) done("/finance/distribution/driver", "error", errorMessage(error));
+  const returnPath = `/finance/distribution/driver?date=${encodeURIComponent(date)}`;
+  if (error) done(returnPath, "error", errorMessage(error));
   revalidatePath("/finance/distribution/driver");
   revalidatePath("/finance/distribution/reports");
-  done("/finance/distribution/driver", "success", "Cierre de caja registrado.");
+  done(returnPath, "success", "Cierre de caja registrado.");
 }

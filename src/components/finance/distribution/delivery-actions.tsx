@@ -6,10 +6,12 @@ export function DeliveryActions({
   orderId,
   paymentCondition,
   paymentMethod,
+  date,
 }: {
   orderId: string;
   paymentCondition: string;
   paymentMethod: string;
+  date: string;
 }) {
   return (
     <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -23,6 +25,7 @@ export function DeliveryActions({
       >
         <input type="hidden" name="order_id" value={orderId} />
         <input type="hidden" name="status" value="delivered" />
+        <input type="hidden" name="delivery_date" value={date} />
         {paymentCondition !== "credit" && (
           <select
             name="payment_method"
@@ -53,6 +56,7 @@ export function DeliveryActions({
       >
         <input type="hidden" name="order_id" value={orderId} />
         <input type="hidden" name="status" value="not_delivered" />
+        <input type="hidden" name="delivery_date" value={date} />
         <input
           name="reason"
           className="mb-2 w-full rounded-xl border p-2 text-sm"

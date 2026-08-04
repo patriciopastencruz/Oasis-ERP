@@ -204,6 +204,7 @@ export default async function Driver({
                   orderId={o.id}
                   paymentCondition={o.payment_condition}
                   paymentMethod={o.payment_method}
+                  date={date}
                 />
               )}
             </div>
