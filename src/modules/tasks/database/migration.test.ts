@@ -27,6 +27,13 @@ const colorSql = readFileSync(
   ),
   "utf8",
 );
+const attachmentsSql = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20260804070000_tasks_board_attachments.sql",
+  ),
+  "utf8",
+);
 
 describe("esquema del tablero de tareas", () => {
   it("crea la tabla principal con los 3 estados básicos", () => {
@@ -109,5 +116,29 @@ describe("unidad de negocio opcional por tarjeta", () => {
     expect(businessUnitSql).toContain(
       "La unidad de negocio no pertenece a esta compania",
     );
+  });
+});
+
+describe("adjuntos de respaldo por tarjeta", () => {
+  it("crea la tabla y el bucket privado dedicados", () => {
+    expect(attachmentsSql).toContain("create table public.task_card_attachments");
+    expect(attachmentsSql).toContain(
+      "values ('task-card-attachments','task-card-attachments',false,10485760,array['application/pdf','image/jpeg','image/png'])",
+    );
+  });
+
+  it("solo deja subir/borrar al responsable de la tarjeta o a quien tenga gestión, no a cualquiera con acceso al tablero", () => {
+    expect(attachmentsSql).toContain(
+      "and (c.assignee_id=auth.uid() or public.has_permission('tasks.board.manage'))",
+    );
+    expect(attachmentsSql).not.toMatch(/using\s*\(\s*true\s*\)/i);
+  });
+
+  it("el borrado es físico: la tabla de adjuntos no tiene columna deleted_at propia (el archivo desaparece de Storage y de la fila a la vez)", () => {
+    const tableDefinition = attachmentsSql.slice(
+      attachmentsSql.indexOf("create table public.task_card_attachments"),
+      attachmentsSql.indexOf("create index task_card_attachments_card_idx"),
+    );
+    expect(tableDefinition).not.toContain("deleted_at");
   });
 });

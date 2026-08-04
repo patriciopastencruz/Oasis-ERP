@@ -40,6 +40,12 @@ export async function listCompanyUnits(
   }[];
 }
 
+export type BoardAttachment = {
+  id: string;
+  original_name: string;
+  mime_type: string;
+};
+
 export type BoardCard = {
   id: string;
   title: string;
@@ -49,6 +55,7 @@ export type BoardCard = {
   sort_order: number;
   assignee: { id: string; first_name: string; last_name: string } | null;
   business_unit: { id: string; name: string; color: string | null } | null;
+  attachments: BoardAttachment[];
 };
 
 function one<T>(value: T | T[] | null | undefined): T | null {
@@ -60,20 +67,22 @@ export async function loadBoard(companyId: string): Promise<BoardCard[]> {
   const { data, error } = await supabase
     .from("task_cards")
     .select(
-      "id,title,description,status,due_date,sort_order,assignee:profiles!task_cards_assignee_id_fkey(id,first_name,last_name),business_unit:business_units!task_cards_business_unit_fkey(id,name,color)",
+      "id,title,description,status,due_date,sort_order,assignee:profiles!task_cards_assignee_id_fkey(id,first_name,last_name),business_unit:business_units!task_cards_business_unit_fkey(id,name,color),attachments:task_card_attachments(id,original_name,mime_type)",
     )
     .eq("company_id", companyId)
     .is("deleted_at", null)
     .order("sort_order", { ascending: true });
   if (error) console.error("[tasks-board]", error.message);
   return ((data ?? []) as unknown as Array<
-    Omit<BoardCard, "assignee" | "business_unit"> & {
+    Omit<BoardCard, "assignee" | "business_unit" | "attachments"> & {
       assignee: BoardCard["assignee"] | BoardCard["assignee"][];
       business_unit: BoardCard["business_unit"] | BoardCard["business_unit"][];
+      attachments: BoardAttachment[] | null;
     }
   >).map((row) => ({
     ...row,
     assignee: one(row.assignee),
     business_unit: one(row.business_unit),
+    attachments: row.attachments ?? [],
   }));
 }

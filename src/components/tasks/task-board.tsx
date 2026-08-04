@@ -1,14 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { FileText, Paperclip, Trash2 } from "lucide-react";
 import {
   createTaskCardAction,
+  deleteTaskAttachmentAction,
   deleteTaskCardAction,
+  getTaskAttachmentUrlAction,
   moveTaskCardAction,
+  prepareTaskAttachmentAction,
   updateTaskCardAction,
 } from "@/modules/tasks/application/actions";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { BoardCard } from "@/modules/tasks/application/queries";
 import {
   taskColumns,
@@ -258,6 +262,7 @@ function TaskCard({
   const overdue = isOverdue(card.due_date, card.status);
   const index = taskStatuses.indexOf(card.status);
   const canMove = canManage || card.assignee?.id === currentUserId;
+  const canAttach = canMove;
   const color = unitColor(card.business_unit);
 
   const move = (status: TaskStatus) => {
@@ -326,6 +331,7 @@ function TaskCard({
       {message && (
         <p className="mt-2 text-xs font-medium text-red-700">{message}</p>
       )}
+      <AttachmentsSection card={card} canAttach={canAttach} />
       {(canMove || canManage) && (
         <div className="mt-3 flex items-center justify-between">
           <div className="flex gap-1.5">
@@ -370,6 +376,124 @@ function TaskCard({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function AttachmentsSection({
+  card,
+  canAttach,
+}: {
+  card: BoardCard;
+  canAttach: boolean;
+}) {
+  const router = useRouter();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const openAttachment = async (id: string) => {
+    const result = await getTaskAttachmentUrlAction(id);
+    const url = (result.data as { url?: string } | undefined)?.url;
+    if (result.success && url) window.open(url, "_blank", "noopener");
+    else setMessage(result.message || "No fue posible abrir el archivo.");
+  };
+
+  const removeAttachment = async (id: string) => {
+    if (!confirm("¿Eliminar este adjunto?")) return;
+    const result = await deleteTaskAttachmentAction(id);
+    if (result.success) router.refresh();
+    else setMessage(result.message);
+  };
+
+  const upload = async (file: File) => {
+    setMessage("");
+    setUploading(true);
+    try {
+      const prepared = await prepareTaskAttachmentAction({
+        task_card_id: card.id,
+        original_name: file.name,
+        mime_type: file.type,
+        size_bytes: file.size,
+      });
+      const preparedData = prepared.data as
+        | { attachment_id?: string; object_path?: string }
+        | undefined;
+      if (!prepared.success || !prepared.id || !preparedData?.object_path)
+        throw new Error(prepared.message || "No fue posible preparar el archivo.");
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.storage
+        .from("task-card-attachments")
+        .upload(preparedData.object_path, file, {
+          contentType: file.type,
+          upsert: false,
+        });
+      if (error) {
+        await deleteTaskAttachmentAction(prepared.id);
+        throw new Error("No fue posible subir el archivo. Intenta nuevamente.");
+      }
+      router.refresh();
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "No fue posible subir el archivo.",
+      );
+    } finally {
+      setUploading(false);
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  };
+
+  if (!canAttach && !card.attachments.length) return null;
+
+  return (
+    <div className="mt-2">
+      {card.attachments.length > 0 && (
+        <div className="space-y-1">
+          {card.attachments.map((attachment) => (
+            <div
+              key={attachment.id}
+              className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2 py-1 text-xs"
+            >
+              <button
+                type="button"
+                onClick={() => openAttachment(attachment.id)}
+                className="flex min-w-0 items-center gap-1.5 font-medium text-[#0b4f9c]"
+              >
+                <FileText size={13} className="shrink-0" />
+                <span className="truncate">{attachment.original_name}</span>
+              </button>
+              {canAttach && (
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(attachment.id)}
+                  className="shrink-0 text-red-700"
+                  title="Eliminar adjunto"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {canAttach && (
+        <label className="mt-1.5 flex w-fit cursor-pointer items-center gap-1 text-xs font-semibold text-[#0b4f9c]">
+          <Paperclip size={13} />
+          {uploading ? "Subiendo…" : "Adjuntar archivo"}
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void upload(file);
+            }}
+          />
+        </label>
+      )}
+      {message && <p className="mt-1 text-xs text-red-700">{message}</p>}
     </div>
   );
 }
