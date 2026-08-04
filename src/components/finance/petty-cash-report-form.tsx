@@ -441,9 +441,9 @@ export function PettyCashReportForm({
         />
       </div>
       {!summaryLoading && total > available && (
-        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-          El borrador supera el saldo semanal. Puedes guardarlo, pero no podrás
-          enviarlo hasta ajustar el total.
+        <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">
+          El borrador supera el saldo semanal disponible. Puedes enviarlo
+          igual, pero quedará marcado en rojo para que finanzas lo revise.
         </p>
       )}
 

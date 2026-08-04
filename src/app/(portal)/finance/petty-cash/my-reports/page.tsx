@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
-import { StatusBadge } from "@/components/finance/status-badge";
+import { LimitExceededBadge, StatusBadge } from "@/components/finance/status-badge";
 import { DeletePettyCashReport } from "@/components/finance/petty-cash-actions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireSession } from "@/modules/platform/auth/application/session";
@@ -24,7 +24,7 @@ export default async function MyPettyCashReports({
   let query = supabase
     .from("petty_cash_reports")
     .select(
-      "id,report_number,status,total_registered,total_lines,week_start,week_end,updated_at,business_units(name)",
+      "id,report_number,status,total_registered,total_lines,week_start,week_end,updated_at,exceeds_weekly_limit,business_units(name)",
       { count: "exact" },
     )
     .eq("responsible_id", ctx.user.id)
@@ -113,7 +113,10 @@ export default async function MyPettyCashReports({
                     <td>{report.total_lines}</td>
                     <td>{clp(report.total_registered)}</td>
                     <td>
-                      <StatusBadge value={report.status} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge value={report.status} />
+                        {report.exceeds_weekly_limit && <LimitExceededBadge />}
+                      </div>
                     </td>
                     <td>
                       <div className="flex items-center gap-3">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
-import { StatusBadge } from "@/components/finance/status-badge";
+import { LimitExceededBadge, StatusBadge } from "@/components/finance/status-badge";
 import { PettyCashDecisionForm } from "@/components/finance/petty-cash-actions";
 import {
   PettyCashExpenseLine,
@@ -47,8 +47,11 @@ export default async function PettyCashReviewDetail({
         description="Revisa todos los gastos y toma una decisión sobre la rendición completa."
         eyebrow="Finanzas · Caja Chica · Revisión"
       />
-      <div className="mb-5 flex justify-between">
-        <StatusBadge value={report.status} />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge value={report.status} />
+          {report.exceeds_weekly_limit && <LimitExceededBadge />}
+        </div>
         <Link
           href="/finance/petty-cash/reviews"
           className="text-sm font-semibold text-[#0b4f9c]"
@@ -56,6 +59,12 @@ export default async function PettyCashReviewDetail({
           Volver a la bandeja
         </Link>
       </div>
+      {report.exceeds_weekly_limit && (
+        <p className="mb-5 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">
+          Esta rendición superó el saldo semanal disponible al momento de
+          enviarse.
+        </p>
+      )}
       <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
         <div className="space-y-5">
           <Panel>

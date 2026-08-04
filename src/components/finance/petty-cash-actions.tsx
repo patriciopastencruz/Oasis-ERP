@@ -13,10 +13,16 @@ export function SubmitPettyCashReport({ id, total, available }: { id: string; to
   const router = useRouter();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState("");
+  const exceedsLimit = total > available;
+  const clpAmount = (value: number) => new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(value);
   return <div>
+    {exceedsLimit && <p className="mb-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">Esta rendición supera el saldo semanal disponible ({clpAmount(available)}) por {clpAmount(total - available)}. Igual puedes enviarla; quedará marcada en rojo para que finanzas la revise.</p>}
     {message && <p className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{message}</p>}
-    <button type="button" disabled={pending || total > available} onClick={() => {
-      if (!confirm(`¿Enviar esta rendición por ${new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(total)}?`)) return;
+    <button type="button" disabled={pending} onClick={() => {
+      const confirmMessage = exceedsLimit
+        ? `Esta rendición por ${clpAmount(total)} supera el saldo semanal disponible. ¿Enviarla de todas formas?`
+        : `¿Enviar esta rendición por ${clpAmount(total)}?`;
+      if (!confirm(confirmMessage)) return;
       start(async () => { const result = await submitPettyCashReportAction(id); setMessage(result.message); if (result.success) router.refresh(); });
     }} className="rounded-xl bg-[#083f7d] px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
       {pending ? "Enviando…" : "Enviar rendición"}

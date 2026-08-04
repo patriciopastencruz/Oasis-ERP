@@ -40,3 +40,10 @@ export function StatusBadge({ value }: { value: string }) {
     </span>
   );
 }
+export function LimitExceededBadge() {
+  return (
+    <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800">
+      Excede límite semanal
+    </span>
+  );
+}

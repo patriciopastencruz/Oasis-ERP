@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
-import { StatusBadge } from "@/components/finance/status-badge";
+import { LimitExceededBadge, StatusBadge } from "@/components/finance/status-badge";
 import {
   DeletePettyCashAttachment,
   SubmitPettyCashReport,
@@ -78,8 +78,11 @@ export default async function PettyCashReportPage({
             </span>
           </p>
         )}
-        <div className="mb-5 flex items-center justify-between">
-          <StatusBadge value={report.status} />
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge value={report.status} />
+            {report.exceeds_weekly_limit && <LimitExceededBadge />}
+          </div>
           <Link
             href="/finance/petty-cash/my-reports"
             className="text-sm font-semibold text-[#0b4f9c]"
@@ -147,8 +150,11 @@ export default async function PettyCashReportPage({
         description="Detalle, comprobantes e historial de la rendición."
         eyebrow="Finanzas · Caja Chica"
       />
-      <div className="mb-5 flex items-center justify-between">
-        <StatusBadge value={report.status} />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge value={report.status} />
+          {report.exceeds_weekly_limit && <LimitExceededBadge />}
+        </div>
         <Link
           href="/finance/petty-cash/my-reports"
           className="text-sm font-semibold text-[#0b4f9c]"
