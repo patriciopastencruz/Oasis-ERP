@@ -4,6 +4,7 @@ const UI_LABELS: Record<string, string> = {
   suspended: "Suspendido",
   draft: "Borrador",
   pending: "Pendiente",
+  in_progress: "En ejecución",
   pending_approval: "Pendiente de aprobación",
   pending_deletion: "Pendiente de desactivación",
   submitted: "Enviado",

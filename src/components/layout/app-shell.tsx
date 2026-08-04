@@ -32,6 +32,7 @@ import {
   Bot,
   FolderKanban,
   MessageCircle,
+  ListTodo,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -60,6 +61,12 @@ const transversalNav = [
     label: "Proveedores",
     icon: Building2,
     permission: "finance.suppliers.view",
+  },
+  {
+    href: "/tasks",
+    label: "Tablero de tareas",
+    icon: ListTodo,
+    permission: "tasks.board.view",
   },
   {
     href: "/whatsapp",
