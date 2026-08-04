@@ -3,6 +3,7 @@ import { TaskBoard } from "@/components/tasks/task-board";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   listCompanyMembers,
+  listCompanyUnits,
   loadBoard,
   tasksContext,
 } from "@/modules/tasks/application/queries";
@@ -35,9 +36,10 @@ export default async function TasksPage({
     );
 
   const supabase = await createSupabaseServerClient();
-  const [cards, members] = await Promise.all([
+  const [cards, members, units] = await Promise.all([
     loadBoard(companyId),
     listCompanyMembers(supabase, companyId),
+    listCompanyUnits(supabase, companyId),
   ]);
 
   return (
@@ -66,7 +68,12 @@ export default async function TasksPage({
           </button>
         </form>
       )}
-      <TaskBoard companyId={companyId} cards={cards} members={members} />
+      <TaskBoard
+        companyId={companyId}
+        cards={cards}
+        members={members}
+        units={units}
+      />
     </>
   );
 }

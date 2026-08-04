@@ -15,6 +15,8 @@ function friendlyError(error: unknown) {
   if (/titulo/i.test(message)) return "El título es obligatorio.";
   if (/responsable/i.test(message))
     return "El responsable no pertenece a esta compañía.";
+  if (/unidad de negocio/i.test(message))
+    return "La unidad de negocio seleccionada no pertenece a esta compañía.";
   if (/compania|autoriz|RLS|row-level|42501/i.test(message))
     return "No tienes autorización para realizar esta acción.";
   if (/sesión|JWT|refresh/i.test(message))

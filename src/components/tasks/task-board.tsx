@@ -16,6 +16,7 @@ const input =
   "mt-1.5 w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b4f9c]";
 
 type Member = { id: string; first_name: string; last_name: string };
+type Unit = { id: string; code: string; name: string };
 
 function formatDate(value: string | null) {
   if (!value) return null;
@@ -26,10 +27,12 @@ export function TaskBoard({
   companyId,
   cards,
   members,
+  units,
 }: {
   companyId: string;
   cards: BoardCard[];
   members: Member[];
+  units: Unit[];
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -41,6 +44,7 @@ export function TaskBoard({
           <CreateCardForm
             companyId={companyId}
             members={members}
+            units={units}
             onDone={() => {
               setCreating(false);
               router.refresh();
@@ -70,7 +74,12 @@ export function TaskBoard({
               {cards
                 .filter((card) => card.status === column.status)
                 .map((card) => (
-                  <TaskCard key={card.id} card={card} members={members} />
+                  <TaskCard
+                    key={card.id}
+                    card={card}
+                    members={members}
+                    units={units}
+                  />
                 ))}
               {!cards.some((c) => c.status === column.status) && (
                 <p className="px-1 text-xs text-slate-400">Sin tareas.</p>
@@ -86,17 +95,20 @@ export function TaskBoard({
 function CreateCardForm({
   companyId,
   members,
+  units,
   onDone,
   onCancel,
 }: {
   companyId: string;
   members: Member[];
+  units: Unit[];
   onDone: () => void;
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const [businessUnitId, setBusinessUnitId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [message, setMessage] = useState("");
   const [pending, start] = useTransition();
@@ -112,6 +124,7 @@ function CreateCardForm({
         title,
         description: description || undefined,
         assignee_id: assigneeId || undefined,
+        business_unit_id: businessUnitId || undefined,
         due_date: dueDate || undefined,
       });
       if (result.success) onDone();
@@ -165,6 +178,21 @@ function CreateCardForm({
             </select>
           </div>
           <div>
+            <label className="text-sm font-medium">Unidad de negocio</label>
+            <select
+              className={input}
+              value={businessUnitId}
+              onChange={(e) => setBusinessUnitId(e.target.value)}
+            >
+              <option value="">General / sin unidad</option>
+              {units.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="text-sm font-medium">Plazo</label>
             <input
               type="date"
@@ -196,7 +224,15 @@ function CreateCardForm({
   );
 }
 
-function TaskCard({ card, members }: { card: BoardCard; members: Member[] }) {
+function TaskCard({
+  card,
+  members,
+  units,
+}: {
+  card: BoardCard;
+  members: Member[];
+  units: Unit[];
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
@@ -226,6 +262,7 @@ function TaskCard({ card, members }: { card: BoardCard; members: Member[] }) {
       <EditCardForm
         card={card}
         members={members}
+        units={units}
         onDone={() => {
           setEditing(false);
           router.refresh();
@@ -241,6 +278,11 @@ function TaskCard({ card, members }: { card: BoardCard; members: Member[] }) {
         <p className="mt-1 text-xs text-slate-500">{card.description}</p>
       )}
       <div className="mt-2 flex flex-wrap gap-1.5">
+        {card.business_unit && (
+          <span className="inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-800">
+            {card.business_unit.name}
+          </span>
+        )}
         {card.assignee && (
           <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
             {card.assignee.first_name} {card.assignee.last_name}
@@ -305,17 +347,22 @@ function TaskCard({ card, members }: { card: BoardCard; members: Member[] }) {
 function EditCardForm({
   card,
   members,
+  units,
   onDone,
   onCancel,
 }: {
   card: BoardCard;
   members: Member[];
+  units: Unit[];
   onDone: () => void;
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description ?? "");
   const [assigneeId, setAssigneeId] = useState(card.assignee?.id ?? "");
+  const [businessUnitId, setBusinessUnitId] = useState(
+    card.business_unit?.id ?? "",
+  );
   const [dueDate, setDueDate] = useState(card.due_date ?? "");
   const [message, setMessage] = useState("");
   const [pending, start] = useTransition();
@@ -330,6 +377,7 @@ function EditCardForm({
         title,
         description: description || undefined,
         assignee_id: assigneeId || undefined,
+        business_unit_id: businessUnitId || undefined,
         due_date: dueDate || undefined,
       });
       if (result.success) onDone();
@@ -368,6 +416,18 @@ function EditCardForm({
           {members.map((member) => (
             <option key={member.id} value={member.id}>
               {member.first_name} {member.last_name}
+            </option>
+          ))}
+        </select>
+        <select
+          className={input}
+          value={businessUnitId}
+          onChange={(e) => setBusinessUnitId(e.target.value)}
+        >
+          <option value="">General / sin unidad</option>
+          {units.map((unit) => (
+            <option key={unit.id} value={unit.id}>
+              {unit.name}
             </option>
           ))}
         </select>

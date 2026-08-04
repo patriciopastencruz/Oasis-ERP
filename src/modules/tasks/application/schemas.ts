@@ -5,6 +5,7 @@ export const taskCardInputSchema = z.object({
   title: z.string().trim().min(2, "Escribe un título").max(200),
   description: z.string().trim().max(2000).optional(),
   assignee_id: z.string().uuid().optional(),
+  business_unit_id: z.string().uuid().optional(),
   due_date: z.string().optional(),
 });
 export type TaskCardInput = z.infer<typeof taskCardInputSchema>;
