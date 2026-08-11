@@ -16,6 +16,7 @@ import {
   voidPaymentAction,
   updateImportedReservationInfoAction,
 } from "@/modules/lodging/application/actions";
+import { reviewPublicLodgingRequestAction } from "@/modules/lodging/application/public-actions";
 export default async function Page({
   params,
   searchParams,
@@ -76,6 +77,33 @@ export default async function Page({
           Esta reserva proviene de Booking/Airbnb. Los cambios de la reserva
           original deben realizarse en la plataforma de origen.
         </p>
+      )}
+      {r.origin === "public_web" && r.status === "pending" && (
+        <Panel className="mb-4 border-amber-200 bg-amber-50">
+          <h2 className="font-semibold text-amber-900">
+            Solicitud de reserva desde el sitio web
+          </h2>
+          <p className="mt-1 text-sm text-amber-800">
+            Revisa el comprobante adjunto abajo antes de confirmar. La fecha
+            ya está retenida para esta habitación mientras la revisas.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <form action={reviewPublicLodgingRequestAction}>
+              <input type="hidden" name="reservation_id" value={id} />
+              <input type="hidden" name="decision" value="confirm" />
+              <button className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
+                Confirmar reserva
+              </button>
+            </form>
+            <form action={reviewPublicLodgingRequestAction}>
+              <input type="hidden" name="reservation_id" value={id} />
+              <input type="hidden" name="decision" value="reject" />
+              <button className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700">
+                Rechazar
+              </button>
+            </form>
+          </div>
+        </Panel>
       )}
       {r.imported_from_ical && guest && (
         <Panel className="mb-4">

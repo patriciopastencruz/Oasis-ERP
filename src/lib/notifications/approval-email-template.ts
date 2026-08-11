@@ -32,6 +32,8 @@ export function notificationActionPath(
       return "/inventory/approvals";
     case "dist_change_request":
       return "/finance/distribution/requests";
+    case "lodging_reservation":
+      return `/lodging/reservations/${entityId}`;
     default:
       return "/notifications";
   }

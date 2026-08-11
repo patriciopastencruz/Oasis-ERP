@@ -60,6 +60,7 @@ const UI_LABELS: Record<string, string> = {
   reimbursement: "Reembolso",
   advance: "Anticipo",
   other: "Otro",
+  public_web: "Sitio web",
   edit: "Edición",
   deactivate: "Desactivación",
   approved_with_observations: "Aprobado con observaciones",
