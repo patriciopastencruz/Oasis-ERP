@@ -108,7 +108,7 @@ export function RoomAvailabilityPicker({ rooms }: { rooms: Room[] }) {
       </label>
 
       <div
-        className="mt-4 overflow-x-auto rounded-xl border border-[#e4d9c8] bg-white p-3"
+        className="mt-4 flex justify-center rounded-xl border border-[#e4d9c8] bg-white p-3"
         style={
           {
             "--rdp-accent-color": "#c1652f",
@@ -123,7 +123,7 @@ export function RoomAvailabilityPicker({ rooms }: { rooms: Room[] }) {
         ) : (
           <DayPicker
             mode="range"
-            numberOfMonths={2}
+            numberOfMonths={1}
             locale={es}
             selected={range}
             onSelect={setRange}
