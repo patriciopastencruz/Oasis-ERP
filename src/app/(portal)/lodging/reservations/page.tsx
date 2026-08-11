@@ -17,6 +17,9 @@ export default async function Page() {
     .eq("business_unit_id", unit.id)
     .order("check_in", { ascending: false })
     .limit(100);
+  const pendingWebRequests = (data ?? []).filter(
+    (r) => r.origin === "public_web" && r.status === "pending",
+  ).length;
   return (
     <>
       <div className="flex justify-between gap-4">
@@ -33,6 +36,15 @@ export default async function Page() {
           Nueva reserva
         </Link>
       </div>
+      {pendingWebRequests > 0 && (
+        <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          Tienes <b>{pendingWebRequests}</b>{" "}
+          {pendingWebRequests === 1
+            ? "solicitud web pendiente"
+            : "solicitudes web pendientes"}{" "}
+          de revisión (marcadas abajo).
+        </p>
+      )}
       <Panel className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
@@ -53,8 +65,13 @@ export default async function Page() {
               const room = Array.isArray(r.lodging_rooms)
                 ? r.lodging_rooms[0]
                 : r.lodging_rooms;
+              const isPendingWebRequest =
+                r.origin === "public_web" && r.status === "pending";
               return (
-                <tr key={r.id} className="border-b last:border-0">
+                <tr
+                  key={r.id}
+                  className={`border-b last:border-0 ${isPendingWebRequest ? "bg-amber-50" : ""}`}
+                >
                   <td className="py-3">
                     <Link
                       href={`/lodging/reservations/${r.id}`}
@@ -63,17 +80,22 @@ export default async function Page() {
                       {guest?.full_name ||
                         `Reserva ${r.origin} — información pendiente`}
                     </Link>
+                    {isPendingWebRequest && (
+                      <span className="ml-2 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-900">
+                        Por revisar
+                      </span>
+                    )}
                   </td>
                   <td>{room?.name}</td>
                   <td>
                     {formatDate(r.check_in)} → {formatDate(r.check_out)}
                   </td>
-                  <td className="capitalize">{r.origin}</td>
+                  <td>{uiLabel(r.origin)}</td>
                   <td
                     className={
                       r.status === "conflict"
                         ? "font-semibold text-red-600"
-                        : "capitalize"
+                        : ""
                     }
                   >
                     {uiLabel(r.status)}
