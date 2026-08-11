@@ -10,14 +10,13 @@ export const metadata = {
     "Reserva tu habitación en Hostal Oasis Atacama, Calama. Elige fechas, transfiere y sube tu comprobante.",
 };
 
-// TODO: reemplazar por los datos bancarios reales del hostal.
 const BANK_ACCOUNT = {
-  bank: "[Nombre del banco]",
-  accountType: "[Tipo de cuenta]",
-  accountNumber: "[Número de cuenta]",
-  rut: "[RUT del titular]",
-  holder: "[Nombre del titular]",
-  email: "[email de confirmación]",
+  bank: "Banco de Chile",
+  accountType: "Cuenta FAN Emprende",
+  accountNumber: "155425344",
+  rut: "78.271.136-9",
+  holder: "OASIS Atacama SpA",
+  email: "oasismodulares@gmail.com",
 };
 
 const field =
