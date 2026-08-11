@@ -41,13 +41,15 @@ export async function publicLodgingRooms() {
   const unit = await resolvePublicUnit();
   if (!unit) return { unit: null, rooms: [] as never[] };
   const db = createSupabaseAdminClient();
-  const { data: rooms } = await db
+  const { data: rooms, error } = await db
     .from("lodging_rooms")
     .select("id,code,name,capacity,base_rate")
     .eq("business_unit_id", unit.id)
     .eq("active", true)
     .not("status", "in", '("maintenance","out_of_service")')
     .order("display_order");
+  if (error)
+    console.error("[publicLodgingRooms] fallo al listar habitaciones", error);
   return { unit, rooms: rooms ?? [] };
 }
 
