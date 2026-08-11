@@ -53,10 +53,40 @@ export async function publicLodgingRooms() {
   return { unit, rooms: rooms ?? [] };
 }
 
+// Fechas ya ocupadas para una habitación, para pintar el calendario público
+// tipo aerolínea. Se escopea a la unidad pública (no confía en el room_id
+// enviado por el cliente) y usa el mismo criterio que el exclusion
+// constraint de lodging_reservations: todo status salvo cancelled/conflict
+// retiene la fecha.
+export async function getRoomBookedRangesAction(roomId: string) {
+  const parsed = z.string().uuid().safeParse(roomId);
+  if (!parsed.success) return [];
+  const unit = await resolvePublicUnit();
+  if (!unit) return [];
+  const db = createSupabaseAdminClient();
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const { data, error } = await db
+    .from("lodging_reservations")
+    .select("check_in,check_out")
+    .eq("room_id", parsed.data)
+    .eq("business_unit_id", unit.id)
+    .not("status", "in", '("cancelled","conflict")')
+    .gte("check_out", todayIso);
+  if (error) {
+    console.error("[getRoomBookedRangesAction] fallo al leer disponibilidad", error);
+    return [];
+  }
+  return (data ?? []).map((r) => ({ check_in: r.check_in, check_out: r.check_out }));
+}
+
 const requestSchema = z.object({
-  room_id: z.string().uuid(),
-  check_in: z.string().date(),
-  check_out: z.string().date(),
+  room_id: z.string().uuid({ message: "Debes elegir una habitación." }),
+  check_in: z
+    .string()
+    .date({ message: "Debes seleccionar tus fechas de entrada y salida en el calendario." }),
+  check_out: z
+    .string()
+    .date({ message: "Debes seleccionar tus fechas de entrada y salida en el calendario." }),
   guest_name: z.string().trim().min(2).max(160),
   phone: z.string().trim().min(6).max(50),
   email: z.string().trim().max(160),

@@ -2,7 +2,7 @@ import {
   publicLodgingRooms,
   submitPublicLodgingRequestAction,
 } from "@/modules/lodging/application/public-actions";
-import { clp } from "@/modules/lodging/application/queries";
+import { RoomAvailabilityPicker } from "./room-availability-picker";
 
 export const metadata = {
   title: "Reservar | Hostal Oasis Atacama",
@@ -81,41 +81,8 @@ export default async function ReservarHostalUruguayPage({
         >
           <div className="rounded-2xl border border-[#e4d9c8] bg-white p-5">
             <h2 className="font-semibold text-[#241c16]">1. Habitación y fechas</h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label className={`${label} sm:col-span-2`}>
-                Habitación
-                <select name="room_id" required defaultValue="" className={field}>
-                  <option value="" disabled>
-                    Elige una habitación
-                  </option>
-                  {rooms.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} · {clp.format(Number(r.base_rate))} / noche ·{" "}
-                      {r.capacity} {r.capacity === 1 ? "persona" : "personas"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={label}>
-                Entrada
-                <input name="check_in" type="date" required className={field} />
-              </label>
-              <label className={label}>
-                Salida
-                <input name="check_out" type="date" required className={field} />
-              </label>
-              <label className={label}>
-                Personas
-                <input
-                  name="guest_count"
-                  type="number"
-                  min={1}
-                  max={20}
-                  defaultValue={1}
-                  required
-                  className={field}
-                />
-              </label>
+            <div className="mt-4">
+              <RoomAvailabilityPicker rooms={rooms} />
             </div>
           </div>
 
