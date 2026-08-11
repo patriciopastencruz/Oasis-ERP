@@ -19,6 +19,7 @@
     "next": "16.2.10",
     "pdf-lib": "1.17.1",
     "react": "19.2.4",
+    "react-day-picker": "^10.0.1",
     "react-dom": "19.2.4",
     "resend": "6.17.2",
     "server-only": "^0.0.1",
