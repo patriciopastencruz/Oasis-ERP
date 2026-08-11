@@ -10,6 +10,14 @@ export const metadata = {
     "Reserva tu habitación en Hostal Oasis Atacama, Calama. Elige fechas, transfiere y sube tu comprobante.",
 };
 
+// La disponibilidad y el listado de habitaciones deben leerse en vivo en
+// cada visita: sin esto, la Data Cache de Next.js puede congelar la
+// respuesta de publicLodgingRooms() (supabase-js usa fetch por debajo) y
+// servir un resultado desactualizado aunque la ruta sea dinámica.
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
+
 const BANK_ACCOUNT = {
   bank: "Banco de Chile",
   accountType: "Cuenta FAN Emprende",
