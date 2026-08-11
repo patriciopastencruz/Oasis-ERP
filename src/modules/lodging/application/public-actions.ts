@@ -11,6 +11,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -244,7 +245,13 @@ export async function submitPublicLodgingRequestAction(form: FormData) {
 
   // El correo al staff es un efecto secundario: si Resend falla, la
   // solicitud ya quedó guardada y visible en el ERP de todos modos.
-  await dispatchApprovalEmails().catch(() => {});
+  // after() (no un await suelto antes del redirect) porque en Vercel la
+  // función serverless puede cortarse apenas se envía la respuesta del
+  // redirect, truncando trabajo asíncrono que todavía no terminó; after()
+  // le pide a la plataforma mantener la función viva hasta que esto
+  // termine. El cron dispatch-approval-emails es el respaldo si aun así
+  // falla.
+  after(() => dispatchApprovalEmails().catch(() => {}));
 
   revalidatePath("/lodging");
   go(RETURN_PATH, "success", "¡Recibimos tu solicitud! Te confirmaremos por WhatsApp o correo en las próximas horas.");
