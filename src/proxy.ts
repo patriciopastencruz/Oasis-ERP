@@ -1,6 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-const PUBLIC = ["/login", "/forgot-password", "/auth/callback", "/setup"];
+const PUBLIC = [
+  "/login",
+  "/forgot-password",
+  "/auth/callback",
+  "/setup",
+  // Página pública de reserva de Hostal Uruguay (sin sesión, ver
+  // src/app/(public)/reservar/hostal-uruguay/page.tsx).
+  "/reservar",
+];
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
