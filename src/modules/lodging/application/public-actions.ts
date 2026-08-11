@@ -28,12 +28,13 @@ function go(path: string, key: "success" | "error", message: string): never {
 
 async function resolvePublicUnit() {
   const db = createSupabaseAdminClient();
-  const { data: unit } = await db
+  const { data: unit, error } = await db
     .from("business_units")
     .select("id,company_id,name")
     .eq("code", PUBLIC_UNIT_CODE)
     .is("deleted_at", null)
     .maybeSingle();
+  console.log("[DEBUG resolvePublicUnit]", JSON.stringify({ unit, error }));
   return unit;
 }
 
@@ -48,8 +49,21 @@ export async function publicLodgingRooms() {
     .eq("active", true)
     .not("status", "in", '("maintenance","out_of_service")')
     .order("display_order");
-  if (error)
-    console.error("[publicLodgingRooms] fallo al listar habitaciones", error);
+  const { data: allRoomsForUnit, error: allError } = await db
+    .from("lodging_rooms")
+    .select("id,code,name,active,status")
+    .eq("business_unit_id", unit.id);
+  console.log(
+    "[DEBUG publicLodgingRooms]",
+    JSON.stringify({
+      unitId: unit.id,
+      filteredCount: rooms?.length ?? null,
+      filteredError: error,
+      allForUnitCount: allRoomsForUnit?.length ?? null,
+      allForUnit: allRoomsForUnit,
+      allError,
+    }),
+  );
   return { unit, rooms: rooms ?? [] };
 }
 
