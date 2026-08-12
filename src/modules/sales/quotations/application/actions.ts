@@ -108,6 +108,20 @@ export async function reviewQuotationAction(form: FormData) {
   );
 }
 
+export async function revertQuotationReviewAction(form: FormData) {
+  const { supabase } = await salesContext("sales.quotations.approve");
+  const id = uuid.parse(form.get("quotation_id"));
+  const returnPath = `/sales/quotations/${id}`;
+  const { error } = await supabase.rpc("om_revert_quotation_review", {
+    target_quotation: id,
+  });
+  if (error) done(returnPath, "error", errorMessage(error));
+  revalidatePath("/sales/quotations");
+  revalidatePath("/sales/quotations/approvals");
+  revalidatePath(returnPath);
+  done(returnPath, "success", "Cotización revertida a pendiente.");
+}
+
 export async function deleteQuotationAction(form: FormData) {
   const { supabase } = await salesContext("sales.quotations.create");
   const id = uuid.parse(form.get("quotation_id"));

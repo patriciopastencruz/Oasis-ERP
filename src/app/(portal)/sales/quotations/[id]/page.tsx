@@ -7,6 +7,7 @@ import { PageHeader, Panel } from "@/components/ui/page";
 import { clp } from "@/modules/sales/quotations/domain/quotation";
 import {
   markDeliveredAction,
+  revertQuotationReviewAction,
   submitQuotationAction,
   updateQuotationAction,
 } from "@/modules/sales/quotations/application/actions";
@@ -95,6 +96,24 @@ export default async function QuotationDetail({
           </p>
         </Panel>
       )}
+
+      {canApprove &&
+        !project &&
+        ["approved", "rejected"].includes(quotation.status) && (
+          <Panel className="mb-5">
+            <h2 className="mb-2 font-semibold">Revertir decisión</h2>
+            <p className="mb-3 text-sm text-[#63778e]">
+              Vuelve a dejar esta cotización pendiente de aprobación, por
+              ejemplo si se aprobó o rechazó por error.
+            </p>
+            <form action={revertQuotationReviewAction}>
+              <input type="hidden" name="quotation_id" value={quotation.id} />
+              <button className="rounded-xl border border-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--oasis-primary)]">
+                Revertir a pendiente
+              </button>
+            </form>
+          </Panel>
+        )}
 
       {editable ? (
         <>
