@@ -137,7 +137,7 @@ export default async function ReservarHostalUruguayPage({
                 type="file"
                 accept=".pdf,.jpg,.jpeg,.png,.webp"
                 required
-                className="mt-1 block w-full text-sm text-[#3a2f26]"
+                className="mt-1 block w-full cursor-pointer text-sm text-[#3a2f26] file:mr-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-[#c1652f] file:px-5 file:py-2.5 file:text-sm file:font-semibold file:text-white file:transition hover:file:bg-[#a4531f]"
               />
               <span className="mt-1 block text-xs text-[#6b5d4f]">
                 PDF, JPG, PNG o WEBP, hasta 10 MB.
