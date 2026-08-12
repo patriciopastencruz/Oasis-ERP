@@ -4,7 +4,10 @@ import { EditUserForm } from "@/components/admin/edit-user-form";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
-import { toggleUserAction } from "@/modules/platform/admin/application/actions";
+import {
+  sendRecoveryAction,
+  toggleUserAction,
+} from "@/modules/platform/admin/application/actions";
 
 export default async function Users({
   searchParams,
@@ -161,6 +164,12 @@ export default async function Users({
                           />
                           <button className="text-xs font-semibold text-[#0b4f9c]">
                             {u.active ? "Desactivar" : "Activar"}
+                          </button>
+                        </form>
+                        <form action={sendRecoveryAction}>
+                          <input type="hidden" name="email" value={u.email} />
+                          <button className="text-xs font-semibold text-[#0b4f9c]">
+                            Enviar recuperación
                           </button>
                         </form>
                       </div>
