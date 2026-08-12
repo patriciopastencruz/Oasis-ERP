@@ -33,6 +33,7 @@ import {
   FolderKanban,
   MessageCircle,
   ListTodo,
+  Mail,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -225,6 +226,12 @@ const administrationNav = [
     label: "Asistente ERP",
     icon: Bot,
     permission: "assistant.admin.manage",
+  },
+  {
+    href: "/admin/notifications",
+    label: "Correos de aprobación",
+    icon: Mail,
+    permission: "administration.users.manage",
   },
 ];
 
