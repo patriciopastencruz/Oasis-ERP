@@ -50,8 +50,7 @@ async function deliverApprovalEmails(batchSize: number) {
   const rows = (data ?? []) as OutboxRow[];
   let sent = 0;
   let failed = 0;
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://oasis-erp.vercel.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://oasis-erp.cl";
 
   for (const row of rows) {
     try {
