@@ -81,16 +81,24 @@ export default async function Page({
       "id,check_in,check_out,estimated_arrival,total_value,origin,raw_summary,lodging_rooms(name,display_order),lodging_guests(full_name),lodging_reservation_payments(amount,type,status)",
     )
     .eq("business_unit_id", link.business_unit_id)
-    .gte("check_in", todayIso)
+    // No solo quién llega cada día: también quién ya está alojado y sigue
+    // ocupando la pieza (check_in pudo ser antes de hoy). Mismo criterio de
+    // "ocupado" que el resto del sistema: [check_in, check_out).
     .lt("check_in", rangeEnd)
+    .gt("check_out", todayIso)
     .not("status", "in", '("cancelled","conflict")')
     .order("check_in");
 
-  const byDay = new Map<string, NonNullable<typeof reservations>>();
+  type Reservation = NonNullable<typeof reservations>[number];
+  const byDay = new Map<string, { reservation: Reservation; isArrivalDay: boolean }[]>();
   for (const r of reservations ?? []) {
-    const list = byDay.get(r.check_in) ?? [];
-    list.push(r);
-    byDay.set(r.check_in, list);
+    let day = r.check_in < todayIso ? todayIso : r.check_in;
+    while (day < r.check_out && day < rangeEnd) {
+      const list = byDay.get(day) ?? [];
+      list.push({ reservation: r, isArrivalDay: day === r.check_in });
+      byDay.set(day, list);
+      day = addDays(day, 1);
+    }
   }
   const days = [...byDay.keys()].sort();
 
@@ -143,8 +151,12 @@ export default async function Page({
 
       {days.map((day) => {
         const list = [...(byDay.get(day) ?? [])].sort((a, b) => {
-          const ra = Array.isArray(a.lodging_rooms) ? a.lodging_rooms[0] : a.lodging_rooms;
-          const rb = Array.isArray(b.lodging_rooms) ? b.lodging_rooms[0] : b.lodging_rooms;
+          const ra = Array.isArray(a.reservation.lodging_rooms)
+            ? a.reservation.lodging_rooms[0]
+            : a.reservation.lodging_rooms;
+          const rb = Array.isArray(b.reservation.lodging_rooms)
+            ? b.reservation.lodging_rooms[0]
+            : b.reservation.lodging_rooms;
           return (ra?.display_order ?? 0) - (rb?.display_order ?? 0);
         });
         const isToday = day === todayIso;
@@ -163,7 +175,7 @@ export default async function Page({
               {dayLabel(day, todayIso, tomorrowIso)}
             </h2>
             <div style={{ display: "grid", gap: 14 }}>
-              {list.map((r) => {
+              {list.map(({ reservation: r, isArrivalDay }) => {
                 const room = Array.isArray(r.lodging_rooms) ? r.lodging_rooms[0] : r.lodging_rooms;
                 const guest = Array.isArray(r.lodging_guests) ? r.lodging_guests[0] : r.lodging_guests;
                 const name =
@@ -180,7 +192,7 @@ export default async function Page({
                 ).balance;
                 return (
                   <article
-                    key={r.id}
+                    key={`${r.id}-${day}`}
                     style={{
                       background: "#fff",
                       border: "1px solid #dbe4ee",
@@ -201,18 +213,32 @@ export default async function Page({
                       <span style={{ fontSize: 21, fontWeight: 800, color: "#1c2b3a" }}>
                         {room?.name ?? "Habitación"}
                       </span>
-                      <span
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "#0b4f9c",
-                          background: "#e8f0fb",
-                          borderRadius: 999,
-                          padding: "4px 12px",
-                        }}
-                      >
-                        {originLabels[r.origin] ?? r.origin}
-                      </span>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: isArrivalDay ? "#1f8a4c" : "#5a6b7d",
+                            background: isArrivalDay ? "#e6f5ec" : "#eef1f5",
+                            borderRadius: 999,
+                            padding: "4px 12px",
+                          }}
+                        >
+                          {isArrivalDay ? "Llega hoy" : "Ya alojado"}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: "#0b4f9c",
+                            background: "#e8f0fb",
+                            borderRadius: 999,
+                            padding: "4px 12px",
+                          }}
+                        >
+                          {originLabels[r.origin] ?? r.origin}
+                        </span>
+                      </div>
                     </div>
                     <p style={{ margin: "10px 0 0", fontSize: 19, color: "#2e3946" }}>
                       {name}
@@ -227,8 +253,18 @@ export default async function Page({
                       }}
                     >
                       <span style={{ fontSize: 18 }}>
-                        🕒 Llegada:{" "}
-                        <b>{r.estimated_arrival?.slice(0, 5) || "Sin hora"}</b>
+                        {isArrivalDay ? (
+                          <>
+                            🕒 Llegada:{" "}
+                            <b>{r.estimated_arrival?.slice(0, 5) || "Sin hora"}</b>
+                          </>
+                        ) : (
+                          <>🏠 Alojado desde el {new Intl.DateTimeFormat("es-CL", {
+                            timeZone: "America/Santiago",
+                            day: "numeric",
+                            month: "long",
+                          }).format(new Date(`${r.check_in}T12:00:00Z`))}</>
+                        )}
                       </span>
                       <span style={{ fontSize: 18 }}>
                         💵 A cobrar:{" "}
