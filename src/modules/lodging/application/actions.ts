@@ -9,6 +9,7 @@ import { parseIcal, totalForStay } from "../domain/reservations";
 import { detectedMime } from "../domain/receipts";
 import { fetchIcal, assertSafeIcalUrl } from "./security";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { dispatchApprovalEmails } from "@/lib/notifications/approval-email";
 
 const uuid = z.string().uuid();
 const text = z.string().trim().min(1);
@@ -763,4 +764,8 @@ export async function synchronizeUnit(unitId?: string) {
       });
     }
   }
+  // El correo es un efecto secundario del sync: si Resend falla, las
+  // reservas importadas ya quedaron guardadas y visibles en el ERP igual.
+  // El cron dispatch-approval-emails es el respaldo si esto no llega a correr.
+  await dispatchApprovalEmails().catch(() => {});
 }
