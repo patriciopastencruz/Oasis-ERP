@@ -224,7 +224,7 @@ export default async function Page({
                             padding: "4px 12px",
                           }}
                         >
-                          {isArrivalDay ? "Llega hoy" : "Ya alojado"}
+                          {isArrivalDay ? "Llega hoy" : "Alojando"}
                         </span>
                         <span
                           style={{
