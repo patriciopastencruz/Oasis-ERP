@@ -78,7 +78,7 @@ export default async function Page({
   const { data: reservations } = await db
     .from("lodging_reservations")
     .select(
-      "id,check_in,check_out,estimated_arrival,total_value,origin,raw_summary,lodging_rooms(name,display_order),lodging_guests(full_name),lodging_reservation_payments(amount,type,status)",
+      "id,check_in,check_out,estimated_arrival,total_value,origin,raw_summary,information_complete,lodging_rooms(name,display_order),lodging_guests(full_name),lodging_reservation_payments(amount,type,status)",
     )
     .eq("business_unit_id", link.business_unit_id)
     // No solo quién llega cada día: también quién ya está alojado y sigue
@@ -190,6 +190,11 @@ export default async function Page({
                     status: p.status as never,
                   })),
                 ).balance;
+                // Las reservas importadas por iCal sin datos completos
+                // quedan con total_value en 0 hasta que el staff carga el
+                // monto real: eso no es lo mismo que "ya está pagado".
+                const amountUnknown =
+                  Number(r.total_value) === 0 && !r.information_complete;
                 return (
                   <article
                     key={`${r.id}-${day}`}
@@ -268,8 +273,20 @@ export default async function Page({
                       </span>
                       <span style={{ fontSize: 18 }}>
                         💵 A cobrar:{" "}
-                        <b style={{ color: balance > 0 ? "#b3541e" : "#1f8a4c" }}>
-                          {balance > 0 ? clp.format(balance) : "Pagado"}
+                        <b
+                          style={{
+                            color: amountUnknown
+                              ? "#7d8ea1"
+                              : balance > 0
+                                ? "#b3541e"
+                                : "#1f8a4c",
+                          }}
+                        >
+                          {amountUnknown
+                            ? "Monto sin registrar"
+                            : balance > 0
+                              ? clp.format(balance)
+                              : "Pagado"}
                         </b>
                       </span>
                     </div>
