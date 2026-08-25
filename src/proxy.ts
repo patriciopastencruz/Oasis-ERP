@@ -8,6 +8,10 @@ const PUBLIC = [
   // Página pública de reserva de Hostal Uruguay (sin sesión, ver
   // src/app/(public)/reservar/hostal-uruguay/page.tsx).
   "/reservar",
+  // Calendario de solo lectura para familiares sin cuenta en el ERP,
+  // protegido por token opaco en la URL en vez de sesión (ver
+  // src/app/(public)/calendario/[token]/page.tsx).
+  "/calendario",
 ];
 // El dominio propio (oasis-erp.cl) reemplazó a la URL de Vercel como
 // dirección oficial. Quien entre por el link antiguo ve un aviso con botón
