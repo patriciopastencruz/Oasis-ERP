@@ -112,14 +112,16 @@ export default async function Page({
   const occupancyRates = days.map((d) =>
     totalRooms ? (occupiedByDay.get(d)?.size ?? 0) / totalRooms : 0,
   );
-  const avgAvailabilityPct = days.length
+  const avgOccupancyPct = days.length
     ? Math.round(
-        (1 - occupancyRates.reduce((a, b) => a + b, 0) / days.length) * 100,
+        (occupancyRates.reduce((a, b) => a + b, 0) / days.length) * 100,
       )
     : 0;
 
   const occupiedSelected = occupiedByDay.get(selectedIso)?.size ?? 0;
-  const availableSelected = Math.max(0, totalRooms - occupiedSelected);
+  const occupancyPctSelected = totalRooms
+    ? Math.round((occupiedSelected / totalRooms) * 100)
+    : 0;
 
   let selectedIncome = 0;
   let monthIncome = 0;
@@ -146,17 +148,24 @@ export default async function Page({
 
   const label = dayLabel(selectedIso, todayIso);
   const cards = [
-    [`Ingreso recibido — ${label}`, clp.format(selectedIncome), Wallet],
-    [`Disponibilidad — ${label}`, `${availableSelected} / ${totalRooms}`, BedDouble],
+    [`Ingreso recibido — ${label}`, clp.format(selectedIncome), Wallet, null],
     [
-      `Disponibilidad promedio de ${monthLabel(selectedIso)}`,
-      `${avgAvailabilityPct}%`,
+      `Ocupación — ${label}`,
+      `${occupancyPctSelected}%`,
+      BedDouble,
+      `${occupiedSelected} de ${totalRooms} habitaciones`,
+    ],
+    [
+      `Ocupación acumulada de ${monthLabel(selectedIso)}`,
+      `${avgOccupancyPct}%`,
       PieChart,
+      "Promedio diario del mes",
     ],
     [
       `Ingreso acumulado de ${monthLabel(selectedIso)}`,
       clp.format(monthIncome),
       TrendingUp,
+      null,
     ],
   ] as const;
 
@@ -189,7 +198,7 @@ export default async function Page({
         </div>
       </div>
       <div className="mb-5 mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(([title, value, Icon]) => (
+        {cards.map(([title, value, Icon, sub]) => (
           <div
             key={title}
             className="rounded-2xl border border-[#d9dfe6] bg-white p-4 shadow-[0_10px_30px_rgba(20,57,39,.04)]"
@@ -203,6 +212,11 @@ export default async function Page({
             <span className="mt-1.5 block text-xs leading-tight text-slate-500">
               {title}
             </span>
+            {sub && (
+              <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
+                {sub}
+              </span>
+            )}
           </div>
         ))}
       </div>
