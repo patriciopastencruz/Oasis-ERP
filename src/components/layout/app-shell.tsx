@@ -34,6 +34,7 @@ import {
   MessageCircle,
   ListTodo,
   Mail,
+  PieChart,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -346,6 +347,12 @@ const lodgingNav = [
     href: "/lodging/rooms",
     label: "Habitaciones",
     icon: BedDouble,
+    permission: "lodging.reservations.view",
+  },
+  {
+    href: "/lodging/reports",
+    label: "Reportabilidad",
+    icon: PieChart,
     permission: "lodging.reservations.view",
   },
   {
