@@ -1,4 +1,5 @@
-import { TrendingUp, BedDouble, Wallet, PieChart } from "lucide-react";
+import Link from "next/link";
+import { TrendingUp, BedDouble, Wallet, PieChart, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
 
@@ -25,6 +26,18 @@ function monthLabel(iso: string) {
   }).format(new Date(`${iso}T12:00:00Z`));
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
+function dayLabel(iso: string, todayIso: string) {
+  if (iso === todayIso) return "Hoy";
+  if (iso === addDays(todayIso, -1)) return "Ayer";
+  if (iso === addDays(todayIso, 1)) return "Mañana";
+  const formatted = new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(`${iso}T12:00:00Z`));
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
 
 const originLabels: Record<string, string> = {
   airbnb: "Airbnb",
@@ -36,13 +49,21 @@ const originLabels: Record<string, string> = {
   other: "Otro",
 };
 // Orden fijo pedido: Airbnb, Booking, Directa primero; el resto solo si
-// tiene movimiento este mes.
+// tiene movimiento ese mes.
 const originOrder = ["airbnb", "booking", "direct", "whatsapp", "company", "public_web", "other"];
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const q = await searchParams;
   const { unit, supabase } = await lodgingContext();
   const todayIso = todayInSantiago();
-  const monthStartIso = `${todayIso.slice(0, 7)}-01`;
+  const selectedIso = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : todayIso;
+  const monthStartIso = `${selectedIso.slice(0, 7)}-01`;
+  const prevIso = addDays(selectedIso, -1);
+  const nextIso = addDays(selectedIso, 1);
 
   const [{ data: rooms }, { data: reservations }, { data: payments }] =
     await Promise.all([
@@ -56,14 +77,15 @@ export default async function Page() {
         .select("room_id,check_in,check_out")
         .eq("business_unit_id", unit.id)
         .not("status", "in", '("cancelled","conflict")')
-        .lt("check_in", addDays(todayIso, 1))
+        .lt("check_in", addDays(selectedIso, 1))
         .gt("check_out", monthStartIso),
       supabase
         .from("lodging_reservation_payments")
         .select("amount,type,status,paid_at,lodging_reservations(origin)")
         .eq("business_unit_id", unit.id)
         .eq("status", "confirmed")
-        .gte("paid_at", `${addDays(monthStartIso, -1)}T00:00:00Z`),
+        .gte("paid_at", `${addDays(monthStartIso, -1)}T00:00:00Z`)
+        .lt("paid_at", `${addDays(selectedIso, 1)}T00:00:00Z`),
     ]);
 
   const sellableRooms = (rooms ?? []).filter(
@@ -72,9 +94,9 @@ export default async function Page() {
   const totalRooms = sellableRooms.length;
   const sellableIds = new Set(sellableRooms.map((r) => r.id));
 
-  // Días transcurridos del mes (del 1 a hoy inclusive) para el promedio.
+  // Días transcurridos del mes seleccionado (del 1 al día elegido, inclusive).
   const days: string[] = [];
-  for (let d = monthStartIso; d <= todayIso; d = addDays(d, 1)) days.push(d);
+  for (let d = monthStartIso; d <= selectedIso; d = addDays(d, 1)) days.push(d);
 
   const occupiedByDay = new Map<string, Set<string>>(
     days.map((d) => [d, new Set<string>()]),
@@ -82,7 +104,7 @@ export default async function Page() {
   for (const r of reservations ?? []) {
     if (!sellableIds.has(r.room_id)) continue;
     let d = r.check_in < monthStartIso ? monthStartIso : r.check_in;
-    while (d < r.check_out && d <= todayIso) {
+    while (d < r.check_out && d <= selectedIso) {
       occupiedByDay.get(d)?.add(r.room_id);
       d = addDays(d, 1);
     }
@@ -96,18 +118,18 @@ export default async function Page() {
       )
     : 0;
 
-  const occupiedToday = occupiedByDay.get(todayIso)?.size ?? 0;
-  const availableToday = Math.max(0, totalRooms - occupiedToday);
+  const occupiedSelected = occupiedByDay.get(selectedIso)?.size ?? 0;
+  const availableSelected = Math.max(0, totalRooms - occupiedSelected);
 
-  let todayIncome = 0;
+  let selectedIncome = 0;
   let monthIncome = 0;
   const byOrigin = new Map<string, number>();
   for (const p of payments ?? []) {
     const day = santiagoDateOf(p.paid_at);
-    if (day < monthStartIso || day > todayIso) continue;
+    if (day < monthStartIso || day > selectedIso) continue;
     const signed = p.type === "refund" ? -Number(p.amount) : Number(p.amount);
     monthIncome += signed;
-    if (day === todayIso) todayIncome += signed;
+    if (day === selectedIso) selectedIncome += signed;
     const reservation = Array.isArray(p.lodging_reservations)
       ? p.lodging_reservations[0]
       : p.lodging_reservations;
@@ -122,20 +144,17 @@ export default async function Page() {
       amount: byOrigin.get(origin) ?? 0,
     }));
 
+  const label = dayLabel(selectedIso, todayIso);
   const cards = [
-    ["Ingreso recibido hoy", clp.format(todayIncome), Wallet],
+    [`Ingreso recibido — ${label}`, clp.format(selectedIncome), Wallet],
+    [`Disponibilidad — ${label}`, `${availableSelected} / ${totalRooms}`, BedDouble],
     [
-      "Disponibilidad hoy",
-      `${availableToday} / ${totalRooms}`,
-      BedDouble,
-    ],
-    [
-      `Disponibilidad promedio de ${monthLabel(todayIso)}`,
+      `Disponibilidad promedio de ${monthLabel(selectedIso)}`,
       `${avgAvailabilityPct}%`,
       PieChart,
     ],
     [
-      `Ingreso acumulado de ${monthLabel(todayIso)}`,
+      `Ingreso acumulado de ${monthLabel(selectedIso)}`,
       clp.format(monthIncome),
       TrendingUp,
     ],
@@ -143,12 +162,33 @@ export default async function Page() {
 
   return (
     <>
-      <PageHeader
-        eyebrow={unit.name}
-        title="Reportabilidad"
-        description="Ingreso del día, disponibilidad de habitaciones y acumulado del mes por canal."
-      />
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageHeader
+          eyebrow={unit.name}
+          title="Reportabilidad"
+          description="Ingreso del día, disponibilidad de habitaciones y acumulado del mes por canal."
+        />
+        <div className="flex items-center gap-2 rounded-xl border border-[#d9dfe6] bg-white px-2 py-1.5 shadow-[0_3px_12px_rgba(15,23,42,.03)]">
+          <Link
+            href={`/lodging/reports?date=${prevIso}`}
+            className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-50"
+            aria-label="Día anterior"
+          >
+            <ChevronLeft size={18} />
+          </Link>
+          <span className="min-w-[9rem] text-center text-sm font-semibold text-slate-800">
+            {label}
+          </span>
+          <Link
+            href={`/lodging/reports?date=${nextIso}`}
+            className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-50"
+            aria-label="Día siguiente"
+          >
+            <ChevronRight size={18} />
+          </Link>
+        </div>
+      </div>
+      <div className="mb-5 mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(([title, value, Icon]) => (
           <div
             key={title}
@@ -168,19 +208,19 @@ export default async function Page() {
       </div>
       <Panel>
         <h2 className="font-semibold">
-          Desglose del ingreso de {monthLabel(todayIso)} por canal
+          Desglose del ingreso de {monthLabel(selectedIso)} por canal
         </h2>
         <p className="mt-1 text-xs text-slate-500">
-          Suma de pagos confirmados este mes, netos de reembolsos.
+          Suma de pagos confirmados desde el 1 del mes hasta {label.toLowerCase()}, netos de reembolsos.
         </p>
         <div className="mt-4 space-y-2">
-          {breakdown.map(({ origin, label, amount }) => {
+          {breakdown.map(({ origin, label: originName, amount }) => {
             const pct =
               monthIncome > 0 ? Math.round((amount / monthIncome) * 100) : 0;
             return (
               <div key={origin} className="flex items-center gap-3 text-sm">
                 <span className="w-20 shrink-0 font-medium text-slate-700">
-                  {label}
+                  {originName}
                 </span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                   <div
@@ -199,7 +239,7 @@ export default async function Page() {
           })}
           {monthIncome === 0 && (
             <p className="text-sm text-slate-500">
-              Aún no hay ingresos registrados este mes.
+              Aún no hay ingresos registrados en este rango.
             </p>
           )}
         </div>
