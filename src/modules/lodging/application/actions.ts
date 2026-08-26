@@ -548,6 +548,20 @@ export async function saveIcalConfigAction(form: FormData) {
   go("/lodging/ical", "success", "Calendario configurado correctamente.");
 }
 
+export async function deleteIcalConfigAction(form: FormData) {
+  await requirePermission("lodging.ical.configure");
+  const parsed = uuid.safeParse(form.get("id"));
+  if (!parsed.success) go("/lodging/ical", "error", "Calendario inválido.");
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("delete_lodging_ical_config", {
+    target_config: parsed.data,
+  });
+  if (error)
+    go("/lodging/ical", "error", "No fue posible eliminar el calendario.");
+  revalidatePath("/lodging/ical");
+  go("/lodging/ical", "success", "Calendario eliminado.");
+}
+
 export async function synchronizeCalendars(unitId: string) {
   const ctx = await requirePermission("lodging.ical.sync");
   if (!ctx.units.some((u) => u.id === unitId)) return { ok: false as const };

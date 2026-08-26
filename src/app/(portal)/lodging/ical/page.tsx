@@ -1,7 +1,11 @@
 import { PageHeader, Panel } from "@/components/ui/page";
 import { lodgingContext } from "@/modules/lodging/application/queries";
-import { saveIcalConfigAction } from "@/modules/lodging/application/actions";
+import {
+  saveIcalConfigAction,
+  deleteIcalConfigAction,
+} from "@/modules/lodging/application/actions";
 import { SyncButton } from "@/components/lodging/sync-button";
+import { ConfirmButton } from "@/components/sales/confirm-button";
 export default async function Page({
   searchParams,
 }: {
@@ -51,21 +55,37 @@ export default async function Page({
               const relatedRoom = c.lodging_rooms as unknown as
                 { name: string } | { name: string }[] | null;
               return (
-                <div key={c.id} className="rounded-xl border p-3 text-sm">
-                  <b>{c.name}</b>
-                  <span className="ml-2 capitalize text-slate-500">
-                    {c.provider}
-                  </span>
-                  <span className="block text-xs text-slate-500">
-                    {Array.isArray(relatedRoom)
-                      ? relatedRoom[0]?.name
-                      : relatedRoom?.name}{" "}
-                    ·{" "}
-                    {c.last_sync_at
-                      ? `Última actualización ${new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short", hour12: false }).format(new Date(c.last_sync_at))}`
-                      : "Aún no sincronizado"}{" "}
-                    · {c.last_result ?? "pendiente"}
-                  </span>
+                <div
+                  key={c.id}
+                  className="flex items-start justify-between gap-3 rounded-xl border p-3 text-sm"
+                >
+                  <div>
+                    <b>{c.name}</b>
+                    <span className="ml-2 capitalize text-slate-500">
+                      {c.provider}
+                    </span>
+                    <span className="block text-xs text-slate-500">
+                      {Array.isArray(relatedRoom)
+                        ? relatedRoom[0]?.name
+                        : relatedRoom?.name}{" "}
+                      ·{" "}
+                      {c.last_sync_at
+                        ? `Última actualización ${new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short", hour12: false }).format(new Date(c.last_sync_at))}`
+                        : "Aún no sincronizado"}{" "}
+                      · {c.last_result ?? "pendiente"}
+                    </span>
+                  </div>
+                  {can && (
+                    <form action={deleteIcalConfigAction}>
+                      <input type="hidden" name="id" value={c.id} />
+                      <ConfirmButton
+                        message={`¿Eliminar el calendario "${c.name}"? Las reservas ya importadas se mantienen, pero dejará de sincronizarse.`}
+                        className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                      >
+                        Eliminar
+                      </ConfirmButton>
+                    </form>
+                  )}
                 </div>
               );
             })}
