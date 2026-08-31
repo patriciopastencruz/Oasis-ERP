@@ -23,6 +23,30 @@ const origins = z.enum([
   "other",
 ]);
 
+// El input <input type="datetime-local"> del formulario de pagos entrega
+// "YYYY-MM-DDTHH:mm" en hora de pared de Santiago, sin offset ni "Z" --
+// z.string().datetime() de Zod v4 exige el sufijo "Z" y siempre la rechaza
+// ("Invalid ISO datetime"), así que nunca se pudo registrar un pago desde
+// el formulario. Convertimos manualmente a un instante UTC real, tomando
+// en cuenta el horario de verano de Chile (el offset cambia entre -3 y -4).
+function santiagoLocalToUtcIso(local: string) {
+  const guessUtc = new Date(`${local}${local.length === 16 ? ":00" : ""}Z`);
+  const offsetLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Santiago",
+    timeZoneName: "shortOffset",
+  })
+    .formatToParts(guessUtc)
+    .find((p) => p.type === "timeZoneName")!.value;
+  const [, sign, hours, minutes] = offsetLabel.match(
+    /GMT([+-])(\d+)(?::(\d+))?/,
+  )!;
+  const offsetMs =
+    (Number(hours) * 60 + Number(minutes ?? 0)) *
+    60_000 *
+    (sign === "-" ? 1 : -1);
+  return new Date(guessUtc.getTime() + offsetMs).toISOString();
+}
+
 function go(path: string, key: "success" | "error", message: string): never {
   const separator = path.includes("?") ? "&" : "?";
   redirect(`${path}${separator}${key}=${encodeURIComponent(message)}`);
@@ -230,7 +254,9 @@ export async function registerPaymentAction(form: FormData) {
         "other",
       ]),
       amount: z.coerce.number().positive(),
-      paid_at: z.string().datetime(),
+      paid_at: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/, "Fecha y hora inválidas."),
       operation_number: z.string().trim().max(100),
       bank: z.string().trim().max(100),
       notes: z.string().trim().max(300),
@@ -259,9 +285,11 @@ export async function registerPaymentAction(form: FormData) {
       "error",
       "Un pago superior al saldo requiere una observación.",
     );
-  const { error } = await s
-    .from("lodging_reservation_payments")
-    .insert({ ...parsed.data, registered_by: ctx.user.id });
+  const { error } = await s.from("lodging_reservation_payments").insert({
+    ...parsed.data,
+    paid_at: santiagoLocalToUtcIso(parsed.data.paid_at),
+    registered_by: ctx.user.id,
+  });
   if (error)
     go(
       `/lodging/reservations/${parsed.data.reservation_id}`,
