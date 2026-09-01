@@ -1,8 +1,16 @@
 import Link from "next/link";
-import { BedDouble, LogIn, LogOut, WalletCards, Plus } from "lucide-react";
+import {
+  BedDouble,
+  LogIn,
+  LogOut,
+  WalletCards,
+  Plus,
+  PieChart,
+  Wallet,
+} from "lucide-react";
 import { WeeklyCalendar } from "@/components/lodging/weekly-calendar";
 import { SyncButton } from "@/components/lodging/sync-button";
-import { calendarData } from "@/modules/lodging/application/queries";
+import { calendarData, clp } from "@/modules/lodging/application/queries";
 
 function localDate() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -31,18 +39,25 @@ export default async function Page() {
       r.check_out > today &&
       !["cancelled", "conflict"].includes(r.status),
   );
+  const sellableRooms = data.rooms.filter(
+    (r) => r.status !== "out_of_service" && r.status !== "maintenance",
+  ).length;
+  const occupancyPct = sellableRooms
+    ? Math.round((todayReservations.length / sellableRooms) * 100)
+    : 0;
+  const totalAmountToday = todayReservations.reduce(
+    (sum, r) => sum + Number(r.total_value),
+    0,
+  );
   const cards = [
     ["Habitaciones ocupadas hoy", todayReservations.length, BedDouble],
     [
       "Habitaciones disponibles hoy",
-      Math.max(
-        0,
-        data.rooms.filter(
-          (r) => r.status !== "out_of_service" && r.status !== "maintenance",
-        ).length - todayReservations.length,
-      ),
+      Math.max(0, sellableRooms - todayReservations.length),
       BedDouble,
     ],
+    ["% Ocupación hoy", `${occupancyPct}%`, PieChart],
+    ["Monto total del día", clp.format(totalAmountToday), Wallet],
     [
       "Llegadas de hoy",
       data.reservations.filter((r) => r.check_in === today).length,
@@ -84,7 +99,7 @@ export default async function Page() {
           <SyncButton unitId={data.unit.id} />
         </div>
       </div>
-      <div className="mb-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         {cards.map(([title, value, Icon]) => (
           <div
             key={title}
