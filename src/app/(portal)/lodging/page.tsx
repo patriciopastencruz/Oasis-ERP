@@ -51,6 +51,9 @@ export default async function Page() {
     (sum, r) => sum + Number(r.total_value) / (r.nights || 1),
     0,
   );
+  const averagePerRoom = todayReservations.length
+    ? totalAmountToday / todayReservations.length
+    : 0;
   const cards = [
     ["Habitaciones ocupadas hoy", todayReservations.length, BedDouble],
     [
@@ -60,6 +63,7 @@ export default async function Page() {
     ],
     ["% Ocupación hoy", `${occupancyPct}%`, PieChart],
     ["Monto total del día", clp.format(totalAmountToday), Wallet],
+    ["Promedio por habitación", clp.format(averagePerRoom), Wallet],
     [
       "Llegadas de hoy",
       data.reservations.filter((r) => r.check_in === today).length,
@@ -101,7 +105,7 @@ export default async function Page() {
           <SyncButton unitId={data.unit.id} />
         </div>
       </div>
-      <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+      <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map(([title, value, Icon]) => (
           <div
             key={title}
