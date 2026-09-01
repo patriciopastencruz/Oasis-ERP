@@ -45,8 +45,10 @@ export default async function Page() {
   const occupancyPct = sellableRooms
     ? Math.round((todayReservations.length / sellableRooms) * 100)
     : 0;
+  // Prorrateado por noche: una reserva de 3 noches solo aporta 1/3 de su
+  // total_value al día de hoy, en vez del contrato completo.
   const totalAmountToday = todayReservations.reduce(
-    (sum, r) => sum + Number(r.total_value),
+    (sum, r) => sum + Number(r.total_value) / (r.nights || 1),
     0,
   );
   const cards = [
