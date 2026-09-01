@@ -55,8 +55,13 @@ export default async function Page() {
   const averagePerRoom = todayReservations.length
     ? totalAmountToday / todayReservations.length
     : 0;
-  const roomsWithoutPrice = data.rooms.filter(
-    (r) => Number(r.base_rate) <= 0,
+  // Reservas importadas por iCal (Airbnb/Booking) llegan siempre en $0
+  // porque esas plataformas no comparten el precio en el calendario; esto
+  // cuenta cuántas de las reservas activas hoy todavía necesitan que
+  // alguien cargue el monto a mano, sin importar el precio base de la
+  // habitación.
+  const reservationsWithoutPrice = todayReservations.filter(
+    (r) => Number(r.total_value) <= 0,
   ).length;
   const cards = [
     ["Habitaciones ocupadas hoy", todayReservations.length, BedDouble],
@@ -68,7 +73,7 @@ export default async function Page() {
     ["% Ocupación hoy", `${occupancyPct}%`, PieChart],
     ["Monto total del día", clp.format(totalAmountToday), Wallet],
     ["Promedio por habitación", clp.format(averagePerRoom), Wallet],
-    ["Habitaciones sin precio", roomsWithoutPrice, Tag],
+    ["Reservas sin precio", reservationsWithoutPrice, Tag],
     [
       "Llegadas de hoy",
       data.reservations.filter((r) => r.check_in === today).length,
