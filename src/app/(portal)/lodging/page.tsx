@@ -7,6 +7,7 @@ import {
   Plus,
   PieChart,
   Wallet,
+  Tag,
 } from "lucide-react";
 import { WeeklyCalendar } from "@/components/lodging/weekly-calendar";
 import { SyncButton } from "@/components/lodging/sync-button";
@@ -54,6 +55,9 @@ export default async function Page() {
   const averagePerRoom = todayReservations.length
     ? totalAmountToday / todayReservations.length
     : 0;
+  const roomsWithoutPrice = data.rooms.filter(
+    (r) => Number(r.base_rate) <= 0,
+  ).length;
   const cards = [
     ["Habitaciones ocupadas hoy", todayReservations.length, BedDouble],
     [
@@ -64,6 +68,7 @@ export default async function Page() {
     ["% Ocupación hoy", `${occupancyPct}%`, PieChart],
     ["Monto total del día", clp.format(totalAmountToday), Wallet],
     ["Promedio por habitación", clp.format(averagePerRoom), Wallet],
+    ["Habitaciones sin precio", roomsWithoutPrice, Tag],
     [
       "Llegadas de hoy",
       data.reservations.filter((r) => r.check_in === today).length,
@@ -105,11 +110,11 @@ export default async function Page() {
           <SyncButton unitId={data.unit.id} />
         </div>
       </div>
-      <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-nowrap">
         {cards.map(([title, value, Icon]) => (
           <div
             key={title}
-            className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_3px_12px_rgba(15,23,42,.025)]"
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 shadow-[0_3px_12px_rgba(15,23,42,.025)] lg:min-w-0 lg:flex-1"
           >
             <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-[#0b4f9c]">
               <Icon size={15} />
