@@ -750,17 +750,37 @@ export async function synchronizeUnit(unitId?: string) {
       }
       const { data: known } = await db
         .from("lodging_ical_events")
-        .select("id,uid,recurrence_id,missing_since")
+        .select("id,uid,recurrence_id,missing_since,reservation_id")
         .eq("config_id", config.id);
-      for (const item of known ?? [])
-        if (
-          !seen.includes(`${item.uid}|${item.recurrence_id}`) &&
-          !item.missing_since
-        )
+      for (const item of known ?? []) {
+        if (seen.includes(`${item.uid}|${item.recurrence_id}`)) continue;
+        if (item.missing_since) {
+          // Booking/Airbnb normalmente eliminan el evento del feed en vez de
+          // marcarlo CANCELLED, así que dos sincronizaciones consecutivas
+          // sin verlo (protegiendo contra un fetch fallido puntual)
+          // confirman la cancelación.
+          if (item.reservation_id) {
+            const { error: cancelError } = await db
+              .from("lodging_reservations")
+              .update({
+                status: "cancelled",
+                cancelled_at: new Date().toISOString(),
+              })
+              .eq("id", item.reservation_id)
+              .neq("status", "cancelled");
+            if (!cancelError) updated++;
+          }
+          await db
+            .from("lodging_ical_events")
+            .update({ status: "CANCELLED" })
+            .eq("id", item.id);
+        } else {
           await db
             .from("lodging_ical_events")
             .update({ missing_since: new Date().toISOString() })
             .eq("id", item.id);
+        }
+      }
       await db
         .from("lodging_ical_configs")
         .update({
