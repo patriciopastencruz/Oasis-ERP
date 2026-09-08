@@ -223,6 +223,24 @@ export default async function ApprovalDetail({
               companyId={r.company_id}
             />
           )}
+          {!actionable &&
+            r.status === "approved" &&
+            ctx.permissions.has("finance.payments.execute") && (
+              <Panel className="border-emerald-200 bg-emerald-50">
+                <h2 className="mb-2 font-semibold text-emerald-900">
+                  Solicitud aprobada
+                </h2>
+                <p className="mb-4 text-sm text-emerald-800">
+                  Ya se puede registrar el pago y adjuntar el comprobante.
+                </p>
+                <Link
+                  href={`/finance/payment-control/payments/${id}`}
+                  className="block rounded-xl bg-emerald-700 px-4 py-2.5 text-center text-sm font-semibold text-white"
+                >
+                  Ir a registrar el pago
+                </Link>
+              </Panel>
+            )}
           <Panel>
             <h2 className="mb-2 font-semibold">
               Flujo de aprobación registrado
