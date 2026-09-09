@@ -14,11 +14,19 @@ type Line = {
   unit_price: number;
 };
 
+type Product = {
+  id: string;
+  name: string;
+  description: string | null;
+  unit_price: number;
+};
+
 export function QuotationForm({
   action,
   quotationId,
   submitLabel,
   initial,
+  products = [],
 }: {
   action: (formData: FormData) => void;
   quotationId?: string;
@@ -33,6 +41,7 @@ export function QuotationForm({
     terms: string;
     lines: { description: string; quantity: number; unit_price: number }[];
   };
+  products?: Product[];
 }) {
   const nextLineId = useRef((initial?.lines.length ?? 0) + 1);
   const [lines, setLines] = useState<Line[]>(() =>
@@ -41,6 +50,26 @@ export function QuotationForm({
       : [{ id: 1, description: "", quantity: 1, unit_price: 0 }],
   );
   const [discount, setDiscount] = useState(initial?.discount ?? 0);
+  const [selectedProduct, setSelectedProduct] = useState("");
+
+  function addProduct() {
+    const product = products.find((p) => p.id === selectedProduct);
+    if (!product) return;
+    const newLine: Line = {
+      id: nextLineId.current++,
+      description: product.description
+        ? `${product.name} — ${product.description}`
+        : product.name,
+      quantity: 1,
+      unit_price: Number(product.unit_price),
+    };
+    setLines((all) =>
+      all.length === 1 && !all[0].description.trim()
+        ? [newLine]
+        : [...all, newLine],
+    );
+    setSelectedProduct("");
+  }
 
   const subtotal = useMemo(
     () =>
@@ -127,6 +156,33 @@ export function QuotationForm({
 
       <fieldset className="space-y-3">
         <legend className="text-sm font-semibold">Ítems</legend>
+        {products.length > 0 && (
+          <div className="flex flex-wrap items-end gap-2 rounded-xl bg-[var(--oasis-soft)] p-3">
+            <label className="flex-1 text-sm font-medium">
+              Elegir del catálogo
+              <select
+                className={inputClass}
+                value={selectedProduct}
+                onChange={(e) => setSelectedProduct(e.target.value)}
+              >
+                <option value="">Selecciona un producto…</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {clp.format(Number(p.unit_price))}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="rounded-xl bg-[var(--oasis-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              disabled={!selectedProduct}
+              onClick={addProduct}
+            >
+              + Agregar producto
+            </button>
+          </div>
+        )}
         {lines.map((line, index) => (
           <div
             key={line.id}

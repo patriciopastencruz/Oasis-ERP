@@ -145,3 +145,37 @@ export async function markDeliveredAction(form: FormData) {
   revalidatePath(returnPath);
   done(returnPath, "success", "Cotización marcada como entregada.");
 }
+
+const returnToProducts = "/sales/quotations/products";
+
+export async function saveProductAction(form: FormData) {
+  const { supabase } = await salesContext("sales.quotations.approve");
+  const id = form.get("id");
+  const payload = {
+    name: String(form.get("name") ?? ""),
+    description: String(form.get("description") ?? ""),
+    unit_price: Number(form.get("unit_price") ?? 0),
+  };
+  const { error } = id
+    ? await supabase.rpc("om_update_product", {
+        target_product: uuid.parse(id),
+        payload,
+      })
+    : await supabase.rpc("om_create_product", { payload });
+  if (error) done(returnToProducts, "error", errorMessage(error));
+  revalidatePath(returnToProducts);
+  done(returnToProducts, "success", "Producto guardado.");
+}
+
+export async function toggleProductAction(form: FormData) {
+  const { supabase } = await salesContext("sales.quotations.approve");
+  const id = uuid.parse(form.get("id"));
+  const active = form.get("active") === "true";
+  const { error } = await supabase.rpc("om_toggle_product", {
+    target_product: id,
+    is_active: active,
+  });
+  if (error) done(returnToProducts, "error", errorMessage(error));
+  revalidatePath(returnToProducts);
+  done(returnToProducts, "success", active ? "Producto activado." : "Producto desactivado.");
+}

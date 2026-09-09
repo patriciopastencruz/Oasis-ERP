@@ -22,8 +22,8 @@ export default async function QuotationDetail({
   searchParams: Promise<{ success?: string; error?: string }>;
 }) {
   const [{ id }, q] = await Promise.all([params, searchParams]);
-  const { ctx, supabase } = await salesContext("sales.quotations.create");
-  const [quotationResult, linesResult, projectResult] = await Promise.all([
+  const { ctx, unit, supabase } = await salesContext("sales.quotations.create");
+  const [quotationResult, linesResult, projectResult, productsResult] = await Promise.all([
     supabase
       .from("om_quotations")
       .select(
@@ -38,11 +38,18 @@ export default async function QuotationDetail({
       .eq("quotation_id", id)
       .order("position"),
     supabase.from("om_projects").select("id").eq("quotation_id", id).maybeSingle(),
+    supabase
+      .from("om_products")
+      .select("id,name,description,unit_price")
+      .eq("business_unit_id", unit.id)
+      .eq("active", true)
+      .order("name"),
   ]);
   const quotation = quotationResult.data;
   if (!quotation) notFound();
   const lines = linesResult.data ?? [];
   const project = projectResult.data;
+  const products = productsResult.data ?? [];
   const isOwner = quotation.created_by === ctx.user.id;
   const editable = isOwner && ["draft", "rejected"].includes(quotation.status);
   const canApprove = ctx.permissions.has("sales.quotations.approve");
@@ -122,6 +129,7 @@ export default async function QuotationDetail({
               action={updateQuotationAction}
               quotationId={quotation.id}
               submitLabel="Guardar cambios"
+              products={products}
               initial={{
                 client_company: quotation.client_company,
                 client_rut: quotation.client_rut ?? "",

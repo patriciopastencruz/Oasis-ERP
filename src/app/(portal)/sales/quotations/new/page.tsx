@@ -10,7 +10,13 @@ export default async function NewQuotation({
   searchParams: Promise<{ error?: string }>;
 }) {
   const q = await searchParams;
-  await salesContext("sales.quotations.create");
+  const { unit, supabase } = await salesContext("sales.quotations.create");
+  const { data: products } = await supabase
+    .from("om_products")
+    .select("id,name,description,unit_price")
+    .eq("business_unit_id", unit.id)
+    .eq("active", true)
+    .order("name");
   return (
     <>
       <PageHeader
@@ -23,6 +29,7 @@ export default async function NewQuotation({
         <QuotationForm
           action={createQuotationAction}
           submitLabel="Guardar borrador"
+          products={products ?? []}
         />
       </Panel>
     </>

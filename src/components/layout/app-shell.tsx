@@ -301,6 +301,12 @@ const commercialManagementNav = [
     icon: ClipboardCheck,
     permission: "sales.quotations.approve",
   },
+  {
+    href: "/sales/quotations/products",
+    label: "Catálogo de productos",
+    icon: Tags,
+    permission: "sales.quotations.approve",
+  },
 ];
 
 const operationNav = [
