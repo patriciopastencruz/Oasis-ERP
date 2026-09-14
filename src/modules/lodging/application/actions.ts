@@ -752,12 +752,10 @@ export async function synchronizeUnit(unitId?: string) {
       // terminaron (no las marcan CANCELLED, simplemente ya no aparecen).
       // Si reconciliáramos contra todo el historial, una estadía ya
       // completada se vería "ausente" y terminaría cancelada sola. Por eso
-      // solo se reconcilian eventos cuya salida no lleva más de unos días
-      // en el pasado — una estadía vigente o recién terminada sí puede
-      // haber sido cancelada de verdad por el huésped.
-      const reconciliationCutoff = new Date(Date.now() - 3 * 86_400_000)
-        .toISOString()
-        .slice(0, 10);
+      // el pasado queda congelado: solo se reconcilian eventos cuya salida
+      // es hoy o después — una estadía vigente sí puede haber sido
+      // cancelada de verdad por el huésped.
+      const reconciliationCutoff = new Date().toISOString().slice(0, 10);
       const { data: known } = await db
         .from("lodging_ical_events")
         .select("id,uid,recurrence_id,missing_since,reservation_id")
