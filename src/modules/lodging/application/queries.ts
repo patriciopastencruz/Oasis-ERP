@@ -20,7 +20,8 @@ export async function lodgingContext(permission = "lodging.reservations.view") {
 }
 
 export async function calendarData(from: string, to: string) {
-  const { unit, supabase } = await lodgingContext();
+  const { ctx, unit, supabase } = await lodgingContext();
+  const canManage = ctx.permissions.has("lodging.reservations.manage");
   const [{ data: rooms }, { data: reservations }, { data: configs }] =
     await Promise.all([
       supabase
@@ -49,6 +50,7 @@ export async function calendarData(from: string, to: string) {
     rooms: rooms ?? [],
     reservations: reservations ?? [],
     lastSync: configs?.[0]?.last_sync_at ?? null,
+    canManage,
   };
 }
 

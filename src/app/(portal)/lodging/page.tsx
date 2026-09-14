@@ -150,6 +150,7 @@ export default async function Page() {
         rooms={data.rooms}
         reservations={data.reservations}
         initialMonday={start}
+        canManage={data.canManage}
       />
     </>
   );

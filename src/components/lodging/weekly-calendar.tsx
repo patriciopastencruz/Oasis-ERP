@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { reassignReservationRoomAction } from "@/modules/lodging/application/actions";
 
 type Room = { id: string; name: string; status: string; capacity?: number };
 type Reservation = {
@@ -59,14 +60,48 @@ export function WeeklyCalendar({
   rooms,
   reservations,
   initialMonday,
+  canManage = false,
 }: {
   rooms: Room[];
   reservations: Reservation[];
   initialMonday: string;
+  canManage?: boolean;
 }) {
+  const router = useRouter();
   const [offset, setOffset] = useState(0);
   const [origin, setOrigin] = useState("all");
   const [room, setRoom] = useState("all");
+  const [localReservations, setLocalReservations] = useState(reservations);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropError, setDropError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  function handleDrop(reservationId: string, targetRoomId: string) {
+    setDraggingId(null);
+    const reservation = localReservations.find((r) => r.id === reservationId);
+    if (!reservation || reservation.room_id === targetRoomId) return;
+    const previousRoomId = reservation.room_id;
+    setLocalReservations((prev) =>
+      prev.map((r) =>
+        r.id === reservationId ? { ...r, room_id: targetRoomId } : r,
+      ),
+    );
+    setDropError(null);
+    startTransition(async () => {
+      const result = await reassignReservationRoomAction(
+        reservationId,
+        targetRoomId,
+      );
+      if (!result.ok) {
+        setLocalReservations((prev) =>
+          prev.map((r) =>
+            r.id === reservationId ? { ...r, room_id: previousRoomId } : r,
+          ),
+        );
+        setDropError(result.message);
+      }
+    });
+  }
   const days = useMemo(() => {
     const start = add(new Date(`${initialMonday}T12:00:00Z`), offset * 7);
     return Array.from({ length: 7 }, (_, index) => add(start, index));
@@ -145,6 +180,19 @@ export function WeeklyCalendar({
         </select>
       </div>
 
+      {dropError && (
+        <div className="flex items-center justify-between gap-2 border-b border-red-100 bg-red-50 px-4 py-2 text-xs text-red-700">
+          {dropError}
+          <button
+            onClick={() => setDropError(null)}
+            aria-label="Cerrar"
+            className="shrink-0 rounded p-0.5 hover:bg-red-100"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <div className="grid min-w-[900px] grid-cols-[155px_repeat(7,minmax(105px,1fr))]">
           <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-3 text-[11px] font-semibold text-slate-500">
@@ -172,7 +220,7 @@ export function WeeklyCalendar({
           ))}
 
           {visibleRooms.map((currentRoom) => {
-            const roomReservations = reservations.filter(
+            const roomReservations = localReservations.filter(
               (reservation) =>
                 reservation.room_id === currentRoom.id &&
                 reservation.check_in < weekEnd &&
@@ -193,7 +241,18 @@ export function WeeklyCalendar({
                       : ""}
                   </span>
                 </div>
-                <div className="col-span-7 grid grid-cols-7">
+                <div
+                  className={`col-span-7 grid grid-cols-7 ${
+                    draggingId ? "bg-[#0b4f9c]/[.03]" : ""
+                  }`}
+                  onDragOver={(event) => {
+                    if (draggingId) event.preventDefault();
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    if (draggingId) handleDrop(draggingId, currentRoom.id);
+                  }}
+                >
                   {days.map((day) => (
                     <div
                       key={`${currentRoom.id}-${iso(day)}`}
@@ -212,13 +271,39 @@ export function WeeklyCalendar({
                       7,
                       dayDifference(reservation.check_out, weekStart),
                     );
+                    const draggable =
+                      canManage &&
+                      reservation.status !== "cancelled" &&
+                      reservation.status !== "checked_out";
                     return (
-                      <Link
+                      <div
                         key={reservation.id}
-                        href={`/lodging/reservations/${reservation.id}`}
-                        title={`${reservation.check_in} → ${reservation.check_out}`}
+                        role="link"
+                        tabIndex={0}
+                        draggable={draggable}
+                        onDragStart={(event) => {
+                          setDraggingId(reservation.id);
+                          event.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragEnd={() => setDraggingId(null)}
+                        onClick={() =>
+                          router.push(`/lodging/reservations/${reservation.id}`)
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter")
+                            router.push(
+                              `/lodging/reservations/${reservation.id}`,
+                            );
+                        }}
+                        title={
+                          draggable
+                            ? `${reservation.check_in} → ${reservation.check_out} — arrastra para cambiar de habitación`
+                            : `${reservation.check_in} → ${reservation.check_out}`
+                        }
                         style={{ gridColumn: `${start + 1} / ${end + 1}` }}
-                        className={`row-start-1 z-10 m-1.5 flex min-w-0 self-center rounded-md border px-3 py-2 text-[11px] transition hover:brightness-[.98] hover:shadow-sm ${
+                        className={`row-start-1 z-10 m-1.5 flex min-w-0 cursor-pointer self-center rounded-md border px-3 py-2 text-[11px] transition hover:brightness-[.98] hover:shadow-sm ${
+                          draggable ? "cursor-grab active:cursor-grabbing" : ""
+                        } ${draggingId === reservation.id ? "opacity-40" : ""} ${
                           reservation.status === "conflict"
                             ? "border-red-300 bg-red-50 text-red-800"
                             : (originStyles[reservation.origin] ??
@@ -236,7 +321,7 @@ export function WeeklyCalendar({
                               : (originLabels[reservation.origin] ?? "Otro")}
                           </span>
                         </span>
-                      </Link>
+                      </div>
                     );
                   })}
                 </div>

@@ -543,6 +543,60 @@ export async function checkOutAction(form: FormData) {
   );
 }
 
+// Llamada directamente desde el calendario (arrastrar y soltar), no desde
+// un <form>: a diferencia del resto de las acciones del módulo, retorna un
+// resultado en vez de hacer redirect() — un redirect en medio del drop
+// perdería el filtro/semana que el usuario tenía seleccionado en el
+// calendario. Por la misma razón, a veces la OTA le asigna al huésped una
+// pieza distinta a la que el iCal sincronizó (habitaciones que comparten
+// tipo de habitación en Booking/Airbnb); esto permite corregirlo sin tocar
+// la base de datos a mano.
+export async function reassignReservationRoomAction(
+  reservationId: string,
+  roomId: string,
+) {
+  await requirePermission("lodging.reservations.manage");
+  const parsedReservationId = uuid.safeParse(reservationId);
+  const parsedRoomId = uuid.safeParse(roomId);
+  if (!parsedReservationId.success || !parsedRoomId.success)
+    return { ok: false as const, message: "Datos inválidos." };
+  const s = await createSupabaseServerClient();
+  const [{ data: reservation }, { data: room }] = await Promise.all([
+    s
+      .from("lodging_reservations")
+      .select("business_unit_id")
+      .eq("id", parsedReservationId.data)
+      .maybeSingle(),
+    s
+      .from("lodging_rooms")
+      .select("business_unit_id")
+      .eq("id", parsedRoomId.data)
+      .maybeSingle(),
+  ]);
+  if (
+    !reservation ||
+    !room ||
+    reservation.business_unit_id !== room.business_unit_id
+  )
+    return { ok: false as const, message: "Habitación no válida para esta reserva." };
+  const { error } = await s
+    .from("lodging_reservations")
+    .update({ room_id: parsedRoomId.data })
+    .eq("id", parsedReservationId.data);
+  if (error) {
+    const conflict =
+      error.code === "23P01" || /conflict|exclusion/i.test(error.message);
+    return {
+      ok: false as const,
+      message: conflict
+        ? "La habitación ya está reservada en esas fechas."
+        : "No fue posible mover la reserva.",
+    };
+  }
+  revalidatePath("/lodging");
+  return { ok: true as const };
+}
+
 export async function saveIcalConfigAction(form: FormData) {
   const ctx = await requirePermission("lodging.ical.configure");
   const parsed = z
