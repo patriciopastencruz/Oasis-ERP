@@ -13,10 +13,25 @@ type Reservation = {
   status: string;
   check_in: string;
   check_out: string;
-  information_complete: boolean;
+  total_value: number | string;
   relation_type?: string | null;
   lodging_guests: { full_name: string } | { full_name: string }[] | null;
 };
+
+// "information_complete" en la base solo se pone en false al importar por
+// iCal (queda en true por defecto para el resto), así que una reserva
+// directa creada sin precio igual aparecía marcada como completa. El punto
+// del calendario se calcula en cambio a partir de los datos reales que se
+// ven al abrir la reserva: nombre real (no el placeholder que deja el
+// import) y precio mayor a cero.
+function hasCompleteInfo(
+  reservation: Pick<Reservation, "total_value">,
+  guestName: string | undefined,
+) {
+  const hasPrice = Number(reservation.total_value) > 0;
+  const hasName = !!guestName && !guestName.includes("información pendiente");
+  return hasPrice && hasName;
+}
 
 const originStyles: Record<string, string> = {
   booking: "border-blue-200 bg-blue-50 text-blue-800",
@@ -275,6 +290,10 @@ export function WeeklyCalendar({
                       canManage &&
                       reservation.status !== "cancelled" &&
                       reservation.status !== "checked_out";
+                    const complete = hasCompleteInfo(
+                      reservation,
+                      guest?.full_name,
+                    );
                     return (
                       <div
                         key={reservation.id}
@@ -323,14 +342,12 @@ export function WeeklyCalendar({
                         </span>
                         <span
                           title={
-                            reservation.information_complete
+                            complete
                               ? "Nombre y precio cargados"
-                              : "Falta cargar nombre y precio"
+                              : "Falta cargar nombre y/o precio"
                           }
                           className={`absolute right-1 bottom-1 size-1.5 shrink-0 rounded-full ring-1 ring-white ${
-                            reservation.information_complete
-                              ? "bg-emerald-500"
-                              : "bg-red-500"
+                            complete ? "bg-emerald-500" : "bg-red-500"
                           }`}
                         />
                       </div>
