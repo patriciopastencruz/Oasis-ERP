@@ -53,6 +53,15 @@ export default async function Page({
       ? r.lodging_rooms[0]
       : r.lodging_rooms;
   const field = "rounded-xl border px-3 py-2 text-sm";
+  // La primera vez que se completa la info interna de una reserva importada
+  // conviene mostrar los campos vacíos (nada de "1" o "0" por defecto que
+  // el personal podría dejar pasar sin querer) en vez de los valores
+  // placeholder que deja el sync. Si ya se completó antes y solo se está
+  // editando, sí se muestran los valores guardados — ahí ya son datos
+  // reales, no placeholders.
+  const firstFill = r.imported_from_ical && !r.information_complete;
+  const originLabel =
+    r.origin === "booking" ? "Booking" : r.origin === "airbnb" ? "Airbnb" : "externa";
   return (
     <>
       <PageHeader
@@ -120,14 +129,16 @@ export default async function Page({
             <input
               name="full_name"
               required
-              defaultValue={guest.full_name}
+              defaultValue={
+                firstFill ? `Reserva ${originLabel}` : guest.full_name
+              }
               placeholder="Nombre del huésped"
               className={field}
             />
             <input
               name="phone"
               required
-              defaultValue={guest.phone}
+              defaultValue={firstFill ? "" : guest.phone}
               placeholder="Teléfono"
               className={field}
             />
@@ -148,14 +159,20 @@ export default async function Page({
               name="guest_count"
               type="number"
               min="1"
-              defaultValue={r.guest_count}
+              required
+              defaultValue={firstFill ? undefined : r.guest_count}
+              placeholder="N° de huéspedes"
               className={field}
             />
             <input
               name="total_value"
               type="number"
               min="0"
-              defaultValue={r.total_value}
+              defaultValue={
+                firstFill || !(Number(r.total_value) > 0)
+                  ? undefined
+                  : r.total_value
+              }
               placeholder="Valor total"
               className={field}
             />
@@ -163,7 +180,11 @@ export default async function Page({
               name="commission"
               type="number"
               min="0"
-              defaultValue={r.commission}
+              defaultValue={
+                firstFill || !(Number(r.commission) > 0)
+                  ? undefined
+                  : r.commission
+              }
               placeholder="Comisión"
               className={field}
             />
