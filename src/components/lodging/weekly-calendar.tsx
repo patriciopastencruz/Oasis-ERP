@@ -301,7 +301,7 @@ export function WeeklyCalendar({
                             : `${reservation.check_in} → ${reservation.check_out}`
                         }
                         style={{ gridColumn: `${start + 1} / ${end + 1}` }}
-                        className={`row-start-1 z-10 m-1.5 flex min-w-0 cursor-pointer self-center rounded-md border px-3 py-2 text-[11px] transition hover:brightness-[.98] hover:shadow-sm ${
+                        className={`relative row-start-1 z-10 m-1.5 flex min-w-0 cursor-pointer self-center rounded-md border px-3 py-2 text-[11px] transition hover:brightness-[.98] hover:shadow-sm ${
                           draggable ? "cursor-grab active:cursor-grabbing" : ""
                         } ${draggingId === reservation.id ? "opacity-40" : ""} ${
                           reservation.status === "conflict"
@@ -321,6 +321,18 @@ export function WeeklyCalendar({
                               : (originLabels[reservation.origin] ?? "Otro")}
                           </span>
                         </span>
+                        <span
+                          title={
+                            reservation.information_complete
+                              ? "Nombre y precio cargados"
+                              : "Falta cargar nombre y precio"
+                          }
+                          className={`absolute right-1 bottom-1 size-1.5 shrink-0 rounded-full ring-1 ring-white ${
+                            reservation.information_complete
+                              ? "bg-emerald-500"
+                              : "bg-red-500"
+                          }`}
+                        />
                       </div>
                     );
                   })}
