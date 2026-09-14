@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogIn, User, Users, X } from "lucide-react";
 import { reassignReservationRoomAction } from "@/modules/lodging/application/actions";
 
 type Room = { id: string; name: string; status: string; capacity?: number };
@@ -14,6 +14,7 @@ type Reservation = {
   check_in: string;
   check_out: string;
   total_value: number | string;
+  guest_count: number;
   relation_type?: string | null;
   lodging_guests: { full_name: string } | { full_name: string }[] | null;
 };
@@ -339,6 +340,22 @@ export function WeeklyCalendar({
                               ? "Extensión directa"
                               : (originLabels[reservation.origin] ?? "Otro")}
                           </span>
+                        </span>
+                        <span className="absolute top-1 right-1 flex items-center gap-0.5 opacity-70">
+                          <span
+                            title={`${reservation.guest_count} ${reservation.guest_count === 1 ? "persona" : "personas"}`}
+                          >
+                            {reservation.guest_count > 1 ? (
+                              <Users size={10} />
+                            ) : (
+                              <User size={10} />
+                            )}
+                          </span>
+                          {reservation.status === "checked_in" && (
+                            <span title="Ya está en el lugar">
+                              <LogIn size={10} />
+                            </span>
+                          )}
                         </span>
                         <span
                           title={
