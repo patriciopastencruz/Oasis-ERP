@@ -22,13 +22,13 @@ export default async function NewQuotation({
       <PageHeader
         eyebrow="Oasis Modulares"
         title="Nueva cotización"
-        description="Se guarda como borrador; el número se asigna al enviarla a aprobación."
+        description="Al generarla se asigna el número y queda lista para descargar el PDF; no requiere aprobación."
       />
       <Notice error={q.error} />
       <Panel>
         <QuotationForm
           action={createQuotationAction}
-          submitLabel="Guardar borrador"
+          submitLabel="Generar cotización"
           products={products ?? []}
         />
       </Panel>

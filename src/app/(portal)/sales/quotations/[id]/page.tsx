@@ -6,6 +6,7 @@ import { QuotationForm } from "@/components/sales/quotation-form";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { clp } from "@/modules/sales/quotations/domain/quotation";
 import {
+  deleteQuotationAction,
   markDeliveredAction,
   revertQuotationReviewAction,
   submitQuotationAction,
@@ -13,45 +14,57 @@ import {
 } from "@/modules/sales/quotations/application/actions";
 import { salesContext } from "@/modules/sales/quotations/application/queries";
 import { Notice } from "@/modules/sales/ui";
+import { ConfirmButton } from "@/components/sales/confirm-button";
 
 export default async function QuotationDetail({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ success?: string; error?: string }>;
+  searchParams: Promise<{ success?: string; error?: string; edit?: string }>;
 }) {
   const [{ id }, q] = await Promise.all([params, searchParams]);
   const { ctx, unit, supabase } = await salesContext("sales.quotations.create");
-  const [quotationResult, linesResult, projectResult, productsResult] = await Promise.all([
-    supabase
-      .from("om_quotations")
-      .select(
-        "*,reviewer:profiles!om_quotations_reviewed_by_fkey(first_name,last_name),seller:profiles!om_quotations_created_by_fkey(first_name,last_name)",
-      )
-      .eq("id", id)
-      .is("deleted_at", null)
-      .maybeSingle(),
-    supabase
-      .from("om_quotation_lines")
-      .select("description,quantity,unit_price,line_total")
-      .eq("quotation_id", id)
-      .order("position"),
-    supabase.from("om_projects").select("id").eq("quotation_id", id).maybeSingle(),
-    supabase
-      .from("om_products")
-      .select("id,name,description,unit_price")
-      .eq("business_unit_id", unit.id)
-      .eq("active", true)
-      .order("name"),
-  ]);
+  const [quotationResult, linesResult, projectResult, productsResult] =
+    await Promise.all([
+      supabase
+        .from("om_quotations")
+        .select(
+          "*,reviewer:profiles!om_quotations_reviewed_by_fkey(first_name,last_name),seller:profiles!om_quotations_created_by_fkey(first_name,last_name)",
+        )
+        .eq("id", id)
+        .is("deleted_at", null)
+        .maybeSingle(),
+      supabase
+        .from("om_quotation_lines")
+        .select("description,quantity,unit_price,line_total")
+        .eq("quotation_id", id)
+        .order("position"),
+      supabase
+        .from("om_projects")
+        .select("id")
+        .eq("quotation_id", id)
+        .maybeSingle(),
+      supabase
+        .from("om_products")
+        .select("id,name,description,unit_price")
+        .eq("business_unit_id", unit.id)
+        .eq("active", true)
+        .order("name"),
+    ]);
   const quotation = quotationResult.data;
   if (!quotation) notFound();
   const lines = linesResult.data ?? [];
   const project = projectResult.data;
   const products = productsResult.data ?? [];
   const isOwner = quotation.created_by === ctx.user.id;
-  const editable = isOwner && ["draft", "rejected"].includes(quotation.status);
+  const draftEditable =
+    isOwner && ["draft", "rejected"].includes(quotation.status);
+  // Sin paso de aprobación, quien la generó puede corregirla o eliminarla
+  // mientras siga aprobada (no entregada ni convertida en proyecto).
+  const canModifyGenerated =
+    isOwner && quotation.status === "approved" && !project;
+  const editable = draftEditable || (canModifyGenerated && q.edit === "1");
   const canApprove = ctx.permissions.has("sales.quotations.approve");
   const canConvert = ctx.permissions.has(
     "sales.projects.convert_from_quotation",
@@ -146,22 +159,21 @@ export default async function QuotationDetail({
               }}
             />
           </Panel>
-          <Panel>
-            <h2 className="mb-2 font-semibold">
-              {canApprove ? "Confirmar cotización" : "Enviar a aprobación"}
-            </h2>
-            <p className="mb-3 text-sm text-[#63778e]">
-              {canApprove
-                ? "Guarda los cambios primero si acabas de editar. Al confirmar, la cotización queda aprobada de inmediato y podrás descargar el PDF."
-                : "Guarda los cambios primero si acabas de editar. Al enviar, el Gerente de Operaciones recibirá una notificación para revisarla."}
-            </p>
-            <form action={submitQuotationAction}>
-              <input type="hidden" name="quotation_id" value={quotation.id} />
-              <button className="rounded-xl bg-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-white">
-                {canApprove ? "Confirmar cotización" : "Enviar a aprobación"}
-              </button>
-            </form>
-          </Panel>
+          {draftEditable && (
+            <Panel>
+              <h2 className="mb-2 font-semibold">Generar cotización</h2>
+              <p className="mb-3 text-sm text-[#63778e]">
+                Guarda los cambios primero si acabas de editar. Al generarla se
+                asigna el número y podrás descargar el PDF.
+              </p>
+              <form action={submitQuotationAction}>
+                <input type="hidden" name="quotation_id" value={quotation.id} />
+                <button className="rounded-xl bg-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-white">
+                  Generar cotización
+                </button>
+              </form>
+            </Panel>
+          )}
         </>
       ) : (
         <Panel className="overflow-x-auto">
@@ -243,6 +255,29 @@ export default async function QuotationDetail({
               >
                 Descargar PDF
               </a>
+              {canModifyGenerated && (
+                <>
+                  <Link
+                    className="rounded-xl border px-4 py-2.5 text-sm font-semibold text-[var(--oasis-primary)]"
+                    href={`/sales/quotations/${quotation.id}?edit=1`}
+                  >
+                    Editar
+                  </Link>
+                  <form action={deleteQuotationAction}>
+                    <input
+                      type="hidden"
+                      name="quotation_id"
+                      value={quotation.id}
+                    />
+                    <ConfirmButton
+                      message="¿Eliminar esta cotización?"
+                      className="rounded-xl border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-700"
+                    >
+                      Eliminar
+                    </ConfirmButton>
+                  </form>
+                </>
+              )}
               {quotation.status === "approved" && isOwner && (
                 <form action={markDeliveredAction}>
                   <input

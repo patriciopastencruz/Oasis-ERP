@@ -49,8 +49,20 @@ export async function createQuotationAction(form: FormData) {
     payload: quotationPayload(form, lines),
   });
   if (error) done("/sales/quotations/new", "error", errorMessage(error));
+  // Ya no hay paso de aprobación: al crearla se genera de inmediato (número
+  // correlativo y estado aprobada). Si por algo falla, queda como borrador
+  // y el usuario puede confirmarla desde su detalle.
+  const { error: submitError } = await supabase.rpc("om_submit_quotation", {
+    target_quotation: data,
+  });
   revalidatePath("/sales/quotations");
-  done(`/sales/quotations/${data}`, "success", "Cotización creada.");
+  if (submitError)
+    done(
+      `/sales/quotations/${data}`,
+      "error",
+      `La cotización quedó como borrador: ${errorMessage(submitError)}`,
+    );
+  done(`/sales/quotations/${data}`, "success", "Cotización generada.");
 }
 
 export async function updateQuotationAction(form: FormData) {

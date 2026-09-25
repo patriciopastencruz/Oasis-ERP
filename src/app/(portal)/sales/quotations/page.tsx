@@ -32,7 +32,7 @@ export default async function Quotations({
       <PageHeader
         eyebrow="Oasis Modulares"
         title="Cotizaciones"
-        description="Portal de cotizaciones con correlativo, aprobación y entrega al cliente."
+        description="Portal de cotizaciones con correlativo y entrega al cliente."
       />
       <QuotationTabs canApprove={canApprove} />
       <Notice success={q.success} error={q.error} />
