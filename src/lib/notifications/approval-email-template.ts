@@ -30,6 +30,8 @@ export function notificationActionPath(
         : `/finance/petty-cash/reviews/${entityId}`;
     case "inventory_change_request":
       return "/inventory/approvals";
+    case "dist_order":
+      return `/finance/distribution/orders/${entityId}`;
     case "dist_change_request":
       return "/finance/distribution/requests";
     case "lodging_reservation":

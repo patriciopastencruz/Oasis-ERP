@@ -459,11 +459,16 @@ function parseOrderEdit(form: FormData, returnPath: string) {
 }
 
 export async function updateOrderAction(form: FormData) {
-  const { supabase } = await distributionContext(
-    "finance.distribution.orders.manage",
-  );
+  // Editar un pedido no requiere autorización: quien administra pedidos o
+  // puede solicitar cambios lo aplica directo y el sistema notifica.
+  const { ctx, supabase } = await distributionContext();
   const id = uuid.parse(form.get("order_id"));
   const returnPath = `/finance/distribution/orders/${id}`;
+  if (
+    !ctx.permissions.has("finance.distribution.orders.manage") &&
+    !ctx.permissions.has("finance.distribution.requests.create")
+  )
+    done(returnPath, "error", "No tienes permiso para editar pedidos.");
   const data = parseOrderEdit(form, returnPath);
   const { error } = await supabase.rpc("dist_update_order", {
     target_order: id,
@@ -472,7 +477,11 @@ export async function updateOrderAction(form: FormData) {
   if (error) done(returnPath, "error", errorMessage(error));
   revalidatePath("/finance/distribution");
   revalidatePath(returnPath);
-  done(returnPath, "success", "Pedido actualizado correctamente.");
+  done(
+    returnPath,
+    "success",
+    "Pedido actualizado. Se notificó a los responsables.",
+  );
 }
 
 export async function voidOrderAction(form: FormData) {
@@ -585,9 +594,11 @@ export async function requestOrderChangeAction(form: FormData) {
     "finance.distribution.requests.create",
   );
   const orderId = uuid.parse(form.get("order_id"));
-  const type = z.enum(["edit", "void"]).parse(form.get("type"));
+  // Solo la anulación sigue requiriendo autorización; las ediciones se
+  // aplican directo con updateOrderAction.
+  const type = z.literal("void").parse(form.get("type"));
   const returnPath = `/finance/distribution/orders/${orderId}`;
-  const proposed = type === "edit" ? parseOrderEdit(form, returnPath) : {};
+  const proposed = {};
   const { data: requestId, error } = await supabase.rpc(
     "dist_request_order_change",
     {

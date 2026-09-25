@@ -39,7 +39,7 @@ Pago: `pending`, `partial`, `paid`, `credit`, `overdue`, `voided`. Se calcula in
 
 El Administrativo crea una solicitud `edit` o `void` con snapshot previo. El Administrador aprueba o rechaza una sola vez; solo la aprobación aplica la mutación y deja snapshot final.
 
-Un pedido admite edición (fecha, hora, dirección, notas, descuento, productos y cantidades) mientras no esté `delivered`, `partially_delivered`, `cancelled` ni `voided`. El Administrador (o rol con `finance.distribution.orders.manage`) edita directamente desde `/finance/distribution/orders/[id]`; el Administrativo solo puede solicitarlo desde la misma pantalla, con motivo obligatorio. `dist_update_order` recalcula precios, descuento y total en el servidor y reemplaza las líneas del pedido; la aprobación de una solicitud de edición usa la misma función. Anular un pedido ya editado no revierte cambios previos.
+Un pedido admite edición (fecha, hora, dirección, notas, descuento, productos y cantidades) mientras no esté `delivered`, `partially_delivered`, `cancelled` ni `voided`. El Administrador (o rol con `finance.distribution.orders.manage`) edita directamente desde `/finance/distribution/orders/[id]`; el Administrativo (`finance.distribution.requests.create`) también edita directamente, sin solicitud ni aprobación: `dist_update_order` aplica el cambio, deja trazabilidad en `dist_order_status_history` y notifica (`distribution.order_changed`) a quienes revisan solicitudes o administran pedidos. `dist_update_order` recalcula precios, descuento y total en el servidor y reemplaza las líneas del pedido. La anulación sí sigue requiriendo solicitud y autorización del Administrador. Anular un pedido ya editado no revierte cambios previos.
 
 ## Crédito, entrega y cierre
 

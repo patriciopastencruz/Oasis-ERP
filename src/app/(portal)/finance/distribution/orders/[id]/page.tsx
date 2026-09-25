@@ -111,22 +111,8 @@ export default async function OrderDetail({
               {uiLabel(order.status).toLowerCase()}.
             </p>
           )}
-          {editable && canEditDirectly && (
+          {editable && (canEditDirectly || canRequestEdit) && (
             <OrderEditForm
-              mode="edit"
-              orderId={order.id}
-              products={products}
-              initialLines={initialLines}
-              deliveryDate={order.delivery_date}
-              estimatedTime={order.estimated_time?.slice(0, 5) ?? ""}
-              deliveryAddress={order.delivery_address}
-              notes={order.notes ?? ""}
-              discount={Number(order.discount)}
-            />
-          )}
-          {editable && !canEditDirectly && canRequestEdit && (
-            <OrderEditForm
-              mode="request"
               orderId={order.id}
               products={products}
               initialLines={initialLines}

@@ -18,6 +18,7 @@ const sql = [
   "supabase/migrations/20260715220000_fix_inventory_movements_negative_stock_before.sql",
   "supabase/migrations/20260716010000_distribution_driver_closures.sql",
   "supabase/migrations/20260716020000_distribution_period_summary.sql",
+  "supabase/migrations/20260925153740_distribution_direct_order_edit_with_notice.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -173,6 +174,20 @@ describe("edición de pedidos antes de la entrega", () => {
 
   it("aplica la edición solo cuando el Administrador aprueba la solicitud", () => {
     expect(sql).toContain("perform public.dist_update_order(o.id,r.proposed_data)");
+  });
+});
+
+describe("edición directa de pedidos con notificación", () => {
+  it("permite editar al Administrativo sin solicitud y solo notifica", () => {
+    expect(sql).toContain(
+      "public.has_permission('finance.distribution.requests.create')",
+    );
+    expect(sql).toContain("'distribution.order_changed'");
+    expect(sql).toContain("'order_edited'");
+  });
+
+  it("mantiene la anulación bajo solicitud y autorización", () => {
+    expect(sql).toContain("if r.type='void' then update public.dist_orders set status='voided'");
   });
 });
 
