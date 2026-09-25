@@ -15,7 +15,9 @@ import {
   openPaymentReceiptAction,
   voidPaymentAction,
   updateImportedReservationInfoAction,
+  removeImportedReservationAction,
 } from "@/modules/lodging/application/actions";
+import { ConfirmButton } from "@/components/sales/confirm-button";
 import { reviewPublicLodgingRequestAction } from "@/modules/lodging/application/public-actions";
 export default async function Page({
   params,
@@ -62,6 +64,21 @@ export default async function Page({
   const firstFill = r.imported_from_ical && !r.information_complete;
   const originLabel =
     r.origin === "booking" ? "Booking" : r.origin === "airbnb" ? "Airbnb" : "externa";
+  // Misma regla que remove_lodging_imported_reservation() en la base: quien
+  // administra reservas elimina las que empiezan hoy o después; las de días
+  // anteriores solo quien tenga lodging.reservations.remove_past.
+  const todaySantiago = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Santiago",
+  }).format(new Date());
+  const canManage = ctx.permissions.has("lodging.reservations.manage");
+  const removable =
+    canManage &&
+    r.imported_from_ical &&
+    !["cancelled", "checked_in", "checked_out"].includes(r.status);
+  const canRemove =
+    removable &&
+    (r.check_in >= todaySantiago ||
+      ctx.permissions.has("lodging.reservations.remove_past"));
   return (
     <>
       <PageHeader
@@ -86,6 +103,26 @@ export default async function Page({
           Esta reserva proviene de Booking/Airbnb. Los cambios de la reserva
           original deben realizarse en la plataforma de origen.
         </p>
+      )}
+      {removable && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <p className="max-w-2xl text-slate-600">
+            {canRemove
+              ? "¿Ya no corresponde esta reserva importada? Puedes eliminarla: libera la fecha en Oasis y queda registrada en la auditoría. La reserva en Booking/Airbnb no se modifica."
+              : "Las reservas importadas de días anteriores solo las puede eliminar el administrador."}
+          </p>
+          {canRemove && (
+            <form action={removeImportedReservationAction}>
+              <input type="hidden" name="reservation_id" value={id} />
+              <ConfirmButton
+                message="¿Eliminar esta reserva importada? Dejará de verse en el calendario de Oasis."
+                className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+              >
+                Eliminar reserva
+              </ConfirmButton>
+            </form>
+          )}
+        </div>
       )}
       {r.origin === "public_web" && r.status === "pending" && (
         <Panel className="mb-4 border-amber-200 bg-amber-50">

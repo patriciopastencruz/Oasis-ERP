@@ -43,8 +43,11 @@ export default async function Page() {
   const sellableRooms = data.rooms.filter(
     (r) => r.status !== "out_of_service" && r.status !== "maintenance",
   ).length;
+  // Una habitación puede tener dos reservas activas el mismo día (manual +
+  // importada): ocupación y promedio cuentan habitaciones, no reservas.
+  const occupiedRooms = new Set(todayReservations.map((r) => r.room_id)).size;
   const occupancyPct = sellableRooms
-    ? Math.round((todayReservations.length / sellableRooms) * 100)
+    ? Math.round((occupiedRooms / sellableRooms) * 100)
     : 0;
   // Prorrateado por noche: una reserva de 3 noches solo aporta 1/3 de su
   // total_value al día de hoy, en vez del contrato completo.
@@ -52,9 +55,7 @@ export default async function Page() {
     (sum, r) => sum + Number(r.total_value) / (r.nights || 1),
     0,
   );
-  const averagePerRoom = todayReservations.length
-    ? totalAmountToday / todayReservations.length
-    : 0;
+  const averagePerRoom = occupiedRooms ? totalAmountToday / occupiedRooms : 0;
   // Reservas importadas por iCal (Airbnb/Booking) llegan siempre en $0
   // porque esas plataformas no comparten el precio en el calendario; esto
   // cuenta cuántas de las reservas activas hoy todavía necesitan que
@@ -64,10 +65,10 @@ export default async function Page() {
     (r) => Number(r.total_value) <= 0,
   ).length;
   const cards = [
-    ["Habitaciones ocupadas hoy", todayReservations.length, BedDouble],
+    ["Habitaciones ocupadas hoy", occupiedRooms, BedDouble],
     [
       "Habitaciones disponibles hoy",
-      Math.max(0, sellableRooms - todayReservations.length),
+      Math.max(0, sellableRooms - occupiedRooms),
       BedDouble,
     ],
     ["% Ocupación hoy", `${occupancyPct}%`, PieChart],

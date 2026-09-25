@@ -139,6 +139,24 @@ export async function submitPublicLodgingRequestAction(form: FormData) {
   }
   if (total <= 0) go(RETURN_PATH, "error", "El rango de fechas no es válido.");
 
+  // La base permite que una reserva manual conviva con una importada por
+  // iCal (lo usa el personal), pero un huésped que reserva por la web nunca
+  // debe poder pisar una fecha ya tomada, ni siquiera por Booking/Airbnb.
+  const { data: taken } = await db
+    .from("lodging_reservations")
+    .select("id")
+    .eq("room_id", room.id)
+    .lt("check_in", data.check_out)
+    .gt("check_out", data.check_in)
+    .not("status", "in", '("cancelled","conflict")')
+    .limit(1);
+  if (taken?.length)
+    go(
+      RETURN_PATH,
+      "error",
+      "Esas fechas ya no están disponibles para esta habitación. Elige otras fechas.",
+    );
+
   const { data: guest, error: guestError } = await db
     .from("lodging_guests")
     .insert({

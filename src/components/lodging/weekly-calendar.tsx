@@ -72,6 +72,29 @@ const dayDifference = (date: string, start: string) =>
       86_400_000,
   );
 
+// Una habitación puede tener dos reservas activas en las mismas fechas (una
+// manual y una importada por iCal). Cada una va en su propio "carril" para
+// que ninguna tape a la otra: la primera libre en orden de llegada.
+function assignLanes<T extends { id: string; check_in: string; check_out: string }>(
+  items: T[],
+) {
+  const laneEnds: string[] = [];
+  const laneOf = new Map<string, number>();
+  for (const item of [...items].sort((a, b) =>
+    a.check_in === b.check_in
+      ? a.check_out.localeCompare(b.check_out)
+      : a.check_in.localeCompare(b.check_in),
+  )) {
+    let lane = laneEnds.findIndex((end) => end <= item.check_in);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(item.check_out);
+    } else laneEnds[lane] = item.check_out;
+    laneOf.set(item.id, lane);
+  }
+  return { laneOf, laneCount: Math.max(1, laneEnds.length) };
+}
+
 export function WeeklyCalendar({
   rooms,
   reservations,
@@ -243,6 +266,7 @@ export function WeeklyCalendar({
                 reservation.check_out > weekStart &&
                 (origin === "all" || reservation.origin === origin),
             );
+            const { laneOf, laneCount } = assignLanes(roomReservations);
             return (
               <div key={currentRoom.id} className="contents">
                 <div className="border-b border-slate-100 px-4 py-3">
@@ -256,6 +280,11 @@ export function WeeklyCalendar({
                       ? ` · ${currentRoom.capacity} personas`
                       : ""}
                   </span>
+                  {laneCount > 1 && (
+                    <span className="mt-0.5 block text-[10px] font-medium text-amber-600">
+                      Reservas solapadas
+                    </span>
+                  )}
                 </div>
                 <div
                   className={`col-span-7 grid grid-cols-7 ${
@@ -272,7 +301,8 @@ export function WeeklyCalendar({
                   {days.map((day) => (
                     <div
                       key={`${currentRoom.id}-${iso(day)}`}
-                      className="row-start-1 min-h-16 border-b border-l border-slate-100"
+                      style={{ gridRow: `1 / span ${laneCount}` }}
+                      className="min-h-16 border-b border-l border-slate-100"
                     />
                   ))}
                   {roomReservations.map((reservation) => {
@@ -320,8 +350,11 @@ export function WeeklyCalendar({
                             ? `${reservation.check_in} → ${reservation.check_out} — arrastra para cambiar de habitación`
                             : `${reservation.check_in} → ${reservation.check_out}`
                         }
-                        style={{ gridColumn: `${start + 1} / ${end + 1}` }}
-                        className={`relative row-start-1 z-10 m-1.5 flex min-w-0 cursor-pointer self-center rounded-md border px-3 py-2 text-[11px] transition hover:brightness-[.98] hover:shadow-sm ${
+                        style={{
+                          gridColumn: `${start + 1} / ${end + 1}`,
+                          gridRow: (laneOf.get(reservation.id) ?? 0) + 1,
+                        }}
+                        className={`relative z-10 m-1.5 flex min-w-0 cursor-pointer self-center rounded-md border px-3 py-2 text-[11px] transition hover:brightness-[.98] hover:shadow-sm ${
                           draggable ? "cursor-grab active:cursor-grabbing" : ""
                         } ${draggingId === reservation.id ? "opacity-40" : ""} ${
                           reservation.status === "conflict"

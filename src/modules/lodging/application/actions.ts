@@ -597,6 +597,31 @@ export async function reassignReservationRoomAction(
   return { ok: true as const };
 }
 
+// La anulación de una reserva importada por iCal (y la regla de que solo
+// el administrador toca las de días anteriores) se impone en PostgreSQL:
+// remove_lodging_imported_reservation() revisa permisos, fecha y pagos. Sus
+// excepciones ya vienen en español pensadas para mostrarse tal cual.
+export async function removeImportedReservationAction(form: FormData) {
+  await requirePermission("lodging.reservations.manage");
+  const parsed = uuid.safeParse(form.get("reservation_id"));
+  if (!parsed.success) go("/lodging", "error", "Reserva inválida.");
+  const back = `/lodging/reservations/${parsed.data}`;
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("remove_lodging_imported_reservation", {
+    target_reservation: parsed.data,
+  });
+  if (error)
+    go(
+      back,
+      "error",
+      error.code === "P0001"
+        ? error.message
+        : "No fue posible eliminar la reserva.",
+    );
+  revalidatePath("/lodging");
+  go("/lodging", "success", "Reserva eliminada.");
+}
+
 export async function saveIcalConfigAction(form: FormData) {
   const ctx = await requirePermission("lodging.ical.configure");
   const parsed = z
