@@ -13,6 +13,7 @@ import {
   registerPaymentAction,
   uploadPaymentReceiptAction,
   openPaymentReceiptAction,
+  removePaymentReceiptAction,
   voidPaymentAction,
   updateImportedReservationInfoAction,
   removeImportedReservationAction,
@@ -398,22 +399,41 @@ export default async function Page({
                 </span>
               </div>
               <div className="flex gap-2">
-                {(p.lodging_payment_receipts ?? []).map(
+                {(p.lodging_payment_receipts ?? [])
+                  .filter((receipt: { deleted_at: string | null }) => !receipt.deleted_at)
+                  .map(
                   (receipt: {
                     id: string;
                     private_path: string;
                     original_name: string;
+                    deleted_at: string | null;
                   }) => (
-                    <form key={receipt.id} action={openPaymentReceiptAction}>
-                      <input
-                        type="hidden"
-                        name="path"
-                        value={receipt.private_path}
-                      />
-                      <button className="text-xs font-semibold text-[#0b4f9c]">
-                        Ver {receipt.original_name}
-                      </button>
-                    </form>
+                    <div key={receipt.id} className="flex items-center gap-1">
+                      <form action={openPaymentReceiptAction}>
+                        <input
+                          type="hidden"
+                          name="path"
+                          value={receipt.private_path}
+                        />
+                        <button className="text-xs font-semibold text-[#0b4f9c]">
+                          Ver {receipt.original_name}
+                        </button>
+                      </form>
+                      <form action={removePaymentReceiptAction}>
+                        <input
+                          type="hidden"
+                          name="receipt_id"
+                          value={receipt.id}
+                        />
+                        <input type="hidden" name="reservation_id" value={id} />
+                        <ConfirmButton
+                          message={`¿Eliminar el comprobante "${receipt.original_name}"?`}
+                          className="text-xs font-semibold text-red-600"
+                        >
+                          Quitar
+                        </ConfirmButton>
+                      </form>
+                    </div>
                   ),
                 )}
                 <form

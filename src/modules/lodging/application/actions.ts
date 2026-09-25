@@ -429,6 +429,24 @@ export async function uploadPaymentReceiptAction(form: FormData) {
   const internal = `${crypto.randomUUID()}.${ext}`;
   const path = `${companyId}/${unitId}/${paymentId}/${internal}`;
   const s = await createSupabaseServerClient();
+  // Un doble clic en "Adjuntar" manda el formulario dos o tres veces: si el
+  // mismo archivo ya se registró para este pago hace instantes, se da por
+  // subido en vez de duplicarlo.
+  const { data: justUploaded } = await s
+    .from("lodging_payment_receipts")
+    .select("id")
+    .eq("payment_id", paymentId)
+    .eq("original_name", file.name)
+    .eq("size_bytes", file.size)
+    .is("deleted_at", null)
+    .gte("created_at", new Date(Date.now() - 30_000).toISOString())
+    .limit(1);
+  if (justUploaded?.length)
+    go(
+      `/lodging/reservations/${reservationId}`,
+      "success",
+      "Comprobante adjuntado correctamente.",
+    );
   const { error: uploadError } = await s.storage
     .from("lodging-payment-receipts")
     .upload(path, file, { contentType: mime, upsert: false });
@@ -464,6 +482,28 @@ export async function uploadPaymentReceiptAction(form: FormData) {
     "Comprobante adjuntado correctamente.",
   );
 }
+export async function removePaymentReceiptAction(form: FormData) {
+  await requirePermission("lodging.payments.manage");
+  const receiptId = uuid.safeParse(form.get("receipt_id"));
+  const reservationId = uuid.safeParse(form.get("reservation_id"));
+  if (!receiptId.success || !reservationId.success)
+    go("/lodging", "error", "Comprobante inválido.");
+  const back = `/lodging/reservations/${reservationId.data}`;
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("remove_lodging_payment_receipt", {
+    target_receipt: receiptId.data,
+  });
+  if (error)
+    go(
+      back,
+      "error",
+      error.code === "P0001"
+        ? error.message
+        : "No fue posible eliminar el comprobante.",
+    );
+  revalidatePath(back);
+  go(back, "success", "Comprobante eliminado.");
+}
 export async function openPaymentReceiptAction(form: FormData) {
   await requirePermission("lodging.reservations.view");
   const path = text.parse(form.get("path"));
@@ -473,6 +513,7 @@ export async function openPaymentReceiptAction(form: FormData) {
     .from("lodging_payment_receipts")
     .select("id")
     .eq("private_path", path)
+    .is("deleted_at", null)
     .maybeSingle();
   if (!receipt) redirect("/lodging");
   const { data } = await s.storage
