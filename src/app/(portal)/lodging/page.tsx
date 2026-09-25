@@ -18,12 +18,6 @@ function localDate() {
     timeZone: "America/Santiago",
   }).format(new Date());
 }
-function monday(value: string) {
-  const d = new Date(`${value}T12:00:00Z`),
-    day = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() - day + 1);
-  return d.toISOString().slice(0, 10);
-}
 function add(value: string, n: number) {
   const d = new Date(`${value}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
@@ -31,8 +25,10 @@ function add(value: string, n: number) {
 }
 
 export default async function Page() {
+  // El calendario parte en el día de hoy (primera columna) y avanza hacia
+  // los días siguientes, para que recepción vea primero lo que viene.
   const today = localDate(),
-    start = monday(today);
+    start = today;
   const data = await calendarData(add(start, -21), add(start, 28));
   const todayReservations = data.reservations.filter(
     (r) =>
@@ -150,7 +146,7 @@ export default async function Page() {
       <WeeklyCalendar
         rooms={data.rooms}
         reservations={data.reservations}
-        initialMonday={start}
+        initialStart={start}
         canManage={data.canManage}
       />
     </>

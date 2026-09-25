@@ -98,12 +98,12 @@ function assignLanes<T extends { id: string; check_in: string; check_out: string
 export function WeeklyCalendar({
   rooms,
   reservations,
-  initialMonday,
+  initialStart,
   canManage = false,
 }: {
   rooms: Room[];
   reservations: Reservation[];
-  initialMonday: string;
+  initialStart: string;
   canManage?: boolean;
 }) {
   const router = useRouter();
@@ -142,9 +142,9 @@ export function WeeklyCalendar({
     });
   }
   const days = useMemo(() => {
-    const start = add(new Date(`${initialMonday}T12:00:00Z`), offset * 7);
+    const start = add(new Date(`${initialStart}T12:00:00Z`), offset * 7);
     return Array.from({ length: 7 }, (_, index) => add(start, index));
-  }, [initialMonday, offset]);
+  }, [initialStart, offset]);
   const weekStart = iso(days[0]);
   const weekEnd = iso(add(days[0], 7));
   const visibleRooms = rooms.filter(
@@ -240,8 +240,15 @@ export function WeeklyCalendar({
           {days.map((day) => (
             <div
               key={iso(day)}
-              className="border-b border-l border-slate-100 bg-slate-50/60 px-2 py-2.5 text-center"
+              className={`border-b border-l border-slate-100 px-2 py-2.5 text-center ${
+                iso(day) === initialStart ? "bg-[#edf4fc]" : "bg-slate-50/60"
+              }`}
             >
+              {iso(day) === initialStart && (
+                <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#0b4f9c]">
+                  Hoy
+                </span>
+              )}
               <b className="block text-xs font-semibold capitalize text-slate-700">
                 {new Intl.DateTimeFormat("es-CL", {
                   weekday: "short",
