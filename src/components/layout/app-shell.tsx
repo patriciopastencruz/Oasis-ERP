@@ -35,6 +35,8 @@ import {
   ListTodo,
   Mail,
   PieChart,
+  Banknote,
+  CalendarRange,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -91,6 +93,18 @@ const financeNav = [
     icon: ReceiptText,
     permission: "finance.petty_cash.create",
     legacyPermission: "finance.petty_cash.view",
+  },
+  {
+    href: "/finance/cash-flow",
+    label: "Flujo de caja",
+    icon: Banknote,
+    permission: "finance.cash_flow.view",
+  },
+  {
+    href: "/finance/cash-flow/monthly",
+    label: "Caja mensual",
+    icon: CalendarRange,
+    permission: "finance.cash_flow.view",
   },
   {
     href: "/finance/payment-control",

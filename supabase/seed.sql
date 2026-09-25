@@ -146,6 +146,13 @@ begin
   insert into public.role_permissions(role_id, permission_id)
   select r.id, p.id from public.roles r join public.permissions p on p.key in ('finance.payment_requests.create','finance.suppliers.view','finance.petty_cash.create','finance.petty_cash.view_own')
   where r.key = 'worker' on conflict do nothing;
+  -- Flujo de caja (la migración ya lo asigna a los roles existentes en producción).
+  insert into public.role_permissions(role_id, permission_id)
+  select r.id, p.id from public.roles r join public.permissions p on p.key in ('finance.cash_flow.view','finance.cash_flow.record')
+  where r.key in ('general_manager','area_manager','finance_manager','administrator') on conflict do nothing;
+  insert into public.role_permissions(role_id, permission_id)
+  select r.id, p.id from public.roles r join public.permissions p on p.key = 'finance.cash_flow.manage'
+  where r.key in ('general_manager','finance_manager') on conflict do nothing;
 
   select id into admin_role from public.roles where key = 'administrator';
   select id into finance_role from public.roles where key = 'finance_manager';
