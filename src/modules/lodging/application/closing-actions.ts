@@ -122,3 +122,23 @@ export async function resendClosingEmailAction(form: FormData) {
     result.sent ? result.message.replace("Cierre emitido y enviado", "Correo reenviado") : result.message,
   );
 }
+
+export async function deleteClosingAction(form: FormData) {
+  const { supabase } = await lodgingContext("lodging.closings.manage");
+  const id = uuid.safeParse(form.get("id"));
+  if (!id.success) go("/lodging/closing", "error", "Cierre inválido.");
+  const reason = String(form.get("reason") ?? "").trim();
+  const path = `/lodging/closing/${id.data}`;
+  if (reason.length < 3) go(path, "error", "Indica el motivo de la eliminación.");
+  const { data, error } = await supabase.rpc("lodging_delete_daily_closing", {
+    target_closing: id.data,
+    reason,
+  });
+  if (error) go(path, "error", friendly(error));
+  revalidatePath("/lodging/closing");
+  go(
+    `/lodging/closing?date=${data}`,
+    "success",
+    `Cierre del ${formatClosingDate(String(data))} eliminado. La fecha quedó libre para un nuevo cierre.`,
+  );
+}

@@ -59,3 +59,17 @@ describe("esquema del cierre diario de hostal", () => {
     expect(fn("lodging_closing_email_recipients")).toContain("r.key in('administrator','superadmin')");
   });
 });
+
+describe("eliminación de cierres", () => {
+  const del = readFileSync(
+    resolve(process.cwd(), "supabase/migrations/20260926022900_lodging_delete_daily_closing.sql"),
+    "utf8",
+  );
+  it("exige permiso de gestión, acceso a la unidad, motivo y deja auditoría", () => {
+    expect(del).toContain("public.has_permission('lodging.closings.manage')");
+    expect(del).toContain("public.can_access_unit(c.company_id,c.business_unit_id)");
+    expect(del).toContain("insert into public.audit_logs");
+    expect(del).toContain("'Indica el motivo de la eliminacion'");
+    expect(del).not.toMatch(/delete from public\.lodging_reservation/);
+  });
+});

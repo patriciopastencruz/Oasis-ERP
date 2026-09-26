@@ -24,6 +24,12 @@ insert into public.user_business_units(user_id,company_id,business_unit_id) valu
 -- Habitaciones propias de la prueba (las existentes se desactivan dentro de
 -- la transacción): T1-T2 Modulares, T3-T4 Habitación, T5 fuera de servicio.
 update public.lodging_rooms set active=false where business_unit_id=:'hu_unit_id';
+-- Aísla la prueba de reservas y pagos que ya existan en la base (se revierte al final).
+update public.lodging_reservation_payments set status='voided',voided_at=now(),voided_by=:'admin_id',void_reason='Aislamiento de prueba'
+ where business_unit_id=:'hu_unit_id' and status='confirmed';
+update public.lodging_reservations set status='cancelled' where business_unit_id=:'hu_unit_id' and status not in('cancelled','conflict');
+delete from public.lodging_daily_closing_expenses where business_unit_id=:'hu_unit_id';
+delete from public.lodging_daily_closings where business_unit_id=:'hu_unit_id';
 insert into public.lodging_rooms(company_id,business_unit_id,code,name,room_type,status,display_order) values
  (:'company_id',:'hu_unit_id','T1','Test 1','Modulares','available',1),
  (:'company_id',:'hu_unit_id','T2','Test 2','Modulares','available',2),
@@ -112,6 +118,9 @@ begin
   if not failed then raise exception 'Se cerró una fecha futura'; end if;
   -- El día anterior sí se permite.
   perform public.lodging_save_daily_closing(hu,today-1,'{}'::jsonb);
+  failed := false;
+  begin perform public.lodging_delete_daily_closing(closing,'Prueba'); exception when others then failed := true; end;
+  if not failed then raise exception 'Recepción eliminó un cierre'; end if;
 end $$;
 
 -- El administrador sí puede corregir el cierre emitido y cerrar fechas antiguas.
@@ -123,6 +132,21 @@ begin
   if (select status from public.lodging_daily_closings where business_unit_id=hu and closing_date=today)<>'draft' then
     raise exception 'La corrección debe volver el cierre a borrador'; end if;
   perform public.lodging_save_daily_closing(hu,today-10,'{}'::jsonb);
+  declare target uuid := (select id from public.lodging_daily_closings where business_unit_id=hu and closing_date=today); failed boolean := false;
+  begin
+    begin perform public.lodging_delete_daily_closing(target,''); exception when others then failed := true; end;
+    if not failed then raise exception 'Se eliminó sin motivo'; end if;
+    if public.lodging_delete_daily_closing(target,'Cierre de prueba')<>today then raise exception 'Fecha devuelta incorrecta'; end if;
+    if exists(select 1 from public.lodging_daily_closings where id=target) or exists(select 1 from public.lodging_daily_closing_expenses where closing_id=target) then
+      raise exception 'El cierre no se eliminó'; end if;
+    -- La fecha queda libre para un nuevo cierre.
+    perform public.lodging_save_daily_closing(hu,today,'{}'::jsonb);
+  end;
+end $$;
+reset role;
+do $$ begin
+  if (select count(*) from public.audit_logs where entity_type='lodging_daily_closings' and action in('delete','delete_request')
+      and (action='delete' or new_data->>'reason'='Cierre de prueba'))<2 then raise exception 'La eliminación no quedó auditada'; end if;
 end $$;
 
 select 'lodging daily closing ok' as result;

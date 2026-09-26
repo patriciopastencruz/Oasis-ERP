@@ -10,6 +10,7 @@ import { getBusinessUnitBrand } from "@/config/business-units";
 import { lodgingContext } from "@/modules/lodging/application/queries";
 import { loadClosing } from "@/modules/lodging/application/closing-queries";
 import {
+  deleteClosingAction,
   issueClosingAction,
   resendClosingEmailAction,
 } from "@/modules/lodging/application/closing-actions";
@@ -148,6 +149,34 @@ export default async function ClosingDetailPage({
               </>
             )}
           </Panel>
+          {canManage && (
+            <Panel>
+              <details>
+                <summary className="cursor-pointer text-sm font-semibold text-red-700">Eliminar cierre</summary>
+                <form action={deleteClosingAction} className="mt-3 space-y-2">
+                  <input type="hidden" name="id" value={closing.id} />
+                  <p className="text-xs text-slate-500">
+                    Se borra el cierre y sus gastos; las reservas y pagos no cambian. La fecha queda libre para un
+                    nuevo cierre y la eliminación queda registrada en la auditoría.
+                  </p>
+                  <input
+                    name="reason"
+                    required
+                    minLength={3}
+                    maxLength={300}
+                    placeholder="Motivo de la eliminación"
+                    className="w-full rounded-xl border px-3 py-2 text-sm"
+                  />
+                  <ConfirmButton
+                    message={`¿Eliminar el cierre del ${date}? Esta acción no se puede deshacer.`}
+                    className="w-full rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white"
+                  >
+                    Eliminar cierre
+                  </ConfirmButton>
+                </form>
+              </details>
+            </Panel>
+          )}
           <Link href="/lodging/closing" className="block text-center text-sm text-slate-500">
             Volver al cierre diario
           </Link>
