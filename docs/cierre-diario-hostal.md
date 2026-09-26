@@ -29,9 +29,16 @@ Recepción puede cerrar hoy o, como máximo, el día anterior, y no puede modifi
 
 Cada cierre guarda una copia de sus indicadores (`metrics`) y sus totales en columnas, para que los reportes históricos no cambien.
 
-## Reportes
+## Reportes semanal y quincenal
 
-`/lodging/closing/reports?period=week|fortnight|month&date=AAAA-MM-DD` (permiso `lodging.closings.reports`) consolida los cierres **emitidos** de la semana (lunes a domingo), la quincena (1–15 / 16–fin de mes) o el mes. Muestra el ingreso efectivo por medio de pago, el gasto acumulado, el resultado, la ocupación promedio (ponderada por habitaciones-noche), la disponibilidad promedio, la venta promedio y los días sin cierre. El PDF del período se descarga en `/api/lodging/closing/period.pdf`.
+Reportabilidad → **Cierres diarios** (`/lodging/closing/reports?period=week|fortnight&date=AAAA-MM-DD`, permiso `lodging.closings.reports`) muestra el resumen ejecutivo de la semana (lunes a domingo) o quincena (1–15 / 16–fin de mes), en pantalla y en PDF de 2 páginas (`/api/lodging/closing/period.pdf`):
+
+- KPIs comparados con el período anterior: ingreso cobrado, ocupación, ADR, RevPAR y resultado (cobrado − gastos).
+- Cobro por día con la ocupación de cada noche, ocupación y venta por tipo, medios de pago.
+- Destacados (mejor y peor día, viernes-sábado vs resto, habitaciones libres, tipo con más demanda) y control (por cobrar, problemas, reposición, días sin cierre).
+- Gastos por categoría y, en la página 2, ocupación e ingreso por habitación con una lectura automática.
+
+Ocupación, venta y cobros se calculan desde reservas y pagos; gastos, problemas y saldos por cobrar desde los cierres diarios **emitidos**. La pestaña **Mensual** lleva al cierre mensual gerencial (`docs/cierre-mensual-hostal.md`).
 
 ## Permisos
 

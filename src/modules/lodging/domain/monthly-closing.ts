@@ -141,8 +141,24 @@ export function monthOperations(
   payments: OpsPayment[],
   today = santiagoToday(),
 ) {
-  const start = monthStart(month);
-  const end = monthEnd(month) < today ? monthEnd(month) : today;
+  return { ...rangeOperations(monthStart(month), monthEnd(month), rooms, reservations, payments, today), month };
+}
+
+/**
+ * Operación de un rango de fechas (inclusive): ocupación, venta devengada por
+ * noche, lo cobrado por día y medio de pago, y detalle por habitación, tipo,
+ * día de la semana y semana. Si el rango llega al futuro se corta en hoy.
+ */
+export function rangeOperations(
+  rangeStart: string,
+  rangeEnd: string,
+  rooms: OpsRoom[],
+  reservations: OpsReservation[],
+  payments: OpsPayment[],
+  today = santiagoToday(),
+) {
+  const start = rangeStart;
+  const end = rangeEnd < today ? rangeEnd : today;
   const roomIds = new Set(rooms.map((r) => r.id));
   const stays = reservations
     .filter((r) => roomIds.has(r.room_id))
@@ -154,7 +170,7 @@ export function monthOperations(
   const byMethod: Record<string, number> = {};
   for (const p of payments) {
     const day = santiagoDate(p.paid_at);
-    if (day < start || day > monthEnd(month)) continue;
+    if (day < start || day > end) continue;
     receivedByDay.set(day, (receivedByDay.get(day) ?? 0) + Number(p.amount));
     byMethod[p.payment_method] = (byMethod[p.payment_method] ?? 0) + Number(p.amount);
   }
@@ -228,7 +244,9 @@ export function monthOperations(
   }
   flush();
   return {
-    month,
+    month: start.slice(0, 7),
+    start,
+    end,
     elapsedDays: days.length,
     totalRooms,
     nightsSold,
@@ -246,6 +264,7 @@ export function monthOperations(
   };
 }
 export type MonthOperations = ReturnType<typeof monthOperations>;
+export type RangeOperations = ReturnType<typeof rangeOperations>;
 
 /** Punto de equilibrio: noches y ocupación necesarias para cubrir los costos fijos. */
 export function breakEven(summary: MonthlySummary, ops: MonthOperations) {

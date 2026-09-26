@@ -10,13 +10,14 @@ import {
   percentChange,
   previousMonth,
   type MonthOperations,
+  type RangeOperations,
   type MonthlySummary,
   type StatementSection,
 } from "../domain/monthly-closing";
 
-const W = 595, H = 842, M = 32;
-const hex = (h: string) => rgb(parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255);
-const C = {
+export const W = 595, H = 842, M = 32;
+export const hex = (h: string) => rgb(parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255);
+export const C = {
   navy: hex("#0b2f5f"), ink: hex("#16202c"), ink2: hex("#52606f"), muted: hex("#8a96a3"), line: hex("#e3e8ee"),
   card: rgb(1, 1, 1), page: hex("#f3f6fa"), track: hex("#e8edf3"), blue: hex("#2a78d6"), blueSoft: hex("#b9d4f4"),
   prev: hex("#a9b4c0"), good: hex("#0ca30c"), warning: hex("#fab219"), serious: hex("#ec835a"), critical: hex("#d03b3b"), white: rgb(1, 1, 1),
@@ -26,21 +27,21 @@ const sectionColor: Record<string, Color> = {
   income: hex("#2a78d6"), fixed: hex("#eb6834"), variable: hex("#1baf7a"), investment: hex("#eda100"),
   withdrawal: hex("#e87ba4"), other: hex("#8a96a3"), profit: hex("#0d366b"),
 };
-const methodColor: Record<string, Color> = { transfer: hex("#2a78d6"), cash: hex("#eb6834"), card: hex("#1baf7a"), airbnb: hex("#eda100"), others: hex("#8a96a3") };
-const methodLabel: Record<string, string> = { transfer: "Transferencia", cash: "Efectivo", card: "Tarjeta", airbnb: "Airbnb", others: "Otros" };
+export const methodColor: Record<string, Color> = { transfer: hex("#2a78d6"), cash: hex("#eb6834"), card: hex("#1baf7a"), airbnb: hex("#eda100"), others: hex("#8a96a3") };
+export const methodLabel: Record<string, string> = { transfer: "Transferencia", cash: "Efectivo", card: "Tarjeta", airbnb: "Airbnb", others: "Otros" };
 // Rampa secuencial azul para el calendario de ocupación (escala 50% → 100%).
-const ramp = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95"].map(hex);
-const level = (occ: number) => Math.max(0, Math.min(ramp.length - 1, Math.floor(((occ - 0.5) / 0.5) * ramp.length)));
+export const ramp = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95"].map(hex);
+export const level = (occ: number) => Math.max(0, Math.min(ramp.length - 1, Math.floor(((occ - 0.5) / 0.5) * ramp.length)));
 
 const safe = (v: unknown) =>
   String(v ?? "").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—−]/g, "-").replace(/…/g, "...").replace(/[^\x20-\xFF]/g, " ");
-const short = (v: number) =>
+export const short = (v: number) =>
   Math.abs(v) >= 1_000_000 ? `${v < 0 ? "-" : ""}$${(Math.abs(v) / 1_000_000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} M` : `${v < 0 ? "-" : ""}$${Math.round(Math.abs(v) / 1000).toLocaleString("es-CL")} mil`;
-const pct = (v: number, d = 1) => `${v.toLocaleString("es-CL", { maximumFractionDigits: d, minimumFractionDigits: d })}%`;
+export const pct = (v: number, d = 1) => `${v.toLocaleString("es-CL", { maximumFractionDigits: d, minimumFractionDigits: d })}%`;
 const dayNames = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
-type Painter = ReturnType<typeof painter>;
-function painter(page: PDFPage, R: PDFFont, B: PDFFont) {
+export type Painter = ReturnType<typeof painter>;
+export function painter(page: PDFPage, R: PDFFont, B: PDFFont) {
   const Y = (t: number) => H - t;
   const w = (s: string, size: number, f: PDFFont = R) => f.widthOfTextAtSize(safe(s), size);
   const text = (s: string, x: number, t: number, size: number, f: PDFFont = R, c: Color = C.ink) =>
@@ -397,7 +398,7 @@ export async function buildMonthlyReportPdf(input: Input) {
   return pdf.save();
 }
 
-function drawLogo(page: PDFPage, logo: PDFImage, p: Painter) {
+export function drawLogo(page: PDFPage, logo: PDFImage, p: Painter) {
   page.drawCircle({ x: M + 29, y: p.Y(44), size: 29, color: C.white });
   page.drawImage(logo, { x: M + 4, y: p.Y(69), width: 50, height: 50 });
 }
@@ -508,7 +509,7 @@ function drawCalendar(p: Painter, top: number, half: number, h: number, ops: Mon
   p.text("100% ocupación", gx + 20 + ramp.length * 16 + 4, lt, 6.5, R, C.muted);
 }
 
-function drawRoomTable(p: Painter, top: number, ops: MonthOperations, R: PDFFont, B: PDFFont) {
+export function drawRoomTable(p: Painter, top: number, ops: RangeOperations, R: PDFFont, B: PDFFont) {
   const rows = ops.rooms.slice(0, 22);
   const rowH = 15, h = 62 + Math.max(1, rows.length) * rowH;
   const avgOcc = ops.occupancy;

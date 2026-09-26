@@ -125,23 +125,6 @@ export async function liveMetrics(supabase: Supabase, unitId: string, date: stri
   return data as ClosingMetrics;
 }
 
-export async function loadIssuedClosings(
-  supabase: Supabase,
-  unitId: string,
-  range: { start: string; end: string },
-) {
-  const { data, error } = await supabase
-    .from("lodging_daily_closings")
-    .select(closingColumns)
-    .eq("business_unit_id", unitId)
-    .eq("status", "issued")
-    .gte("closing_date", range.start)
-    .lte("closing_date", range.end)
-    .order("closing_date");
-  if (error) throw error;
-  return ((data ?? []) as unknown as Row[]).map((row) => toClosing(row).closing);
-}
-
 export async function listRecentClosings(supabase: Supabase, unitId: string, limit = 15) {
   const { data, error } = await supabase
     .from("lodging_daily_closings")

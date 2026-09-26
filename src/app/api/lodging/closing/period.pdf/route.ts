@@ -1,35 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { lodgingContext } from "@/modules/lodging/application/queries";
-import { loadIssuedClosings } from "@/modules/lodging/application/closing-queries";
-import { buildPeriodClosingPdf } from "@/modules/lodging/application/closing-pdf";
-import {
-  isValidDay,
-  periodRange,
-  santiagoToday,
-  summarizePeriod,
-  type PeriodKind,
-} from "@/modules/lodging/domain/daily-closing";
+import { loadPeriodReport } from "@/modules/lodging/application/period-queries";
+import { buildPeriodReportPdf } from "@/modules/lodging/application/period-pdf";
+import { isValidDay, santiagoToday, type PeriodKind } from "@/modules/lodging/domain/daily-closing";
 
 export async function GET(request: NextRequest) {
   const { unit, supabase } = await lodgingContext("lodging.closings.reports");
   const params = request.nextUrl.searchParams;
-  const period = params.get("period");
-  const kind: PeriodKind = period === "week" || period === "fortnight" ? period : "month";
+  const kind: PeriodKind = params.get("period") === "fortnight" ? "fortnight" : "week";
   const today = santiagoToday();
   const date = params.get("date") ?? undefined;
   const reference = isValidDay(date) && date <= today ? date : today;
-  const range = periodRange(kind, reference);
-  const closings = await loadIssuedClosings(supabase, unit.id, range);
-  const bytes = await buildPeriodClosingPdf({
-    unit,
-    kind,
-    range,
-    summary: summarizePeriod(closings, range, today),
-  });
+  const report = await loadPeriodReport(supabase, unit.id, kind, reference);
+  const bytes = await buildPeriodReportPdf({ unit, report });
   return new NextResponse(bytes as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="cierre-${kind}-${unit.code.toLowerCase()}-${range.start}.pdf"`,
+      "Content-Disposition": `inline; filename="resumen-${kind === "week" ? "semanal" : "quincenal"}-${unit.code.toLowerCase()}-${report.range.start}.pdf"`,
       "Cache-Control": "private, no-store",
     },
   });

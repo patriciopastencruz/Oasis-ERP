@@ -164,69 +164,6 @@ export function daysBetween(start: string, end: string) {
   );
 }
 
-type PeriodClosing = Pick<
-  DailyClosing,
-  | "closing_date"
-  | "total_rooms"
-  | "occupied_rooms"
-  | "occupancy_pct"
-  | "cash_received"
-  | "transfer_received"
-  | "card_received"
-  | "airbnb_received"
-  | "other_received"
-  | "total_received"
-  | "expense_total"
-  | "net_result"
-  | "pending_amount"
-> & { metrics?: Pick<ClosingMetrics, "day_revenue"> | null };
-
-/**
- * Consolida cierres emitidos de un período. La ocupación promedio se pondera
- * por habitaciones-noche disponibles (no promedia porcentajes) y la venta
- * promedio es la venta devengada dividida por las habitaciones ocupadas.
- */
-export function summarizePeriod<T extends PeriodClosing>(
-  closings: T[],
-  range: { start: string; end: string },
-  today = santiagoToday(),
-) {
-  const sorted = [...closings].sort((a, b) => a.closing_date.localeCompare(b.closing_date));
-  const sum = (key: keyof PeriodClosing) =>
-    sorted.reduce((total, c) => total + Number(c[key] ?? 0), 0);
-  const roomNights = sum("total_rooms");
-  const occupiedNights = sum("occupied_rooms");
-  const revenue = sorted.reduce((t, c) => t + Number(c.metrics?.day_revenue ?? 0), 0);
-  const lastDay = range.end < today ? range.end : today;
-  const elapsedDays = range.start > lastDay ? 0 : daysBetween(range.start, lastDay);
-  const closedDates = new Set(sorted.map((c) => c.closing_date));
-  const missingDates: string[] = [];
-  for (let day = range.start; day <= lastDay; day = addDays(day, 1))
-    if (!closedDates.has(day)) missingDates.push(day);
-  return {
-    closedDays: sorted.length,
-    elapsedDays,
-    missingDates,
-    totalReceived: sum("total_received"),
-    byMethod: {
-      cash: sum("cash_received"),
-      transfer: sum("transfer_received"),
-      card: sum("card_received"),
-      airbnb: sum("airbnb_received"),
-      other: sum("other_received"),
-    },
-    expenseTotal: sum("expense_total"),
-    netResult: sum("net_result"),
-    occupancyPct: roomNights ? (occupiedNights * 100) / roomNights : 0,
-    averageAvailableRooms: sorted.length ? (roomNights - occupiedNights) / sorted.length : 0,
-    averageOccupiedRooms: sorted.length ? occupiedNights / sorted.length : 0,
-    averageRate: occupiedNights ? revenue / occupiedNights : 0,
-    averageDailyIncome: sorted.length ? sum("total_received") / sorted.length : 0,
-    lastPending: sorted.at(-1)?.pending_amount ?? 0,
-    days: sorted,
-  };
-}
-
 export type ClosingHistoryRow = {
   closing_date: string;
   total_received: number;
