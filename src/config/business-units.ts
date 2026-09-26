@@ -28,6 +28,9 @@ export const businessUnitBrands = {
 
 export type BusinessUnitCode = keyof typeof businessUnitBrands;
 
+/** Unidades que operan el módulo Gestión de reservas (hostales). */
+export const lodgingUnitCodes: readonly string[] = ["HU", "HOC", "HOB"];
+
 export function getBusinessUnitBrand(code?: string | null) {
   return code && code in businessUnitBrands
     ? businessUnitBrands[code as BusinessUnitCode]

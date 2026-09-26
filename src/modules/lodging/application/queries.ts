@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { lodgingUnitCodes } from "@/config/business-units";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -6,7 +7,6 @@ import {
   requireSession,
 } from "@/modules/platform/auth/application/session";
 
-const LODGING_UNIT_CODES = ["HU", "HOC"];
 
 /** Acepta un permiso o una lista (basta con tener cualquiera de ellos). */
 export async function lodgingContext(
@@ -21,8 +21,8 @@ export async function lodgingContext(
   const selected = store.get("oasis_unit")?.value;
   const unit =
     ctx.units.find(
-      (u) => u.id === selected && LODGING_UNIT_CODES.includes(u.code),
-    ) ?? ctx.units.find((u) => LODGING_UNIT_CODES.includes(u.code));
+      (u) => u.id === selected && lodgingUnitCodes.includes(u.code),
+    ) ?? ctx.units.find((u) => lodgingUnitCodes.includes(u.code));
   if (!unit) redirect("/no-access");
   const company = ctx.companies.find((c) => c.id === unit.company_id);
   if (!company) redirect("/no-access");

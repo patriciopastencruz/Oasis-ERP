@@ -1,4 +1,4 @@
-# Cierre diario de hostales (HOC / HU)
+# Cierre diario de hostales (HOC / HU / HOB)
 
 Gestión de reservas → **Cierre diario** genera el reporte de cierre del día a partir de las reservas y los pagos registrados en el ERP. Recepción solo agrega los **gastos** y las **observaciones**.
 

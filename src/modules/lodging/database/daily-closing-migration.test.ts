@@ -73,3 +73,14 @@ describe("eliminación de cierres", () => {
     expect(del).not.toMatch(/delete from public\.lodging_reservation/);
   });
 });
+
+describe("Hostal Oasis Cobija", () => {
+  it("puede guardar cierres diarios igual que HU y HOC", () => {
+    const sql = readFileSync(
+      resolve(process.cwd(), "supabase/migrations/20260926030722_lodging_enable_hostal_cobija.sql"),
+      "utf8",
+    );
+    expect(sql).toContain("unit.code not in('HU','HOC','HOB')");
+    expect(sql).toContain("public.has_permission('lodging.closings.create')");
+  });
+});

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { lodgingUnitCodes } from "@/config/business-units";
 import { getSessionContext } from "./session";
 
 export async function loginAction(form: FormData) {
@@ -111,7 +112,7 @@ export async function setContextAction(form: FormData) {
         : "/finance/distribution",
     );
   }
-  if (unitCode === "HU" || unitCode === "HOC") redirect("/lodging");
+  if (lodgingUnitCodes.includes(unitCode ?? "")) redirect("/lodging");
   redirect("/dashboard");
 }
 export async function markOwnNotificationReadAction(form: FormData) {

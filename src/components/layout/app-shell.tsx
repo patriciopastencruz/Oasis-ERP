@@ -45,7 +45,7 @@ import { ShellRoot } from "@/components/layout/shell-root";
 import { HideInAdminGeneral } from "@/components/layout/hide-in-admin-general";
 import { ShowOnlyInAdminGeneral } from "@/components/layout/show-only-in-admin-general";
 import { AssistantMount } from "@/components/assistant/assistant-mount";
-import { getBusinessUnitBrand } from "@/config/business-units";
+import { getBusinessUnitBrand, lodgingUnitCodes } from "@/config/business-units";
 type Ctx = Awaited<
   ReturnType<
     typeof import("@/modules/platform/auth/application/session").requireSession
@@ -403,7 +403,7 @@ export async function AppShell({
     companyUnits.find((u) => u.code === "OM") ??
     [...companyUnits].sort((a, b) => a.name.localeCompare(b.name, "es"))[0];
   const isOasisModulares = unit?.code === "OM";
-  const isHostalUruguay = ["HU", "HOC"].includes(unit?.code ?? "");
+  const isLodgingUnit = lodgingUnitCodes.includes(unit?.code ?? "");
   const isAltiplanica = unit?.code === "DA";
   const isDriver = ctx.role?.key === "driver";
   const unitBrand = getBusinessUnitBrand(unit?.code);
@@ -587,7 +587,7 @@ export async function AppShell({
               </details>
             </HideInAdminGeneral>
           )}
-          {isHostalUruguay && visibleLodgingNav.length > 0 && (
+          {isLodgingUnit && visibleLodgingNav.length > 0 && (
             <HideInAdminGeneral>
               <details className="group/lodging">
                 <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
@@ -654,7 +654,7 @@ export async function AppShell({
                     className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10"
                   >
                     <Icon size={17} />
-                    {isHostalUruguay && href === "/dashboard"
+                    {isLodgingUnit && href === "/dashboard"
                       ? "Dashboard Ejecutivo"
                       : label}
                   </Link>
