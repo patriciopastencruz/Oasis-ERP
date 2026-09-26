@@ -67,6 +67,8 @@ export type ClosingExpense = {
   description: string;
   amount: number;
   payment_method: ExpenseMethod;
+  category_id?: string | null;
+  category_name?: string | null;
 };
 
 /** Cierre persistido, tal como lo usan la vista previa, el PDF y los reportes. */
@@ -96,8 +98,10 @@ export type DailyClosing = {
   email_recipients: string[] | null;
 };
 
-export const clp = (value: number) =>
-  `$${Math.round(Number(value) || 0).toLocaleString("es-CL")}`;
+export const clp = (value: number) => {
+  const n = Math.round(Number(value) || 0);
+  return `${n < 0 ? "-" : ""}$${Math.abs(n).toLocaleString("es-CL")}`;
+};
 export const pct = (value: number) =>
   `${(Number(value) || 0).toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 

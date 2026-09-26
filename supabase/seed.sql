@@ -160,6 +160,15 @@ begin
     or (p.key = 'lodging.closings.reports' and r.key in ('general_manager','finance_manager'))
   on conflict do nothing;
 
+  -- Categorías financieras de hostales (la migración las siembra en producción).
+  perform public.lodging_seed_finance_categories(bu.company_id, bu.id)
+  from public.business_units bu where bu.code in ('HU','HOC','HOB');
+  insert into public.role_permissions(role_id, permission_id)
+  select r.id, p.id from public.roles r join public.permissions p on
+    (p.key in ('lodging.monthly_closing.view','lodging.monthly_closing.manage') and r.key = 'administrator')
+    or (p.key = 'lodging.monthly_closing.view' and r.key in ('general_manager','finance_manager'))
+  on conflict do nothing;
+
   select id into admin_role from public.roles where key = 'administrator';
   select id into finance_role from public.roles where key = 'finance_manager';
   select id into area_manager_role from public.roles where key = 'area_manager';

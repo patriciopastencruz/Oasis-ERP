@@ -14,6 +14,8 @@ Finanzas → **Flujo de caja** registra ingresos y gastos diarios por unidad de 
 
 Los hostales (HOC/HU/HOB) incluyen **Cierre diario**: indicadores automáticos desde reservas y pagos del día, gastos y observaciones manuales, PDF para WhatsApp, correo a administración y reportes semanales, quincenales y mensuales. Consulta `docs/cierre-diario-hostal.md`.
 
+Los hostales también tienen **Cierre mensual** gerencial: estado de resultados por unidad (automático desde reservas y cierres diarios + gastos manuales) e informe ejecutivo en PDF. Consulta `docs/cierre-mensual-hostal.md`.
+
 La unidad **Hostal Uruguay** incluye el módulo funcional **Gestión de reservas**: calendario semanal, habitaciones, reservas directas y externas, pagos, comprobantes privados, check-in/out e iCal. Consulta `docs/hostal-uruguay-reservas.md`.
 
 La **Etapa 2A.1** está generada para revisión: evoluciona aprobaciones hacia flujos configurables y prepara contratos seguros para dashboards, pero todavía no se aplicó nada a Supabase.

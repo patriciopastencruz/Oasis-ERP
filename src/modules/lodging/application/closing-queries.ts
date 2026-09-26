@@ -54,7 +54,7 @@ export async function loadClosing(supabase: Supabase, id: string) {
   if (!data) return null;
   const { data: expenses, error: expenseError } = await supabase
     .from("lodging_daily_closing_expenses")
-    .select("description,amount,payment_method")
+    .select("description,amount,payment_method,category_id,lodging_finance_categories(name)")
     .eq("closing_id", id)
     .is("deleted_at", null)
     .order("created_at");
@@ -72,7 +72,16 @@ export async function loadClosing(supabase: Supabase, id: string) {
   if (historyError) throw historyError;
   return {
     ...toClosing(row),
-    expenses: (expenses ?? []).map((e) => ({ ...e, amount: Number(e.amount) })) as ClosingExpense[],
+    expenses: (expenses ?? []).map((e) => {
+      const cat = Array.isArray(e.lodging_finance_categories) ? e.lodging_finance_categories[0] : e.lodging_finance_categories;
+      return {
+        description: e.description,
+        amount: Number(e.amount),
+        payment_method: e.payment_method,
+        category_id: e.category_id,
+        category_name: (cat as { name?: string } | null)?.name ?? null,
+      };
+    }) as ClosingExpense[],
     history: (history ?? []).map((h) => ({
       closing_date: h.closing_date,
       total_received: Number(h.total_received),
@@ -91,6 +100,20 @@ export async function findClosingId(supabase: Supabase, unitId: string, date: st
     .eq("closing_date", date)
     .maybeSingle();
   return data?.id as string | undefined;
+}
+
+/** Categorías habilitadas para los gastos del cierre diario. */
+export async function dailyExpenseCategories(supabase: Supabase, unitId: string) {
+  const { data, error } = await supabase
+    .from("lodging_finance_categories")
+    .select("id,name,section")
+    .eq("business_unit_id", unitId)
+    .eq("active", true)
+    .eq("allow_daily", true)
+    .order("sort_order")
+    .order("name");
+  if (error) throw error;
+  return (data ?? []) as { id: string; name: string; section: string }[];
 }
 
 export async function liveMetrics(supabase: Supabase, unitId: string, date: string) {

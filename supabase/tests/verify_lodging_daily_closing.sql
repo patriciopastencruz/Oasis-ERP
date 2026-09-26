@@ -68,6 +68,8 @@ declare
   hu uuid := (select id from public.business_units where code='HU');
   today date := (select today from ids);
   m jsonb; c public.lodging_daily_closings; closing uuid; failed boolean; recipients int;
+  supplies uuid := (select id from public.lodging_finance_categories where business_unit_id=hu and name='Insumos y limpieza');
+  fixed_cat uuid := (select id from public.lodging_finance_categories where business_unit_id=hu and name='Costos operativos');
 begin
   m := public.lodging_closing_metrics(hu,today);
   if (m->>'total_rooms')::int<>4 or (m->>'occupied_rooms')::int<>3 or (m->>'occupancy_pct')::numeric<>75 then
@@ -86,11 +88,18 @@ begin
   closing := public.lodging_save_daily_closing(hu,today,jsonb_build_object(
     'observations','Falta ingresar Modular 8','reported_problems','Ducha P2 gotea','items_to_replenish','Toallas',
     'total_received',1,
-    'expenses',jsonb_build_array(jsonb_build_object('description','Gas','amount',1150,'payment_method','cash'))));
+    'expenses',jsonb_build_array(jsonb_build_object('description','Gas','amount',1150,'payment_method','cash','category_id',supplies))));
+  -- Un gasto sin categoría o con una categoría no habilitada para el día se rechaza.
+  failed := false;
+  begin perform public.lodging_save_daily_closing(hu,today,jsonb_build_object('expenses',jsonb_build_array(jsonb_build_object('description','Sin cat','amount',100)))); exception when others then failed := true; end;
+  if not failed then raise exception 'Se aceptó un gasto sin categoría'; end if;
+  failed := false;
+  begin perform public.lodging_save_daily_closing(hu,today,jsonb_build_object('expenses',jsonb_build_array(jsonb_build_object('description','Arriendo','amount',100,'category_id',fixed_cat)))); exception when others then failed := true; end;
+  if not failed then raise exception 'Se aceptó una categoría no habilitada para gastos diarios'; end if;
   -- Guardar otra vez reemplaza los gastos (el anterior queda con deleted_at).
   closing := public.lodging_save_daily_closing(hu,today,jsonb_build_object(
     'observations','Falta ingresar Modular 8',
-    'expenses',jsonb_build_array(jsonb_build_object('description','Gas','amount',1150),jsonb_build_object('description','Pan','amount',2000))));
+    'expenses',jsonb_build_array(jsonb_build_object('description','Gas','amount',1150,'category_id',supplies),jsonb_build_object('description','Pan','amount',2000,'category_id',supplies))));
   select * into c from public.lodging_daily_closings where id=closing;
   if c.status<>'draft' or c.expense_total<>3150 or c.total_received<>65000 or c.net_result<>61850 or c.reported_problems is not null then
     raise exception 'Borrador incorrecto: % % % %',c.status,c.expense_total,c.total_received,c.net_result; end if;

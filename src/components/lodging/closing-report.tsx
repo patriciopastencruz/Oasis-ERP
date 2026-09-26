@@ -114,7 +114,10 @@ export function ClosingReport({
         <Detail title="Detalle de gastos" headers={["Descripción", "Medio", "Monto"]}>
           {expenses.map((e, i) => (
             <tr key={i} className="border-t">
-              <td className="py-1.5">{e.description}</td>
+              <td className="py-1.5">
+                {e.description}
+                {e.category_name && <span className="block text-[10px] text-slate-500">{e.category_name}</span>}
+              </td>
               <td>{expenseMethodLabels[e.payment_method] ?? e.payment_method}</td>
               <td className="text-right tabular-nums">{clp(e.amount)}</td>
             </tr>

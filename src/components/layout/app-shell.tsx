@@ -362,6 +362,12 @@ const lodgingNav = [
     permission: "lodging.closings.create",
   },
   {
+    href: "/lodging/monthly",
+    label: "Cierre mensual",
+    icon: Landmark,
+    permission: "lodging.monthly_closing.view",
+  },
+  {
     href: "/lodging/reports",
     label: "Reportabilidad",
     icon: PieChart,
@@ -426,8 +432,11 @@ export async function AppShell({
         : ctx.permissions.has("inventory.materials.view")
           ? "/inventory"
           : "/finance/payment-control";
-  const visibleFinanceNav = financeNav.filter((item) =>
-    canView(item, ctx.permissions),
+  // Flujo de caja queda pendiente para los hostales (usan el cierre diario y mensual).
+  const visibleFinanceNav = financeNav.filter(
+    (item) =>
+      canView(item, ctx.permissions) &&
+      !(isLodgingUnit && item.href.startsWith("/finance/cash-flow")),
   );
   const visibleDistributionNav = isAltiplanica
     ? distributionNav.filter((item) => canView(item, ctx.permissions))

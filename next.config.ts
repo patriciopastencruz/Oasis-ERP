@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/lodging/closing/**": ["./public/business-units/**"],
     "/lodging/closing/**": ["./public/business-units/**"],
+    "/api/lodging/monthly/**": ["./public/business-units/**"],
   },
   experimental: {
     // Los respaldos se validan individualmente hasta 10 MB. Este margen permite

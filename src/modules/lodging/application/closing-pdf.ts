@@ -31,7 +31,7 @@ const safe = (value: unknown) =>
     .replace(/[–—]/g, "-")
     .replace(/[^\x0A\x20-\xFF]/g, "");
 
-async function loadLogo(pdf: PDFDocument, unitCode: string) {
+export async function loadLogo(pdf: PDFDocument, unitCode: string) {
   const file = { HOC: "hoc.png", HU: "hu.png", HOB: "hob.png" }[unitCode];
   if (!file) return null;
   try {

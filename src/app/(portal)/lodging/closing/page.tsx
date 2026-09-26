@@ -4,6 +4,7 @@ import { PageHeader, Panel } from "@/components/ui/page";
 import { ClosingExpenses } from "@/components/lodging/closing-expenses";
 import { lodgingContext } from "@/modules/lodging/application/queries";
 import {
+  dailyExpenseCategories,
   findClosingId,
   listRecentClosings,
   liveMetrics,
@@ -40,9 +41,10 @@ export default async function DailyClosingPage({
   // Recepción no reabre un cierre emitido: se muestra el cierre ya generado.
   if (existing?.closing.status === "issued" && !canManage && !q.error)
     redirect(`/lodging/closing/${existingId}`);
-  const [metrics, recent] = await Promise.all([
+  const [metrics, recent, expenseCategories] = await Promise.all([
     liveMetrics(supabase, unit.id, date),
     listRecentClosings(supabase, unit.id, 10),
+    dailyExpenseCategories(supabase, unit.id),
   ]);
   const textarea =
     "mt-1 w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b4f9c]";
@@ -125,7 +127,7 @@ export default async function DailyClosingPage({
 
           <Panel>
             <h2 className="mb-3 font-semibold">Gastos del día</h2>
-            <ClosingExpenses initial={existing?.expenses ?? []} />
+            <ClosingExpenses initial={existing?.expenses ?? []} categories={expenseCategories} />
           </Panel>
 
           <Panel className="space-y-3">

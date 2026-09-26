@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
+import { lodgingUnitCodes } from "@/config/business-units";
 import {
   monthRange,
   type CashFlowClosing,
@@ -28,6 +29,8 @@ export async function cashFlowContext(permission = "finance.cash_flow.view") {
     units.find((u) => u.code === "OM") ??
     [...units].sort((a, b) => a.name.localeCompare(b.name, "es"))[0];
   if (!unit) redirect("/no-access");
+  // En hostales el flujo de caja está deshabilitado: se usa el cierre mensual.
+  if (lodgingUnitCodes.includes(unit.code)) redirect("/lodging/monthly");
   return {
     ctx,
     unit,
