@@ -427,12 +427,7 @@
       },
       {
         "path": "/lodging/arrivals",
-        "label": "Llegadas de hoy",
-        "permission": "lodging.reservations.view"
-      },
-      {
-        "path": "/lodging/departures",
-        "label": "Salidas de hoy",
+        "label": "Llegadas/Salidas de hoy",
         "permission": "lodging.reservations.view"
       },
       {

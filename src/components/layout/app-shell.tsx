@@ -21,7 +21,6 @@ import {
   CalendarDays,
   BedDouble,
   LogIn,
-  LogOut,
   SlidersHorizontal,
   ReceiptText,
   ShoppingCart,
@@ -352,14 +351,8 @@ const lodgingNav = [
   },
   {
     href: "/lodging/arrivals",
-    label: "Llegadas",
+    label: "Llegadas/Salidas",
     icon: LogIn,
-    permission: "lodging.reservations.view",
-  },
-  {
-    href: "/lodging/departures",
-    label: "Salidas",
-    icon: LogOut,
     permission: "lodging.reservations.view",
   },
   {
