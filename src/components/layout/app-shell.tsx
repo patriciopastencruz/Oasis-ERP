@@ -370,6 +370,18 @@ const lodgingNav = [
     permission: "lodging.reservations.view",
   },
   {
+    href: "/lodging/closing",
+    label: "Cierre diario",
+    icon: ClipboardCheck,
+    permission: "lodging.closings.create",
+  },
+  {
+    href: "/lodging/closing/reports",
+    label: "Reportes de cierres",
+    icon: BarChart3,
+    permission: "lodging.closings.reports",
+  },
+  {
     href: "/lodging/reports",
     label: "Reportabilidad",
     icon: PieChart,

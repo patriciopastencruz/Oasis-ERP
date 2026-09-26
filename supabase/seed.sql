@@ -153,6 +153,12 @@ begin
   insert into public.role_permissions(role_id, permission_id)
   select r.id, p.id from public.roles r join public.permissions p on p.key = 'finance.cash_flow.manage'
   where r.key in ('general_manager','finance_manager') on conflict do nothing;
+  -- Cierre diario de hostales (la migración ya lo asigna en producción).
+  insert into public.role_permissions(role_id, permission_id)
+  select r.id, p.id from public.roles r join public.permissions p on
+    (p.key in ('lodging.closings.create','lodging.closings.reports','lodging.closings.manage') and r.key = 'administrator')
+    or (p.key = 'lodging.closings.reports' and r.key in ('general_manager','finance_manager'))
+  on conflict do nothing;
 
   select id into admin_role from public.roles where key = 'administrator';
   select id into finance_role from public.roles where key = 'finance_manager';

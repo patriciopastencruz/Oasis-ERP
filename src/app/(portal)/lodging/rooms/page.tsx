@@ -47,7 +47,8 @@ export default async function Page({
               <option value="">Selecciona</option>
               {(rooms ?? []).map((room) => (
                 <option value={room.id} key={room.id}>
-                  {room.name} · {room.active ? "Activa" : "Inactiva"}
+                  {room.name} · {room.room_type} ·{" "}
+                  {room.active ? "Activa" : "Inactiva"}
                 </option>
               ))}
             </select>
@@ -80,6 +81,17 @@ export default async function Page({
               <input
                 name="name"
                 defaultValue={selectedRoom.name}
+                disabled={!can}
+                className={`mt-1 w-full ${field}`}
+              />
+            </label>
+            <label className="text-sm">
+              Tipo de habitación
+              <input
+                name="room_type"
+                list="lodging-room-types"
+                required
+                defaultValue={selectedRoom.room_type}
                 disabled={!can}
                 className={`mt-1 w-full ${field}`}
               />
@@ -194,6 +206,14 @@ export default async function Page({
               className={field}
             />
             <input
+              name="room_type"
+              list="lodging-room-types"
+              required
+              defaultValue="Habitación"
+              placeholder="Tipo (Modulares, Departamento…)"
+              className={field}
+            />
+            <input
               name="capacity"
               type="number"
               min="1"
@@ -219,6 +239,13 @@ export default async function Page({
           </form>
         </Panel>
       )}
+      <datalist id="lodging-room-types">
+        {[...new Set((rooms ?? []).map((room) => room.room_type))].map(
+          (type) => (
+            <option key={type} value={type} />
+          ),
+        )}
+      </datalist>
     </>
   );
 }

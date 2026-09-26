@@ -67,6 +67,7 @@ export async function createRoomAction(form: FormData) {
       business_unit_id: uuid,
       code: text.max(20),
       name: text.max(80),
+      room_type: z.string().trim().min(2).max(60),
       description: z.string().trim().max(300),
       capacity: z.coerce.number().int().positive(),
       base_rate: z.coerce.number().min(0),
@@ -97,6 +98,7 @@ export async function updateRoomAction(form: FormData) {
   const values = z
     .object({
       name: text.max(80),
+      room_type: z.string().trim().min(2).max(60),
       description: z.string().trim().max(300),
       capacity: z.coerce.number().int().positive(),
       base_rate: z.coerce.number().min(0),

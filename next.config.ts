@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // El PDF del cierre de hostal lee el logo de la unidad desde public/.
+  outputFileTracingIncludes: {
+    "/api/lodging/closing/**": ["./public/business-units/**"],
+    "/lodging/closing/**": ["./public/business-units/**"],
+  },
   experimental: {
     // Los respaldos se validan individualmente hasta 10 MB. Este margen permite
     // enviar hasta cuatro archivos junto con los demás campos del formulario.

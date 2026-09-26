@@ -1,12 +1,22 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requirePermission } from "@/modules/platform/auth/application/session";
+import {
+  requirePermission,
+  requireSession,
+} from "@/modules/platform/auth/application/session";
 
 const LODGING_UNIT_CODES = ["HU", "HOC"];
 
-export async function lodgingContext(permission = "lodging.reservations.view") {
-  const ctx = await requirePermission(permission);
+/** Acepta un permiso o una lista (basta con tener cualquiera de ellos). */
+export async function lodgingContext(
+  permission: string | string[] = "lodging.reservations.view",
+) {
+  const ctx = Array.isArray(permission)
+    ? await requireSession()
+    : await requirePermission(permission);
+  if (Array.isArray(permission) && !permission.some((p) => ctx.permissions.has(p)))
+    redirect("/no-access");
   const store = await cookies();
   const selected = store.get("oasis_unit")?.value;
   const unit =
