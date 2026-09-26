@@ -23,6 +23,9 @@ export default async function Page({
   const selectedRoom = (rooms ?? []).find((room) => room.id === q.room);
   return (
     <>
+      <Link href="/lodging/settings" className="mb-3 inline-block text-sm font-semibold text-[#0b4f9c]">
+        ← Configuración
+      </Link>
       <PageHeader
         eyebrow={unit.name}
         title="Habitaciones"

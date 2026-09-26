@@ -356,12 +356,6 @@ const lodgingNav = [
     permission: "lodging.reservations.view",
   },
   {
-    href: "/lodging/rooms",
-    label: "Habitaciones",
-    icon: BedDouble,
-    permission: "lodging.reservations.view",
-  },
-  {
     href: "/lodging/closing",
     label: "Cierre diario",
     icon: ClipboardCheck,
