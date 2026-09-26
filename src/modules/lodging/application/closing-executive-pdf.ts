@@ -229,7 +229,7 @@ export function drawExecutivePage(
     bar(bx, top + 13, t.total ? bw * (t.occupied / t.total) : 0, 7, C.blue, "right");
   });
   if (m.by_type.length > 3)
-    text(`+${m.by_type.length - 3} tipos más en la página 2`, M + 12, r2 + r2H - 14, 7, R, C.muted);
+    text(`+${m.by_type.length - 3} tipo(s) más; detalle en el ERP`, M + 12, r2 + r2H - 14, 7, R, C.muted);
 
   const px = M + halfW + gap;
   card(px, r2, halfW, r2H, "Ingresos por medio de pago", clp(closing.total_received));
@@ -396,7 +396,7 @@ export function drawExecutivePage(
   card(ox, r5, halfW, r5H, "Observaciones generales");
   const lines = closing.observations ? wrap(closing.observations, halfW - 24, 8.5) : ["Sin observaciones."];
   const maxLines = Math.floor((r5H - 40) / 12.5);
-  const shown = lines.length > maxLines ? [...lines.slice(0, maxLines - 1), "(continúa en la página 2)"] : lines;
+  const shown = lines.length > maxLines ? [...lines.slice(0, maxLines - 1), "(texto completo en el ERP)"] : lines;
   shown.forEach((l, i) =>
     text(l, ox + 12, r5 + 30 + i * 12.5, 8.5, R, closing.observations && i < lines.length ? C.ink : C.muted),
   );
@@ -405,6 +405,6 @@ export function drawExecutivePage(
   const stamp = closing.issued_at
     ? `Emitido el ${new Date(closing.issued_at).toLocaleString("es-CL", { timeZone: "America/Santiago" })}${input.issuedBy ? ` por ${input.issuedBy}` : ""}`
     : `Borrador del ${formatClosingDate(closing.closing_date)}, no emitido`;
-  text(`${stamp} · Detalle de pagos, saldos y gastos en la página 2`, M, H - 28, 7, R, C.muted);
+  text(stamp, M, H - 28, 7, R, C.muted);
   textR("OASIS ERP", W - M, H - 28, 7, B, C.muted);
 }

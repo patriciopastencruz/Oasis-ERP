@@ -73,7 +73,7 @@ export default async function ClosingDetailPage({
           />
           <details className="group rounded-2xl border bg-white">
             <summary className="cursor-pointer list-none px-5 py-3 text-sm font-semibold text-[#0b4f9c] [&::-webkit-details-marker]:hidden">
-              <span className="group-open:hidden">Ver detalle completo (página 2 del PDF)</span>
+              <span className="group-open:hidden">Ver detalle de pagos, saldos y gastos</span>
               <span className="hidden group-open:inline">Ocultar detalle</span>
             </summary>
             <div className="border-t p-3">

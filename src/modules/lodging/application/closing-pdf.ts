@@ -2,14 +2,10 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import {
-  closingPaymentLabels,
   clp,
-  expenseMethodLabels,
   formatClosingDate,
-  paymentTypeLabels,
   pct,
   periodLabels,
-  type ClosingExpense,
   type ClosingHistoryRow,
   type DailyClosing,
   type PeriodKind,
@@ -162,19 +158,13 @@ class Writer {
   }
 }
 
-async function start(
-  unit: { code: string; name: string },
-  title: string,
-  cover?: (pdf: PDFDocument, fonts: { regular: PDFFont; bold: PDFFont }, logo: PDFImage | null) => void,
-) {
+async function start(unit: { code: string; name: string }, title: string) {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`${title} - ${unit.name}`);
   pdf.setAuthor("OASIS ERP");
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const logo = await loadLogo(pdf, unit.code);
-  // Página de portada opcional (hoja ejecutiva) antes del detalle.
-  cover?.(pdf, { regular, bold }, logo);
   const w = new Writer(pdf, regular, bold, `${title} - ${unit.name}`);
   drawHeader(w, logo, unit.name);
   return { pdf, w };
@@ -192,108 +182,25 @@ function drawHeader(w: Writer, logo: PDFImage | null, unitName: string) {
   w.y -= 26;
 }
 
-/** Página 1: hoja ejecutiva con indicadores visuales. Página 2+: detalle completo. */
+/** PDF del cierre diario: una sola página, la hoja ejecutiva. */
 export async function buildDailyClosingPdf({
   unit,
   closing,
-  expenses,
   history,
   issuedBy,
 }: {
   unit: { code: string; name: string };
   closing: DailyClosing;
-  expenses: ClosingExpense[];
   history: ClosingHistoryRow[];
   issuedBy?: string | null;
 }) {
-  const { pdf, w } = await start(unit, "Cierre Diario", (doc, fonts, logo) =>
-    drawExecutivePage(doc, fonts, logo, { unitName: unit.name, closing, history, issuedBy }),
-  );
-  const m = closing.metrics;
-  const methods = m.payments_by_method;
-  w.band("Detalle del Cierre Diario");
-  w.row("Fecha", formatClosingDate(closing.closing_date));
-  w.row("Total Habitaciones", String(closing.total_rooms));
-  w.row("Habitaciones Ocupadas", String(closing.occupied_rooms));
-  w.row("Habitaciones Disponibles", String(m.available_rooms));
-  w.row("% Ocupación", pct(closing.occupancy_pct));
-  for (const type of m.by_type)
-    w.row(`Venta Promedio ${type.room_type}`, `${clp(type.average_rate)}  (${type.occupied}/${type.total})`);
-  w.row("Venta Promedio General", clp(closing.average_rate));
-  w.row("Huéspedes Alojados", String(m.guests));
-  w.row("Llegadas / Salidas", `${m.arrivals} / ${m.departures}`);
-  w.row("Monto Efectivo", clp(methods.cash));
-  w.row("Monto Transferencia", clp(methods.transfer));
-  w.row("Monto Tarjeta", clp(methods.card));
-  w.row("Monto Airbnb", clp(methods.airbnb));
-  if (methods.booking) w.row("Monto Booking", clp(methods.booking));
-  if (methods.company) w.row("Monto Empresa", clp(methods.company));
-  if (methods.other) w.row("Monto Otros", clp(methods.other));
-  w.row("Monto Total", clp(closing.total_received), { strong: true });
-  w.row("Monto Pendiente", clp(closing.pending_amount));
-  w.row("Gasto Total", clp(closing.expense_total));
-  w.row("Resultado del Día (Ingreso - Gasto)", clp(closing.net_result), { strong: true });
-  if (m.reservations_without_price) w.row("Reservas sin precio", String(m.reservations_without_price));
-  w.row("Problemas Reportados", closing.reported_problems ?? "");
-  w.row("Elementos que deben Reponerse", closing.items_to_replenish ?? "");
-  w.row("Observaciones Generales", closing.observations ?? "");
-
-  if (m.payments.length) {
-    w.section("Detalle de ingresos del día");
-    w.table(
-      [
-        { label: "Habitación", width: 110 },
-        { label: "Huésped", width: 145 },
-        { label: "Tipo", width: 90 },
-        { label: "Medio", width: 75 },
-        { label: "Monto", width: 75, align: "right" },
-      ],
-      m.payments.map((p) => [
-        p.room,
-        p.guest ?? "-",
-        paymentTypeLabels[p.type] ?? p.type,
-        closingPaymentLabels[p.method] ?? p.method,
-        clp(p.amount),
-      ]),
-    );
-  }
-  if (m.pending.length) {
-    w.section("Saldos pendientes de huéspedes");
-    w.table(
-      [
-        { label: "Habitación", width: 110 },
-        { label: "Huésped", width: 145 },
-        { label: "Total", width: 80, align: "right" },
-        { label: "Pagado", width: 80, align: "right" },
-        { label: "Pendiente", width: 80, align: "right" },
-      ],
-      m.pending.map((p) => [
-        p.room,
-        `${p.guest ?? "-"}${p.postpaid_company ? " (empresa)" : ""}`,
-        clp(p.total),
-        clp(p.paid),
-        clp(p.balance),
-      ]),
-    );
-  }
-  if (expenses.length) {
-    w.section("Detalle de gastos");
-    w.table(
-      [
-        { label: "Descripción", width: 330 },
-        { label: "Medio", width: 90 },
-        { label: "Monto", width: 75, align: "right" },
-      ],
-      expenses.map((e) => [e.description, expenseMethodLabels[e.payment_method] ?? e.payment_method, clp(e.amount)]),
-    );
-  }
-
-  w.y -= 20;
-  w.ensure(14);
-  const stamp = closing.issued_at
-    ? `Emitido el ${new Date(closing.issued_at).toLocaleString("es-CL", { timeZone: "America/Santiago" })}${issuedBy ? ` por ${issuedBy}` : ""}`
-    : "Borrador - no emitido";
-  w.text(`${stamp} · OASIS ERP`, MARGIN, 8, w.regular, muted);
+  const pdf = await PDFDocument.create();
+  pdf.setTitle(`Cierre Diario - ${unit.name}`);
+  pdf.setAuthor("OASIS ERP");
+  const regular = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const logo = await loadLogo(pdf, unit.code);
+  drawExecutivePage(pdf, { regular, bold }, logo, { unitName: unit.name, closing, history, issuedBy });
   return pdf.save();
 }
 
