@@ -22,7 +22,6 @@ import {
   BedDouble,
   LogIn,
   LogOut,
-  RefreshCw,
   SlidersHorizontal,
   ReceiptText,
   ShoppingCart,
@@ -376,22 +375,11 @@ const lodgingNav = [
     permission: "lodging.closings.create",
   },
   {
-    href: "/lodging/closing/reports",
-    label: "Reportes de cierres",
-    icon: BarChart3,
-    permission: "lodging.closings.reports",
-  },
-  {
     href: "/lodging/reports",
     label: "Reportabilidad",
     icon: PieChart,
     permission: "lodging.reservations.view",
-  },
-  {
-    href: "/lodging/ical",
-    label: "Sincronización iCal",
-    icon: RefreshCw,
-    permission: "lodging.ical.sync",
+    legacyPermission: "lodging.closings.reports",
   },
   {
     href: "/lodging/settings",
@@ -474,7 +462,7 @@ export async function AppShell({
     canView(item, ctx.permissions),
   );
   const visibleLodgingNav = lodgingNav.filter((item) =>
-    ctx.permissions.has(item.permission),
+    canView(item, ctx.permissions),
   );
   return (
     <ShellRoot theme={unitTheme}>

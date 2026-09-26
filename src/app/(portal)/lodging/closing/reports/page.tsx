@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { LodgingReportTabs } from "@/components/lodging/report-tabs";
 import { lodgingContext } from "@/modules/lodging/application/queries";
 import { loadIssuedClosings } from "@/modules/lodging/application/closing-queries";
 import {
@@ -46,17 +47,10 @@ export default async function ClosingReportsPage({
     <>
       <PageHeader
         eyebrow={unit.name}
-        title="Reportes de cierres"
-        description="Consolidado de los cierres diarios emitidos: ingreso efectivo, gasto acumulado, ocupación y disponibilidad promedio."
+        title="Reportabilidad"
+        description="Cierres diarios emitidos: ingreso efectivo, gasto acumulado, ocupación y disponibilidad promedio por semana, quincena o mes."
       />
-      <nav className="mb-5 flex flex-wrap gap-2 text-sm">
-        {ctx.permissions.has("lodging.closings.create") && (
-          <Link href="/lodging/closing" className="rounded-full border bg-white px-3 py-1.5 font-medium hover:border-[#0b4f9c]">
-            Cierre diario
-          </Link>
-        )}
-        <span className="rounded-full border border-[#0b4f9c] bg-[#0b4f9c] px-3 py-1.5 font-medium text-white">Reportes de cierres</span>
-      </nav>
+      <LodgingReportTabs active="closings" permissions={ctx.permissions} />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         {(Object.keys(periodLabels) as PeriodKind[]).map((p) => (

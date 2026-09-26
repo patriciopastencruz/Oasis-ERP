@@ -19,14 +19,17 @@ export default async function Page() {
             </p>
           </Panel>
         </Link>
-        <Link href="/lodging/ical">
-          <Panel>
-            <h2 className="font-semibold">Calendarios iCal</h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Importación Booking/Airbnb y enlaces Oasis.
-            </p>
-          </Panel>
-        </Link>
+        {ctx.permissions.has("lodging.ical.sync") && (
+          <Link href="/lodging/ical">
+            <Panel>
+              <h2 className="font-semibold">Sincronización iCal</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Importación Booking/Airbnb, sincronizar ahora y enlaces de
+                calendario por habitación.
+              </p>
+            </Panel>
+          </Link>
+        )}
         <Panel>
           <h2 className="font-semibold">Permisos actuales</h2>
           <p className="mt-2 text-sm text-slate-500">

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { lodgingContext } from "@/modules/lodging/application/queries";
 import {
@@ -32,6 +33,9 @@ export default async function Page({
     field = "rounded-xl border px-3 py-2 text-sm";
   return (
     <>
+      <Link href="/lodging/settings" className="mb-3 inline-block text-sm font-semibold text-[#0b4f9c]">
+        ← Configuración
+      </Link>
       <div className="flex flex-wrap justify-between gap-4">
         <PageHeader
           eyebrow={unit.name}

@@ -72,7 +72,7 @@ export default async function DailyClosingPage({
         <span className="rounded-full border border-[#0b4f9c] bg-[#0b4f9c] px-3 py-1.5 font-medium text-white">Cierre diario</span>
         {canReports && (
           <Link href="/lodging/closing/reports" className="rounded-full border bg-white px-3 py-1.5 font-medium hover:border-[#0b4f9c]">
-            Reportes de cierres
+            Reportabilidad de cierres
           </Link>
         )}
       </nav>

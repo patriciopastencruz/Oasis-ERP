@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { TrendingUp, BedDouble, Wallet, PieChart, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { redirect } from "next/navigation";
+import { LodgingReportTabs } from "@/components/lodging/report-tabs";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
 
 function todayInSantiago() {
@@ -58,7 +60,12 @@ export default async function Page({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const q = await searchParams;
-  const { unit, supabase } = await lodgingContext();
+  const { ctx, unit, supabase } = await lodgingContext([
+    "lodging.reservations.view",
+    "lodging.closings.reports",
+  ]);
+  // Quien solo ve reportes de cierres entra directo a esa pestaña.
+  if (!ctx.permissions.has("lodging.reservations.view")) redirect("/lodging/closing/reports");
   const todayIso = todayInSantiago();
   const selectedIso = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : todayIso;
   const monthStartIso = `${selectedIso.slice(0, 7)}-01`;
@@ -171,6 +178,7 @@ export default async function Page({
 
   return (
     <>
+      <LodgingReportTabs active="reservations" permissions={ctx.permissions} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <PageHeader
           eyebrow={unit.name}
