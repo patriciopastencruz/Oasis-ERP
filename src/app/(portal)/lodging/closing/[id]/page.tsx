@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { ConfirmButton } from "@/components/sales/confirm-button";
 import { ClosingReport } from "@/components/lodging/closing-report";
+import { ClosingExecutive } from "@/components/lodging/closing-executive";
 import { ClosingShare } from "@/components/lodging/closing-share";
 import { getBusinessUnitBrand } from "@/config/business-units";
 import { lodgingContext } from "@/modules/lodging/application/queries";
@@ -29,7 +30,7 @@ export default async function ClosingDetailPage({
   ]);
   const loaded = await loadClosing(supabase, id);
   if (!loaded || loaded.closing.business_unit_id !== unit.id) notFound();
-  const { closing, expenses, issuedBy } = loaded;
+  const { closing, expenses, history, issuedBy } = loaded;
   const canManage = ctx.permissions.has("lodging.closings.manage");
   const canCreate = ctx.permissions.has("lodging.closings.create");
   const issued = closing.status === "issued";
@@ -62,12 +63,28 @@ export default async function ClosingDetailPage({
         </p>
       )}
       <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
-        <ClosingReport
-          unitName={unit.name}
-          unitLogo={getBusinessUnitBrand(unit.code).logo}
-          closing={closing}
-          expenses={expenses}
-        />
+        <div className="min-w-0 space-y-4">
+          <ClosingExecutive
+            unitName={unit.name}
+            unitLogo={getBusinessUnitBrand(unit.code).logo}
+            closing={closing}
+            history={history}
+          />
+          <details className="group rounded-2xl border bg-white">
+            <summary className="cursor-pointer list-none px-5 py-3 text-sm font-semibold text-[#0b4f9c] [&::-webkit-details-marker]:hidden">
+              <span className="group-open:hidden">Ver detalle completo (página 2 del PDF)</span>
+              <span className="hidden group-open:inline">Ocultar detalle</span>
+            </summary>
+            <div className="border-t p-3">
+              <ClosingReport
+                unitName={unit.name}
+                unitLogo={getBusinessUnitBrand(unit.code).logo}
+                closing={closing}
+                expenses={expenses}
+              />
+            </div>
+          </details>
+        </div>
         <div className="space-y-4">
           <Panel>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</p>
