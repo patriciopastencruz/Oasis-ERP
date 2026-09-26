@@ -222,3 +222,77 @@ export function summarizePeriod<T extends PeriodClosing>(
     days: sorted,
   };
 }
+
+export type ClosingHistoryRow = {
+  closing_date: string;
+  total_received: number;
+  expense_total: number;
+  occupied_rooms: number;
+  total_rooms: number;
+};
+
+const weekdayShort = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const weekdayLong = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+const weekday = (day: string) => new Date(`${day}T12:00:00Z`).getUTCDay();
+export const longDayLabel = (day: string) => `${weekdayLong[weekday(day)]} ${formatClosingDate(day)}`;
+export const shortDayLabel = (day: string) => `${weekdayShort[weekday(day)]} ${Number(day.slice(8))}`;
+export const monthName = (day: string) => monthNames[Number(day.slice(5, 7)) - 1];
+
+/**
+ * Contexto de la hoja ejecutiva: los 7 días terminados en la fecha del
+ * cierre, el mes a la fecha y el mes anterior al mismo día. `previous` son
+ * cierres emitidos anteriores a la fecha; el cierre actual se suma aparte.
+ */
+export function executiveContext(current: ClosingHistoryRow, previous: ClosingHistoryRow[]) {
+  const date = current.closing_date;
+  const byDate = new Map(previous.filter((r) => r.closing_date < date).map((r) => [r.closing_date, r]));
+  byDate.set(date, current);
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(date, i - 6);
+    const row = byDate.get(day);
+    return {
+      date: day,
+      label: shortDayLabel(day),
+      income: row ? Number(row.total_received) : null,
+      occupancy: row && row.total_rooms ? (row.occupied_rooms * 100) / row.total_rooms : null,
+    };
+  });
+  const prior = week.slice(0, 6).filter((d) => d.income !== null);
+  const priorAverage = prior.length ? prior.reduce((s, d) => s + (d.income ?? 0), 0) / prior.length : null;
+
+  const monthRows = [...byDate.values()].filter((r) => r.closing_date.slice(0, 7) === date.slice(0, 7));
+  const sum = (rows: ClosingHistoryRow[], key: keyof ClosingHistoryRow) =>
+    rows.reduce((s, r) => s + Number(r[key] ?? 0), 0);
+  const roomNights = sum(monthRows, "total_rooms");
+  const dayOfMonth = Number(date.slice(8));
+  const previousMonthDay = addDays(`${date.slice(0, 7)}-01`, -1);
+  const previousCutoff = `${previousMonthDay.slice(0, 7)}-${String(Math.min(dayOfMonth, Number(previousMonthDay.slice(8)))).padStart(2, "0")}`;
+  const previousMonthRows = [...byDate.values()].filter(
+    (r) => r.closing_date.slice(0, 7) === previousMonthDay.slice(0, 7) && r.closing_date <= previousCutoff,
+  );
+  return {
+    week,
+    priorAverage,
+    change: priorAverage ? ((Number(current.total_received) - priorAverage) / priorAverage) * 100 : null,
+    month: {
+      name: monthName(date),
+      income: sum(monthRows, "total_received"),
+      expense: sum(monthRows, "expense_total"),
+      occupancy: roomNights ? (sum(monthRows, "occupied_rooms") * 100) / roomNights : 0,
+      availablePerDay: monthRows.length ? (roomNights - sum(monthRows, "occupied_rooms")) / monthRows.length : 0,
+      closedDays: monthRows.length,
+      elapsedDays: dayOfMonth,
+      previousName: monthName(previousMonthDay),
+      previousIncome: previousMonthRows.length ? sum(previousMonthRows, "total_received") : null,
+    },
+  };
+}
+
+/** Desde qué fecha cargar cierres para `executiveContext`. */
+export const executiveHistoryStart = (date: string) => {
+  const previousMonthStart = `${addDays(`${date.slice(0, 7)}-01`, -1).slice(0, 7)}-01`;
+  const weekStart = addDays(date, -6);
+  return previousMonthStart < weekStart ? previousMonthStart : weekStart;
+};

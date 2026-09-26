@@ -10,10 +10,12 @@ import {
   pct,
   periodLabels,
   type ClosingExpense,
+  type ClosingHistoryRow,
   type DailyClosing,
   type PeriodKind,
   type summarizePeriod,
 } from "../domain/daily-closing";
+import { drawExecutivePage } from "./closing-executive-pdf";
 
 const PAGE: [number, number] = [595, 842];
 const MARGIN = 50;
@@ -160,13 +162,19 @@ class Writer {
   }
 }
 
-async function start(unit: { code: string; name: string }, title: string) {
+async function start(
+  unit: { code: string; name: string },
+  title: string,
+  cover?: (pdf: PDFDocument, fonts: { regular: PDFFont; bold: PDFFont }, logo: PDFImage | null) => void,
+) {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`${title} - ${unit.name}`);
   pdf.setAuthor("OASIS ERP");
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const logo = await loadLogo(pdf, unit.code);
+  // Página de portada opcional (hoja ejecutiva) antes del detalle.
+  cover?.(pdf, { regular, bold }, logo);
   const w = new Writer(pdf, regular, bold, `${title} - ${unit.name}`);
   drawHeader(w, logo, unit.name);
   return { pdf, w };
@@ -184,21 +192,26 @@ function drawHeader(w: Writer, logo: PDFImage | null, unitName: string) {
   w.y -= 26;
 }
 
+/** Página 1: hoja ejecutiva con indicadores visuales. Página 2+: detalle completo. */
 export async function buildDailyClosingPdf({
   unit,
   closing,
   expenses,
+  history,
   issuedBy,
 }: {
   unit: { code: string; name: string };
   closing: DailyClosing;
   expenses: ClosingExpense[];
+  history: ClosingHistoryRow[];
   issuedBy?: string | null;
 }) {
-  const { pdf, w } = await start(unit, "Cierre Diario");
+  const { pdf, w } = await start(unit, "Cierre Diario", (doc, fonts, logo) =>
+    drawExecutivePage(doc, fonts, logo, { unitName: unit.name, closing, history, issuedBy }),
+  );
   const m = closing.metrics;
   const methods = m.payments_by_method;
-  w.band("Cierre Diario");
+  w.band("Detalle del Cierre Diario");
   w.row("Fecha", formatClosingDate(closing.closing_date));
   w.row("Total Habitaciones", String(closing.total_rooms));
   w.row("Habitaciones Ocupadas", String(closing.occupied_rooms));

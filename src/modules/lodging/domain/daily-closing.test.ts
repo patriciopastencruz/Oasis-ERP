@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  executiveContext,
+  executiveHistoryStart,
   formatClosingDate,
+  longDayLabel,
   isValidDay,
   periodRange,
   shiftPeriod,
@@ -71,5 +74,57 @@ describe("consolidado del período", () => {
   it("un período sin cierres no divide por cero", () => {
     const summary = summarizePeriod([], { start: "2026-10-01", end: "2026-10-31" }, "2026-09-25");
     expect(summary).toMatchObject({ occupancyPct: 0, averageRate: 0, elapsedDays: 0, missingDates: [] });
+  });
+});
+
+describe("hoja ejecutiva", () => {
+  const row = (closing_date: string, total_received: number, occupied = 10, expense_total = 0) => ({
+    closing_date,
+    total_received,
+    expense_total,
+    occupied_rooms: occupied,
+    total_rooms: 15,
+  });
+
+  it("arma los 7 días, compara contra el promedio previo y marca días sin cierre", () => {
+    const ctx = executiveContext(row("2025-09-30", 750000, 15), [
+      row("2025-09-24", 400000),
+      row("2025-09-25", 500000),
+      row("2025-09-27", 600000),
+      row("2025-09-30", 1), // un cierre previo de la misma fecha se ignora
+    ]);
+    expect(ctx.week.map((d) => d.label)).toEqual(["Mié 24", "Jue 25", "Vie 26", "Sáb 27", "Dom 28", "Lun 29", "Mar 30"]);
+    expect(ctx.week[2].income).toBeNull();
+    expect(ctx.week[6]).toMatchObject({ income: 750000, occupancy: 100 });
+    expect(ctx.priorAverage).toBe(500000);
+    expect(ctx.change).toBe(50);
+  });
+
+  it("acumula el mes a la fecha y lo compara con el mes anterior al mismo día", () => {
+    const ctx = executiveContext(row("2025-03-30", 100000, 12, 5000), [
+      row("2025-03-01", 200000, 9, 1000),
+      row("2025-02-10", 50000),
+      row("2025-02-28", 70000),
+      row("2025-01-31", 999999),
+    ]);
+    expect(ctx.month).toMatchObject({
+      name: "marzo",
+      income: 300000,
+      expense: 6000,
+      occupancy: 70,
+      closedDays: 2,
+      elapsedDays: 30,
+      previousName: "febrero",
+      previousIncome: 120000,
+    });
+    expect(executiveHistoryStart("2025-03-30")).toBe("2025-02-01");
+    expect(executiveHistoryStart("2025-03-03")).toBe("2025-02-01");
+  });
+
+  it("sin historia no inventa comparaciones", () => {
+    const ctx = executiveContext(row("2025-09-30", 1000), []);
+    expect(ctx.change).toBeNull();
+    expect(ctx.month.previousIncome).toBeNull();
+    expect(longDayLabel("2025-09-30")).toBe("Martes 30-09-2025");
   });
 });

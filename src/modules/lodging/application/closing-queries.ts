@@ -1,6 +1,13 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { ClosingExpense, ClosingMetrics, DailyClosing } from "../domain/daily-closing";
+import {
+  addDays,
+  executiveHistoryStart,
+  type ClosingExpense,
+  type ClosingHistoryRow,
+  type ClosingMetrics,
+  type DailyClosing,
+} from "../domain/daily-closing";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -52,9 +59,27 @@ export async function loadClosing(supabase: Supabase, id: string) {
     .is("deleted_at", null)
     .order("created_at");
   if (expenseError) throw expenseError;
+  const row = data as unknown as Row;
+  // Cierres emitidos previos: alimentan la tendencia de 7 días y el mes a la fecha.
+  const { data: history, error: historyError } = await supabase
+    .from("lodging_daily_closings")
+    .select("closing_date,total_received,expense_total,occupied_rooms,total_rooms")
+    .eq("business_unit_id", row.business_unit_id)
+    .eq("status", "issued")
+    .gte("closing_date", executiveHistoryStart(row.closing_date))
+    .lte("closing_date", addDays(row.closing_date, -1))
+    .order("closing_date");
+  if (historyError) throw historyError;
   return {
-    ...toClosing(data as unknown as Row),
+    ...toClosing(row),
     expenses: (expenses ?? []).map((e) => ({ ...e, amount: Number(e.amount) })) as ClosingExpense[],
+    history: (history ?? []).map((h) => ({
+      closing_date: h.closing_date,
+      total_received: Number(h.total_received),
+      expense_total: Number(h.expense_total),
+      occupied_rooms: Number(h.occupied_rooms),
+      total_rooms: Number(h.total_rooms),
+    })) as ClosingHistoryRow[],
   };
 }
 

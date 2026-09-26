@@ -10,6 +10,11 @@ Gestión de reservas → **Cierre diario** genera el reporte de cierre del día 
 
 Recepción puede cerrar hoy o, como máximo, el día anterior, y no puede modificar un cierre emitido. Administración (`lodging.closings.manage`) puede cerrar fechas anteriores y corregir un cierre emitido: al corregirlo vuelve a borrador y debe emitirse de nuevo.
 
+## PDF
+
+- **Página 1, hoja ejecutiva** (`closing-executive-pdf.ts`): cuatro tarjetas con ingreso del día (comparado con el promedio de los días previos con cierre), ocupación en anillo, venta promedio y RevPAR, y resultado; ocupación y venta por tipo; ingresos por medio de pago en barra apilada; ingreso de los últimos 7 días con la ocupación de cada día; mes a la fecha (ingreso vs mes anterior al mismo día, gasto, ocupación promedio y días con cierre); semáforo de control (pendiente, problemas, reposición, reservas sin precio) y observaciones. La tendencia y el mes a la fecha usan los cierres **emitidos** anteriores.
+- **Página 2 en adelante, detalle**: la planilla completa y las tablas de ingresos, saldos pendientes y gastos.
+
 ## Indicadores (función `lodging_closing_metrics_internal`)
 
 | Indicador | Cálculo |
