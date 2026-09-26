@@ -4,7 +4,7 @@ import { loginAction } from "@/modules/platform/auth/application/actions";
 export default async function Login({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const q = await searchParams;
   return (
@@ -18,6 +18,7 @@ export default async function Login({
         </p>
       )}
       <form action={loginAction} className="space-y-4">
+        {q.next && <input type="hidden" name="next" value={q.next} />}
         <Field label="Correo" name="email" type="email" />
         <Field label="Contraseña" name="password" type="password" />
         <Submit>Iniciar sesión</Submit>

@@ -344,6 +344,13 @@ const lodgingNav = [
     permission: "lodging.reservations.view",
   },
   {
+    href: "/ops",
+    label: "Portal operativo",
+    icon: ClipboardCheck,
+    permission: "lodging.housekeeping.view",
+    legacyPermission: "lodging.operations.view",
+  },
+  {
     href: "/lodging/reservations",
     label: "Reservas",
     icon: BedDouble,

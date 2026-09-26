@@ -169,6 +169,18 @@ begin
     or (p.key = 'lodging.monthly_closing.view' and r.key in ('general_manager','finance_manager'))
   on conflict do nothing;
 
+  -- Portal operativo de hostales (la migración ya lo asigna en producción).
+  insert into public.role_permissions(role_id, permission_id)
+  select r.id, p.id from public.roles r join public.permissions p on
+    (r.key = 'administrator' and p.key in ('lodging.housekeeping.view','lodging.housekeeping.execute','lodging.rooms.inspect',
+      'lodging.maintenance.view','lodging.maintenance.manage','lodging.audits.execute','lodging.audits.view',
+      'lodging.operations.view','lodging.operations.multi_unit','lodging.checkin.override'))
+    or (r.key = 'general_manager' and p.key in ('lodging.operations.view','lodging.operations.multi_unit','lodging.audits.view','lodging.maintenance.view'))
+  on conflict do nothing;
+  insert into public.lodging_ops_settings(business_unit_id, company_id)
+  select id, company_id from public.business_units where code in ('HU','HOC','HOB')
+  on conflict do nothing;
+
   select id into admin_role from public.roles where key = 'administrator';
   select id into finance_role from public.roles where key = 'finance_manager';
   select id into area_manager_role from public.roles where key = 'area_manager';

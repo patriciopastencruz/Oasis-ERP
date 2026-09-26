@@ -79,6 +79,10 @@ OASIS ERP
 
 Estos módulos futuros son límites arquitectónicos, no funcionalidades implementadas.
 
+## Portal operativo
+
+`/ops` es un segundo punto de entrada (route group `(ops)`) sobre la misma aplicación, base de datos, Auth, permisos y RLS. Está pensado para el teléfono (PWA "Oasis Operaciones") y se adapta a los permisos del usuario: aseo, recepción, supervisión y administración usan la misma URL. Las transiciones de estado de las habitaciones son funciones PostgreSQL transaccionales; el personal operativo no lee tablas financieras. Ver `docs/lodging-operations.md`.
+
 ## Estructura interna de un módulo
 
 Cada módulo podrá crecer con cuatro áreas:

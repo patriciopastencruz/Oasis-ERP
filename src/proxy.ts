@@ -12,6 +12,8 @@ const PUBLIC = [
   // protegido por token opaco en la URL en vez de sesión (ver
   // src/app/(public)/calendario/[token]/page.tsx).
   "/calendario",
+  // Manifiesto de la PWA "Oasis Operaciones": el navegador lo pide sin sesión.
+  "/manifest.webmanifest",
 ];
 // El dominio propio (oasis-erp.cl) reemplazó a la URL de Vercel como
 // dirección oficial. Quien entre por el link antiguo ve un aviso con botón

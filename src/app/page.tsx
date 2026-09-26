@@ -3,6 +3,12 @@ import { getSessionContext } from "@/modules/platform/auth/application/session";
 export default async function Home() {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/login");
+  // Personal operativo sin acceso al ERP (aseo) entra directo al portal.
+  if (
+    ctx.permissions.has("lodging.housekeeping.view") &&
+    !ctx.permissions.has("lodging.reservations.view")
+  )
+    redirect("/ops");
   redirect(
     ctx.permissions.has("administration.approvals.view")
       ? "/admin/approvals"

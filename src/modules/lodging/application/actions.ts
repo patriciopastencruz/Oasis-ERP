@@ -524,76 +524,60 @@ export async function openPaymentReceiptAction(form: FormData) {
   redirect(data?.signedUrl ?? "/lodging");
 }
 
+/**
+ * Check-in transaccional (lodging_check_in): exige que la habitación esté
+ * inspeccionada; quien tenga lodging.checkin.override puede forzarlo con motivo,
+ * que queda en audit_logs.
+ */
 export async function checkInAction(form: FormData) {
   await requirePermission("lodging.reservations.manage");
   const id = uuid.parse(form.get("reservation_id"));
-  const room = uuid.parse(form.get("room_id"));
+  const override = String(form.get("override_reason") ?? "").trim();
   const s = await createSupabaseServerClient();
-  const { error } = await s
-    .from("lodging_reservations")
-    .update({ status: "checked_in", actual_check_in: new Date().toISOString() })
-    .eq("id", id);
-  if (!error)
-    await s.from("lodging_rooms").update({ status: "occupied" }).eq("id", room);
-  if (error)
-    go(
-      `/lodging/reservations/${id}`,
-      "error",
-      "No fue posible realizar el check-in.",
-    );
-  revalidatePath("/lodging");
-  go(
-    `/lodging/reservations/${id}`,
-    "success",
-    "Check-in realizado correctamente.",
-  );
-}
-export async function checkOutAction(form: FormData) {
-  await requirePermission("lodging.reservations.manage");
-  const id = uuid.parse(form.get("reservation_id"));
-  const room = uuid.parse(form.get("room_id"));
-  const s = await createSupabaseServerClient();
-  const { data: summary } = await s.rpc("lodging_payment_summary", {
+  const { error } = await s.rpc("lodging_check_in", {
     target_reservation: id,
+    override_reason: override || null,
   });
-  const balance = Number(summary?.[0]?.balance ?? 0);
-  if (balance > 0)
-    go(
-      `/lodging/reservations/${id}`,
-      "error",
-      "No se puede realizar el check-out con saldo pendiente.",
-    );
-  const { error } = await s
-    .from("lodging_reservations")
-    .update({
-      status: "checked_out",
-      actual_check_out: new Date().toISOString(),
-    })
-    .eq("id", id);
-  if (!error)
-    await s.from("lodging_rooms").update({ status: "cleaning" }).eq("id", room);
-  if (error)
-    go(
-      `/lodging/reservations/${id}`,
-      "error",
-      "No fue posible realizar el check-out.",
-    );
+  if (error) {
+    const message = /no ha sido liberada/i.test(error.message)
+      ? "Esta habitación todavía no ha sido liberada por inspección."
+      : /forzar/i.test(error.message)
+        ? "No tienes autorización para forzar el check-in."
+        : /motivo/i.test(error.message)
+          ? "Indica el motivo del check-in forzado (mínimo 5 caracteres)."
+          : "No fue posible realizar el check-in.";
+    go(`/lodging/reservations/${id}`, "error", message);
+  }
   revalidatePath("/lodging");
   go(
     `/lodging/reservations/${id}`,
     "success",
-    "Check-out realizado. Habitación en limpieza.",
+    override ? "Check-in forzado registrado en auditoría." : "Check-in realizado correctamente.",
   );
 }
 
-// Llamada directamente desde el calendario (arrastrar y soltar), no desde
-// un <form>: a diferencia del resto de las acciones del módulo, retorna un
-// resultado en vez de hacer redirect() — un redirect en medio del drop
-// perdería el filtro/semana que el usuario tenía seleccionado en el
-// calendario. Por la misma razón, a veces la OTA le asigna al huésped una
-// pieza distinta a la que el iCal sincronizó (habitaciones que comparten
-// tipo de habitación en Booking/Airbnb); esto permite corregirlo sin tocar
-// la base de datos a mano.
+/** Check-out transaccional (lodging_check_out): valida saldo y deja la habitación sucia con tarea de aseo. */
+export async function checkOutAction(form: FormData) {
+  await requirePermission("lodging.reservations.manage");
+  const id = uuid.parse(form.get("reservation_id"));
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("lodging_check_out", { target_reservation: id });
+  if (error)
+    go(
+      `/lodging/reservations/${id}`,
+      "error",
+      /saldo pendiente/i.test(error.message)
+        ? "No se puede realizar el check-out con saldo pendiente."
+        : "No fue posible realizar el check-out.",
+    );
+  revalidatePath("/lodging");
+  go(
+    `/lodging/reservations/${id}`,
+    "success",
+    "Check-out realizado. La habitación quedó pendiente de aseo.",
+  );
+}
+
 export async function reassignReservationRoomAction(
   reservationId: string,
   roomId: string,

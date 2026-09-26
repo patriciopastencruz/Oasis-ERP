@@ -3,6 +3,7 @@ import { LogIn, LogOut } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
+import { operationalStatusLabels, operationalStatusTone, type OperationalStatus } from "@/modules/lodging/domain/operations";
 
 type Payment = { amount: number; type: string; status: string };
 const one = <T,>(value: T | T[] | null) => (Array.isArray(value) ? value[0] : value);
@@ -21,7 +22,7 @@ export default async function Page() {
     supabase
       .from("lodging_reservations")
       .select(
-        "id,estimated_arrival,status,total_value,lodging_rooms(name),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status)",
+        "id,estimated_arrival,status,total_value,lodging_rooms(name,operational_status),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status)",
       )
       .eq("business_unit_id", unit.id)
       .eq("check_in", today)
@@ -73,6 +74,14 @@ export default async function Page() {
                     <span className="text-slate-500">
                       {room?.name} · {g?.phone || "Sin teléfono"}
                     </span>
+                    {room?.operational_status && (
+                      <span
+                        className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${operationalStatusTone[room.operational_status as OperationalStatus]?.chip ?? ""}`}
+                      >
+                        {operationalStatusTone[room.operational_status as OperationalStatus]?.icon}{" "}
+                        {operationalStatusLabels[room.operational_status as OperationalStatus] ?? room.operational_status}
+                      </span>
+                    )}
                   </span>
                   <span className="sm:text-right">
                     Saldo {clp.format(Number(r.total_value) - paidOf(r.lodging_reservation_payments))}

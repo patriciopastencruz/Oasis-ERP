@@ -162,7 +162,7 @@ Todas las páginas usan `distributionContext(permission?)` (default `finance.dis
 
 ## 8. Reservas / Hospedaje (`lodging`)
 
-Unidades con código `HU` (Hostal Uruguay) y `HOC` (Hostal Oasis Centro), resueltas por `lodgingContext(permission?)` (default `lodging.reservations.view`).
+Unidades de hostal definidas en `lodgingUnitCodes` (`HU` Hostal Uruguay, `HOC` Hostal Oasis Centro, `HOB` Hostal Oasis Cobija), resueltas por `lodgingContext(permission?)` (default `lodging.reservations.view`).
 
 | Ruta                         | Objetivo                                | Permiso                                                            |
 | ---------------------------- | --------------------------------------- | ------------------------------------------------------------------ |
@@ -175,6 +175,12 @@ Unidades con código `HU` (Hostal Uruguay) y `HOC` (Hostal Oasis Centro), resuel
 | `/lodging/reservations/[id]` | Detalle: check-in/out, pagos, anulación | `lodging.reservations.view` (anular pago: `lodging.payments.void`) |
 | `/lodging/rooms`             | Habitaciones                            | `lodging.reservations.view`                                        |
 | `/lodging/settings`          | Configuración de Reservas               | `lodging.reservations.view`                                        |
+
+| `/ops`                      | Portal operativo único (aseo, inspección, operación) — ver `docs/lodging-operations.md` | `lodging.housekeeping.view`, `lodging.rooms.inspect` o `lodging.operations.view` |
+| `/ops/clean/[taskId]`        | Finalizar limpieza con checklist        | `lodging.housekeeping.execute`                                     |
+| `/ops/inspect/[roomId]`      | Inspección de recepción (aprobar/rechazar) | `lodging.rooms.inspect`                                         |
+
+**Estado operacional:** check-out → dirty → cleaning → pending_inspection → inspected; el check-in exige `inspected` salvo override con motivo (`lodging.checkin.override`, auditado).
 
 **Reglas confirmadas:** las reservas importadas de Booking/Airbnb (`imported_from_ical`) no pueden editarse desde el ERP salvo un formulario de "información interna" que no se sincroniza al canal de origen; check-in solo disponible en estado `confirmed`, check-out solo en `checked_in`; anular un pago exige motivo (`void_reason`, mín. 3 caracteres) y permiso `lodging.payments.void`.
 

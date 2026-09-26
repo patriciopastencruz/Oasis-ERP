@@ -19,6 +19,7 @@ import {
   removeImportedReservationAction,
 } from "@/modules/lodging/application/actions";
 import { ConfirmButton } from "@/components/sales/confirm-button";
+import { operationalStatusLabels, type OperationalStatus } from "@/modules/lodging/domain/operations";
 import { reviewPublicLodgingRequestAction } from "@/modules/lodging/application/public-actions";
 export default async function Page({
   params,
@@ -32,7 +33,7 @@ export default async function Page({
   const { supabase, ctx, unit } = await lodgingContext();
   const { data: r } = await supabase
     .from("lodging_reservations")
-    .select("*,lodging_rooms(name),lodging_guests(*)")
+    .select("*,lodging_rooms(name,operational_status),lodging_guests(*)")
     .eq("id", id)
     .single();
   if (!r) notFound();
@@ -282,19 +283,45 @@ export default async function Page({
             </div>
           </dl>
           <div className="mt-5 flex flex-wrap gap-2">
-            {r.status === "confirmed" && (
-              <form action={checkInAction}>
-                <input type="hidden" name="reservation_id" value={id} />
-                <input type="hidden" name="room_id" value={r.room_id} />
-                <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">
-                  Realizar check-in
-                </button>
-              </form>
-            )}
+            {r.status === "confirmed" &&
+              (room?.operational_status === "inspected" ? (
+                <form action={checkInAction}>
+                  <input type="hidden" name="reservation_id" value={id} />
+                  <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">
+                    Realizar check-in
+                  </button>
+                </form>
+              ) : (
+                <div className="w-full rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
+                  <p className="font-semibold text-amber-900">
+                    Esta habitación todavía no ha sido liberada por inspección
+                    {room?.operational_status ? ` (estado: ${operationalStatusLabels[room.operational_status as OperationalStatus] ?? room.operational_status})` : ""}.
+                  </p>
+                  <p className="mt-1 text-amber-800">Recepción debe aprobarla en el portal operativo antes del check-in.</p>
+                  {ctx.permissions.has("lodging.checkin.override") && (
+                    <form action={checkInAction} className="mt-3 flex flex-wrap gap-2">
+                      <input type="hidden" name="reservation_id" value={id} />
+                      <input
+                        name="override_reason"
+                        required
+                        minLength={5}
+                        maxLength={300}
+                        placeholder="Motivo del check-in forzado"
+                        className="min-w-60 flex-1 rounded-xl border bg-white px-3 py-2 text-sm"
+                      />
+                      <ConfirmButton
+                        message="¿Forzar el check-in sin inspección? Quedará registrado en auditoría."
+                        className="rounded-xl bg-amber-700 px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        Forzar check-in
+                      </ConfirmButton>
+                    </form>
+                  )}
+                </div>
+              ))}
             {r.status === "checked_in" && (
               <form action={checkOutAction}>
                 <input type="hidden" name="reservation_id" value={id} />
-                <input type="hidden" name="room_id" value={r.room_id} />
                 <button className="rounded-xl bg-[#083f7d] px-4 py-2 text-sm font-semibold text-white">
                   Realizar check-out
                 </button>

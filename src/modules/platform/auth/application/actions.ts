@@ -6,16 +6,23 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { lodgingUnitCodes } from "@/config/business-units";
 import { getSessionContext } from "./session";
 
+/** Solo rutas internas: evita redirecciones abiertas hacia otros dominios. */
+function safeNextPath(value: FormDataEntryValue | null) {
+  const next = String(value ?? "");
+  return /^\/(?![/\\])[\w\-/?=&%.]*$/.test(next) ? next : null;
+}
+
 export async function loginAction(form: FormData) {
   const email = String(form.get("email") ?? "");
   const password = String(form.get("password") ?? "");
+  const next = safeNextPath(form.get("next"));
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error)
     redirect(
-      `/login?error=${encodeURIComponent("Correo o contraseña incorrectos")}`,
+      `/login?error=${encodeURIComponent("Correo o contraseña incorrectos")}${next ? `&next=${encodeURIComponent(next)}` : ""}`,
     );
-  redirect("/");
+  redirect(next ?? "/");
 }
 export async function logoutAction() {
   const supabase = await createSupabaseServerClient();
