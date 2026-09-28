@@ -6,6 +6,7 @@ import {
   monthStart,
   nextMonth,
   previousMonth,
+  type MonthlyPreparation,
   type MonthlySummary,
 } from "../domain/monthly-closing";
 
@@ -116,4 +117,11 @@ export async function listFinanceCategories(supabase: Supabase, unitId: string) 
     .order("name");
   if (error) throw error;
   return data ?? [];
+}
+
+/** Preparación del mes (administración): sin totales ni informe. */
+export async function loadPreparation(supabase: Supabase, unitId: string, month: string) {
+  const { data, error } = await supabase.rpc("lodging_monthly_preparation", { target_unit: unitId, target_period: monthStart(month) });
+  if (error) throw error;
+  return data as MonthlyPreparation;
 }

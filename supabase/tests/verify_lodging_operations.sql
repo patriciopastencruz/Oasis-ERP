@@ -179,7 +179,7 @@ do $$ declare failed boolean := false;
 begin
   begin perform public.lodging_ops_board((select id from public.business_units where code='HU')); exception when others then failed := true; end;
   if not failed then raise exception 'Aseo de otra unidad vio HU'; end if;
-  if exists(select 1 from public.lodging_housekeeping_tasks) then raise exception 'Aseo de otra unidad ve tareas de HU'; end if;
+  if exists(select 1 from public.lodging_housekeeping_tasks where business_unit_id=(select id from public.business_units where code='HU')) then raise exception 'Aseo de otra unidad ve tareas de HU'; end if;
   failed := false;
   begin perform public.lodging_housekeeping_start('00000000-0000-4000-8000-0000000c1003'); exception when others then failed := true; end;
   if not failed then raise exception 'Aseo de otra unidad tomó una habitación de HU'; end if;

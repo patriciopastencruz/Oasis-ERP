@@ -16,9 +16,9 @@ Utilidad = ingresos − costos fijos − costos variables − inversión − ret
 ## Flujo
 
 1. **Iniciar cierre**: crea el borrador del mes y copia las líneas de **costos fijos** del último mes como plantilla, marcadas como pendientes.
-2. Administración agrega, edita, quita o marca como pagadas las líneas mientras el mes está en preparación.
-3. **Cerrar mes**: guarda una foto del estado de resultados (`snapshot`) y los totales; desde ahí el informe no cambia aunque lleguen pagos o gastos.
-4. **Reabrir** (con motivo): vuelve a preparación y los totales se recalculan en vivo.
+2. Administración agrega, edita, quita o marca como pagadas las líneas mientras el mes está en preparación, y revisa que todos los días tengan cierre diario emitido.
+3. **Cerrar mes** (gerencia): guarda una foto del estado de resultados (`snapshot`) y los totales; desde ahí el informe no cambia aunque lleguen pagos o gastos.
+4. **Reabrir** (gerencia, con motivo): vuelve a preparación y los totales se recalculan en vivo.
 
 ## Categorías
 
@@ -35,11 +35,14 @@ La operación (ocupación, venta por noche y por habitación) se calcula desde l
 
 ## Permisos
 
-| Permiso | Roles iniciales |
-| --- | --- |
-| `lodging.monthly_closing.view` | administrator, superadmin, general_manager, finance_manager |
-| `lodging.monthly_closing.manage` | administrator, superadmin |
+El cierre mensual separa la preparación (administración) del informe (gerencia), porque el estado de resultados y la utilidad son información sensible.
+
+| Permiso | Qué permite | Roles iniciales |
+| --- | --- | --- |
+| `lodging.monthly_closing.manage` | Preparar el mes: iniciarlo, cargar, editar o quitar líneas, marcarlas pagadas y administrar categorías. Sin `view` ve la pantalla **Preparación del cierre mensual** (`lodging_monthly_preparation`): estado del mes, sus líneas, categorías y control de cierres diarios emitidos, sin ventas, totales, utilidad, conclusiones ni PDF. | administrator, superadmin |
+| `lodging.monthly_closing.view` | Ver el informe completo: estado de resultados, utilidad, indicadores, conclusiones y PDF. | superadmin, general_manager, finance_manager |
+| `lodging.monthly_closing.close` | Cerrar y reabrir el mes. | superadmin, general_manager |
 
 Flujo de caja (Finanzas) no se muestra en los hostales; sus rutas redirigen al cierre mensual.
 
-Pruebas SQL: `supabase/tests/verify_lodging_monthly_closing.sql` y `verify_lodging_daily_closing.sql`.
+Pruebas SQL: `supabase/tests/verify_lodging_monthly_closing.sql`, `verify_lodging_monthly_roles.sql` y `verify_lodging_daily_closing.sql`.

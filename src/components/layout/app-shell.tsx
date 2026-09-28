@@ -372,7 +372,8 @@ const lodgingNav = [
     href: "/lodging/monthly",
     label: "Cierre mensual",
     icon: Landmark,
-    permission: "lodging.monthly_closing.view",
+    permission: "lodging.monthly_closing.manage",
+    legacyPermission: "lodging.monthly_closing.view",
   },
   {
     href: "/lodging/reports",

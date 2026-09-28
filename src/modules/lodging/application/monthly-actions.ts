@@ -96,7 +96,7 @@ export async function toggleLineStatusAction(form: FormData) {
 }
 
 export async function closeMonthAction(form: FormData) {
-  const { supabase } = await lodgingContext("lodging.monthly_closing.manage");
+  const { supabase } = await lodgingContext("lodging.monthly_closing.close");
   const month = monthOf(form);
   const closing = uuid.safeParse(form.get("closing_id"));
   if (!closing.success) go(`${basePath}?month=${month}`, "error", "Cierre inválido.");
@@ -110,7 +110,7 @@ export async function closeMonthAction(form: FormData) {
 }
 
 export async function reopenMonthAction(form: FormData) {
-  const { supabase } = await lodgingContext("lodging.monthly_closing.manage");
+  const { supabase } = await lodgingContext("lodging.monthly_closing.close");
   const month = monthOf(form);
   const closing = uuid.safeParse(form.get("closing_id"));
   const reason = String(form.get("reason") ?? "").trim();

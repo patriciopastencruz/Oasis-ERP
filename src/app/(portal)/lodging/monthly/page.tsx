@@ -2,14 +2,14 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { ConfirmButton } from "@/components/sales/confirm-button";
-import { ClpInput } from "@/components/lodging/clp-input";
+import { MonthlyLineForm } from "@/components/lodging/monthly-line-form";
+import { MonthlyPreparationView } from "@/components/lodging/monthly-preparation";
 import { lodgingContext } from "@/modules/lodging/application/queries";
-import { loadMonthly } from "@/modules/lodging/application/monthly-queries";
+import { loadMonthly, loadPreparation } from "@/modules/lodging/application/monthly-queries";
 import {
   closeMonthAction,
   deleteLineAction,
   reopenMonthAction,
-  saveLineAction,
   startMonthAction,
   toggleLineStatusAction,
 } from "@/modules/lodging/application/monthly-actions";
@@ -22,8 +22,6 @@ import {
   nextMonth,
   percentChange,
   previousMonth,
-  sectionLabels,
-  sectionOrder,
 } from "@/modules/lodging/domain/monthly-closing";
 
 const sourceBadge = {
@@ -56,10 +54,26 @@ export default async function MonthlyClosingPage({
   searchParams: Promise<{ month?: string; edit?: string; success?: string; error?: string }>;
 }) {
   const q = await searchParams;
-  const { ctx, unit, supabase } = await lodgingContext("lodging.monthly_closing.view");
+  const { ctx, unit, supabase } = await lodgingContext(["lodging.monthly_closing.view", "lodging.monthly_closing.manage"]);
   const canManage = ctx.permissions.has("lodging.monthly_closing.manage");
+  // Cerrar y reabrir es de gerencia.
+  const canClose = ctx.permissions.has("lodging.monthly_closing.close");
   const currentMonth = santiagoToday().slice(0, 7);
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(q.month ?? "") && q.month! <= currentMonth ? q.month! : currentMonth;
+  // Administración prepara el mes sin ver el informe completo (datos sensibles de gerencia).
+  if (!ctx.permissions.has("lodging.monthly_closing.view")) {
+    const data = await loadPreparation(supabase, unit.id, month);
+    return (
+      <MonthlyPreparationView
+        unitName={unit.name}
+        month={month}
+        currentMonth={currentMonth}
+        data={data}
+        editId={q.edit}
+        message={q.error ? { kind: "error", text: q.error } : q.success ? { kind: "success", text: q.success } : undefined}
+      />
+    );
+  }
   const { closing, summary, previous, ops } = await loadMonthly(supabase, unit.id, month);
   const statement = buildStatement(summary);
   const t = summary.totals;
@@ -70,7 +84,6 @@ export default async function MonthlyClosingPage({
   const conclusions = monthlyConclusions(summary, ops, previous, statement);
   const prevTotals = previous.summary?.totals;
   const field = "mt-1 w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-2 text-sm";
-  const activeCategories = summary.categories.filter((c) => c.active);
 
   return (
     <>
@@ -192,57 +205,7 @@ export default async function MonthlyClosingPage({
           {editable && closing && (
             <Panel>
               <h2 className="mb-3 font-semibold">{editing ? "Editar línea" : "Agregar ingreso o gasto"}</h2>
-              <form action={saveLineAction} key={editing?.id ?? "new"} className="space-y-3">
-                <input type="hidden" name="month" value={month} />
-                <input type="hidden" name="closing_id" value={closing.id} />
-                {editing && <input type="hidden" name="line_id" value={editing.id} />}
-                <label className="block text-sm">
-                  Categoría
-                  <select name="category_id" required defaultValue={editing?.category_id ?? ""} className={field}>
-                    <option value="" disabled>
-                      Selecciona
-                    </option>
-                    {sectionOrder.map((s) => (
-                      <optgroup key={s} label={sectionLabels[s]}>
-                        {activeCategories
-                          .filter((c) => c.section === s)
-                          .map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-sm">
-                  Descripción
-                  <input name="description" required minLength={2} maxLength={160} defaultValue={editing?.description} placeholder="Ej.: Arriendo terreno" className={field} />
-                </label>
-                <label className="block text-sm">
-                  Monto
-                  <ClpInput name="amount" defaultValue={editing ? String(editing.amount) : ""} className={field} />
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block text-sm">
-                    Pagado por
-                    <input name="payer" maxLength={60} defaultValue={editing?.payer ?? ""} placeholder="oasis, Patricio…" className={field} />
-                  </label>
-                  <label className="block text-sm">
-                    Estado
-                    <select name="payment_status" defaultValue={editing?.payment_status ?? "pagado"} className={field}>
-                      <option value="pagado">Pagado</option>
-                      <option value="pendiente">Pendiente</option>
-                    </select>
-                  </label>
-                </div>
-                <button className="w-full rounded-xl bg-[#0b4f9c] px-4 py-2.5 text-sm font-semibold text-white">{editing ? "Guardar cambios" : "Agregar"}</button>
-                {editing && (
-                  <Link href={`/lodging/monthly?month=${month}`} className="block text-center text-sm text-slate-500">
-                    Cancelar edición
-                  </Link>
-                )}
-              </form>
+              <MonthlyLineForm month={month} closingId={closing.id} categories={summary.categories} editing={editing} />
             </Panel>
           )}
           <Panel>
@@ -256,7 +219,7 @@ export default async function MonthlyClosingPage({
               ))}
             </ul>
           </Panel>
-          {canManage && closing?.status === "draft" && (
+          {canClose && closing?.status === "draft" && (
             <Panel>
               <h2 className="font-semibold">Cerrar el mes</h2>
               <p className="mt-1 text-sm text-slate-500">
@@ -283,7 +246,7 @@ export default async function MonthlyClosingPage({
                 {closing.closed_at && new Date(closing.closed_at).toLocaleString("es-CL", { timeZone: "America/Santiago" })}
                 {closing.notes ? ` · ${closing.notes}` : ""}
               </p>
-              {canManage && (
+              {canClose && (
                 <details className="mt-3">
                   <summary className="cursor-pointer text-sm font-semibold text-[#0b4f9c]">Reabrir mes</summary>
                   <form action={reopenMonthAction} className="mt-2 space-y-2">

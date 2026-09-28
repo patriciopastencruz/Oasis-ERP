@@ -324,3 +324,15 @@ export function monthlyConclusions(
 }
 
 export { change as percentChange };
+
+/**
+ * Preparación del mes para administración: estado, líneas manuales, categorías
+ * y control de cierres diarios. No incluye ventas, totales ni utilidad (el
+ * informe completo es de gerencia).
+ */
+export type MonthlyPreparation = {
+  closing: { id: string; status: "draft" | "closed"; closed_at: string | null; reopened_at: string | null; reopen_reason: string | null } | null;
+  lines: MonthlySummary["lines"];
+  categories: FinanceCategory[];
+  daily_closings: { issued: number; days: number };
+};

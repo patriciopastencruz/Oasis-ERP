@@ -87,7 +87,7 @@ Las tablas nuevas solo conceden `select` con RLS (`lodging_ops_can_view`: unidad
 | `lodging.audits.view` | | | ✓ | ✓ | ✓ |
 | `lodging.checkin.override` | | | | | ✓ |
 
-Administración = roles Administrador y Superadministrador. Roles nuevos: `housekeeping` (Aseo) y `lodging_supervisor` (Supervisor de hostales). Todo se ajusta en Administración → Roles; el código decide por permiso, no por nombre de rol.
+Administración = roles Administrador y Superadministrador. En Oasis el supervisor y el administrador son **un mismo cargo**: el rol Administrador ya tiene los permisos de supervisión (auditorías, vista multi-hostal), y el rol `lodging_supervisor` (Supervisor de hostales) quedó inactivo porque no tenía usuarios (se puede reactivar en Administración → Roles). Por encima está gerencia (Superadministrador, Gerente general), que además ve el informe completo del cierre mensual y lo cierra (`docs/cierre-mensual-hostal.md`). Rol nuevo: `housekeeping` (Aseo). El código decide por permiso, no por nombre de rol.
 
 ## Acceso
 
