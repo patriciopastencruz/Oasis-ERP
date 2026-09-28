@@ -104,16 +104,20 @@ export default async function Page({
     timeZone: "America/Santiago",
   }).format(new Date());
   const canManage = ctx.permissions.has("lodging.reservations.manage");
+  // Fechas y precio siguen la misma regla (también en la base): reservas
+  // directas no anuladas; con check-out, solo el administrador o superior.
+  const canCorrectAfterCheckout = ctx.permissions.has("lodging.reservations.cancel_approve");
   const canEditDates =
     canManage &&
     !r.imported_from_ical &&
-    !["cancelled", "checked_in", "checked_out"].includes(r.status);
+    r.status !== "cancelled" &&
+    (r.status !== "checked_out" || canCorrectAfterCheckout);
   // Corregir precio: reservas directas no anuladas; con check-out, solo el administrador o superior.
   const canEditPrice =
     canManage &&
     !r.imported_from_ical &&
     r.status !== "cancelled" &&
-    (r.status !== "checked_out" || ctx.permissions.has("lodging.reservations.cancel_approve"));
+    (r.status !== "checked_out" || canCorrectAfterCheckout);
   const removable =
     canManage &&
     r.imported_from_ical &&
