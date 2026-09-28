@@ -2,7 +2,8 @@
 begin;
 
 -- Verifica la anulación de reservas con aprobación: recepción solicita con
--- motivo, el administrador (o superior) aprueba o rechaza; quien ya puede
+-- motivo, el administrador (o superior) aprueba o rechaza las que empezaron
+-- en días anteriores; las del día o futuras se anulan sin aprobación; quien ya puede
 -- aprobar anula al instante; aviso a aprobadores y a quien pidió; nada se
 -- borra y queda en audit_logs; reservas iCal, en curso o finalizadas no se
 -- anulan; aseo no puede solicitar.
@@ -23,13 +24,15 @@ insert into public.profiles(id,role_id,first_name,last_name,email,job_title,crea
 insert into public.user_companies(user_id,company_id) select v::uuid,:'company_id' from unnest(array[:'clerk',:'admin',:'maid']) v;
 insert into public.user_business_units(user_id,company_id,business_unit_id) select v::uuid,:'company_id',:'hu' from unnest(array[:'clerk',:'admin',:'maid']) v;
 
-insert into public.lodging_rooms(id,company_id,business_unit_id,code,name,display_order) values(:'room',:'company_id',:'hu','CX1','Anular 1',99);
+insert into public.lodging_rooms(id,company_id,business_unit_id,code,name,display_order) values(:'room',:'company_id',:'hu','CX1','Anular 1',99),('00000000-0000-4000-8000-0000000a2002',:'company_id',:'hu','CX2','Anular 2',100);
 insert into public.lodging_reservations(id,company_id,business_unit_id,room_id,origin,status,check_in,check_out,nightly_rate,total_value,imported_from_ical) values
- ('00000000-0000-4000-8000-0000000a3001',:'company_id',:'hu',:'room','direct','confirmed',current_date+10,current_date+12,100,200,false),
- ('00000000-0000-4000-8000-0000000a3002',:'company_id',:'hu',:'room','direct','confirmed',current_date+20,current_date+22,100,200,false),
+ ('00000000-0000-4000-8000-0000000a3001',:'company_id',:'hu',:'room','direct','confirmed',current_date-2,current_date+1,100,300,false),
+ ('00000000-0000-4000-8000-0000000a3002',:'company_id',:'hu',:'room','direct','confirmed',current_date-8,current_date-6,100,200,false),
  ('00000000-0000-4000-8000-0000000a3003',:'company_id',:'hu',:'room','booking','confirmed',current_date+30,current_date+32,0,0,true),
  ('00000000-0000-4000-8000-0000000a3004',:'company_id',:'hu',:'room','direct','checked_out',current_date-5,current_date-3,100,200,false),
- ('00000000-0000-4000-8000-0000000a3005',:'company_id',:'hu',:'room','direct','confirmed',current_date+40,current_date+41,100,100,false);
+ ('00000000-0000-4000-8000-0000000a3005',:'company_id',:'hu',:'room','direct','confirmed',current_date-15,current_date-14,100,100,false),
+ ('00000000-0000-4000-8000-0000000a3006',:'company_id',:'hu','00000000-0000-4000-8000-0000000a2002','direct','confirmed',current_date,current_date+1,100,100,false),
+ ('00000000-0000-4000-8000-0000000a3007',:'company_id',:'hu','00000000-0000-4000-8000-0000000a2002','direct','confirmed',current_date+10,current_date+12,100,200,false);
 insert into public.lodging_reservation_payments(company_id,business_unit_id,reservation_id,type,payment_method,amount,paid_at,registered_by)
 values(:'company_id',:'hu','00000000-0000-4000-8000-0000000a3001','deposit','transfer',80,now(),:'clerk');
 
@@ -74,6 +77,12 @@ begin
   begin perform public.lodging_reservation_cancel_request('00000000-0000-4000-8000-0000000a3004','Ya se fue el huésped'); exception when others then failed := sqlerrm like '%ya no se puede anular%'; end;
   if not failed then raise exception 'Reserva finalizada'; end if;
   perform public.lodging_reservation_cancel_request('00000000-0000-4000-8000-0000000a3002','Cambio de planes del cliente');
+  -- Del día o futura: recepción la anula sin aprobación, y queda registrada.
+  r := public.lodging_reservation_cancel_request('00000000-0000-4000-8000-0000000a3006','El huésped avisó que no llega');
+  if not (r->>'applied')::boolean or pg_temp.res_status('00000000-0000-4000-8000-0000000a3006') is distinct from 'cancelled' then raise exception 'La reserva del día se anula sin aprobación'; end if;
+  if pg_temp.notif('lodging.cancellation.review_assigned','00000000-0000-4000-8000-0000000a3006') <> 0 then raise exception 'Sin aprobación no se avisa a aprobadores'; end if;
+  r := public.lodging_reservation_cancel_request('00000000-0000-4000-8000-0000000a3007','Cambió de fecha el viaje');
+  if not (r->>'applied')::boolean then raise exception 'Una reserva futura se anula sin aprobación'; end if;
 end $$;
 
 -- ---------- Administrador aprueba una y rechaza otra ----------
@@ -103,7 +112,7 @@ end $$;
 reset role;
 do $$
 begin
-  if (select count(*) from public.audit_logs where action='cancel_reservation' and entity_id in('00000000-0000-4000-8000-0000000a3001','00000000-0000-4000-8000-0000000a3005')) is distinct from 2::bigint then
+  if (select count(*) from public.audit_logs where action='cancel_reservation' and entity_id in('00000000-0000-4000-8000-0000000a3001','00000000-0000-4000-8000-0000000a3005','00000000-0000-4000-8000-0000000a3006','00000000-0000-4000-8000-0000000a3007')) is distinct from 4::bigint then
     raise exception 'Auditoría de anulaciones';
   end if;
   if (select cancellation_reason from public.lodging_reservations where id='00000000-0000-4000-8000-0000000a3001') is distinct from 'El huésped canceló por teléfono' then raise exception 'Motivo en la reserva'; end if;

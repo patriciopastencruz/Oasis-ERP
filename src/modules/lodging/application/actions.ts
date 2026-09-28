@@ -716,9 +716,10 @@ function cancellationError(error: { code?: string; message: string }) {
 }
 
 /**
- * Anular una reserva: recepción la solicita y queda pendiente de aprobación
- * del administrador o superior; quien ya puede aprobar la anula de inmediato.
- * La base decide según permisos y registra todo.
+ * Anular una reserva: si empieza hoy o después se anula de inmediato; si
+ * empezó en un día anterior queda pendiente de aprobación del administrador
+ * o superior (quien ya puede aprobar la anula directo). La base decide según
+ * fechas y permisos y registra todo.
  */
 export async function requestReservationCancellationAction(form: FormData) {
   const parsed = uuid.safeParse(form.get("reservation_id"));
@@ -733,7 +734,7 @@ export async function requestReservationCancellationAction(form: FormData) {
   revalidatePath("/lodging");
   revalidatePath("/lodging/reservations");
   revalidatePath(back);
-  go(back, "success", applied ? "Reserva anulada. Queda registrada en la auditoría." : "Solicitud de anulación enviada. El administrador debe aprobarla.");
+  go(back, "success", applied ? "Reserva anulada. Queda registrada en la auditoría." : "La reserva empezó en un día anterior: la solicitud de anulación se envió al administrador para su aprobación.");
 }
 
 export async function decideReservationCancellationAction(form: FormData) {

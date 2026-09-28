@@ -168,6 +168,7 @@ export default async function Page({
         latest={latestCancellation}
         canRequest={ctx.permissions.has("lodging.reservations.cancel_request")}
         canApprove={ctx.permissions.has("lodging.reservations.cancel_approve")}
+        startsTodayOrLater={r.check_in >= todaySantiago}
       />
       {r.origin === "public_web" && r.status === "pending" && (
         <Panel className="mb-4 border-amber-200 bg-amber-50">
