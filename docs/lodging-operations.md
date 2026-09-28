@@ -33,6 +33,27 @@ maintenance / out_of_service → (al resolver) pending_inspection
 - **Fotos**: bucket privado `lodging-operations`, ruta `empresa/unidad/incidencia/uuid.ext`, JPG/PNG/WEBP de hasta 10 MB (el teléfono las reduce a ~1600 px antes de enviarlas) y URLs firmadas de 10 minutos. Las políticas de Storage usan `lodging_incident_storage_access`: sube quien reportó o gestiona; ve quien reportó o puede ver incidencias de la unidad.
 - Aseo no ve la lista de incidencias (RLS); solo el detalle de lo que reportó.
 
+## Vista multi-hostal y "Requiere atención" (fase F)
+
+- **Mis hostales** (portada, con `lodging.operations.multi_unit` y más de un hostal asignado): una tarjeta por hostal con su estado ("Operación normal" o "N habitaciones atrasadas · N incidencias · N pendientes"), auditorías de la semana, disponibles, por limpiar, por inspeccionar y llegadas del día. Un toque cambia de hostal.
+- **Requiere atención** (recepción para su hostal; supervisión, gerencia y administración para todos los asignados), calculado al abrir con los umbrales de `lodging_ops_settings` (`dirty_alert_minutes` 120, `inspection_alert_minutes` 60):
+
+| Excepción | Criticidad |
+| --- | --- |
+| Check-in vencido y la habitación no está inspeccionada | Crítica |
+| Sucia con check-in en ≤ 2 h (≤ 1 h crítica) | Grave / crítica |
+| En limpieza con check-in en ≤ 1 h; por inspeccionar con check-in en ≤ 2 h | Grave |
+| Mantención o fuera de servicio con llegada en ≤ 3 días (hoy: crítica) | Grave / crítica |
+| Incidencia crítica abierta en la habitación | Crítica |
+| Inspección rechazada (retrabajo) | Atención |
+| Espera inspección más de 1 h | Atención |
+| Sucia más de 2 h sin que nadie la tome | Atención |
+| Auditorías de la semana pendientes o fallidas (fase G) | Según regla de supervisión |
+
+  Una alerta operacional por habitación (la más grave) más las incidencias críticas; orden por criticidad y luego minutos al check-in. Si la alerta es de otro hostal, el toque lo selecciona y abre directamente dónde resolverla.
+- **Operación consolidada** (`/ops/overview`, `lodging.operations.view`): por hostal y total, habitaciones, ocupadas, disponibles, cada estado operacional, llegadas y salidas del día, incidencias abiertas, auditorías pendientes y estado; debajo, la lista completa de excepciones.
+- Todo se calcula con `lodging_ops_board` de cada hostal (la base valida unidad y permiso); no hay tablas nuevas. Reglas en `src/modules/lodging/domain/attention.ts` (con pruebas).
+
 ## Base de datos
 
 | Objeto | Uso |
@@ -76,7 +97,7 @@ Administración = roles Administrador y Superadministrador. Roles nuevos: `house
 
 ## Estado de las fases
 
-- Entregadas: A (modelo, estados, permisos, RLS), B (portal, selector, PWA, login), C (aseo), D (inspección 100% y check-in/out transaccionales), E (incidencias y mantención con fotos y bloqueo), G (auditoría semanal del supervisor con KPIs, alertas e histórico por habitación — `docs/lodging-supervision.md`).
-- Pendientes: F vista multi-hostal operacional y "requiere atención" de la operación diaria, H KPIs de aseo y recepción, I notificaciones y pulido.
+- Entregadas: A (modelo, estados, permisos, RLS), B (portal, selector, PWA, login), C (aseo), D (inspección 100% y check-in/out transaccionales), E (incidencias y mantención con fotos y bloqueo), F (vista multi-hostal, operación consolidada y "requiere atención"), G (auditoría semanal del supervisor con KPIs, alertas e histórico por habitación — `docs/lodging-supervision.md`).
+- Pendientes: H KPIs de aseo y recepción, I notificaciones y pulido.
 
 Pruebas SQL: `supabase/tests/verify_lodging_operations.sql`, `supabase/tests/verify_lodging_incidents.sql`.

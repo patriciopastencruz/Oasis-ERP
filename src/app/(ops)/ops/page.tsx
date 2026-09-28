@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Elapsed } from "@/components/ops/elapsed";
 import { OpsSubmit } from "@/components/ops/ops-submit";
+import { AttentionList } from "@/components/ops/attention-list";
+import { MyUnits } from "@/components/ops/my-units";
 import { SupervisionPanel } from "@/components/ops/supervision-panel";
-import { loadAuditMonth, loadAuditWeek, loadBoard, loadIncidents, opsContext } from "@/modules/lodging/application/ops-queries";
-import { incidentAlerts } from "@/modules/lodging/domain/incidents";
+import { loadAuditMonth, loadAuditWeek, loadBoard, loadBoards, loadIncidents, opsContext } from "@/modules/lodging/application/ops-queries";
+import { auditAttention, roomAttention, shortUnitName, sortAttention, unitOverview } from "@/modules/lodging/domain/attention";
 import { santiagoIsoWeekday, supervisionAlerts } from "@/modules/lodging/domain/audits";
 import { startCleaningAction } from "@/modules/lodging/application/ops-actions";
 import {
@@ -76,7 +78,7 @@ const Empty = ({ children }: { children: React.ReactNode }) => (
 
 export default async function OpsHome({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
   const q = await searchParams;
-  const { ctx, unit, can, supabase } = await opsContext();
+  const { ctx, units, unit, can, supabase } = await opsContext();
   const board = await loadBoard(supabase, unit.id);
   const now = new Date();
   // Supervisión: auditorías de todos los hostales asignados y alertas calculadas al abrir.
@@ -89,7 +91,18 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
     return { week, alerts: supervisionAlerts(week, kpis, santiagoIsoWeekday(now)) };
   })() : null;
   const incidents = can.maintenanceView ? await loadIncidents(supabase, unit.id).catch(() => null) : null;
-  const incidentWarnings = incidents ? incidentAlerts(incidents, board.today) : [];
+  // Gestión por excepción: recepción ve su hostal; supervisión, gerencia y administración, todos los asignados.
+  const multi = can.multiUnit && units.length > 1;
+  const showAttention = can.inspect || can.operations;
+  const others = multi ? await loadBoards(supabase, units.filter((u) => u.id !== unit.id).map((u) => u.id)) : [];
+  const boards = [board, ...others].sort((a, b) => units.findIndex((u) => u.id === a.unit.id) - units.findIndex((u) => u.id === b.unit.id));
+  const attention = showAttention
+    ? sortAttention([
+        ...boards.flatMap((b) => roomAttention(b, now)),
+        ...(supervision ? auditAttention(supervision.alerts, Object.fromEntries(units.map((u) => [shortUnitName(u.name), u.id]))) : []),
+      ])
+    : [];
+  const overviews = multi ? boards.map((b) => unitOverview(b, attention)) : [];
   const urgency = byUrgency(now, board.today);
   const rooms = board.rooms;
   const mine = rooms.filter((r) => r.task?.status === "in_progress" && r.task.started_by === ctx.user.id);
@@ -106,8 +119,20 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
         </p>
       )}
 
-      {supervision && <SupervisionPanel week={supervision.week} alerts={supervision.alerts} canAudit={can.audit} />}
+      {multi && (
+        <MyUnits
+          units={overviews}
+          currentUnitId={unit.id}
+          audits={supervision ? Object.fromEntries(supervision.week.units.map((u) => [u.id, { done: u.done, target: u.target }])) : undefined}
+        />
+      )}
 
+      {showAttention && <AttentionList items={attention} currentUnitId={unit.id} showUnit={multi} />}
+
+      {/* Las alertas de auditoría ya van en "Requiere atención" cuando esa sección se muestra. */}
+      {supervision && <SupervisionPanel week={supervision.week} alerts={showAttention ? [] : supervision.alerts} canAudit={can.audit} />}
+
+      {multi && <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Hoy en {shortUnitName(unit.name)}</h2>}
       {(can.inspect || can.operations) && (
         <div className="mb-6 grid grid-cols-3 gap-2 text-center">
           {[
@@ -134,11 +159,6 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
               {board.incidents_open ?? 0}
             </span>
           </div>
-          {incidentWarnings.slice(0, 3).map((a) => (
-            <p key={a.id} className={`mt-2 text-sm font-semibold ${a.level === "critical" ? "text-red-700" : "text-orange-800"}`}>
-              ⚠ {a.text}
-            </p>
-          ))}
         </Link>
       )}
 

@@ -31,6 +31,8 @@ export async function opsContext() {
     operations: ctx.permissions.has("lodging.operations.view"),
     audit: ctx.permissions.has("lodging.audits.execute"),
     auditView: ctx.permissions.has("lodging.audits.view") || ctx.permissions.has("lodging.audits.execute"),
+    // Vista consolidada de todos los hostales asignados (supervisión, gerencia, administración).
+    multiUnit: ctx.permissions.has("lodging.operations.multi_unit"),
     // Mantención: ver la lista de incidencias y gestionarlas (asignar, resolver, bloquear).
     maintenanceView: ["lodging.maintenance.view", "lodging.maintenance.manage", "lodging.operations.view", "lodging.audits.view"].some((p) => ctx.permissions.has(p)),
     maintenanceManage: ctx.permissions.has("lodging.maintenance.manage"),
@@ -53,6 +55,15 @@ export async function loadBoard(supabase: Awaited<ReturnType<typeof createSupaba
 }
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+/**
+ * Tableros de varios hostales en paralelo. La base valida cada unidad; si una
+ * falla (sin permiso operativo en ella) simplemente no se muestra.
+ */
+export async function loadBoards(supabase: Supabase, unitIds: string[]) {
+  const boards = await Promise.all(unitIds.map((id) => loadBoard(supabase, id).catch(() => null)));
+  return boards.filter((b): b is OpsBoard => b !== null);
+}
 
 /** Auditorías de la semana de todos los hostales asignados (lunes a domingo). */
 export async function loadAuditWeek(supabase: Supabase, week?: string) {

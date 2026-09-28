@@ -48,7 +48,9 @@ export async function selectOpsUnitAction(form: FormData) {
   const id = String(form.get("unit_id") ?? "");
   if (!units.some((u) => u.id === id)) go("/ops", "error", "Hostal no autorizado.");
   (await cookies()).set(OPS_UNIT_COOKIE, id, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 60 * 60 * 24 * 365, path: "/" });
-  redirect("/ops");
+  // Desde "Requiere atención" se cambia de hostal y se va directo a resolver (solo rutas del portal).
+  const next = String(form.get("next") ?? "");
+  redirect(/^\/ops(\/[\w\-/?=&]*)?$/.test(next) ? next : "/ops");
 }
 
 export async function startCleaningAction(form: FormData) {
