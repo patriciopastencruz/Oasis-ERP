@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { OpsSubmit } from "@/components/ops/ops-submit";
+import { PhotoPicker } from "@/components/ops/photo-picker";
 import { loadBoard, opsContext } from "@/modules/lodging/application/ops-queries";
 import { inspectRoomAction } from "@/modules/lodging/application/ops-actions";
 import { arrivalLabel, inspectionChecklist, rejectionReasons } from "@/modules/lodging/domain/operations";
@@ -50,6 +51,11 @@ export default async function InspectPage({
               {label}
             </label>
           ))}
+        </div>
+        <div className="mt-4">
+          <p className="mb-2 text-sm font-bold text-slate-700">Foto de la pieza</p>
+          <PhotoPicker name="photos" max={3} />
+          <p className="mt-1 text-xs text-slate-500">Evidencia de que la inspección se hizo en terreno. No es obligatoria.</p>
         </div>
         <div className="mt-4">
           <OpsSubmit name="decision" value="approve" className="bg-emerald-600 text-white">

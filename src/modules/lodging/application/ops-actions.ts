@@ -80,14 +80,14 @@ export async function finishCleaningAction(form: FormData) {
 }
 
 export async function inspectRoomAction(form: FormData) {
-  const { supabase } = await opsContext();
+  const { unit, supabase } = await opsContext();
   const room = uuid.safeParse(form.get("room_id"));
   if (!room.success) go("/ops", "error", "Habitación inválida.");
   const approved = form.get("decision") === "approve";
   const reason = String(form.get("reason") ?? "").trim();
   if (!approved && !reason) go(`/ops/inspect/${room.data}`, "error", "Elige el motivo del rechazo.");
   const checked = new Set(form.getAll("ok").map(String));
-  const { error } = await supabase.rpc("lodging_room_inspect", {
+  const { data, error } = await supabase.rpc("lodging_room_inspect", {
     target_room: room.data,
     approved,
     checklist: checklistFrom(inspectionChecklist, checked, approved && form.get("all_ok") === "1"),
@@ -95,8 +95,13 @@ export async function inspectRoomAction(form: FormData) {
     inspection_notes: String(form.get("notes") ?? "").trim().slice(0, 1000),
   });
   if (error) go(`/ops/inspect/${room.data}`, "error", friendly(error));
+  // Foto opcional como evidencia de que la inspección se hizo en terreno: es
+  // un efecto secundario, si falla la inspección ya quedó registrada igual.
+  const photos = photosFrom(form);
+  const saved = photos.length ? await uploadInspectionPhotos(supabase, unit.company_id, unit.id, data as string, photos) : 0;
   revalidatePath("/ops");
-  go("/ops", "success", approved ? "Habitación aprobada: queda lista para check-in." : "Inspección rechazada: la habitación volvió a aseo.");
+  const photoNote = photos.length ? (saved === photos.length ? ` (${saved} foto${saved === 1 ? "" : "s"})` : ` (${photos.length - saved} foto(s) no se pudieron subir)`) : "";
+  go("/ops", "success", (approved ? "Habitación aprobada: queda lista para check-in." : "Inspección rechazada: la habitación volvió a aseo.") + photoNote);
 }
 
 /** REALIZAR AUDITORÍA: el sistema elige la habitación en este momento (riesgo + azar). */
@@ -183,6 +188,37 @@ async function uploadPhotos(supabase: Supabase, companyId: string, unitId: strin
 }
 
 const photosFrom = (form: FormData) => form.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+
+/** Igual que uploadPhotos, pero para la foto de evidencia de una inspección. */
+async function uploadInspectionPhotos(supabase: Supabase, companyId: string, unitId: string, inspectionId: string, files: File[]) {
+  let saved = 0;
+  for (const file of files.slice(0, MAX_PHOTOS)) {
+    if (file.size < 1 || file.size > MAX_PHOTO_BYTES) continue;
+    const mime = detectedMime(new Uint8Array(await file.slice(0, 16).arrayBuffer()));
+    if (mime !== "image/jpeg" && mime !== "image/png" && mime !== "image/webp") continue;
+    const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[mime];
+    const path = `${companyId}/${unitId}/${inspectionId}/${crypto.randomUUID()}.${ext}`;
+    const up = await supabase.storage.from("lodging-operations").upload(path, file, { contentType: mime, upsert: false });
+    if (up.error) {
+      console.error("[ops] inspection photo upload", up.error.message);
+      continue;
+    }
+    const { error } = await supabase.rpc("lodging_inspection_attach", {
+      target_inspection: inspectionId,
+      object_path: path,
+      mime,
+      size_bytes: file.size,
+      original_name: file.name.slice(0, 200) || "foto",
+    });
+    if (error) {
+      await supabase.storage.from("lodging-operations").remove([path]);
+      if (/maximo 3 fotos/i.test(error.message)) break;
+      continue;
+    }
+    saved++;
+  }
+  return saved;
+}
 
 /** REPORTAR PROBLEMA: aseo, recepción o administración, en menos de 30 segundos. */
 export async function reportIncidentAction(form: FormData) {
