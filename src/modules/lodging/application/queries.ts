@@ -42,7 +42,9 @@ export async function calendarData(from: string, to: string) {
         .order("display_order"),
       supabase
         .from("lodging_reservations")
-        .select("*,lodging_guests(full_name,phone)")
+        .select(
+          "*,lodging_guests(full_name,phone),lodging_reservation_payments(status,lodging_payment_receipts(id,deleted_at))",
+        )
         .eq("business_unit_id", unit.id)
         .lt("check_in", to)
         .gt("check_out", from)

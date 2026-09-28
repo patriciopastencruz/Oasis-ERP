@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ChevronLeft, ChevronRight, LogIn, User, Users, X } from "lucide-react";
+import { Banknote, ChevronLeft, ChevronRight, LogIn, User, Users, X } from "lucide-react";
 import { reassignReservationRoomAction } from "@/modules/lodging/application/actions";
 
 type Room = { id: string; name: string; status: string; capacity?: number };
@@ -17,7 +17,24 @@ type Reservation = {
   guest_count: number;
   relation_type?: string | null;
   lodging_guests: { full_name: string } | { full_name: string }[] | null;
+  lodging_reservation_payments?:
+    | { status: string; lodging_payment_receipts: { id: string; deleted_at: string | null }[] | { id: string; deleted_at: string | null } | null }[]
+    | null;
 };
+
+// Un pago puede tener comprobantes eliminados (subidos por error): solo
+// cuenta si queda al menos uno activo en algún pago confirmado.
+function hasPaidReceipt(reservation: Pick<Reservation, "lodging_reservation_payments">) {
+  return (reservation.lodging_reservation_payments ?? []).some((payment) => {
+    if (payment.status !== "confirmed") return false;
+    const receipts = Array.isArray(payment.lodging_payment_receipts)
+      ? payment.lodging_payment_receipts
+      : payment.lodging_payment_receipts
+        ? [payment.lodging_payment_receipts]
+        : [];
+    return receipts.some((r) => !r.deleted_at);
+  });
+}
 
 // "information_complete" en la base solo se pone en false al importar por
 // iCal (queda en true por defecto para el resto), así que una reserva
@@ -397,16 +414,23 @@ export function WeeklyCalendar({
                             </span>
                           )}
                         </span>
-                        <span
-                          title={
-                            complete
-                              ? "Nombre y precio cargados"
-                              : "Falta cargar nombre y/o precio"
-                          }
-                          className={`absolute right-1 bottom-1 size-1.5 shrink-0 rounded-full ring-1 ring-white ${
-                            complete ? "bg-emerald-500" : "bg-red-500"
-                          }`}
-                        />
+                        <span className="absolute right-1 bottom-1 flex items-center gap-0.5">
+                          {hasPaidReceipt(reservation) && (
+                            <span title="Pago con comprobante cargado">
+                              <Banknote size={10} className="text-emerald-600" />
+                            </span>
+                          )}
+                          <span
+                            title={
+                              complete
+                                ? "Nombre y precio cargados"
+                                : "Falta cargar nombre y/o precio"
+                            }
+                            className={`size-1.5 shrink-0 rounded-full ring-1 ring-white ${
+                              complete ? "bg-emerald-500" : "bg-red-500"
+                            }`}
+                          />
+                        </span>
                       </div>
                     );
                   })}
