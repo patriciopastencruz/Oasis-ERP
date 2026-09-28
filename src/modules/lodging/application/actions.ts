@@ -279,6 +279,53 @@ export async function updateReservationDatesAction(form: FormData) {
   );
 }
 
+/** Corregir tarifa, descuento o recargo de una reserva directa; la base recalcula el total. */
+export async function updateReservationPriceAction(form: FormData) {
+  await requirePermission("lodging.reservations.manage");
+  const parsed = uuid.safeParse(form.get("reservation_id"));
+  if (!parsed.success) go("/lodging", "error", "Reserva inválida.");
+  const back = `/lodging/reservations/${parsed.data}`;
+  const amount = (key: string) => {
+    const digits = String(form.get(key) ?? "").replace(/\D/g, "");
+    return digits ? Number(digits) : 0;
+  };
+  const s = await createSupabaseServerClient();
+  const { data, error } = await s.rpc("update_lodging_reservation_price", {
+    target_reservation: parsed.data,
+    new_nightly_rate: amount("nightly_rate"),
+    new_discount: amount("discount"),
+    new_surcharge: amount("surcharge"),
+    change_reason: String(form.get("reason") ?? "").trim().slice(0, 500),
+  });
+  if (error) {
+    console.error("[lodging-price]", error.message);
+    const message = /motivo/i.test(error.message)
+      ? "Indica el motivo de la corrección (mínimo 5 caracteres)."
+      : /negativo/i.test(error.message)
+        ? "El total no puede quedar negativo: revisa el descuento."
+        : /Solo el administrador/i.test(error.message)
+          ? "La reserva ya tiene check-out: solo el administrador puede corregir su precio."
+          : /Completar informacion interna/i.test(error.message)
+            ? "El valor de una reserva de Booking o Airbnb se corrige en Completar información interna."
+            : /anulada/i.test(error.message)
+              ? "La reserva está anulada."
+              : "No fue posible corregir el precio.";
+    go(back, "error", message);
+  }
+  const result = data as { changed: boolean; total_value: number; balance?: number } | null;
+  revalidatePath("/lodging");
+  revalidatePath("/lodging/reservations");
+  revalidatePath(back);
+  const clpFmt = (n: number) => new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n);
+  go(
+    back,
+    "success",
+    !result?.changed
+      ? "El precio no cambió."
+      : `Precio corregido. Nuevo total ${clpFmt(result.total_value)}${result.balance !== undefined ? ` · saldo ${clpFmt(result.balance)}` : ""}.`,
+  );
+}
+
 export async function registerPaymentAction(form: FormData) {
   const ctx = await requirePermission("lodging.payments.manage");
   const parsed = z

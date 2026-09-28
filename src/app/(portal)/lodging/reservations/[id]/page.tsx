@@ -18,8 +18,10 @@ import {
   updateImportedReservationInfoAction,
   removeImportedReservationAction,
   updateReservationDatesAction,
+  updateReservationPriceAction,
 } from "@/modules/lodging/application/actions";
 import { ConfirmButton } from "@/components/sales/confirm-button";
+import { ClpInput } from "@/components/lodging/clp-input";
 import { ReservationCancellation, type CancellationRequest } from "@/components/lodging/reservation-cancellation";
 import { operationalStatusLabels, type OperationalStatus } from "@/modules/lodging/domain/operations";
 import { reviewPublicLodgingRequestAction } from "@/modules/lodging/application/public-actions";
@@ -106,6 +108,12 @@ export default async function Page({
     canManage &&
     !r.imported_from_ical &&
     !["cancelled", "checked_in", "checked_out"].includes(r.status);
+  // Corregir precio: reservas directas no anuladas; con check-out, solo el administrador o superior.
+  const canEditPrice =
+    canManage &&
+    !r.imported_from_ical &&
+    r.status !== "cancelled" &&
+    (r.status !== "checked_out" || ctx.permissions.has("lodging.reservations.cancel_approve"));
   const removable =
     canManage &&
     r.imported_from_ical &&
@@ -300,6 +308,38 @@ export default async function Page({
             </button>
           </form>
         </Panel>
+      )}
+      {canEditPrice && (
+        <details className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <summary className="cursor-pointer font-semibold text-slate-800">Corregir precio</summary>
+          <p className="mt-2 text-xs text-slate-500">
+            Actual: {r.nights} noche{r.nights === 1 ? "" : "s"} × {clp.format(Number(r.nightly_rate))}
+            {Number(r.discount) ? ` − descuento ${clp.format(Number(r.discount))}` : ""}
+            {Number(r.surcharge) ? ` + recargo ${clp.format(Number(r.surcharge))}` : ""} = <b>{clp.format(Number(r.total_value))}</b>. El nuevo total lo calcula el sistema y queda en la auditoría con el motivo.
+          </p>
+          <form action={updateReservationPriceAction} className="mt-3 grid gap-3 sm:grid-cols-3">
+            <input type="hidden" name="reservation_id" value={id} />
+            <label className="grid gap-1 text-sm font-medium text-slate-700">
+              Tarifa por noche
+              <ClpInput name="nightly_rate" defaultValue={String(Number(r.nightly_rate))} className={field} />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-slate-700">
+              Descuento
+              <ClpInput name="discount" defaultValue={String(Number(r.discount))} className={field} />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-slate-700">
+              Recargo
+              <ClpInput name="surcharge" defaultValue={String(Number(r.surcharge))} className={field} />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-slate-700 sm:col-span-3">
+              Motivo de la corrección
+              <input name="reason" required minLength={5} maxLength={500} placeholder="Ej.: la tarifa se ingresó mal al crear la reserva" className={field} />
+            </label>
+            <div className="sm:col-span-3">
+              <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">Guardar precio</button>
+            </div>
+          </form>
+        </details>
       )}
       {canEditDates && (
         <Panel className="mb-4">
