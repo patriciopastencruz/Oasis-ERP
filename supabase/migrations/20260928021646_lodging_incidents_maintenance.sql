@@ -1,5 +1,4 @@
 begin;
-
 -- Fase E: incidencias y mantención del portal operativo.
 -- Aseo y recepción reportan problemas (con fotos opcionales en Storage
 -- privado). Si afectan la habitabilidad la habitación se bloquea
@@ -18,7 +17,6 @@ alter table public.lodging_incidents
  add constraint lodging_incidents_resolution_check check(status<>'resolved' or char_length(coalesce(btrim(resolution_notes),''))>=3),
  add constraint lodging_incidents_cancel_check check(status<>'cancelled' or char_length(coalesce(btrim(cancel_reason),''))>=3);
 create index lodging_incidents_blocking_idx on public.lodging_incidents(room_id) where blocks_room is not null and room_released_at is null;
-
 create table public.lodging_incident_attachments(
  id uuid primary key default gen_random_uuid(),
  company_id uuid not null references public.companies(id),
@@ -36,7 +34,6 @@ create table public.lodging_incident_attachments(
 create index lodging_incident_attachments_incident_idx on public.lodging_incident_attachments(incident_id) where deleted_at is null;
 create index lodging_incident_attachments_unit_idx on public.lodging_incident_attachments(company_id,business_unit_id);
 create trigger audit_lodging_incident_attachments after insert or update or delete on public.lodging_incident_attachments for each row execute function public.audit_row_change();
-
 -- ---------- Permisos ----------
 create or replace function public.lodging_incident_can_view(target_company uuid,target_unit uuid) returns boolean language sql stable security definer set search_path='' as $$
  select public.can_access_unit(target_company,target_unit) and (public.has_permission('lodging.maintenance.view') or public.has_permission('lodging.maintenance.manage')
@@ -46,7 +43,6 @@ create or replace function public.lodging_incident_can_report() returns boolean 
  select public.has_permission('lodging.housekeeping.execute') or public.has_permission('lodging.rooms.inspect') or public.has_permission('lodging.maintenance.view')
   or public.has_permission('lodging.maintenance.manage') or public.has_permission('lodging.operations.view') or public.has_permission('lodging.audits.execute')
 $$;
-
 -- ---------- Bloqueo y liberación de la habitación ----------
 create or replace function public.lodging_incident_block_room(v_incident public.lodging_incidents,v_kind text) returns void language plpgsql security definer set search_path='' as $$
 declare v_room public.lodging_rooms;
@@ -59,7 +55,6 @@ begin
  end if;
  update public.lodging_incidents set blocks_room=v_kind,room_blocked_at=coalesce(room_blocked_at,now()),room_released_at=null where id=v_incident.id;
 end $$;
-
 -- Libera la habitación solo si no queda otra incidencia abierta que la bloquee.
 create or replace function public.lodging_incident_release_room(v_incident public.lodging_incidents) returns boolean language plpgsql security definer set search_path='' as $$
 declare v_room public.lodging_rooms; remaining text;
@@ -67,7 +62,7 @@ begin
  if v_incident.blocks_room is null or v_incident.room_released_at is not null then return false; end if;
  update public.lodging_incidents set room_released_at=now() where id=v_incident.id;
  select * into v_room from public.lodging_rooms where id=v_incident.room_id for update;
- select case when count(*)=0 then null when bool_or(blocks_room='out_of_service') then 'out_of_service' else 'maintenance' end into remaining
+ select case when bool_or(blocks_room='out_of_service') then 'out_of_service' else 'maintenance' end into remaining
  from public.lodging_incidents where room_id=v_room.id and blocks_room is not null and room_released_at is null and id<>v_incident.id;
  perform public.lodging_ops_context('maintenance','Resuelta: '||left(v_incident.description,120),null,null);
  if remaining is not null then
@@ -79,7 +74,6 @@ begin
  return true;
 end $$;
 revoke execute on function public.lodging_incident_block_room(public.lodging_incidents,text),public.lodging_incident_release_room(public.lodging_incidents) from public,anon,authenticated;
-
 -- ---------- Reportar problema ----------
 -- payload: unit_id, room_id (opcional), category, description, priority, block ('maintenance'|'out_of_service'|null).
 create or replace function public.lodging_incident_report(payload jsonb) returns uuid language plpgsql security definer set search_path='' as $$
@@ -102,14 +96,13 @@ begin
   if v_block='maintenance' and not (public.has_permission('lodging.rooms.inspect') or public.has_permission('lodging.maintenance.manage')) then raise exception 'Sin autorizacion para bloquear la habitacion'; end if;
   if v_block='out_of_service' and not public.has_permission('lodging.maintenance.manage') then raise exception 'Sin autorizacion para dejar la habitacion fuera de servicio'; end if;
  end if;
- v_source:=case when public.has_permission('lodging.maintenance.manage') then 'manual' when public.has_permission('lodging.rooms.inspect') then 'reception' when public.has_permission('lodging.housekeeping.execute') then 'housekeeping' else 'manual' end;
+ v_source:=case when public.has_permission('lodging.rooms.inspect') then 'reception' when public.has_permission('lodging.housekeeping.execute') then 'housekeeping' else 'manual' end;
  insert into public.lodging_incidents(company_id,business_unit_id,room_id,source,category,description,priority,reported_by)
  values(unit.company_id,unit.id,v_room.id,v_source,payload->>'category',btrim(payload->>'description'),coalesce(payload->>'priority','medium'),me)
  returning * into v_inc;
  if v_block is not null then perform public.lodging_incident_block_room(v_inc,v_block); end if;
  return v_inc.id;
 end $$;
-
 -- ---------- Gestión (asignar, iniciar, resolver, cancelar, bloquear, liberar) ----------
 create or replace function public.lodging_incident_update(target_incident uuid,v_action text,payload jsonb) returns void language plpgsql security definer set search_path='' as $$
 declare me uuid:=auth.uid(); v_inc public.lodging_incidents; v_assignee uuid;
@@ -143,7 +136,6 @@ begin
   raise exception 'Accion invalida';
  end if;
 end $$;
-
 -- ---------- Fotos (Storage privado; ruta company/unit/incident/archivo) ----------
 create or replace function public.lodging_incident_attach(target_incident uuid,object_path text,mime text,size_bytes bigint,original_name text) returns uuid language plpgsql security definer set search_path='' as $$
 declare v_inc public.lodging_incidents; v_id uuid;
@@ -157,31 +149,21 @@ begin
  values(v_inc.company_id,v_inc.business_unit_id,v_inc.id,object_path,left(coalesce(original_name,'foto'),200),mime,size_bytes,auth.uid()) returning id into v_id;
  return v_id;
 end $$;
-
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values('lodging-operations','lodging-operations',false,10485760,array['image/jpeg','image/png','image/webp'])
 on conflict(id) do update set public=false,file_size_limit=excluded.file_size_limit,allowed_mime_types=excluded.allowed_mime_types;
--- Acceso a un objeto del bucket: la ruta company/unit/incident/archivo debe
--- corresponder a una incidencia de una unidad asignada. security definer porque
--- aseo reporta sin poder listar incidencias (RLS de lodging_incidents).
-create or replace function public.lodging_incident_storage_access(object_name text,for_write boolean) returns boolean language plpgsql stable security definer set search_path='' as $$
-declare parts text[]:=string_to_array(object_name,'/'); v_inc public.lodging_incidents;
-begin
- if array_length(parts,1)<>4 or parts[3] !~ '^[0-9a-f-]{36}$' then return false; end if;
- select * into v_inc from public.lodging_incidents where id=parts[3]::uuid;
- if v_inc.id is null or v_inc.company_id::text<>parts[1] or v_inc.business_unit_id::text<>parts[2]
-  or not public.can_access_unit(v_inc.company_id,v_inc.business_unit_id) then return false; end if;
- if for_write then return v_inc.reported_by=auth.uid() or public.has_permission('lodging.maintenance.manage'); end if;
- return v_inc.reported_by=auth.uid() or public.lodging_incident_can_view(v_inc.company_id,v_inc.business_unit_id);
-end $$;
-revoke execute on function public.lodging_incident_storage_access(text,boolean) from public,anon;
-grant execute on function public.lodging_incident_storage_access(text,boolean) to authenticated;
--- Subir: quien reportó (o gestiona) la incidencia. Ver: quien la reportó o puede ver incidencias (URLs firmadas).
+-- Subir: quien reportó (o gestiona) la incidencia, dentro de su unidad.
 create policy lodging_operations_objects_insert on storage.objects for insert to authenticated
-with check (bucket_id='lodging-operations' and public.lodging_incident_storage_access(name,true));
+with check (bucket_id='lodging-operations' and exists(
+ select 1 from public.lodging_incidents i where i.id::text=(storage.foldername(name))[3]
+  and i.company_id::text=(storage.foldername(name))[1] and i.business_unit_id::text=(storage.foldername(name))[2]
+  and public.can_access_unit(i.company_id,i.business_unit_id)
+  and (i.reported_by=(select auth.uid()) or public.has_permission('lodging.maintenance.manage'))));
+-- Ver: quien puede ver incidencias de la unidad o quien la reportó (URLs firmadas).
 create policy lodging_operations_objects_read on storage.objects for select to authenticated
-using (bucket_id='lodging-operations' and public.lodging_incident_storage_access(name,false));
-
+using (bucket_id='lodging-operations' and exists(
+ select 1 from public.lodging_incidents i where i.id::text=(storage.foldername(name))[3] and i.business_unit_id::text=(storage.foldername(name))[2]
+  and (public.lodging_incident_can_view(i.company_id,i.business_unit_id) or (i.reported_by=(select auth.uid()) and public.can_access_unit(i.company_id,i.business_unit_id)))));
 -- ---------- Consultas del portal ----------
 create or replace function public.lodging_incident_board(target_unit uuid) returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare unit public.business_units; today date:=(now() at time zone 'America/Santiago')::date; result jsonb;
@@ -203,7 +185,6 @@ begin
  ) x;
  return result;
 end $$;
-
 create or replace function public.lodging_incident_detail(target_incident uuid) returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare v_inc public.lodging_incidents; result jsonb;
 begin
@@ -222,7 +203,6 @@ begin
  left join public.profiles rp on rp.id=v_inc.reported_by left join public.profiles ap on ap.id=v_inc.assigned_to left join public.profiles sp on sp.id=v_inc.resolved_by;
  return result;
 end $$;
-
 -- Personal asignable de la unidad (para "asignar a").
 create or replace function public.lodging_unit_staff(target_unit uuid) returns table(staff_id uuid,staff_name text,staff_role text) language plpgsql stable security definer set search_path='' as $$
 declare unit public.business_units;
@@ -234,7 +214,6 @@ begin
   join public.user_business_units u on u.user_id=p.id and u.business_unit_id=unit.id left join public.roles r on r.id=p.role_id
   where p.active and p.deleted_at is null order by p.first_name,p.last_name;
 end $$;
-
 -- Tablero del portal: agrega incidencias abiertas por habitación.
 create or replace function public.lodging_ops_board(target_unit uuid) returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare unit public.business_units; cfg public.lodging_ops_settings; today date:=(now() at time zone 'America/Santiago')::date; result jsonb;
@@ -282,7 +261,6 @@ begin
  ) into result;
  return result;
 end $$;
-
 -- ---------- RLS y privilegios ----------
 alter table public.lodging_incident_attachments enable row level security;
 create policy lodging_incident_attachments_select on public.lodging_incident_attachments for select to authenticated using(public.lodging_incident_can_view(company_id,business_unit_id));
@@ -290,12 +268,10 @@ drop policy lodging_incidents_select on public.lodging_incidents;
 create policy lodging_incidents_select on public.lodging_incidents for select to authenticated using(public.lodging_incident_can_view(company_id,business_unit_id));
 revoke all on public.lodging_incident_attachments from public,anon,authenticated;
 grant select on public.lodging_incident_attachments to authenticated;
-
 revoke execute on function public.lodging_incident_can_view(uuid,uuid),public.lodging_incident_can_report(),public.lodging_incident_report(jsonb),
  public.lodging_incident_update(uuid,text,jsonb),public.lodging_incident_attach(uuid,text,text,bigint,text),public.lodging_incident_board(uuid),
  public.lodging_incident_detail(uuid),public.lodging_unit_staff(uuid) from public,anon;
 grant execute on function public.lodging_incident_can_view(uuid,uuid),public.lodging_incident_can_report(),public.lodging_incident_report(jsonb),
  public.lodging_incident_update(uuid,text,jsonb),public.lodging_incident_attach(uuid,text,text,bigint,text),public.lodging_incident_board(uuid),
  public.lodging_incident_detail(uuid),public.lodging_unit_staff(uuid) to authenticated;
-
 commit;
