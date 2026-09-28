@@ -23,6 +23,7 @@ iCal sincroniza únicamente ocupación. Las tarifas, comisiones, promociones, po
 ## Operación
 
 - **Nueva reserva:** seleccione habitación, fechas, huésped, tarifa y pago opcional. PostgreSQL impide superposiciones incluso ante solicitudes simultáneas.
+- **Editar fechas:** abra una reserva desde el calendario y cambie entrada o salida. El sistema vuelve a validar la disponibilidad, recalcula noches y total, y registra la modificación en auditoría. Las fechas importadas por iCal se cambian en Booking/Airbnb.
 - **Extensión:** abra la reserva original y pulse **Extender estadía**. Se crea una nueva reserva directa vinculada desde la fecha de salida original.
 - **Pagos:** abra una reserva, registre abonos/pagos/devoluciones y adjunte comprobantes PDF/JPG/PNG/WEBP de hasta 10 MB. Los archivos están en un bucket privado y se abren mediante URL firmada de cinco minutos.
 - **Booking/Airbnb:** abra el registro importado para consultar y completar información interna. Las fechas originales se actualizan desde el canal, no desde Oasis.

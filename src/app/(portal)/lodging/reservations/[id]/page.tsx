@@ -17,6 +17,7 @@ import {
   voidPaymentAction,
   updateImportedReservationInfoAction,
   removeImportedReservationAction,
+  updateReservationDatesAction,
 } from "@/modules/lodging/application/actions";
 import { ConfirmButton } from "@/components/sales/confirm-button";
 import { operationalStatusLabels, type OperationalStatus } from "@/modules/lodging/domain/operations";
@@ -73,6 +74,10 @@ export default async function Page({
     timeZone: "America/Santiago",
   }).format(new Date());
   const canManage = ctx.permissions.has("lodging.reservations.manage");
+  const canEditDates =
+    canManage &&
+    !r.imported_from_ical &&
+    !["cancelled", "checked_in", "checked_out"].includes(r.status);
   const removable =
     canManage &&
     r.imported_from_ical &&
@@ -253,6 +258,48 @@ export default async function Page({
             />
             <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white md:col-span-4">
               Guardar información interna
+            </button>
+          </form>
+        </Panel>
+      )}
+      {canEditDates && (
+        <Panel className="mb-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="font-semibold">Editar fechas</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Al guardar se recalculan las noches y el total usando la tarifa,
+                descuento y recargo de esta reserva.
+              </p>
+            </div>
+          </div>
+          <form
+            action={updateReservationDatesAction}
+            className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
+          >
+            <input type="hidden" name="reservation_id" value={id} />
+            <label className="grid gap-1 text-sm font-medium text-slate-700">
+              Entrada
+              <input
+                name="check_in"
+                type="date"
+                required
+                defaultValue={r.check_in}
+                className={field}
+              />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-slate-700">
+              Salida
+              <input
+                name="check_out"
+                type="date"
+                required
+                defaultValue={r.check_out}
+                className={field}
+              />
+            </label>
+            <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">
+              Guardar fechas
             </button>
           </form>
         </Panel>

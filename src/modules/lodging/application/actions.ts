@@ -230,6 +230,55 @@ export async function createReservationAction(form: FormData) {
   );
 }
 
+export async function updateReservationDatesAction(form: FormData) {
+  await requirePermission("lodging.reservations.manage");
+  const parsed = z
+    .object({
+      reservation_id: uuid,
+      check_in: date,
+      check_out: date,
+    })
+    .refine((values) => values.check_out > values.check_in, {
+      message: "La fecha de salida debe ser posterior a la fecha de entrada.",
+      path: ["check_out"],
+    })
+    .safeParse(Object.fromEntries(form));
+  const reservationId = form.get("reservation_id");
+  const back = uuid.safeParse(reservationId).success
+    ? `/lodging/reservations/${reservationId}`
+    : "/lodging";
+  if (!parsed.success) go(back, "error", parsed.error.issues[0].message);
+
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("update_lodging_reservation_dates", {
+    target_reservation: parsed.data.reservation_id,
+    new_check_in: parsed.data.check_in,
+    new_check_out: parsed.data.check_out,
+  });
+  if (error) {
+    const conflict =
+      error.code === "23P01" || /conflict|exclusion/i.test(error.message);
+    go(
+      back,
+      "error",
+      conflict
+        ? "La habitación ya está reservada en esas fechas."
+        : error.code === "P0001"
+          ? error.message
+          : "No fue posible actualizar las fechas.",
+    );
+  }
+
+  revalidatePath("/lodging");
+  revalidatePath("/lodging/reservations");
+  revalidatePath(back);
+  go(
+    back,
+    "success",
+    "Fechas actualizadas. Las noches y el total fueron recalculados.",
+  );
+}
+
 export async function registerPaymentAction(form: FormData) {
   const ctx = await requirePermission("lodging.payments.manage");
   const parsed = z
