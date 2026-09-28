@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   Boxes,
   Route,
+  BedDouble,
 } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -79,7 +80,7 @@ export default async function AdministrationApprovals({
   const ctx = await requirePermission("administration.approvals.view");
   const s = await createSupabaseServerClient();
 
-  const [quotationsRes, paymentSteps, pettyCashRes, inventoryRes, distRes] =
+  const [quotationsRes, paymentSteps, pettyCashRes, inventoryRes, distRes, lodgingRes] =
     await Promise.all([
       ctx.permissions.has("sales.quotations.approve")
         ? s
@@ -122,12 +123,22 @@ export default async function AdministrationApprovals({
             .in("status", ["pending", "in_review"])
             .order("created_at", { ascending: true })
         : Promise.resolve({ data: [] as any[] }),
+      ctx.permissions.has("lodging.reservations.cancel_approve")
+        ? s
+            .from("lodging_reservation_cancellations")
+            .select(
+              "id,reason,requested_at,reservation_id,business_units(name),requester:profiles!lodging_reservation_cancellations_requested_by_fkey(first_name,last_name),lodging_reservations(check_in,check_out,lodging_rooms(name),lodging_guests(full_name))",
+            )
+            .eq("status", "pending")
+            .order("requested_at", { ascending: true })
+        : Promise.resolve({ data: [] as any[] }),
     ]);
 
   const quotations = quotationsRes.data ?? [];
   const pettyCash = pettyCashRes.data ?? [];
   const inventoryRequests = inventoryRes.data ?? [];
   const distRequests = distRes.data ?? [];
+  const lodgingCancellations = lodgingRes.data ?? [];
 
   return (
     <>
@@ -332,6 +343,42 @@ export default async function AdministrationApprovals({
                     commentRequired
                     commentPlaceholder="Comentario de resolución"
                   />
+                </div>
+              </Panel>
+            );
+          })}
+        </Section>
+      )}
+
+      {ctx.permissions.has("lodging.reservations.cancel_approve") && (
+        <Section icon={BedDouble} title="Hostales · anulaciones" count={lodgingCancellations.length}>
+          {lodgingCancellations.map((x) => {
+            const reservation = one(x.lodging_reservations);
+            const room = one(reservation?.lodging_rooms);
+            const guest = one(reservation?.lodging_guests);
+            const requester = one(x.requester);
+            const unit = one(x.business_units);
+            return (
+              <Panel key={x.id}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase text-[#63778e]">Anulación de reserva · {unit?.name}</p>
+                    <h3 className="font-semibold">
+                      {guest?.full_name ?? "Sin nombre"} · {room?.name}
+                    </h3>
+                    <p className="text-sm text-[#63778e]">
+                      {reservation?.check_in} → {reservation?.check_out} · Solicita: {requester?.first_name} {requester?.last_name}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      <b>Motivo:</b> {x.reason}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/lodging/reservations/${x.reservation_id}`}
+                    className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    Revisar y decidir
+                  </Link>
                 </div>
               </Panel>
             );

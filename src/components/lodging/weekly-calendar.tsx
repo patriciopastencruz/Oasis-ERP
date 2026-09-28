@@ -128,6 +128,14 @@ export function WeeklyCalendar({
   const [origin, setOrigin] = useState("all");
   const [room, setRoom] = useState("all");
   const [localReservations, setLocalReservations] = useState(reservations);
+  // Cuando el servidor envía datos nuevos (pago o comprobante recién cargado,
+  // cambio de fechas), la copia local se reemplaza; si no, el calendario
+  // seguiría mostrando la versión anterior hasta recargar la página.
+  const [receivedReservations, setReceivedReservations] = useState(reservations);
+  if (reservations !== receivedReservations) {
+    setReceivedReservations(reservations);
+    setLocalReservations(reservations);
+  }
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const [, startTransition] = useTransition();

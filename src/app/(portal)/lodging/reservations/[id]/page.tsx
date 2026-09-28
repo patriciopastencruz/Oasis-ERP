@@ -20,6 +20,7 @@ import {
   updateReservationDatesAction,
 } from "@/modules/lodging/application/actions";
 import { ConfirmButton } from "@/components/sales/confirm-button";
+import { ReservationCancellation, type CancellationRequest } from "@/components/lodging/reservation-cancellation";
 import { operationalStatusLabels, type OperationalStatus } from "@/modules/lodging/domain/operations";
 import { reviewPublicLodgingRequestAction } from "@/modules/lodging/application/public-actions";
 export default async function Page({
@@ -38,14 +39,41 @@ export default async function Page({
     .eq("id", id)
     .single();
   if (!r) notFound();
-  const [{ data: payments }, { data: summary }] = await Promise.all([
+  const [{ data: payments }, { data: summary }, { data: cancellations }] = await Promise.all([
     supabase
       .from("lodging_reservation_payments")
       .select("*,lodging_payment_receipts(*)")
       .eq("reservation_id", id)
       .order("paid_at"),
     supabase.rpc("lodging_payment_summary", { target_reservation: id }),
+    supabase
+      .from("lodging_reservation_cancellations")
+      .select(
+        "id,status,reason,paid_amount,requested_at,decided_at,decision_notes,requester:profiles!lodging_reservation_cancellations_requested_by_fkey(first_name,last_name),decider:profiles!lodging_reservation_cancellations_decided_by_fkey(first_name,last_name)",
+      )
+      .eq("reservation_id", id)
+      .order("requested_at", { ascending: false })
+      .limit(1),
   ]);
+  type Person = { first_name: string; last_name: string } | { first_name: string; last_name: string }[] | null;
+  const personName = (p: Person) => {
+    const one = Array.isArray(p) ? p[0] : p;
+    return one ? `${one.first_name} ${one.last_name}`.trim() : null;
+  };
+  const lastCancellation = cancellations?.[0];
+  const latestCancellation: CancellationRequest | null = lastCancellation
+    ? {
+        id: lastCancellation.id,
+        status: lastCancellation.status,
+        reason: lastCancellation.reason,
+        paid_amount: Number(lastCancellation.paid_amount),
+        requested_at: lastCancellation.requested_at,
+        decided_at: lastCancellation.decided_at,
+        decision_notes: lastCancellation.decision_notes,
+        requester: personName(lastCancellation.requester as Person),
+        decider: personName(lastCancellation.decider as Person),
+      }
+    : null;
   const s = summary?.[0] ?? {
     total_paid: 0,
     balance: r.total_value,
@@ -131,6 +159,16 @@ export default async function Page({
           )}
         </div>
       )}
+      <ReservationCancellation
+        reservationId={id}
+        status={r.status}
+        importedFromIcal={r.imported_from_ical}
+        totalPaid={Number(s.total_paid)}
+        cancellationReason={r.cancellation_reason}
+        latest={latestCancellation}
+        canRequest={ctx.permissions.has("lodging.reservations.cancel_request")}
+        canApprove={ctx.permissions.has("lodging.reservations.cancel_approve")}
+      />
       {r.origin === "public_web" && r.status === "pending" && (
         <Panel className="mb-4 border-amber-200 bg-amber-50">
           <h2 className="font-semibold text-amber-900">

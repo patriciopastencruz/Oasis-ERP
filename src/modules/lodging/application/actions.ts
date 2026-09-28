@@ -377,6 +377,7 @@ export async function voidPaymentAction(form: FormData) {
       "error",
       "No fue posible anular el pago.",
     );
+  revalidatePath("/lodging");
   revalidatePath(`/lodging/reservations/${reservationId}`);
   go(
     `/lodging/reservations/${reservationId}`,
@@ -526,6 +527,7 @@ export async function uploadPaymentReceiptAction(form: FormData) {
       "No fue posible registrar el comprobante.",
     );
   }
+  revalidatePath("/lodging");
   revalidatePath(`/lodging/reservations/${reservationId}`);
   go(
     `/lodging/reservations/${reservationId}`,
@@ -552,6 +554,7 @@ export async function removePaymentReceiptAction(form: FormData) {
         ? error.message
         : "No fue posible eliminar el comprobante.",
     );
+  revalidatePath("/lodging");
   revalidatePath(back);
   go(back, "success", "Comprobante eliminado.");
 }
@@ -696,6 +699,60 @@ export async function removeImportedReservationAction(form: FormData) {
     );
   revalidatePath("/lodging");
   go("/lodging", "success", "Reserva eliminada.");
+}
+
+function cancellationError(error: { code?: string; message: string }) {
+  console.error("[lodging-cancel]", error.message);
+  if (error.code === "P0001") {
+    if (/motivo de la anulacion/i.test(error.message)) return "Indica el motivo de la anulación (mínimo 5 caracteres).";
+    if (/motivo del rechazo/i.test(error.message)) return "Indica el motivo del rechazo.";
+    if (/pendiente/i.test(error.message)) return "Ya hay una solicitud de anulación pendiente para esta reserva.";
+    if (/ya fue resuelta/i.test(error.message)) return "Esta solicitud ya fue resuelta.";
+    if (/ya no se puede anular/i.test(error.message)) return "La reserva ya no se puede anular (tiene check-in, check-out o ya está anulada).";
+    if (/plataforma/i.test(error.message)) return "Las reservas de Booking o Airbnb se anulan en la plataforma.";
+    if (/autorizacion/i.test(error.message)) return "No tienes autorización para esta acción.";
+  }
+  return "No fue posible completar la anulación.";
+}
+
+/**
+ * Anular una reserva: recepción la solicita y queda pendiente de aprobación
+ * del administrador o superior; quien ya puede aprobar la anula de inmediato.
+ * La base decide según permisos y registra todo.
+ */
+export async function requestReservationCancellationAction(form: FormData) {
+  const parsed = uuid.safeParse(form.get("reservation_id"));
+  if (!parsed.success) go("/lodging", "error", "Reserva inválida.");
+  const back = `/lodging/reservations/${parsed.data}`;
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 500);
+  const s = await createSupabaseServerClient();
+  const { data, error } = await s.rpc("lodging_reservation_cancel_request", { target_reservation: parsed.data, cancel_reason: reason });
+  if (error) go(back, "error", cancellationError(error));
+  const applied = Boolean((data as { applied?: boolean } | null)?.applied);
+  if (!applied) await dispatchApprovalEmails().catch(() => {});
+  revalidatePath("/lodging");
+  revalidatePath("/lodging/reservations");
+  revalidatePath(back);
+  go(back, "success", applied ? "Reserva anulada. Queda registrada en la auditoría." : "Solicitud de anulación enviada. El administrador debe aprobarla.");
+}
+
+export async function decideReservationCancellationAction(form: FormData) {
+  const request = uuid.safeParse(form.get("request_id"));
+  const reservation = uuid.safeParse(form.get("reservation_id"));
+  if (!request.success || !reservation.success) go("/lodging", "error", "Solicitud inválida.");
+  const back = `/lodging/reservations/${reservation.data}`;
+  const approve = form.get("decision") === "approve";
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("lodging_reservation_cancel_decide", {
+    target_request: request.data,
+    approve,
+    notes: String(form.get("notes") ?? "").trim().slice(0, 500),
+  });
+  if (error) go(back, "error", cancellationError(error));
+  revalidatePath("/lodging");
+  revalidatePath("/lodging/reservations");
+  revalidatePath(back);
+  go(back, "success", approve ? "Anulación aprobada: la reserva quedó anulada." : "Anulación rechazada: la reserva sigue vigente.");
 }
 
 export async function saveIcalConfigAction(form: FormData) {
