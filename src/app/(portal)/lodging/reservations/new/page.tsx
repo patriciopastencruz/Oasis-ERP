@@ -121,6 +121,8 @@ export default async function Page({
             <select name="origin" className={`mt-1 block w-full ${field}`}>
               <option value="direct">Directa</option>
               <option value="whatsapp">WhatsApp</option>
+              <option value="booking">Booking</option>
+              <option value="airbnb">Airbnb</option>
               <option value="company">Empresa</option>
               <option value="other">Otro</option>
             </select>
