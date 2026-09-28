@@ -6,6 +6,7 @@ import { requireSession } from "@/modules/platform/auth/application/session";
 import { lodgingUnitCodes } from "@/config/business-units";
 import type { OpsBoard } from "../domain/operations";
 import type { AuditWeekSummary, MonthKpis } from "../domain/audits";
+import type { IncidentDetail, IncidentItem } from "../domain/incidents";
 
 export const OPS_UNIT_COOKIE = "oasis_ops_unit";
 const OPS_PERMISSIONS = ["lodging.housekeeping.view", "lodging.rooms.inspect", "lodging.operations.view"];
@@ -30,6 +31,14 @@ export async function opsContext() {
     operations: ctx.permissions.has("lodging.operations.view"),
     audit: ctx.permissions.has("lodging.audits.execute"),
     auditView: ctx.permissions.has("lodging.audits.view") || ctx.permissions.has("lodging.audits.execute"),
+    // Mantención: ver la lista de incidencias y gestionarlas (asignar, resolver, bloquear).
+    maintenanceView: ["lodging.maintenance.view", "lodging.maintenance.manage", "lodging.operations.view", "lodging.audits.view"].some((p) => ctx.permissions.has(p)),
+    maintenanceManage: ctx.permissions.has("lodging.maintenance.manage"),
+    // Bloquear por mantención: recepción (inspección) o administración; fuera de servicio solo administración.
+    blockMaintenance: ctx.permissions.has("lodging.rooms.inspect") || ctx.permissions.has("lodging.maintenance.manage"),
+    report: ["lodging.housekeeping.execute", "lodging.rooms.inspect", "lodging.maintenance.view", "lodging.maintenance.manage", "lodging.operations.view", "lodging.audits.execute"].some((p) =>
+      ctx.permissions.has(p),
+    ),
   };
   return { ctx, units, unit, can, supabase: await createSupabaseServerClient() };
 }
@@ -99,4 +108,30 @@ export async function loadRoomHistory(supabase: Supabase, roomId: string) {
   const { data, error } = await supabase.rpc("lodging_room_history", { target_room: roomId, max_items: 80 });
   if (error) return null;
   return data as RoomHistory;
+}
+
+/** Incidencias abiertas y resueltas de los últimos 14 días de la unidad. */
+export async function loadIncidents(supabase: Supabase, unitId: string) {
+  const { data, error } = await supabase.rpc("lodging_incident_board", { target_unit: unitId });
+  if (error) throw error;
+  return data as IncidentItem[];
+}
+
+export async function loadIncident(supabase: Supabase, id: string) {
+  const { data, error } = await supabase.rpc("lodging_incident_detail", { target_incident: id });
+  if (error) return null;
+  return data as IncidentDetail;
+}
+
+/** Fotos con URL firmada de corta duración (bucket privado). */
+export async function signedPhotos(supabase: Supabase, detail: IncidentDetail) {
+  if (!detail.attachments.length) return [];
+  const { data } = await supabase.storage.from("lodging-operations").createSignedUrls(detail.attachments.map((a) => a.path), 600);
+  return detail.attachments.map((a, i) => ({ ...a, url: data?.[i]?.signedUrl ?? null }));
+}
+
+export async function loadUnitStaff(supabase: Supabase, unitId: string) {
+  const { data, error } = await supabase.rpc("lodging_unit_staff", { target_unit: unitId });
+  if (error) return [];
+  return data as { staff_id: string; staff_name: string; staff_role: string | null }[];
 }

@@ -48,7 +48,7 @@ Se registra hostal, habitación, tarea de aseo, quién limpió, quién inspeccio
 
 ## Base de datos y seguridad
 
-Tablas: `lodging_supervisor_audits` (índices únicos: una auditoría por habitación y semana, una abierta por supervisor y hostal) y `lodging_incidents` (base de la fase E). Funciones: `lodging_audit_draw`, `lodging_audit_skip`, `lodging_audit_submit`, `lodging_audit_week_summary`, `lodging_audit_month_kpis`, `lodging_audit_detail`, `lodging_room_history`.
+Tablas: `lodging_supervisor_audits` (índices únicos: una auditoría por habitación y semana, una abierta por supervisor y hostal) y `lodging_incidents` (gestionadas en la fase E, ver `docs/lodging-operations.md`). Funciones: `lodging_audit_draw`, `lodging_audit_skip`, `lodging_audit_submit`, `lodging_audit_week_summary`, `lodging_audit_month_kpis`, `lodging_audit_detail`, `lodging_room_history`.
 
 Permisos: `lodging.audits.execute` (auditar), `lodging.audits.view` (ver), `lodging.operations.multi_unit`. Todas las funciones validan `auth.uid()`, unidad asignada y permiso; las tablas solo conceden `select` con RLS por unidad. Un supervisor no puede auditar ni ver hostales que no tiene asignados.
 

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { loadRoomHistory, opsContext } from "@/modules/lodging/application/ops-queries";
 import { auditActionLabels, failureCategories, responsibilityLabels, type AuditAction, type FailureCategory, type Responsibility } from "@/modules/lodging/domain/audits";
+import { incidentPriorities, incidentStatuses, type IncidentPriority, type IncidentStatus } from "@/modules/lodging/domain/incidents";
 import { operationalStatusLabels, type OperationalStatus } from "@/modules/lodging/domain/operations";
 
 const fmt = (iso: string) =>
@@ -40,6 +41,9 @@ export default async function RoomHistoryPage({ params }: { params: Promise<{ ro
         <p className="text-sm text-slate-600">
           {history.room.room_type} · {operationalStatusLabels[history.room.operational_status as OperationalStatus] ?? history.room.operational_status}
         </p>
+        <Link href={`/ops/report?room=${history.room.id}`} className="mt-3 inline-block text-sm font-bold text-[#d03b3b]">
+          + Reportar problema
+        </Link>
       </div>
       {!history.items.length && <p className="rounded-2xl bg-white p-4 text-center text-sm text-slate-500">Sin registros todavía.</p>}
       {[...groups.entries()].map(([week, items]) => (
@@ -67,7 +71,7 @@ export default async function RoomHistoryPage({ params }: { params: Promise<{ ro
                 tone = d.result === "passed" ? "border-emerald-300" : "border-red-400";
               } else {
                 title = `Incidencia: ${failureCategories[d.category as FailureCategory] ?? d.category}`;
-                detail = `${d.priority} · ${d.status} · ${d.description ?? ""}`;
+                detail = `${incidentPriorities[d.priority as IncidentPriority] ?? d.priority} · ${incidentStatuses[d.status as IncidentStatus] ?? d.status} · ${d.description ?? ""}`;
                 tone = "border-orange-300";
               }
               return (

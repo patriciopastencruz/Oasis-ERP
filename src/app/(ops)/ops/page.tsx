@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Elapsed } from "@/components/ops/elapsed";
 import { OpsSubmit } from "@/components/ops/ops-submit";
 import { SupervisionPanel } from "@/components/ops/supervision-panel";
-import { loadAuditMonth, loadAuditWeek, loadBoard, opsContext } from "@/modules/lodging/application/ops-queries";
+import { loadAuditMonth, loadAuditWeek, loadBoard, loadIncidents, opsContext } from "@/modules/lodging/application/ops-queries";
+import { incidentAlerts } from "@/modules/lodging/domain/incidents";
 import { santiagoIsoWeekday, supervisionAlerts } from "@/modules/lodging/domain/audits";
 import { startCleaningAction } from "@/modules/lodging/application/ops-actions";
 import {
@@ -40,6 +41,23 @@ function ArrivalLine({ room, board, now }: { room: OpsRoom; board: OpsBoard; now
   );
 }
 
+/** Incidencias abiertas de la habitación: bloqueante en rojo, si no en naranja. */
+function IncidentBadge({ room }: { room: OpsRoom }) {
+  const n = room.incidents?.open ?? 0;
+  if (!n) return null;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${room.incidents?.blocking ? "bg-red-600 text-white" : "bg-orange-100 text-orange-900"}`}>
+      ⚠ {n} incidencia{n === 1 ? "" : "s"}
+    </span>
+  );
+}
+
+const ReportLink = ({ room }: { room: OpsRoom }) => (
+  <Link href={`/ops/report?room=${room.id}`} className="mt-2 flex h-11 items-center justify-center rounded-2xl text-sm font-bold text-[#d03b3b] ring-1 ring-red-200">
+    REPORTAR PROBLEMA
+  </Link>
+);
+
 function Section({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
   return (
     <section className="mb-6">
@@ -70,6 +88,8 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
     );
     return { week, alerts: supervisionAlerts(week, kpis, santiagoIsoWeekday(now)) };
   })() : null;
+  const incidents = can.maintenanceView ? await loadIncidents(supabase, unit.id).catch(() => null) : null;
+  const incidentWarnings = incidents ? incidentAlerts(incidents, board.today) : [];
   const urgency = byUrgency(now, board.today);
   const rooms = board.rooms;
   const mine = rooms.filter((r) => r.task?.status === "in_progress" && r.task.started_by === ctx.user.id);
@@ -106,6 +126,22 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
         </div>
       )}
 
+      {incidents && (
+        <Link href="/ops/incidents" className="mb-6 block rounded-3xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="font-bold">Incidencias abiertas</p>
+            <span className={`rounded-full px-3 py-1 text-sm font-bold ${board.incidents_open ? "bg-orange-100 text-orange-900" : "bg-emerald-50 text-emerald-800"}`}>
+              {board.incidents_open ?? 0}
+            </span>
+          </div>
+          {incidentWarnings.slice(0, 3).map((a) => (
+            <p key={a.id} className={`mt-2 text-sm font-semibold ${a.level === "critical" ? "text-red-700" : "text-orange-800"}`}>
+              ⚠ {a.text}
+            </p>
+          ))}
+        </Link>
+      )}
+
       {can.clean && (
         <>
           {mine.length > 0 && (
@@ -123,6 +159,7 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
                   <Link href={`/ops/clean/${r.task!.id}`} className="mt-3 flex h-14 items-center justify-center rounded-2xl bg-amber-500 text-base font-bold text-white">
                     FINALIZAR LIMPIEZA
                   </Link>
+                  <ReportLink room={r} />
                 </article>
               ))}
             </Section>
@@ -138,10 +175,12 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
                   <ArrivalLine room={r} board={board} now={now} />
                   {r.rework && r.last_rejection && <p className="mt-1 text-sm font-semibold text-red-700">Rechazada: {r.last_rejection.reason}</p>}
                   {r.occupied && <p className="mt-1 text-sm text-amber-700">Huésped aún registrado en la habitación</p>}
+                  {r.incidents?.open ? <div className="mt-1"><IncidentBadge room={r} /></div> : null}
                   <form action={startCleaningAction} className="mt-3">
                     <input type="hidden" name="room_id" value={r.id} />
                     <OpsSubmit className="bg-[#d03b3b] text-white">COMENZAR</OpsSubmit>
                   </form>
+                  <ReportLink room={r} />
                 </article>
               ))
             ) : (
@@ -186,6 +225,7 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
                 <Link href={`/ops/inspect/${r.id}`} className="mt-3 flex h-14 items-center justify-center rounded-2xl bg-[#2a78d6] text-base font-bold text-white">
                   INSPECCIONAR
                 </Link>
+                {r.incidents?.open ? <div className="mt-2"><IncidentBadge room={r} /></div> : null}
               </article>
             ))
           ) : (
@@ -216,11 +256,19 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
                       {arrivalLabel(r, board.today)}
                     </p>
                   </div>
-                  <StatusChip room={r} />
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <StatusChip room={r} />
+                    <IncidentBadge room={r} />
+                  </div>
                 </div>
               ))}
           </div>
         </Section>
+      )}
+      {can.report && (
+        <Link href="/ops/report" className="mb-4 flex h-14 items-center justify-center rounded-2xl bg-white text-base font-bold text-[#d03b3b] shadow-sm ring-1 ring-red-200">
+          REPORTAR PROBLEMA
+        </Link>
       )}
     </>
   );

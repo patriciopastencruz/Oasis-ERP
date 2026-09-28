@@ -83,6 +83,8 @@ export type OpsRoom = {
   awaiting: { task_id: string; completed_at: string; completed_by_name: string | null; duration_minutes: number | null; attempt: number } | null;
   last_rejection: { reason: string; at: string } | null;
   next_arrival: { date: string; time: string; guests: number } | null;
+  /** Incidencias abiertas de la habitación (opcional en tableros antiguos). */
+  incidents?: { open: number; blocking: boolean; top_priority: "low" | "medium" | "high" | "critical" | null };
 };
 export type OpsBoard = {
   unit: { id: string; code: string; name: string };
@@ -90,6 +92,7 @@ export type OpsBoard = {
   settings: { checkin: string; checkout: string; inspection_alert_minutes: number; dirty_alert_minutes: number };
   arrivals_today: number;
   departures_today: number;
+  incidents_open?: number;
   rooms: OpsRoom[];
 };
 

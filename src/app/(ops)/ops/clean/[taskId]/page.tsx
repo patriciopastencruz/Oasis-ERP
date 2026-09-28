@@ -54,6 +54,9 @@ export default async function CleanPage({
           </div>
         </details>
       </form>
+      <Link href={`/ops/report?room=${room.id}`} className="mt-4 flex h-12 items-center justify-center rounded-2xl text-sm font-bold text-[#d03b3b] ring-1 ring-red-200">
+        REPORTAR PROBLEMA
+      </Link>
     </>
   );
 }
