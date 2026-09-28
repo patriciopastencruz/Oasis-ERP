@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Elapsed } from "@/components/ops/elapsed";
 import { OpsSubmit } from "@/components/ops/ops-submit";
-import { loadBoard, opsContext } from "@/modules/lodging/application/ops-queries";
+import { SupervisionPanel } from "@/components/ops/supervision-panel";
+import { loadAuditMonth, loadAuditWeek, loadBoard, opsContext } from "@/modules/lodging/application/ops-queries";
+import { santiagoIsoWeekday, supervisionAlerts } from "@/modules/lodging/domain/audits";
 import { startCleaningAction } from "@/modules/lodging/application/ops-actions";
 import {
   arrivalLabel,
@@ -59,6 +61,15 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
   const { ctx, unit, can, supabase } = await opsContext();
   const board = await loadBoard(supabase, unit.id);
   const now = new Date();
+  // Supervisión: auditorías de todos los hostales asignados y alertas calculadas al abrir.
+  const supervision = can.auditView ? await (async () => {
+    const week = await loadAuditWeek(supabase);
+    const month = board.today.slice(0, 7);
+    const kpis = Object.fromEntries(
+      await Promise.all(week.units.map(async (u) => [u.id, await loadAuditMonth(supabase, u.id, month).catch(() => undefined)] as const)),
+    );
+    return { week, alerts: supervisionAlerts(week, kpis, santiagoIsoWeekday(now)) };
+  })() : null;
   const urgency = byUrgency(now, board.today);
   const rooms = board.rooms;
   const mine = rooms.filter((r) => r.task?.status === "in_progress" && r.task.started_by === ctx.user.id);
@@ -74,6 +85,8 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
           {q.error || q.success}
         </p>
       )}
+
+      {supervision && <SupervisionPanel week={supervision.week} alerts={supervision.alerts} canAudit={can.audit} />}
 
       {(can.inspect || can.operations) && (
         <div className="mb-6 grid grid-cols-3 gap-2 text-center">
@@ -189,7 +202,15 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
               .map((r) => (
                 <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
-                    <p className="font-semibold">{r.name}</p>
+                    <p className="font-semibold">
+                      {can.auditView || can.operations ? (
+                        <Link href={`/ops/room/${r.id}`} className="underline decoration-slate-300 underline-offset-2">
+                          {r.name}
+                        </Link>
+                      ) : (
+                        r.name
+                      )}
+                    </p>
                     <p className="truncate text-xs text-slate-500">
                       {r.occupied ? "Ocupada · " : ""}
                       {arrivalLabel(r, board.today)}

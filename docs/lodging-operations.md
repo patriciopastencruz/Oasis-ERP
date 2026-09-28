@@ -64,7 +64,7 @@ Administración = roles Administrador y Superadministrador. Roles nuevos: `house
 
 ## Estado de las fases
 
-- Entregadas: A (modelo, estados, permisos, RLS), B (portal, selector, PWA, login), C (aseo), D (inspección 100% y check-in/out transaccionales).
-- Pendientes: E incidencias y mantención, F vista multi-hostal y "requiere atención", G auditorías del supervisor (`docs/lodging-supervision.md`), H KPIs e histórico, I notificaciones y pulido.
+- Entregadas: A (modelo, estados, permisos, RLS), B (portal, selector, PWA, login), C (aseo), D (inspección 100% y check-in/out transaccionales), G (auditoría semanal del supervisor con KPIs, alertas e histórico por habitación — `docs/lodging-supervision.md`).
+- Pendientes: E gestión de incidencias y mantención (la tabla `lodging_incidents` ya existe y la alimentan las auditorías), F vista multi-hostal operacional y "requiere atención" de la operación diaria, H KPIs de aseo y recepción, I notificaciones y pulido.
 
 Prueba SQL: `supabase/tests/verify_lodging_operations.sql`.

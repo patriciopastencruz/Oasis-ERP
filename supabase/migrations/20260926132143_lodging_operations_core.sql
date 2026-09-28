@@ -334,7 +334,7 @@ begin
   for update skip locked loop
   update public.lodging_reservations set departure_processed_at=now() where id=r.id;
   select * into v_room from public.lodging_rooms where id=r.room_id for update;
-  if v_room.operational_status='inspected' then
+  if v_room.active and v_room.operational_status='inspected' then
    perform public.lodging_ops_mark_dirty(v_room,'auto_departure',r.id,1,'Salida sin check-out registrado');
    n:=n+1;
   end if;

@@ -31,6 +31,7 @@ insert into public.user_business_units(user_id,company_id,business_unit_id) valu
 
 -- Habitaciones propias de la prueba (las de HU se desactivan en la transacción).
 update public.lodging_rooms set active=false where business_unit_id=:'hu_unit_id';
+update public.lodging_reservations set status='cancelled' where business_unit_id=:'hu_unit_id' and status not in('cancelled','conflict');
 insert into public.lodging_rooms(id,company_id,business_unit_id,code,name,display_order) values
  ('00000000-0000-4000-8000-0000000c1001',:'company_id',:'hu_unit_id','OP1','Hab 1',1),
  ('00000000-0000-4000-8000-0000000c1002',:'company_id',:'hu_unit_id','OP2','Hab 2',2),
