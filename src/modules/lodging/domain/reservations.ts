@@ -142,3 +142,32 @@ export function generateIcal(
     "",
   ].join("\r\n");
 }
+
+export type RatesByGuests = Record<string, number> | null | undefined;
+
+/**
+ * Tarifa por noche sugerida para una cantidad de personas: la definida para
+ * esa cantidad; si no existe, la de la mayor cantidad definida que no la
+ * supere (o la menor definida); sin tarifas por personas, la tarifa base.
+ */
+export function rateForGuests(room: { base_rate: number | string; rates_by_guests?: RatesByGuests }, guests: number) {
+  const entries = Object.entries(room.rates_by_guests ?? {})
+    .map(([k, v]) => [Number(k), Number(v)] as const)
+    .filter(([k, v]) => Number.isInteger(k) && k > 0 && Number.isFinite(v) && v > 0)
+    .sort((a, b) => a[0] - b[0]);
+  if (!entries.length) return Number(room.base_rate);
+  const exact = entries.find(([k]) => k === guests);
+  if (exact) return exact[1];
+  const below = entries.filter(([k]) => k < guests).pop();
+  return (below ?? entries[0])[1];
+}
+
+/** Lee las tarifas "rate_1".."rate_6" de un formulario (vacías se omiten). */
+export function ratesFromForm(get: (key: string) => FormDataEntryValue | null, max = 6) {
+  const rates: Record<string, number> = {};
+  for (let n = 1; n <= max; n++) {
+    const digits = String(get(`rate_${n}`) ?? "").replace(/\D/g, "");
+    if (digits && Number(digits) > 0) rates[String(n)] = Number(digits);
+  }
+  return Object.keys(rates).length ? rates : null;
+}

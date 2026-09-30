@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   generateIcal,
+  rateForGuests,
+  ratesFromForm,
   nights,
   overlaps,
   parseIcal,
@@ -84,4 +86,21 @@ describe("reservas", () => {
         { amount: 100, type: "refund", status: "confirmed" },
       ]).status,
     ).toBe("Reembolsado totalmente"));
+});
+
+describe("tarifas por cantidad de personas", () => {
+  const mini = { base_rate: 27000, rates_by_guests: { "1": 27000, "2": 32000, "3": 36000 } };
+  it("usa la tarifa de la cantidad de personas", () => {
+    expect([1, 2, 3].map((g) => rateForGuests(mini, g))).toEqual([27000, 32000, 36000]);
+  });
+  it("sin tarifa exacta usa la de la mayor cantidad definida, y sin tarifas la base", () => {
+    expect(rateForGuests(mini, 4)).toBe(36000);
+    expect(rateForGuests({ base_rate: 24000, rates_by_guests: { "2": 29000 } }, 1)).toBe(29000);
+    expect(rateForGuests({ base_rate: "35000", rates_by_guests: null }, 2)).toBe(35000);
+  });
+  it("lee las tarifas del formulario", () => {
+    const form = new Map<string, string>([["rate_1", "$27.000"], ["rate_2", "32000"], ["rate_3", ""]]);
+    expect(ratesFromForm((k) => form.get(k) ?? null)).toEqual({ "1": 27000, "2": 32000 });
+    expect(ratesFromForm(() => null)).toBeNull();
+  });
 });

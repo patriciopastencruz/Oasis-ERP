@@ -13,14 +13,19 @@ export function ClpInput({
   defaultValue,
   disabled = false,
   className = "",
+  allowEmpty = false,
 }: {
   name: string;
   defaultValue: number | string;
   disabled?: boolean;
   className?: string;
+  /** Campo opcional: vacío se envía vacío en vez de $0. */
+  allowEmpty?: boolean;
 }) {
   const [value, setValue] = useState(() =>
-    String(Math.max(0, Number(defaultValue) || 0)),
+    allowEmpty && (defaultValue === "" || Number(defaultValue) <= 0)
+      ? ""
+      : String(Math.max(0, Number(defaultValue) || 0)),
   );
   const [editing, setEditing] = useState(false);
   return (
@@ -29,11 +34,12 @@ export function ClpInput({
       <input
         type="text"
         inputMode="numeric"
-        value={editing ? value : formatter.format(Number(value) || 0)}
+        value={editing ? value : allowEmpty && value === "" ? "" : formatter.format(Number(value) || 0)}
+        placeholder={allowEmpty ? "—" : undefined}
         disabled={disabled}
         onChange={(event) => {
           const digits = event.target.value.replace(/\D/g, "");
-          setValue(String(Number(digits || 0)));
+          setValue(allowEmpty && !digits ? "" : String(Number(digits || 0)));
         }}
         onFocus={() => setEditing(true)}
         onBlur={() => setEditing(false)}

@@ -119,6 +119,24 @@ export default async function Page({
                 className={field}
               />
             </label>
+            <fieldset className="text-sm md:col-span-2">
+              <legend className="mb-1">Tarifa por cantidad de personas (opcional)</legend>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[1, 2, 3, 4].map((n) => (
+                  <label key={n} className="text-xs text-slate-500">
+                    {n} {n === 1 ? "persona" : "personas"}
+                    <ClpInput
+                      name={`rate_${n}`}
+                      defaultValue={String((selectedRoom.rates_by_guests as Record<string, number> | null)?.[String(n)] ?? "")}
+                      disabled={!can}
+                      className={field}
+                      allowEmpty
+                    />
+                  </label>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">Al crear una reserva se sugiere la tarifa según las personas. Déjelo vacío para usar la tarifa base.</p>
+            </fieldset>
             <label className="text-sm">
               Estado
               <select
@@ -224,6 +242,14 @@ export default async function Page({
               className={field}
             />
             <ClpInput name="base_rate" defaultValue="35000" className={field} />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:col-span-2">
+              {[1, 2, 3, 4].map((n) => (
+                <label key={n} className="text-xs text-slate-500">
+                  Tarifa {n} {n === 1 ? "persona" : "personas"} (opcional)
+                  <ClpInput name={`rate_${n}`} defaultValue="" className={field} allowEmpty />
+                </label>
+              ))}
+            </div>
             <input
               name="description"
               placeholder="Descripción"

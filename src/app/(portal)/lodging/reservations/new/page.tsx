@@ -1,6 +1,8 @@
 import { PageHeader, Panel } from "@/components/ui/page";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
 import { createReservationAction } from "@/modules/lodging/application/actions";
+import { NightlyRateField } from "@/components/lodging/nightly-rate-field";
+import type { RatesByGuests } from "@/modules/lodging/domain/reservations";
 
 export default async function Page({
   searchParams,
@@ -13,7 +15,7 @@ export default async function Page({
   );
   const { data: rooms } = await supabase
     .from("lodging_rooms")
-    .select("id,name,capacity,base_rate")
+    .select("id,name,capacity,base_rate,rates_by_guests")
     .eq("business_unit_id", unit.id)
     .eq("active", true)
     .not("status", "in", '("maintenance","out_of_service")')
@@ -61,8 +63,9 @@ export default async function Page({
             >
               {(rooms ?? []).map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.name} · {clp.format(Number(r.base_rate))} · {r.capacity}{" "}
-                  personas
+                  {r.name} · {r.rates_by_guests ? "desde " : ""}
+                  {clp.format(Number(r.base_rate))} · {r.capacity}{" "}
+                  {r.capacity === 1 ? "persona" : "personas"}
                 </option>
               ))}
             </select>
@@ -129,12 +132,9 @@ export default async function Page({
           </label>
           <label className="text-sm font-medium">
             Tarifa por noche
-            <input
-              name="nightly_rate"
-              type="number"
-              min="0"
-              defaultValue={selectedRoom?.base_rate ?? 0}
-              required
+            <NightlyRateField
+              rooms={(rooms ?? []).map((r) => ({ id: r.id, base_rate: r.base_rate, rates_by_guests: r.rates_by_guests as RatesByGuests }))}
+              initialRoomId={selectedRoom?.id}
               className={`mt-1 block w-full ${field}`}
             />
           </label>

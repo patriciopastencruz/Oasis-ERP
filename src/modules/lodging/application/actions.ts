@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseIcal, totalForStay } from "../domain/reservations";
+import { parseIcal, ratesFromForm, totalForStay } from "../domain/reservations";
 import { detectedMime } from "../domain/receipts";
 import { fetchIcal, assertSafeIcalUrl } from "./security";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -79,7 +79,7 @@ export async function createRoomAction(form: FormData) {
   if (!allowedUnit(ctx, parsed.data.company_id, parsed.data.business_unit_id))
     go("/lodging/rooms", "error", "Unidad no autorizada.");
   const s = await createSupabaseServerClient();
-  const { error } = await s.from("lodging_rooms").insert(parsed.data);
+  const { error } = await s.from("lodging_rooms").insert({ ...parsed.data, rates_by_guests: ratesFromForm((k) => form.get(k)) });
   if (error)
     go(
       "/lodging/rooms",
@@ -114,7 +114,10 @@ export async function updateRoomAction(form: FormData) {
     })
     .parse(Object.fromEntries(form));
   const s = await createSupabaseServerClient();
-  const { error } = await s.from("lodging_rooms").update(values).eq("id", id);
+  const { error } = await s
+    .from("lodging_rooms")
+    .update({ ...values, rates_by_guests: ratesFromForm((k) => form.get(k)) })
+    .eq("id", id);
   if (error)
     go(
       `/lodging/rooms?room=${id}`,
