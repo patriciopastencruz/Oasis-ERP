@@ -25,8 +25,8 @@ function add(value: string, n: number) {
 }
 
 export default async function Page() {
-  // El calendario parte en el día de hoy (primera columna) y avanza hacia
-  // los días siguientes, para que recepción vea primero lo que viene.
+  // El calendario muestra diez días desde ayer (así se ven las salidas de
+  // hoy) y marca la columna de hoy; recepción ve primero lo que viene.
   const today = localDate(),
     start = today;
   const data = await calendarData(add(start, -21), add(start, 28));
@@ -112,11 +112,11 @@ export default async function Page() {
           <SyncButton unitId={data.unit.id} />
         </div>
       </div>
-      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-nowrap">
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map(([title, value, Icon]) => (
           <div
             key={title}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 shadow-[0_3px_12px_rgba(15,23,42,.025)] lg:min-w-0 lg:flex-1"
+            className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 shadow-[0_3px_12px_rgba(15,23,42,.025)]"
           >
             <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-[#0b4f9c]">
               <Icon size={15} />

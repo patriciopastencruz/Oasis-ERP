@@ -27,7 +27,7 @@ export function ShellRoot({
   return (
     <div
       style={inAdminGeneral || inTransversalRoute ? GENERIC_THEME : theme}
-      className="min-h-screen bg-[var(--oasis-page)] text-[#151d27] lg:grid lg:grid-cols-[260px_1fr]"
+      className="min-h-screen bg-[var(--oasis-page)] text-[#151d27] lg:grid lg:grid-cols-[260px_minmax(0,1fr)]"
     >
       {children}
     </div>

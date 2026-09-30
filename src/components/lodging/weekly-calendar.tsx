@@ -5,7 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Banknote, ChevronLeft, ChevronRight, LogIn, User, Users, X } from "lucide-react";
 import { reassignReservationRoomAction } from "@/modules/lodging/application/actions";
 
-type Room = { id: string; name: string; status: string; capacity?: number };
+type Room = { id: string; name: string; status: string; capacity?: number; operational_status?: string };
 type Reservation = {
   id: string;
   room_id: string;
@@ -77,6 +77,22 @@ const roomStatusLabels: Record<string, string> = {
   out_of_service: "Fuera de servicio",
 };
 const legend = ["booking", "airbnb", "direct", "company", "maintenance"];
+
+// Estado operacional de la habitación (portal /ops): línea de color en el
+// borde derecho de la celda de la habitación, con el texto debajo del nombre
+// para no depender solo del color.
+const roomStates: { key: string; label: string; color: string }[] = [
+  { key: "dirty", label: "Sucia", color: "#d03b3b" },
+  { key: "cleaning", label: "Limpiando", color: "#eda100" },
+  { key: "pending_inspection", label: "Por inspeccionar", color: "#2a78d6" },
+  { key: "inspected", label: "Limpia", color: "#0ca30c" },
+  { key: "maintenance", label: "Mantención", color: "#ec835a" },
+  { key: "out_of_service", label: "Fuera de servicio", color: "#8b95a3" },
+];
+const roomState = (status?: string) => roomStates.find((s) => s.key === status);
+
+// Días visibles: diez, desde el día anterior (así se ven las salidas de hoy).
+const VISIBLE_DAYS = 10;
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 const add = (date: Date, amount: number) => {
   const result = new Date(date);
@@ -167,11 +183,11 @@ export function WeeklyCalendar({
     });
   }
   const days = useMemo(() => {
-    const start = add(new Date(`${initialStart}T12:00:00Z`), offset * 7);
-    return Array.from({ length: 7 }, (_, index) => add(start, index));
+    const start = add(new Date(`${initialStart}T12:00:00Z`), offset * 7 - 1);
+    return Array.from({ length: VISIBLE_DAYS }, (_, index) => add(start, index));
   }, [initialStart, offset]);
   const weekStart = iso(days[0]);
-  const weekEnd = iso(add(days[0], 7));
+  const weekEnd = iso(add(days[0], VISIBLE_DAYS));
   const visibleRooms = rooms.filter(
     (item) => room === "all" || item.id === room,
   );
@@ -183,6 +199,7 @@ export function WeeklyCalendar({
           <button
             onClick={() => setOffset((value) => value - 1)}
             aria-label="Semana anterior"
+            title="Retroceder una semana"
             className="grid size-9 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
           >
             <ChevronLeft size={17} />
@@ -190,6 +207,7 @@ export function WeeklyCalendar({
           <button
             onClick={() => setOffset((value) => value + 1)}
             aria-label="Semana siguiente"
+            title="Avanzar una semana"
             className="grid size-9 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
           >
             <ChevronRight size={17} />
@@ -244,6 +262,16 @@ export function WeeklyCalendar({
         </select>
       </div>
 
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-100 px-3 py-2" aria-label="Estado de las habitaciones">
+        <span className="text-[11px] font-semibold text-slate-500">Estado de la habitación:</span>
+        {roomStates.map((state) => (
+          <span key={state.key} className="inline-flex items-center gap-1.5 text-[11px] text-slate-600">
+            <span className="h-3 w-1 rounded-full" style={{ background: state.color }} />
+            {state.label}
+          </span>
+        ))}
+      </div>
+
       {dropError && (
         <div className="flex items-center justify-between gap-2 border-b border-red-100 bg-red-50 px-4 py-2 text-xs text-red-700">
           {dropError}
@@ -258,20 +286,25 @@ export function WeeklyCalendar({
       )}
 
       <div className="overflow-x-auto">
-        <div className="grid min-w-[900px] grid-cols-[155px_repeat(7,minmax(105px,1fr))]">
+        <div className="grid min-w-[980px] grid-cols-[140px_repeat(10,minmax(78px,1fr))]">
           <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-3 text-[11px] font-semibold text-slate-500">
             Habitación
           </div>
           {days.map((day) => (
             <div
               key={iso(day)}
-              className={`border-b border-l border-slate-100 px-2 py-2.5 text-center ${
+              className={`border-b border-l border-slate-100 px-1 py-2 text-center ${
                 iso(day) === initialStart ? "bg-[#edf4fc]" : "bg-slate-50/60"
               }`}
             >
               {iso(day) === initialStart && (
                 <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-[#0b4f9c]">
                   Hoy
+                </span>
+              )}
+              {dayDifference(iso(day), initialStart) === -1 && (
+                <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  Ayer
                 </span>
               )}
               <b className="block text-xs font-semibold capitalize text-slate-700">
@@ -301,15 +334,19 @@ export function WeeklyCalendar({
             const { laneOf, laneCount } = assignLanes(roomReservations);
             return (
               <div key={currentRoom.id} className="contents">
-                <div className="border-b border-slate-100 px-4 py-3">
+                <div
+                  className="border-b border-r-4 border-b-slate-100 px-3 py-2.5"
+                  style={{ borderRightColor: roomState(currentRoom.operational_status)?.color ?? "#e2e8f0" }}
+                >
                   <b className="block text-sm font-semibold text-slate-800">
                     {currentRoom.name}
                   </b>
-                  <span className="mt-0.5 block text-[10px] text-slate-400">
-                    {roomStatusLabels[currentRoom.status] ??
+                  <span className="mt-0.5 block text-[10px] text-slate-500">
+                    {roomState(currentRoom.operational_status)?.label ??
+                      roomStatusLabels[currentRoom.status] ??
                       "Estado desconocido"}
                     {currentRoom.capacity
-                      ? ` · ${currentRoom.capacity} personas`
+                      ? ` · ${currentRoom.capacity} pers.`
                       : ""}
                   </span>
                   {laneCount > 1 && (
@@ -319,7 +356,7 @@ export function WeeklyCalendar({
                   )}
                 </div>
                 <div
-                  className={`col-span-7 grid grid-cols-7 ${
+                  className={`col-span-10 grid grid-cols-10 ${
                     draggingId ? "bg-[#0b4f9c]/[.03]" : ""
                   }`}
                   onDragOver={(event) => {
@@ -346,7 +383,7 @@ export function WeeklyCalendar({
                       dayDifference(reservation.check_in, weekStart),
                     );
                     const end = Math.min(
-                      7,
+                      VISIBLE_DAYS,
                       dayDifference(reservation.check_out, weekStart),
                     );
                     const draggable =
@@ -386,7 +423,7 @@ export function WeeklyCalendar({
                           gridColumn: `${start + 1} / ${end + 1}`,
                           gridRow: (laneOf.get(reservation.id) ?? 0) + 1,
                         }}
-                        className={`relative z-10 m-1.5 flex min-w-0 cursor-pointer self-center rounded-md border px-3 py-2 text-[11px] transition hover:brightness-[.98] hover:shadow-sm ${
+                        className={`relative z-10 m-1 flex min-w-0 cursor-pointer self-center rounded-md border px-2 py-1.5 text-[11px] transition hover:brightness-[.98] hover:shadow-sm ${
                           draggable ? "cursor-grab active:cursor-grabbing" : ""
                         } ${draggingId === reservation.id ? "opacity-40" : ""} ${
                           reservation.status === "conflict"
