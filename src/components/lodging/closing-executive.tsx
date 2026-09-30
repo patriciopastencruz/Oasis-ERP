@@ -1,4 +1,5 @@
 import {
+  closingExtras,
   closingPaymentLabels,
   clp,
   executiveContext,
@@ -95,6 +96,8 @@ export function ClosingExecutive({
   const peak = Math.max(...incomes);
   const priorDays = ctx.week.slice(0, 6).filter((d) => d.income !== null).length;
   const mo = ctx.month;
+  const extras = closingExtras(m);
+  const availMax = Math.max(...extras.availability.map((d) => d.total), 1);
 
   const alerts: { level: keyof typeof status; title: string; detail: string }[] = [];
   if (closing.pending_amount > 0)
@@ -187,7 +190,8 @@ export function ClosingExecutive({
                   <div className="flex justify-between gap-2 text-xs">
                     <b className="truncate">{t.room_type}</b>
                     <span className="shrink-0 text-[#52606f]">
-                      {t.occupied}/{t.total} · {clp(t.average_rate)} prom.
+                      {t.occupied}/{t.total} · hoy {clp(t.average_rate)}
+                      {extras.monthRate(t.room_type) !== null && <> · <b className="text-[#16202c]">mes {clp(extras.monthRate(t.room_type) ?? 0)}</b></>}
                     </span>
                   </div>
                   <div className="mt-1 h-2 rounded-full bg-[#e8edf3]">
@@ -225,6 +229,69 @@ export function ClosingExecutive({
               </>
             ) : (
               <p className="text-xs text-[#52606f]">Sin ingresos registrados en el día.</p>
+            )}
+          </Card>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <Card title="Reservas por origen" note="Noche del cierre">
+            {!extras.available ? (
+              <p className="text-xs text-[#8a96a3]">Disponible en los cierres nuevos.</p>
+            ) : !extras.origins.length ? (
+              <p className="text-xs text-[#52606f]">Sin reservas esta noche.</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-[10px] uppercase tracking-wide text-[#8a96a3]">
+                    <th className="pb-1 font-semibold">Origen</th>
+                    <th className="pb-1 text-right font-semibold">Hab.</th>
+                    <th className="pb-1 text-right font-semibold">Llegan</th>
+                    <th className="pb-1 text-right font-semibold">Venta noche</th>
+                  </tr>
+                </thead>
+                <tbody className="tabular-nums">
+                  {extras.origins.map((o) => (
+                    <tr key={o.origin} className="border-t border-[#e3e8ee]">
+                      <td className="py-1 font-semibold">{o.label}</td>
+                      <td className="py-1 text-right">{o.rooms}</td>
+                      <td className="py-1 text-right">{o.arrivals}</td>
+                      <td className="py-1 text-right">{clp(o.revenue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </Card>
+          <Card title="Disponibilidad últimos 10 días" note="Ocupadas / libres">
+            {!extras.availability.length ? (
+              <p className="text-xs text-[#8a96a3]">Disponible en los cierres nuevos.</p>
+            ) : (
+              <>
+                <div className="flex h-24 items-end gap-1.5">
+                  {extras.availability.map((d, i) => (
+                    <div
+                      key={d.date}
+                      className="flex h-full flex-1 flex-col justify-end gap-px"
+                      title={`${d.label}: ${d.occupied} ocupadas, ${d.available} libres`}
+                    >
+                      <div className="rounded-t bg-[#e8edf3]" style={{ height: `${(d.available / availMax) * 100}%` }} />
+                      <div className={i === extras.availability.length - 1 ? "bg-[#2a78d6]" : "bg-[#b9d4f4]"} style={{ height: `${(d.occupied / availMax) * 100}%` }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-1 flex gap-1.5 text-center text-[10px] text-[#52606f]">
+                  {extras.availability.map((d, i) => (
+                    <div key={d.date} className={`flex-1 ${i === extras.availability.length - 1 ? "font-bold text-[#16202c]" : ""}`}>
+                      <p>{d.day}</p>
+                      <p className="text-[#8a96a3]">{d.available} lib.</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-1 flex gap-3 text-[10px] text-[#52606f]">
+                  <span className="inline-flex items-center gap-1"><span className="size-2 rounded-sm bg-[#b9d4f4]" />Ocupadas</span>
+                  <span className="inline-flex items-center gap-1"><span className="size-2 rounded-sm bg-[#e8edf3]" />Libres</span>
+                </p>
+              </>
             )}
           </Card>
         </div>
@@ -267,7 +334,7 @@ export function ClosingExecutive({
         </Card>
 
         <Card title={`${mo.name} a la fecha`}>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             {(
               [
                 [
@@ -287,6 +354,13 @@ export function ClosingExecutive({
                   "Días con cierre",
                   `${mo.closedDays}/${mo.elapsedDays}`,
                   mo.elapsedDays - mo.closedDays > 0 ? `${mo.elapsedDays - mo.closedDays} día(s) sin cierre emitido` : "Todos los días cerrados",
+                ],
+                [
+                  "Aseo promedio",
+                  extras.cleaning?.month_avg_minutes != null ? `${extras.cleaning.month_avg_minutes} min` : "—",
+                  extras.cleaning
+                    ? `${extras.cleaning.month_count} limpieza(s) · hoy ${extras.cleaning.day_avg_minutes != null ? `${extras.cleaning.day_avg_minutes} min` : "sin datos"}`
+                    : "Disponible en los cierres nuevos",
                 ],
               ] as const
             ).map(([label, value, hint]) => (

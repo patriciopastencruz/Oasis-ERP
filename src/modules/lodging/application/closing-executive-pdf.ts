@@ -1,5 +1,6 @@
 import { rgb, type Color, type PDFDocument, type PDFFont, type PDFImage } from "pdf-lib";
 import {
+  closingExtras,
   closingPaymentLabels,
   clp,
   executiveContext,
@@ -76,6 +77,7 @@ export function drawExecutivePage(
   const { closing } = input;
   const m = closing.metrics;
   const ctx = executiveContext(closing, input.history);
+  const extras = closingExtras(m);
   const page = pdf.addPage([W, H]);
 
   // Coordenadas pensadas desde arriba; se convierten al dibujar.
@@ -214,7 +216,7 @@ export function drawExecutivePage(
 
   // ---------- Ocupación por tipo | Medios de pago ----------
   const r2 = kTop + kH + 12,
-    r2H = 128,
+    r2H = 124,
     halfW = (W - 2 * M - gap) / 2;
   card(M, r2, halfW, r2H, "Ocupación y venta por tipo");
   const types = m.by_type.slice(0, 3);
@@ -222,7 +224,8 @@ export function drawExecutivePage(
     const top = r2 + 32 + i * 31,
       bx = M + 12,
       bw = halfW - 24;
-    const detail = `${t.occupied}/${t.total} · ${clp(t.average_rate)} prom.`;
+    const monthRate = extras.monthRate(t.room_type);
+    const detail = `${t.occupied}/${t.total} · hoy ${clp(t.average_rate)}${monthRate !== null ? ` · mes ${clp(monthRate)}` : ""}`;
     text(fit(t.room_type, bw - width(detail, 8) - 10, 8.5, B), bx, top, 8.5, B);
     textR(detail, bx + bw, top, 8, R, C.ink2);
     round(bx, top + 13, bw, 7, 3.5, C.track);
@@ -269,7 +272,7 @@ export function drawExecutivePage(
       cursor += w;
     });
     methods.forEach((x, i) => {
-      const top = st + 24 + i * (methods.length > 4 ? 13.5 : 16.5);
+      const top = st + 24 + i * (methods.length > 4 ? 12.5 : 15);
       round(sx, top + 1, 8, 8, 2, methodColor[x.key]);
       text(x.label, sx + 14, top, 8.5);
       textR(clp(x.amount), sx + sw - 38, top, 8.5, B);
@@ -277,13 +280,68 @@ export function drawExecutivePage(
     });
   }
 
+  // ---------- Reservas por origen | Disponibilidad 10 días ----------
+  const rO = r2 + r2H + 12,
+    rOH = 116;
+  card(M, rO, halfW, rOH, "Reservas por origen", "Noche del cierre");
+  const ox0 = M + 12,
+    ow = halfW - 24;
+  if (!extras.available) text("Disponible en los cierres nuevos.", ox0, rO + 32, 8, R, C.muted);
+  else if (!extras.origins.length) text("Sin reservas esta noche.", ox0, rO + 32, 8.5, R, C.ink2);
+  else {
+    const cols = [ox0 + ow * 0.52, ox0 + ow * 0.68, ox0 + ow];
+    text("ORIGEN", ox0, rO + 28, 6.5, B, C.muted);
+    textR("HAB.", cols[0], rO + 28, 6.5, B, C.muted);
+    textR("LLEGAN", cols[1], rO + 28, 6.5, B, C.muted);
+    textR("VENTA NOCHE", cols[2], rO + 28, 6.5, B, C.muted);
+    extras.origins.slice(0, 5).forEach((o, i) => {
+      const top = rO + 40 + i * 14;
+      page.drawLine({ start: { x: ox0, y: Y(top - 3) }, end: { x: ox0 + ow, y: Y(top - 3) }, thickness: 0.4, color: C.line });
+      text(fit(o.label, ow * 0.45, 8.5, B), ox0, top, 8.5, B);
+      textR(String(o.rooms), cols[0], top, 8.5);
+      textR(String(o.arrivals), cols[1], top, 8.5);
+      textR(clp(o.revenue), cols[2], top, 8.5, B);
+    });
+    if (extras.origins.length > 5) text(`+${extras.origins.length - 5} origen(es) más`, ox0, rO + rOH - 12, 6.5, R, C.muted);
+  }
+
+  const ax = M + halfW + gap;
+  card(ax, rO, halfW, rOH, "Disponibilidad últimos 10 días", "Ocupadas / libres");
+  if (!extras.availability.length) text("Disponible en los cierres nuevos.", ax + 12, rO + 32, 8, R, C.muted);
+  else {
+    const aw = halfW - 24,
+      aTop = rO + 30,
+      aH = 50,
+      aBase = aTop + aH,
+      aSlot = aw / extras.availability.length,
+      aCol = Math.min(16, aSlot * 0.62),
+      aMax = Math.max(...extras.availability.map((d) => d.total), 1);
+    page.drawLine({ start: { x: ax + 12, y: Y(aBase) }, end: { x: ax + 12 + aw, y: Y(aBase) }, thickness: 0.7, color: C.muted });
+    extras.availability.forEach((d, i) => {
+      const x = ax + 12 + aSlot * i + (aSlot - aCol) / 2;
+      const last = i === extras.availability.length - 1;
+      const occH = (d.occupied / aMax) * aH,
+        freeH = (d.available / aMax) * aH;
+      // Ocupadas abajo y libres encima, con 1 pt de separación.
+      if (occH > 0) page.drawRectangle({ x, y: Y(aBase), width: aCol, height: occH, color: last ? C.blue : C.blueSoft });
+      if (freeH > 0) bar(x, aBase - occH - freeH - (occH > 0 ? 1 : 0), aCol, freeH, C.track, "up");
+      textC(String(d.day), x + aCol / 2, aBase + 5, 7, last ? B : R, last ? C.ink : C.ink2);
+      textC(String(d.available), x + aCol / 2, aBase + 15, 6.5, R, C.muted);
+    });
+    text("día / libres", ax + 12, aBase + 26, 6, R, C.muted);
+    round(ax + 12 + aw - 118, aBase + 26, 6, 6, 1.5, C.blueSoft);
+    text("Ocupadas", ax + 12 + aw - 110, aBase + 26, 6.5, R, C.ink2);
+    round(ax + 12 + aw - 58, aBase + 26, 6, 6, 1.5, C.track);
+    text("Libres", ax + 12 + aw - 50, aBase + 26, 6.5, R, C.ink2);
+  }
+
   // ---------- Tendencia 7 días ----------
-  const r3 = r2 + r2H + 12,
-    r3H = 150;
+  const r3 = rO + rOH + 12,
+    r3H = 112;
   card(M, r3, W - 2 * M, r3H, "Ingreso últimos 7 días", "Ocupación bajo cada día");
   const cw = W - 2 * M - 24,
-    chartTop = r3 + 36,
-    chartH = 76,
+    chartTop = r3 + 32,
+    chartH = 52,
     base = chartTop + chartH;
   const incomes = ctx.week.map((d) => d.income ?? 0);
   const max = Math.max(...incomes, 1);
@@ -317,7 +375,7 @@ export function drawExecutivePage(
 
   // ---------- Mes a la fecha ----------
   const r4 = r3 + r3H + 12,
-    r4H = 64,
+    r4H = 60,
     mo = ctx.month;
   card(M, r4, W - 2 * M, r4H, `${mo.name} a la fecha`);
   const tiles: [string, string, string][] = [
@@ -341,15 +399,22 @@ export function drawExecutivePage(
         ? `${mo.elapsedDays - mo.closedDays} día(s) sin cierre emitido`
         : "Todos los días cerrados",
     ],
+    [
+      "Aseo promedio",
+      extras.cleaning?.month_avg_minutes != null ? `${extras.cleaning.month_avg_minutes} min` : "-",
+      extras.cleaning
+        ? `${extras.cleaning.month_count} limp. · hoy ${extras.cleaning.day_avg_minutes != null ? `${extras.cleaning.day_avg_minutes} min` : "s/d"}`
+        : "Disponible en cierres nuevos",
+    ],
   ];
-  const mw = (W - 2 * M - 24) / 4;
+  const mw = (W - 2 * M - 24) / tiles.length;
   tiles.forEach(([label, value, hint], i) => {
     const x = M + 12 + i * mw;
     if (i)
-      page.drawLine({ start: { x: x - 6, y: Y(r4 + 26) }, end: { x: x - 6, y: Y(r4 + r4H - 10) }, thickness: 0.5, color: C.line });
-    text(label, x, r4 + 26, 7.5, R, C.ink2);
-    text(value, x, r4 + 37, 12.5, B);
-    text(fit(hint, mw - 10, 6.5), x, r4 + 53, 6.5, R, C.muted);
+      page.drawLine({ start: { x: x - 6, y: Y(r4 + 24) }, end: { x: x - 6, y: Y(r4 + r4H - 8) }, thickness: 0.5, color: C.line });
+    text(fit(label, mw - 8, 7.5), x, r4 + 24, 7.5, R, C.ink2);
+    text(fit(value, mw - 8, 12), x, r4 + 35, 12, B);
+    text(fit(hint, mw - 8, 6.5), x, r4 + 50, 6.5, R, C.muted);
   });
 
   // ---------- Control del día | Observaciones ----------
@@ -374,10 +439,10 @@ export function drawExecutivePage(
   else alerts.push({ level: "good", title: "Todas las reservas activas tienen precio", detail: "0 reservas en $0" });
 
   const r5 = r4 + r4H + 12,
-    r5H = 172;
+    r5H = 126;
   card(M, r5, halfW, r5H, "Control del día");
-  alerts.slice(0, 5).forEach((a, i) => {
-    const top = r5 + 30 + i * 28,
+  alerts.slice(0, 4).forEach((a, i) => {
+    const top = r5 + 30 + i * 23,
       x = M + 12;
     const color = { good: C.good, warning: C.warning, serious: C.serious, critical: C.critical }[a.level];
     page.drawCircle({ x: x + 7, y: Y(top + 7), size: 7, color });

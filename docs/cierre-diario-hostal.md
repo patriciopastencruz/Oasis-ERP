@@ -12,7 +12,7 @@ Recepción puede cerrar hoy o, como máximo, el día anterior, y no puede modifi
 
 ## PDF
 
-- **Una sola página, hoja ejecutiva** (`closing-executive-pdf.ts`): cuatro tarjetas con ingreso del día (comparado con el promedio de los días previos con cierre), ocupación en anillo, venta promedio y RevPAR, y resultado; ocupación y venta por tipo; ingresos por medio de pago en barra apilada; ingreso de los últimos 7 días con la ocupación de cada día; mes a la fecha (ingreso vs mes anterior al mismo día, gasto, ocupación promedio y días con cierre); semáforo de control (pendiente, problemas, reposición, reservas sin precio) y observaciones. La tendencia y el mes a la fecha usan los cierres **emitidos** anteriores.
+- **Una sola página, hoja ejecutiva** (`closing-executive-pdf.ts`): cuatro tarjetas con ingreso del día (comparado con el promedio de los días previos con cierre), ocupación en anillo, venta promedio y RevPAR, y resultado; ocupación y venta por tipo (venta promedio del día y **acumulada del mes** por habitación ocupada); ingresos por medio de pago en barra apilada; **reservas por origen** de la noche (habitaciones, llegadas y venta por noche de Booking, Airbnb, directa, empresa...); **disponibilidad de los últimos 10 días** (ocupadas y libres); ingreso de los últimos 7 días con la ocupación de cada día; mes a la fecha (ingreso vs mes anterior al mismo día, gasto, ocupación promedio, días con cierre y **tiempo promedio de aseo** del mes y del día, del portal operativo); semáforo de control (pendiente, problemas, reposición, reservas sin precio) y observaciones. La tendencia y el mes a la fecha usan los cierres **emitidos** anteriores.
 - El detalle de pagos, saldos pendientes y gastos se consulta en la pantalla del cierre (sección plegable), no va en el PDF.
 
 ## Indicadores (función `lodging_closing_metrics_internal`)
@@ -26,6 +26,12 @@ Recepción puede cerrar hoy o, como máximo, el día anterior, y no puede modifi
 | Monto pendiente | Saldo (`total − pagos confirmados`) de las estadías en curso o que salen ese día. |
 | Gasto total | Suma de los gastos manuales del cierre. |
 | Adicionales | Resultado del día (ingreso − gasto), huéspedes alojados, llegadas y salidas, reservas sin precio, detalle de ingresos, detalle de saldos pendientes y detalle de gastos. |
+| Reservas por origen (`by_origin`) | Estadías de la noche agrupadas por origen: habitaciones, venta por noche y llegadas del día. |
+| Disponibilidad 10 días (`availability_10d`) | Habitaciones ocupadas cada noche de los 10 días que terminan en la fecha, sobre las habitaciones activas en venta. |
+| Venta promedio del mes por tipo (`month_by_type`) | Venta por noche de todas las noches ocupadas del mes hasta la fecha, dividida por esas noches, por tipo de habitación. |
+| Aseo (`cleaning`) | Promedio de `duration_minutes` de las limpiezas terminadas en el día y en el mes (portal operativo). |
+
+Los cuatro bloques los agrega `lodging_closing_extras_internal`; los cierres emitidos antes de esta versión no los tienen y el reporte lo indica.
 
 Cada cierre guarda una copia de sus indicadores (`metrics`) y sus totales en columnas, para que los reportes históricos no cambien.
 

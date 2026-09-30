@@ -9,6 +9,17 @@ export const closingPaymentLabels = {
 } as const;
 export type ClosingPaymentMethod = keyof typeof closingPaymentLabels;
 
+/** Origen de la reserva (canal de venta). */
+export const reservationOriginLabels: Record<string, string> = {
+  direct: "Directa",
+  whatsapp: "WhatsApp",
+  booking: "Booking",
+  airbnb: "Airbnb",
+  company: "Empresa",
+  public_web: "Sitio web",
+  other: "Otro",
+};
+
 export const expenseMethodLabels = {
   cash: "Efectivo",
   transfer: "Transferencia",
@@ -51,6 +62,11 @@ export type ClosingMetrics = {
     paid_at: string;
   }[];
   pending_amount: number;
+  // Bloques agregados después: los cierres antiguos no los tienen.
+  by_origin?: { origin: string; rooms: number; revenue: number; arrivals: number }[];
+  availability_10d?: { date: string; total: number; occupied: number }[];
+  month_by_type?: { room_type: string; nights: number; average_rate: number }[];
+  cleaning?: { day_count: number; day_avg_minutes: number | null; month_count: number; month_avg_minutes: number | null };
   pending: {
     room: string;
     guest: string | null;
@@ -237,3 +253,32 @@ export const executiveHistoryStart = (date: string) => {
   const weekStart = addDays(date, -6);
   return previousMonthStart < weekStart ? previousMonthStart : weekStart;
 };
+
+/**
+ * Bloques adicionales del reporte ejecutivo (reservas por origen,
+ * disponibilidad de 10 días, venta promedio del mes por tipo y tiempo de
+ * aseo). Los cierres emitidos antes de esta versión no los tienen: `available`
+ * lo indica para mostrar "sin datos" en vez de ceros.
+ */
+export function closingExtras(m: ClosingMetrics) {
+  const origins = (m.by_origin ?? []).map((o) => ({
+    ...o,
+    label: reservationOriginLabels[o.origin] ?? o.origin,
+    revenue: Number(o.revenue),
+  }));
+  const availability = (m.availability_10d ?? []).map((d) => ({
+    ...d,
+    day: Number(d.date.slice(8)),
+    label: shortDayLabel(d.date),
+    available: Math.max(0, d.total - d.occupied),
+  }));
+  const monthRate = new Map((m.month_by_type ?? []).map((t) => [t.room_type, Number(t.average_rate)]));
+  return {
+    available: m.by_origin !== undefined,
+    origins,
+    originRevenue: origins.reduce((s, o) => s + o.revenue, 0),
+    availability,
+    monthRate: (roomType: string) => monthRate.get(roomType) ?? null,
+    cleaning: m.cleaning ?? null,
+  };
+}
