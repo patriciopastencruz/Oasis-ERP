@@ -134,11 +134,14 @@ export function WeeklyCalendar({
   reservations,
   initialStart,
   canManage = false,
+  showRoomStatus = true,
 }: {
   rooms: Room[];
   reservations: Reservation[];
   initialStart: string;
   canManage?: boolean;
+  /** Oculta el estado de limpieza cuando el hostal no usa el circuito de aseo. */
+  showRoomStatus?: boolean;
 }) {
   const router = useRouter();
   const [offset, setOffset] = useState(0);
@@ -263,6 +266,7 @@ export function WeeklyCalendar({
         </select>
       </div>
 
+      {showRoomStatus && (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-100 px-3 py-2" aria-label="Estado de las habitaciones">
         <span className="text-[11px] font-semibold text-slate-500">Estado de la habitación:</span>
         {roomStates.map((state) => (
@@ -272,6 +276,7 @@ export function WeeklyCalendar({
           </span>
         ))}
       </div>
+      )}
 
       {dropError && (
         <div className="flex items-center justify-between gap-2 border-b border-red-100 bg-red-50 px-4 py-2 text-xs text-red-700">
@@ -337,13 +342,13 @@ export function WeeklyCalendar({
               <div key={currentRoom.id} className="contents">
                 <div
                   className="border-b border-r-4 border-b-slate-100 px-3 py-2.5"
-                  style={{ borderRightColor: roomState(currentRoom.operational_status)?.color ?? "#e2e8f0" }}
+                  style={{ borderRightColor: showRoomStatus ? (roomState(currentRoom.operational_status)?.color ?? "#e2e8f0") : "#f1f5f9" }}
                 >
                   <b className="block text-sm font-semibold text-slate-800">
                     {currentRoom.name}
                   </b>
                   <span className="mt-0.5 block text-[10px] text-slate-500">
-                    {roomState(currentRoom.operational_status)?.label ??
+                    {(showRoomStatus ? roomState(currentRoom.operational_status)?.label : undefined) ??
                       roomStatusLabels[currentRoom.status] ??
                       "Estado desconocido"}
                     {currentRoom.capacity

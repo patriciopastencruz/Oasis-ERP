@@ -803,6 +803,29 @@ export async function decideReservationCancellationAction(form: FormData) {
   go(back, "success", approve ? "Anulación aprobada: la reserva quedó anulada." : "Anulación rechazada: la reserva sigue vigente.");
 }
 
+/** Activa o desactiva el circuito de aseo e inspección del hostal seleccionado. */
+export async function setHousekeepingAction(form: FormData) {
+  const ctx = await requirePermission("lodging.operations.configure");
+  const unitId = uuid.safeParse(form.get("unit_id"));
+  if (!unitId.success || !ctx.units.some((u) => u.id === unitId.data)) go("/lodging/settings", "error", "Hostal no autorizado.");
+  const enabled = form.get("enabled") === "true";
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("lodging_ops_set_housekeeping", { target_unit: unitId.data, enabled });
+  if (error) {
+    console.error("[lodging-housekeeping]", error.message);
+    go("/lodging/settings", "error", "No fue posible cambiar el circuito de aseo.");
+  }
+  revalidatePath("/lodging", "layout");
+  revalidatePath("/ops", "layout");
+  go(
+    "/lodging/settings",
+    "success",
+    enabled
+      ? "Aseo e inspección activados: el check-out deja la habitación pendiente de aseo y el check-in exige inspección."
+      : "Aseo e inspección desactivados: el check-in ya no espera la inspección.",
+  );
+}
+
 export async function saveIcalConfigAction(form: FormData) {
   const ctx = await requirePermission("lodging.ical.configure");
   const parsed = z

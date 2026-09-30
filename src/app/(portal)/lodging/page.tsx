@@ -144,6 +144,7 @@ export default async function Page() {
           : "Sin actualizaciones"}
       </p>
       <WeeklyCalendar
+        showRoomStatus={data.housekeepingEnabled}
         rooms={data.rooms}
         reservations={data.reservations}
         initialStart={start}

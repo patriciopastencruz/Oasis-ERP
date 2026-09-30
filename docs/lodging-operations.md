@@ -24,6 +24,17 @@ maintenance / out_of_service → (al resolver) pending_inspection
 - Reservas sin check-out formal (Airbnb/Booking importadas o sin registrar): al pasar la hora de salida del hostal (`lodging_ops_settings.default_checkout_time`, 12:00 por defecto) `lodging_ops_sync_departures` deja la habitación en `dirty` (idempotente, se ejecuta al abrir el portal).
 - Cambiar el estado general a mantención/fuera de servicio desde Habitaciones sincroniza el estado operacional; al volver a disponible queda `pending_inspection`, nunca disponible directo.
 
+## Circuito de aseo e inspección por hostal
+
+Configuración → **Aseo e inspección en el portal operativo** (permiso `lodging.operations.configure`, administración) lo activa o desactiva por hostal (`lodging_ops_settings.housekeeping_enabled`, función `lodging_ops_set_housekeeping`, registrado en `audit_logs` como `housekeeping_toggle`). Con el circuito **desactivado**:
+
+- el check-in no exige habitación inspeccionada;
+- el check-out y las salidas automáticas (Booking/Airbnb sin check-out) no dejan la habitación sucia ni crean tareas de aseo;
+- al desactivar, las habitaciones sucias, en limpieza o por inspeccionar quedan disponibles y se cancelan las tareas abiertas (mantención y fuera de servicio no se tocan);
+- el calendario, Llegadas/Salidas y el portal ocultan el estado de limpieza; incidencias y mantención siguen funcionando.
+
+Hostal Uruguay quedó desactivado desde el 30-09-2026, a la espera de capacitar al personal de aseo. Prueba SQL: `supabase/tests/verify_lodging_housekeeping_toggle.sql`.
+
 ## Incidencias y mantención (fase E)
 
 - **Reportar problema** (`/ops/report`, botón en cada tarjeta de aseo, inspección e histórico): categoría con botones grandes, descripción corta, prioridad (baja, media, alta, crítica) y hasta 5 fotos opcionales. Lo pueden usar aseo, recepción, supervisión y administración; el origen (aseo, recepción, administración) lo decide la base según permisos.

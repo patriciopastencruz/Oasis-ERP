@@ -79,7 +79,12 @@ const Empty = ({ children }: { children: React.ReactNode }) => (
 export default async function OpsHome({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
   const q = await searchParams;
   const { ctx, units, unit, can, supabase } = await opsContext();
-  const board = await loadBoard(supabase, unit.id);
+  const [board, { data: housekeepingFlag }] = await Promise.all([
+    loadBoard(supabase, unit.id),
+    supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id }),
+  ]);
+  // Hostales que aún no usan el circuito de aseo e inspección en el portal.
+  const housekeepingOn = housekeepingFlag !== false;
   const now = new Date();
   // Supervisión: auditorías de todos los hostales asignados y alertas calculadas al abrir.
   const supervision = can.auditView ? await (async () => {
@@ -162,7 +167,14 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
         </Link>
       )}
 
-      {can.clean && (
+      {!housekeepingOn && (
+        <p className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+          En <b>{unit.name}</b> el registro de aseo e inspección en el portal está <b>desactivado</b> por ahora. Puedes reportar problemas de las
+          habitaciones; el check-in no espera la inspección.
+        </p>
+      )}
+
+      {housekeepingOn && can.clean && (
         <>
           {mine.length > 0 && (
             <Section title="Estoy limpiando">
@@ -222,7 +234,7 @@ export default async function OpsHome({ searchParams }: { searchParams: Promise<
         </>
       )}
 
-      {can.inspect && (
+      {housekeepingOn && can.inspect && (
         <Section title="Pendientes de inspección" count={toInspect.length}>
           {toInspect.length ? (
             toInspect.map((r) => (

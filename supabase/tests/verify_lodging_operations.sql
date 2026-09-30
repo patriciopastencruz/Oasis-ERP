@@ -45,6 +45,10 @@ select '00000000-0000-4000-8000-0000000c2003'::uuid,:'company_id'::uuid,:'hu_uni
 insert into public.lodging_reservation_payments(company_id,business_unit_id,reservation_id,type,payment_method,amount,registered_by)
 values(:'company_id',:'hu_unit_id','00000000-0000-4000-8000-0000000c2001','total','transfer',50000,:'admin_id');
 
+-- Esta prueba verifica el circuito de aseo e inspección: se activa en HU
+-- (en producción puede estar desactivado; se revierte al final).
+update public.lodging_ops_settings set housekeeping_enabled=true where business_unit_id=(select id from public.business_units where code='HU');
+
 set local role authenticated;
 
 -- ---------- Recepción hace check-out: la habitación queda sucia con tarea ----------

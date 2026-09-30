@@ -18,7 +18,7 @@ export default async function Page() {
     timeZone: "America/Santiago",
   }).format(new Date());
   const { unit, supabase } = await lodgingContext();
-  const [{ data: arrivals }, { data: departures }] = await Promise.all([
+  const [{ data: arrivals }, { data: departures }, { data: housekeepingEnabled }] = await Promise.all([
     supabase
       .from("lodging_reservations")
       .select(
@@ -36,7 +36,9 @@ export default async function Page() {
       .eq("business_unit_id", unit.id)
       .eq("check_out", today)
       .neq("status", "cancelled"),
+    supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id }),
   ]);
+  const showRoomStatus = housekeepingEnabled !== false;
 
   const heading = (icon: React.ReactNode, title: string, count: number) => (
     <div className="mb-3 flex items-center gap-2">
@@ -74,7 +76,7 @@ export default async function Page() {
                     <span className="text-slate-500">
                       {room?.name} · {g?.phone || "Sin teléfono"}
                     </span>
-                    {room?.operational_status && (
+                    {showRoomStatus && room?.operational_status && (
                       <span
                         className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${operationalStatusTone[room.operational_status as OperationalStatus]?.chip ?? ""}`}
                       >

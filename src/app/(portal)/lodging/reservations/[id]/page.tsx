@@ -41,7 +41,7 @@ export default async function Page({
     .eq("id", id)
     .single();
   if (!r) notFound();
-  const [{ data: payments }, { data: summary }, { data: cancellations }] = await Promise.all([
+  const [{ data: payments }, { data: summary }, { data: cancellations }, { data: housekeepingEnabled }] = await Promise.all([
     supabase
       .from("lodging_reservation_payments")
       .select("*,lodging_payment_receipts(*)")
@@ -56,7 +56,10 @@ export default async function Page({
       .eq("reservation_id", id)
       .order("requested_at", { ascending: false })
       .limit(1),
+    supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: r.business_unit_id }),
   ]);
+  // Sin circuito de aseo e inspección en el hostal, el check-in no espera la inspección.
+  const needsInspection = housekeepingEnabled !== false;
   type Person = { first_name: string; last_name: string } | { first_name: string; last_name: string }[] | null;
   const personName = (p: Person) => {
     const one = Array.isArray(p) ? p[0] : p;
@@ -414,7 +417,7 @@ export default async function Page({
           </dl>
           <div className="mt-5 flex flex-wrap gap-2">
             {r.status === "confirmed" &&
-              (room?.operational_status === "inspected" ? (
+              (!needsInspection || room?.operational_status === "inspected" ? (
                 <form action={checkInAction}>
                   <input type="hidden" name="reservation_id" value={id} />
                   <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">
