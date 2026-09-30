@@ -54,6 +54,15 @@ maintenance / out_of_service → (al resolver) pending_inspection
 - **Operación consolidada** (`/ops/overview`, `lodging.operations.view`): por hostal y total, habitaciones, ocupadas, disponibles, cada estado operacional, llegadas y salidas del día, incidencias abiertas, auditorías pendientes y estado; debajo, la lista completa de excepciones.
 - Todo se calcula con `lodging_ops_board` de cada hostal (la base valida unidad y permiso); no hay tablas nuevas. Reglas en `src/modules/lodging/domain/attention.ts` (con pruebas).
 
+## Vista ejecutiva de la operación (fase H)
+
+ERP → Gestión de reservas → **Operación** (`/lodging/operations`, permiso `lodging.operations.kpis`: Administrador, Gerente general, Superadministrador). Pensada para computador y adaptada al celular (tablas en pantalla ancha, tarjetas en pantalla angosta). Con `lodging.operations.multi_unit` muestra todos los hostales asignados o uno solo.
+
+- **Ahora**: listas (inspeccionadas) sobre habitaciones en venta, por limpiar, en limpieza, por inspeccionar, con problema (mantención, fuera de servicio o incidencias abiertas) y "requiere atención".
+- **Estado de las habitaciones**: estado con su color, hace cuánto está así, quién limpia o quién terminó, próxima llegada, incidencias y duración del último aseo; ordenado por lo que requiere acción.
+- **Período (hoy, 7 días, mes)**: limpiezas y retrabajos, tiempo promedio y máximo de aseo, % aprobadas a la primera, espera promedio entre fin del aseo e inspección; tiempo de aseo por habitación, aseo por persona, inspecciones por recepcionista y motivos de rechazo.
+- Cálculo en `lodging_ops_kpis(unidad, desde, hasta)` (fechas de Santiago, inclusivas; valida permiso y unidad). El desempeño por persona es para mejorar el proceso, no para sancionar.
+
 ## Base de datos
 
 | Objeto | Uso |
@@ -98,6 +107,7 @@ Administración = roles Administrador y Superadministrador. En Oasis el supervis
 ## Estado de las fases
 
 - Entregadas: A (modelo, estados, permisos, RLS), B (portal, selector, PWA, login), C (aseo), D (inspección 100% y check-in/out transaccionales), E (incidencias y mantención con fotos y bloqueo), F (vista multi-hostal, operación consolidada y "requiere atención"), G (auditoría semanal del supervisor con KPIs, alertas e histórico por habitación — `docs/lodging-supervision.md`).
-- Pendientes: H KPIs de aseo y recepción, I notificaciones y pulido.
+- Entregada también: H (vista ejecutiva con KPIs de aseo y recepción).
+- Pendiente: I notificaciones y pulido.
 
-Pruebas SQL: `supabase/tests/verify_lodging_operations.sql`, `supabase/tests/verify_lodging_incidents.sql`.
+Pruebas SQL: `supabase/tests/verify_lodging_operations.sql`, `supabase/tests/verify_lodging_incidents.sql`, `supabase/tests/verify_lodging_ops_kpis.sql`.

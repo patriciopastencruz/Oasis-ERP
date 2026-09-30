@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Banknote, ChevronLeft, ChevronRight, LogIn, User, Users, X } from "lucide-react";
 import { reassignReservationRoomAction } from "@/modules/lodging/application/actions";
+import { operationalStatusColors } from "@/modules/lodging/domain/operations";
 
 type Room = { id: string; name: string; status: string; capacity?: number; operational_status?: string };
 type Reservation = {
@@ -82,12 +83,12 @@ const legend = ["booking", "airbnb", "direct", "company", "maintenance"];
 // borde derecho de la celda de la habitación, con el texto debajo del nombre
 // para no depender solo del color.
 const roomStates: { key: string; label: string; color: string }[] = [
-  { key: "dirty", label: "Sucia", color: "#d03b3b" },
-  { key: "cleaning", label: "Limpiando", color: "#eda100" },
-  { key: "pending_inspection", label: "Por inspeccionar", color: "#2a78d6" },
-  { key: "inspected", label: "Limpia", color: "#0ca30c" },
-  { key: "maintenance", label: "Mantención", color: "#ec835a" },
-  { key: "out_of_service", label: "Fuera de servicio", color: "#8b95a3" },
+  { key: "dirty", label: "Sucia", color: operationalStatusColors.dirty },
+  { key: "cleaning", label: "Limpiando", color: operationalStatusColors.cleaning },
+  { key: "pending_inspection", label: "Por inspeccionar", color: operationalStatusColors.pending_inspection },
+  { key: "inspected", label: "Limpia", color: operationalStatusColors.inspected },
+  { key: "maintenance", label: "Mantención", color: operationalStatusColors.maintenance },
+  { key: "out_of_service", label: "Fuera de servicio", color: operationalStatusColors.out_of_service },
 ];
 const roomState = (status?: string) => roomStates.find((s) => s.key === status);
 

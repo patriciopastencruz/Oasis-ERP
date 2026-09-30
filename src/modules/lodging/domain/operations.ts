@@ -10,6 +10,16 @@ export const operationalStatusLabels: Record<OperationalStatus, string> = {
 };
 
 /** Colores de estado (con ícono/etiqueta siempre al lado, nunca solo color). */
+/** Color del estado de la habitación (calendario y vista ejecutiva); siempre acompañado de su texto. */
+export const operationalStatusColors: Record<OperationalStatus, string> = {
+  dirty: "#d03b3b",
+  cleaning: "#eda100",
+  pending_inspection: "#2a78d6",
+  inspected: "#0ca30c",
+  maintenance: "#ec835a",
+  out_of_service: "#8b95a3",
+};
+
 export const operationalStatusTone: Record<OperationalStatus, { dot: string; chip: string; icon: string }> = {
   dirty: { dot: "bg-[#d03b3b]", chip: "bg-red-50 text-red-800", icon: "●" },
   cleaning: { dot: "bg-[#fab219]", chip: "bg-amber-50 text-amber-900", icon: "◐" },

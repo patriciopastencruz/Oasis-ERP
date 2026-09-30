@@ -35,6 +35,7 @@ import {
   PieChart,
   Banknote,
   CalendarRange,
+  Gauge,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -349,6 +350,12 @@ const lodgingNav = [
     icon: ClipboardCheck,
     permission: "lodging.housekeeping.view",
     legacyPermission: "lodging.operations.view",
+  },
+  {
+    href: "/lodging/operations",
+    label: "Operación",
+    icon: Gauge,
+    permission: "lodging.operations.kpis",
   },
   {
     href: "/lodging/reservations",
