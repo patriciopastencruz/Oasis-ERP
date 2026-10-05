@@ -10,7 +10,8 @@ export default async function NewQuotation({
   searchParams: Promise<{ error?: string }>;
 }) {
   const q = await searchParams;
-  const { unit, supabase } = await salesContext("sales.quotations.create");
+  const { ctx, unit, supabase } = await salesContext("sales.quotations.create");
+  const autoApprove = ctx.permissions.has("sales.quotations.auto_approve");
   const { data: products } = await supabase
     .from("om_products")
     .select("id,name,description,unit_price")
@@ -22,13 +23,17 @@ export default async function NewQuotation({
       <PageHeader
         eyebrow="Oasis Modulares"
         title="Nueva cotización"
-        description="Al generarla se asigna el número y queda lista para descargar el PDF; no requiere aprobación."
+        description={
+          autoApprove
+            ? "Al generarla se asigna el número y queda lista para descargar el PDF; no requiere aprobación."
+            : "Al enviarla queda pendiente de aprobación; una vez aprobada se asigna el número y queda lista para descargar el PDF."
+        }
       />
       <Notice error={q.error} />
       <Panel>
         <QuotationForm
           action={createQuotationAction}
-          submitLabel="Generar cotización"
+          submitLabel={autoApprove ? "Generar cotización" : "Enviar a aprobación"}
           products={products ?? []}
         />
       </Panel>

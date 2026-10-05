@@ -66,6 +66,7 @@ export default async function QuotationDetail({
     isOwner && quotation.status === "approved" && !project;
   const editable = draftEditable || (canModifyGenerated && q.edit === "1");
   const canApprove = ctx.permissions.has("sales.quotations.approve");
+  const autoApprove = ctx.permissions.has("sales.quotations.auto_approve");
   const canConvert = ctx.permissions.has(
     "sales.projects.convert_from_quotation",
   );
@@ -161,15 +162,18 @@ export default async function QuotationDetail({
           </Panel>
           {draftEditable && (
             <Panel>
-              <h2 className="mb-2 font-semibold">Generar cotización</h2>
+              <h2 className="mb-2 font-semibold">
+                {autoApprove ? "Generar cotización" : "Enviar a aprobación"}
+              </h2>
               <p className="mb-3 text-sm text-[#63778e]">
-                Guarda los cambios primero si acabas de editar. Al generarla se
-                asigna el número y podrás descargar el PDF.
+                {autoApprove
+                  ? "Guarda los cambios primero si acabas de editar. Al generarla se asigna el número y podrás descargar el PDF."
+                  : "Guarda los cambios primero si acabas de editar. Al enviarla, alguien con permiso de aprobar la revisará antes de que quede generada."}
               </p>
               <form action={submitQuotationAction}>
                 <input type="hidden" name="quotation_id" value={quotation.id} />
                 <button className="rounded-xl bg-[var(--oasis-primary)] px-4 py-2.5 text-sm font-semibold text-white">
-                  Generar cotización
+                  {autoApprove ? "Generar cotización" : "Enviar a aprobación"}
                 </button>
               </form>
             </Panel>

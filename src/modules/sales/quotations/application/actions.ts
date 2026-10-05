@@ -41,7 +41,7 @@ function quotationPayload(form: FormData, lines: unknown) {
 }
 
 export async function createQuotationAction(form: FormData) {
-  const { supabase } = await salesContext("sales.quotations.create");
+  const { ctx, supabase } = await salesContext("sales.quotations.create");
   const lines = parseLines(form);
   if (!lines)
     done("/sales/quotations/new", "error", "La cotización requiere ítems.");
@@ -49,9 +49,12 @@ export async function createQuotationAction(form: FormData) {
     payload: quotationPayload(form, lines),
   });
   if (error) done("/sales/quotations/new", "error", errorMessage(error));
-  // Ya no hay paso de aprobación: al crearla se genera de inmediato (número
-  // correlativo y estado aprobada). Si por algo falla, queda como borrador
-  // y el usuario puede confirmarla desde su detalle.
+  // La mayoría genera la cotización de inmediato (número + aprobada), pero
+  // quien no tiene sales.quotations.auto_approve (hoy: rol Administrativo)
+  // la manda a 'pending' igual que antes -- lo decide om_submit_quotation
+  // según el permiso, esto solo elige qué mensaje mostrar. Si por algo
+  // falla, queda como borrador y el usuario puede confirmarla desde su
+  // detalle.
   const { error: submitError } = await supabase.rpc("om_submit_quotation", {
     target_quotation: data,
   });
@@ -62,7 +65,12 @@ export async function createQuotationAction(form: FormData) {
       "error",
       `La cotización quedó como borrador: ${errorMessage(submitError)}`,
     );
-  done(`/sales/quotations/${data}`, "success", "Cotización generada.");
+  const autoApproved = ctx.permissions.has("sales.quotations.auto_approve");
+  done(
+    `/sales/quotations/${data}`,
+    "success",
+    autoApproved ? "Cotización generada." : "Cotización enviada a aprobación.",
+  );
 }
 
 export async function updateQuotationAction(form: FormData) {
@@ -82,7 +90,7 @@ export async function updateQuotationAction(form: FormData) {
 }
 
 export async function submitQuotationAction(form: FormData) {
-  const { supabase } = await salesContext("sales.quotations.create");
+  const { ctx, supabase } = await salesContext("sales.quotations.create");
   const id = uuid.parse(form.get("quotation_id"));
   const returnPath = `/sales/quotations/${id}`;
   const { error } = await supabase.rpc("om_submit_quotation", {
@@ -91,7 +99,12 @@ export async function submitQuotationAction(form: FormData) {
   if (error) done(returnPath, "error", errorMessage(error));
   revalidatePath("/sales/quotations");
   revalidatePath(returnPath);
-  done(returnPath, "success", "Cotización enviada a aprobación.");
+  const autoApproved = ctx.permissions.has("sales.quotations.auto_approve");
+  done(
+    returnPath,
+    "success",
+    autoApproved ? "Cotización generada." : "Cotización enviada a aprobación.",
+  );
 }
 
 export async function reviewQuotationAction(form: FormData) {
