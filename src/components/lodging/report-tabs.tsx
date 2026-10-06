@@ -1,16 +1,19 @@
 import Link from "next/link";
 
-/** Pestañas del módulo único de Reportabilidad (reservas y cierres diarios). */
+/** Pestañas del módulo único de Reportabilidad. */
 export function LodgingReportTabs({
   active,
   permissions,
 }: {
-  active: "reservations" | "closings";
+  active: "reservations" | "balances" | "closings";
   permissions: Set<string>;
 }) {
   const tabs = [
     ...(permissions.has("lodging.reservations.view")
       ? [["reservations", "/lodging/reports", "Reservas y ocupación"] as const]
+      : []),
+    ...(permissions.has("lodging.reservations.view")
+      ? [["balances", "/lodging/reports/balances", "Saldos pendientes"] as const]
       : []),
     ...(permissions.has("lodging.closings.reports")
       ? [["closings", "/lodging/closing/reports", "Cierres diarios"] as const]
