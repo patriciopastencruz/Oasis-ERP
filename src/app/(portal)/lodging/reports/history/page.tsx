@@ -86,16 +86,54 @@ export default async function ReservationHistoryPage({
   const monthStart = `${month}-01`;
   const nextMonth = shiftMonth(month, 1);
 
-  const { data, error } = await supabase
-    .from("lodging_reservations")
-    .select(
-      "id,status,origin,created_at,check_in,check_out,nights,guest_count,nightly_rate,discount,surcharge,total_value,commission,company_name,information_complete,lodging_rooms(name),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status)",
-    )
-    .eq("business_unit_id", unit.id)
-    .gte("check_in", monthStart)
-    .lt("check_in", `${nextMonth}-01`)
-    .order("check_in", { ascending: false });
-  if (error) throw new Error("No fue posible cargar el historial de reservas.");
+  const loadReservations = () =>
+    supabase
+      .from("lodging_reservations")
+      .select(
+        "id,status,origin,created_at,check_in,check_out,nights,guest_count,nightly_rate,discount,surcharge,total_value,commission,company_name,information_complete,lodging_rooms(name),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status)",
+      )
+      .eq("business_unit_id", unit.id)
+      .gte("check_in", monthStart)
+      .lt("check_in", `${nextMonth}-01`)
+      .order("check_in", { ascending: false });
+  let result = await loadReservations();
+  // PGRST003 es un agotamiento transitorio del pool de conexiones. Un segundo
+  // intento evita convertir ese evento puntual en una pantalla de error.
+  if (result.error?.code === "PGRST003") result = await loadReservations();
+  const { data, error } = result;
+
+  if (error) {
+    console.error("No fue posible cargar el historial de reservas", {
+      code: error.code,
+      unit: unit.code,
+      month,
+    });
+    return (
+      <>
+        <LodgingReportTabs active="history" permissions={ctx.permissions} />
+        <PageHeader
+          eyebrow={unit.name}
+          title="Historial de reservas"
+          description="Audita tarifas y totales registrados para detectar reservas sin precio o diferencias de cobro."
+        />
+        <Panel className="mt-4 border-amber-200 bg-amber-50 text-center">
+          <h2 className="font-semibold text-amber-900">
+            No pudimos consultar el historial en este momento
+          </h2>
+          <p className="mt-1 text-sm text-amber-800">
+            La conexión con la base de datos no respondió. Puedes volver a
+            intentarlo sin perder información.
+          </p>
+          <Link
+            href={`/lodging/reports/history?month=${month}${reviewOnly ? "&review=issues" : ""}`}
+            className="mt-4 inline-flex rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white"
+          >
+            Intentar nuevamente
+          </Link>
+        </Panel>
+      </>
+    );
+  }
 
   const reservations = (data ?? []).map((reservation) => {
     const audit = auditReservationPrice({
