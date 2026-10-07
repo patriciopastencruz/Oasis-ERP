@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
+  FileSpreadsheet,
   ReceiptText,
 } from "lucide-react";
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
@@ -17,51 +18,29 @@ import {
   formatDate,
   lodgingContext,
 } from "@/modules/lodging/application/queries";
+import type { PriceAuditStatus } from "@/modules/lodging/domain/reservation-price-audit";
 import {
-  auditReservationPrice,
-  type PriceAuditStatus,
-} from "@/modules/lodging/domain/reservation-price-audit";
+  HISTORY_RESERVATION_SELECT,
+  auditLabels,
+  mapHistoryReservations,
+  originLabels,
+  parseHistoryMonth,
+  receiptReviewLabels,
+  shiftMonth,
+} from "@/modules/lodging/domain/history-report";
 import { reviewPendingPaymentReceipts } from "@/modules/lodging/application/receipt-ai-review";
 import {
-  summarizeReceiptReviews,
   type ReceiptPaymentRow,
   type ReservationReceiptStatus,
 } from "@/modules/lodging/domain/receipt-ai-review";
 
 export const maxDuration = 60;
 
-const auditLabels: Record<PriceAuditStatus, string> = {
-  ok: "Precio correcto",
-  missing_price: "Sin precio",
-  missing_rate: "Solo total informado",
-  mismatch: "Diferencia de precio",
-};
-
 const auditStyles: Record<PriceAuditStatus, string> = {
   ok: "bg-emerald-50 text-emerald-700",
   missing_price: "bg-red-50 text-red-700",
   missing_rate: "bg-amber-50 text-amber-800",
   mismatch: "bg-red-50 text-red-700",
-};
-
-const originLabels: Record<string, string> = {
-  airbnb: "Airbnb",
-  booking: "Booking",
-  direct: "Directa",
-  whatsapp: "WhatsApp",
-  company: "Empresa",
-  public_web: "Sitio web",
-  maintenance: "Mantención",
-  other: "Otro",
-};
-
-const receiptReviewLabels: Record<ReservationReceiptStatus, string> = {
-  missing: "Sin comprobante",
-  pending: "Pendiente IA",
-  matched: "Monto coincide",
-  mismatch: "Monto diferente",
-  unreadable: "Revisión manual",
-  error: "Error de revisión",
 };
 
 const receiptReviewStyles: Record<ReservationReceiptStatus, string> = {
@@ -72,22 +51,6 @@ const receiptReviewStyles: Record<ReservationReceiptStatus, string> = {
   unreadable: "bg-amber-50 text-amber-800",
   error: "bg-red-50 text-red-700",
 };
-
-function currentMonthInSantiago() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Santiago",
-    year: "numeric",
-    month: "2-digit",
-  })
-    .format(new Date())
-    .slice(0, 7);
-}
-
-function shiftMonth(month: string, amount: number) {
-  const date = new Date(`${month}-15T12:00:00Z`);
-  date.setUTCMonth(date.getUTCMonth() + amount);
-  return date.toISOString().slice(0, 7);
-}
 
 function monthLabel(month: string) {
   const label = new Intl.DateTimeFormat("es-CL", {
@@ -107,9 +70,7 @@ export default async function ReservationHistoryPage({
   const { ctx, unit, supabase } = await lodgingContext(
     "lodging.reservations.view",
   );
-  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(q.month ?? "")
-    ? q.month!
-    : currentMonthInSantiago();
+  const month = parseHistoryMonth(q.month);
   const reviewOnly = q.review === "issues";
   const monthStart = `${month}-01`;
   const nextMonth = shiftMonth(month, 1);
@@ -117,9 +78,7 @@ export default async function ReservationHistoryPage({
   const loadReservations = () =>
     supabase
       .from("lodging_reservations")
-      .select(
-        "id,status,origin,created_at,check_in,check_out,nights,guest_count,nightly_rate,discount,surcharge,total_value,commission,company_name,information_complete,lodging_rooms(name),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status,lodging_payment_receipts(id,deleted_at,ai_review_status,ai_detected_amount,ai_confidence,ai_notes))",
-      )
+      .select(HISTORY_RESERVATION_SELECT)
       .eq("business_unit_id", unit.id)
       .gte("check_in", monthStart)
       .lt("check_in", `${nextMonth}-01`)
@@ -163,34 +122,7 @@ export default async function ReservationHistoryPage({
     );
   }
 
-  const reservations = (data ?? []).map((reservation) => {
-    const payments = (reservation.lodging_reservation_payments ??
-      []) as ReceiptPaymentRow[];
-    const audit = auditReservationPrice({
-      nights: reservation.nights,
-      nightlyRate: reservation.nightly_rate,
-      discount: reservation.discount,
-      surcharge: reservation.surcharge,
-      totalValue: reservation.total_value,
-      payments,
-    });
-    const { status: auditStatus, ...priceAudit } = audit;
-    const guest = Array.isArray(reservation.lodging_guests)
-      ? reservation.lodging_guests[0]
-      : reservation.lodging_guests;
-    const room = Array.isArray(reservation.lodging_rooms)
-      ? reservation.lodging_rooms[0]
-      : reservation.lodging_rooms;
-    const receiptReview = summarizeReceiptReviews(payments);
-    return {
-      ...reservation,
-      ...priceAudit,
-      auditStatus,
-      receiptReview,
-      guest,
-      room,
-    };
-  });
+  const reservations = mapHistoryReservations(data ?? []);
 
   // La revisión con IA corre sola: los comprobantes del mes que aún no
   // tienen resultado se leen en segundo plano al abrir el informe y la
@@ -264,6 +196,14 @@ export default async function ReservationHistoryPage({
           description="Audita tarifas y totales registrados para detectar reservas sin precio o diferencias de cobro."
         />
         <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-white p-2">
+          <a
+            href={`/api/lodging/history.xlsx?month=${month}${reviewOnly ? "&review=issues" : ""}`}
+            title="Descargar en Excel"
+            aria-label="Descargar en Excel"
+            className="grid size-9 place-items-center rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+          >
+            <FileSpreadsheet size={18} />
+          </a>
           <Link
             href={makeHref(shiftMonth(month, -1))}
             aria-label="Mes anterior"
