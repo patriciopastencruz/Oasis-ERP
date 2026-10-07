@@ -75,6 +75,7 @@ export default async function SurveyQrPage() {
               <a href={item.url} target="_blank" rel="noreferrer">
                 Probar encuesta
               </a>
+              <a href={`/api/lodging/surveys/qr/${item.id}`}>Descargar PDF</a>
               <a
                 download={`qr-${item.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.svg`}
                 href={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svg)}`}
