@@ -12,6 +12,10 @@ const PUBLIC = [
   // protegido por token opaco en la URL en vez de sesión (ver
   // src/app/(public)/calendario/[token]/page.tsx).
   "/calendario",
+  // Encuesta de satisfacción por habitación (QR pegado en cada pieza), sin
+  // sesión y protegida por un token opaco (ver
+  // src/app/(public)/encuesta/[token]/page.tsx).
+  "/encuesta",
   // Manifiesto de la PWA "Oasis Operaciones": el navegador lo pide sin sesión.
   "/manifest.webmanifest",
 ];

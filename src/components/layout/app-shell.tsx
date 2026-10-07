@@ -32,6 +32,7 @@ import {
   MessageCircle,
   ListTodo,
   Mail,
+  Star,
   PieChart,
   Banknote,
   CalendarRange,
@@ -388,6 +389,12 @@ const lodgingNav = [
     icon: PieChart,
     permission: "lodging.reservations.view",
     legacyPermission: "lodging.closings.reports",
+  },
+  {
+    href: "/lodging/surveys",
+    label: "Encuestas",
+    icon: Star,
+    permission: "lodging.surveys.view",
   },
   {
     href: "/lodging/settings",
