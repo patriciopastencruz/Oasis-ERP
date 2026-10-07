@@ -14,6 +14,7 @@ import {
   uploadPaymentReceiptAction,
   openPaymentReceiptAction,
   removePaymentReceiptAction,
+  reviewPaymentReceiptAction,
   voidPaymentAction,
   updateImportedReservationInfoAction,
   removeImportedReservationAction,
@@ -22,8 +23,14 @@ import {
 } from "@/modules/lodging/application/actions";
 import { ConfirmButton } from "@/components/sales/confirm-button";
 import { ClpInput } from "@/components/lodging/clp-input";
-import { ReservationCancellation, type CancellationRequest } from "@/components/lodging/reservation-cancellation";
-import { operationalStatusLabels, type OperationalStatus } from "@/modules/lodging/domain/operations";
+import {
+  ReservationCancellation,
+  type CancellationRequest,
+} from "@/components/lodging/reservation-cancellation";
+import {
+  operationalStatusLabels,
+  type OperationalStatus,
+} from "@/modules/lodging/domain/operations";
 import { reviewPublicLodgingRequestAction } from "@/modules/lodging/application/public-actions";
 export default async function Page({
   params,
@@ -41,7 +48,12 @@ export default async function Page({
     .eq("id", id)
     .single();
   if (!r) notFound();
-  const [{ data: payments }, { data: summary }, { data: cancellations }, { data: housekeepingEnabled }] = await Promise.all([
+  const [
+    { data: payments },
+    { data: summary },
+    { data: cancellations },
+    { data: housekeepingEnabled },
+  ] = await Promise.all([
     supabase
       .from("lodging_reservation_payments")
       .select("*,lodging_payment_receipts(*)")
@@ -56,11 +68,16 @@ export default async function Page({
       .eq("reservation_id", id)
       .order("requested_at", { ascending: false })
       .limit(1),
-    supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: r.business_unit_id }),
+    supabase.rpc("lodging_ops_housekeeping_enabled", {
+      target_unit: r.business_unit_id,
+    }),
   ]);
   // Sin circuito de aseo e inspección en el hostal, el check-in no espera la inspección.
   const needsInspection = housekeepingEnabled !== false;
-  type Person = { first_name: string; last_name: string } | { first_name: string; last_name: string }[] | null;
+  type Person =
+    | { first_name: string; last_name: string }
+    | { first_name: string; last_name: string }[]
+    | null;
   const personName = (p: Person) => {
     const one = Array.isArray(p) ? p[0] : p;
     return one ? `${one.first_name} ${one.last_name}`.trim() : null;
@@ -99,7 +116,11 @@ export default async function Page({
   // reales, no placeholders.
   const firstFill = r.imported_from_ical && !r.information_complete;
   const originLabel =
-    r.origin === "booking" ? "Booking" : r.origin === "airbnb" ? "Airbnb" : "externa";
+    r.origin === "booking"
+      ? "Booking"
+      : r.origin === "airbnb"
+        ? "Airbnb"
+        : "externa";
   // Misma regla que remove_lodging_imported_reservation() en la base: quien
   // administra reservas elimina las que empiezan hoy o después; las de días
   // anteriores solo quien tenga lodging.reservations.remove_past.
@@ -109,7 +130,9 @@ export default async function Page({
   const canManage = ctx.permissions.has("lodging.reservations.manage");
   // Fechas y precio siguen la misma regla (también en la base): reservas
   // directas no anuladas; con check-out, solo el administrador o superior.
-  const canCorrectAfterCheckout = ctx.permissions.has("lodging.reservations.cancel_approve");
+  const canCorrectAfterCheckout = ctx.permissions.has(
+    "lodging.reservations.cancel_approve",
+  );
   const canEditDates =
     canManage &&
     !r.imported_from_ical &&
@@ -191,8 +214,8 @@ export default async function Page({
             Solicitud de reserva desde el sitio web
           </h2>
           <p className="mt-1 text-sm text-amber-800">
-            Revisa el comprobante adjunto abajo antes de confirmar. La fecha
-            ya está retenida para esta habitación mientras la revisas.
+            Revisa el comprobante adjunto abajo antes de confirmar. La fecha ya
+            está retenida para esta habitación mientras la revisas.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <form action={reviewPublicLodgingRequestAction}>
@@ -318,32 +341,65 @@ export default async function Page({
       )}
       {canEditPrice && (
         <details className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-          <summary className="cursor-pointer font-semibold text-slate-800">Corregir precio</summary>
+          <summary className="cursor-pointer font-semibold text-slate-800">
+            Corregir precio
+          </summary>
           <p className="mt-2 text-xs text-slate-500">
-            Actual: {r.nights} noche{r.nights === 1 ? "" : "s"} × {clp.format(Number(r.nightly_rate))}
-            {Number(r.discount) ? ` − descuento ${clp.format(Number(r.discount))}` : ""}
-            {Number(r.surcharge) ? ` + recargo ${clp.format(Number(r.surcharge))}` : ""} = <b>{clp.format(Number(r.total_value))}</b>. El nuevo total lo calcula el sistema y queda en la auditoría con el motivo.
+            Actual: {r.nights} noche{r.nights === 1 ? "" : "s"} ×{" "}
+            {clp.format(Number(r.nightly_rate))}
+            {Number(r.discount)
+              ? ` − descuento ${clp.format(Number(r.discount))}`
+              : ""}
+            {Number(r.surcharge)
+              ? ` + recargo ${clp.format(Number(r.surcharge))}`
+              : ""}{" "}
+            = <b>{clp.format(Number(r.total_value))}</b>. El nuevo total lo
+            calcula el sistema y queda en la auditoría con el motivo.
           </p>
-          <form action={updateReservationPriceAction} className="mt-3 grid gap-3 sm:grid-cols-3">
+          <form
+            action={updateReservationPriceAction}
+            className="mt-3 grid gap-3 sm:grid-cols-3"
+          >
             <input type="hidden" name="reservation_id" value={id} />
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               Tarifa por noche
-              <ClpInput name="nightly_rate" defaultValue={String(Number(r.nightly_rate))} className={field} />
+              <ClpInput
+                name="nightly_rate"
+                defaultValue={String(Number(r.nightly_rate))}
+                className={field}
+              />
             </label>
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               Descuento
-              <ClpInput name="discount" defaultValue={String(Number(r.discount))} className={field} />
+              <ClpInput
+                name="discount"
+                defaultValue={String(Number(r.discount))}
+                className={field}
+              />
             </label>
             <label className="grid gap-1 text-sm font-medium text-slate-700">
               Recargo
-              <ClpInput name="surcharge" defaultValue={String(Number(r.surcharge))} className={field} />
+              <ClpInput
+                name="surcharge"
+                defaultValue={String(Number(r.surcharge))}
+                className={field}
+              />
             </label>
             <label className="grid gap-1 text-sm font-medium text-slate-700 sm:col-span-3">
               Motivo de la corrección
-              <input name="reason" required minLength={5} maxLength={500} placeholder="Ej.: la tarifa se ingresó mal al crear la reserva" className={field} />
+              <input
+                name="reason"
+                required
+                minLength={5}
+                maxLength={500}
+                placeholder="Ej.: la tarifa se ingresó mal al crear la reserva"
+                className={field}
+              />
             </label>
             <div className="sm:col-span-3">
-              <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">Guardar precio</button>
+              <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">
+                Guardar precio
+              </button>
             </div>
           </form>
         </details>
@@ -428,11 +484,20 @@ export default async function Page({
                 <div className="w-full rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
                   <p className="font-semibold text-amber-900">
                     Esta habitación todavía no ha sido liberada por inspección
-                    {room?.operational_status ? ` (estado: ${operationalStatusLabels[room.operational_status as OperationalStatus] ?? room.operational_status})` : ""}.
+                    {room?.operational_status
+                      ? ` (estado: ${operationalStatusLabels[room.operational_status as OperationalStatus] ?? room.operational_status})`
+                      : ""}
+                    .
                   </p>
-                  <p className="mt-1 text-amber-800">Recepción debe aprobarla en el portal operativo antes del check-in.</p>
+                  <p className="mt-1 text-amber-800">
+                    Recepción debe aprobarla en el portal operativo antes del
+                    check-in.
+                  </p>
                   {ctx.permissions.has("lodging.checkin.override") && (
-                    <form action={checkInAction} className="mt-3 flex flex-wrap gap-2">
+                    <form
+                      action={checkInAction}
+                      className="mt-3 flex flex-wrap gap-2"
+                    >
                       <input type="hidden" name="reservation_id" value={id} />
                       <input
                         name="override_reason"
@@ -560,42 +625,90 @@ export default async function Page({
               </div>
               <div className="flex gap-2">
                 {(p.lodging_payment_receipts ?? [])
-                  .filter((receipt: { deleted_at: string | null }) => !receipt.deleted_at)
+                  .filter(
+                    (receipt: { deleted_at: string | null }) =>
+                      !receipt.deleted_at,
+                  )
                   .map(
-                  (receipt: {
-                    id: string;
-                    private_path: string;
-                    original_name: string;
-                    deleted_at: string | null;
-                  }) => (
-                    <div key={receipt.id} className="flex items-center gap-1">
-                      <form action={openPaymentReceiptAction}>
-                        <input
-                          type="hidden"
-                          name="path"
-                          value={receipt.private_path}
-                        />
-                        <button className="text-xs font-semibold text-[#0b4f9c]">
-                          Ver {receipt.original_name}
-                        </button>
-                      </form>
-                      <form action={removePaymentReceiptAction}>
-                        <input
-                          type="hidden"
-                          name="receipt_id"
-                          value={receipt.id}
-                        />
-                        <input type="hidden" name="reservation_id" value={id} />
-                        <ConfirmButton
-                          message={`¿Eliminar el comprobante "${receipt.original_name}"?`}
-                          className="text-xs font-semibold text-red-600"
-                        >
-                          Quitar
-                        </ConfirmButton>
-                      </form>
-                    </div>
-                  ),
-                )}
+                    (receipt: {
+                      id: string;
+                      private_path: string;
+                      original_name: string;
+                      deleted_at: string | null;
+                      ai_review_status: string;
+                      ai_detected_amount: number | string | null;
+                    }) => (
+                      <div
+                        key={receipt.id}
+                        className="rounded-lg bg-slate-50 p-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <form action={openPaymentReceiptAction}>
+                            <input
+                              type="hidden"
+                              name="path"
+                              value={receipt.private_path}
+                            />
+                            <button className="text-xs font-semibold text-[#0b4f9c]">
+                              Ver {receipt.original_name}
+                            </button>
+                          </form>
+                          <span className="text-xs text-slate-500">
+                            IA:{" "}
+                            {receipt.ai_review_status === "matched"
+                              ? "monto coincide"
+                              : receipt.ai_review_status === "mismatch"
+                                ? "monto diferente"
+                                : receipt.ai_review_status === "unreadable"
+                                  ? "revisión manual"
+                                  : receipt.ai_review_status === "error"
+                                    ? "error de revisión"
+                                    : "pendiente"}
+                            {receipt.ai_detected_amount !== null
+                              ? ` · detectado ${clp.format(Number(receipt.ai_detected_amount))}`
+                              : ""}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex gap-2">
+                          {ctx.permissions.has("lodging.payments.manage") && (
+                            <form action={reviewPaymentReceiptAction}>
+                              <input
+                                type="hidden"
+                                name="receipt_id"
+                                value={receipt.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="reservation_id"
+                                value={id}
+                              />
+                              <button className="text-xs font-semibold text-amber-700">
+                                Revisar con IA
+                              </button>
+                            </form>
+                          )}
+                          <form action={removePaymentReceiptAction}>
+                            <input
+                              type="hidden"
+                              name="receipt_id"
+                              value={receipt.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="reservation_id"
+                              value={id}
+                            />
+                            <ConfirmButton
+                              message={`¿Eliminar el comprobante "${receipt.original_name}"?`}
+                              className="text-xs font-semibold text-red-600"
+                            >
+                              Quitar
+                            </ConfirmButton>
+                          </form>
+                        </div>
+                      </div>
+                    ),
+                  )}
                 <form
                   action={uploadPaymentReceiptAction}
                   className="flex items-center gap-2"

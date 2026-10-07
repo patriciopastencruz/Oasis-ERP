@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -10,6 +11,7 @@ import { detectedMime } from "../domain/receipts";
 import { fetchIcal, assertSafeIcalUrl } from "./security";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { dispatchApprovalEmails } from "@/lib/notifications/approval-email";
+import { reviewAndSavePaymentReceipt } from "./receipt-ai-review";
 
 const uuid = z.string().uuid();
 const text = z.string().trim().min(1);
@@ -79,7 +81,12 @@ export async function createRoomAction(form: FormData) {
   if (!allowedUnit(ctx, parsed.data.company_id, parsed.data.business_unit_id))
     go("/lodging/rooms", "error", "Unidad no autorizada.");
   const s = await createSupabaseServerClient();
-  const { error } = await s.from("lodging_rooms").insert({ ...parsed.data, rates_by_guests: ratesFromForm((k) => form.get(k)) });
+  const { error } = await s
+    .from("lodging_rooms")
+    .insert({
+      ...parsed.data,
+      rates_by_guests: ratesFromForm((k) => form.get(k)),
+    });
   if (error)
     go(
       "/lodging/rooms",
@@ -298,7 +305,9 @@ export async function updateReservationPriceAction(form: FormData) {
     new_nightly_rate: amount("nightly_rate"),
     new_discount: amount("discount"),
     new_surcharge: amount("surcharge"),
-    change_reason: String(form.get("reason") ?? "").trim().slice(0, 500),
+    change_reason: String(form.get("reason") ?? "")
+      .trim()
+      .slice(0, 500),
   });
   if (error) {
     console.error("[lodging-price]", error.message);
@@ -315,11 +324,20 @@ export async function updateReservationPriceAction(form: FormData) {
               : "No fue posible corregir el precio.";
     go(back, "error", message);
   }
-  const result = data as { changed: boolean; total_value: number; balance?: number } | null;
+  const result = data as {
+    changed: boolean;
+    total_value: number;
+    balance?: number;
+  } | null;
   revalidatePath("/lodging");
   revalidatePath("/lodging/reservations");
   revalidatePath(back);
-  const clpFmt = (n: number) => new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n);
+  const clpFmt = (n: number) =>
+    new Intl.NumberFormat("es-CL", {
+      style: "currency",
+      currency: "CLP",
+      maximumFractionDigits: 0,
+    }).format(n);
   go(
     back,
     "success",
@@ -357,7 +375,10 @@ export async function registerPaymentAction(form: FormData) {
       amount: z.coerce.number().positive(),
       paid_at: z
         .string()
-        .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/, "Fecha y hora inválidas."),
+        .regex(
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/,
+          "Fecha y hora inválidas.",
+        ),
       operation_number: z.string().trim().max(100),
       bank: z.string().trim().max(100),
       notes: z.string().trim().max(300),
@@ -505,8 +526,6 @@ export async function uploadPaymentReceiptAction(form: FormData) {
   const ctx = await requirePermission("lodging.payments.manage");
   const paymentId = uuid.parse(form.get("payment_id"));
   const reservationId = uuid.parse(form.get("reservation_id"));
-  const companyId = uuid.parse(form.get("company_id"));
-  const unitId = uuid.parse(form.get("business_unit_id"));
   const file = form.get("receipt");
   if (!(file instanceof File) || file.size < 1 || file.size > 10_485_760)
     go(
@@ -514,14 +533,31 @@ export async function uploadPaymentReceiptAction(form: FormData) {
       "error",
       "El comprobante es inválido o supera 10 MB.",
     );
-  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-  const mime = detectedMime(bytes);
+  const fileBytes = new Uint8Array(await file.arrayBuffer());
+  const mime = detectedMime(fileBytes.subarray(0, 16));
   if (!mime)
     go(
       `/lodging/reservations/${reservationId}`,
       "error",
       "Formato no permitido. Use PDF, JPG, PNG o WEBP.",
     );
+  const s = await createSupabaseServerClient();
+  const { data: payment } = await s
+    .from("lodging_reservation_payments")
+    .select("id,company_id,business_unit_id,reservation_id,amount")
+    .eq("id", paymentId)
+    .eq("reservation_id", reservationId)
+    .maybeSingle();
+  if (
+    !payment ||
+    !allowedUnit(ctx, payment.company_id, payment.business_unit_id)
+  )
+    go(
+      `/lodging/reservations/${reservationId}`,
+      "error",
+      "Pago no autorizado.",
+    );
+
   const ext = {
     "application/pdf": "pdf",
     "image/jpeg": "jpg",
@@ -529,8 +565,7 @@ export async function uploadPaymentReceiptAction(form: FormData) {
     "image/webp": "webp",
   }[mime];
   const internal = `${crypto.randomUUID()}.${ext}`;
-  const path = `${companyId}/${unitId}/${paymentId}/${internal}`;
-  const s = await createSupabaseServerClient();
+  const path = `${payment.company_id}/${payment.business_unit_id}/${paymentId}/${internal}`;
   // Un doble clic en "Adjuntar" manda el formulario dos o tres veces: si el
   // mismo archivo ya se registró para este pago hace instantes, se da por
   // subido en vez de duplicarlo.
@@ -558,18 +593,22 @@ export async function uploadPaymentReceiptAction(form: FormData) {
       "error",
       "No fue posible subir el comprobante.",
     );
-  const { error } = await s.from("lodging_payment_receipts").insert({
-    company_id: companyId,
-    business_unit_id: unitId,
-    payment_id: paymentId,
-    original_name: file.name,
-    internal_name: internal,
-    private_path: path,
-    mime_type: mime,
-    size_bytes: file.size,
-    uploaded_by: ctx.user.id,
-  });
-  if (error) {
+  const { data: receipt, error } = await s
+    .from("lodging_payment_receipts")
+    .insert({
+      company_id: payment.company_id,
+      business_unit_id: payment.business_unit_id,
+      payment_id: paymentId,
+      original_name: file.name,
+      internal_name: internal,
+      private_path: path,
+      mime_type: mime,
+      size_bytes: file.size,
+      uploaded_by: ctx.user.id,
+    })
+    .select("id")
+    .single();
+  if (error || !receipt) {
     await s.storage.from("lodging-payment-receipts").remove([path]);
     go(
       `/lodging/reservations/${reservationId}`,
@@ -577,6 +616,14 @@ export async function uploadPaymentReceiptAction(form: FormData) {
       "No fue posible registrar el comprobante.",
     );
   }
+  after(() =>
+    reviewAndSavePaymentReceipt({
+      receiptId: receipt.id,
+      bytes: fileBytes,
+      mimeType: mime,
+      expectedAmount: Number(payment.amount),
+    }),
+  );
   revalidatePath("/lodging");
   revalidatePath(`/lodging/reservations/${reservationId}`);
   go(
@@ -584,6 +631,67 @@ export async function uploadPaymentReceiptAction(form: FormData) {
     "success",
     "Comprobante adjuntado correctamente.",
   );
+}
+
+export async function reviewPaymentReceiptAction(form: FormData) {
+  const ctx = await requirePermission("lodging.payments.manage");
+  const receiptId = uuid.parse(form.get("receipt_id"));
+  const reservationId = uuid.parse(form.get("reservation_id"));
+  const back = `/lodging/reservations/${reservationId}`;
+  const s = await createSupabaseServerClient();
+  const { data: receipt } = await s
+    .from("lodging_payment_receipts")
+    .select("id,company_id,business_unit_id,payment_id,private_path,mime_type")
+    .eq("id", receiptId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (
+    !receipt ||
+    !allowedUnit(ctx, receipt.company_id, receipt.business_unit_id)
+  )
+    go(back, "error", "Comprobante no autorizado.");
+  const { data: payment } = await s
+    .from("lodging_reservation_payments")
+    .select("amount")
+    .eq("id", receipt.payment_id)
+    .eq("reservation_id", reservationId)
+    .maybeSingle();
+  if (!payment) go(back, "error", "Pago no encontrado.");
+  const { data: file, error: downloadError } = await s.storage
+    .from("lodging-payment-receipts")
+    .download(receipt.private_path);
+  if (downloadError || !file)
+    go(back, "error", "No fue posible leer el comprobante.");
+
+  const mime = receipt.mime_type as
+    "application/pdf" | "image/jpeg" | "image/png" | "image/webp";
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const admin = createSupabaseAdminClient();
+  await admin
+    .from("lodging_payment_receipts")
+    .update({
+      ai_review_status: "pending",
+      ai_detected_amount: null,
+      ai_detected_date: null,
+      ai_operation_number: null,
+      ai_confidence: null,
+      ai_notes: null,
+      ai_model: null,
+      ai_reviewed_at: null,
+    })
+    .eq("id", receipt.id)
+    .is("deleted_at", null);
+  after(() =>
+    reviewAndSavePaymentReceipt({
+      receiptId: receipt.id,
+      bytes,
+      mimeType: mime,
+      expectedAmount: Number(payment.amount),
+    }),
+  );
+  revalidatePath("/lodging/reports/history");
+  revalidatePath(back);
+  go(back, "success", "Revisión con IA iniciada.");
 }
 export async function removePaymentReceiptAction(form: FormData) {
   await requirePermission("lodging.payments.manage");
@@ -654,7 +762,9 @@ export async function checkInAction(form: FormData) {
   go(
     `/lodging/reservations/${id}`,
     "success",
-    override ? "Check-in forzado registrado en auditoría." : "Check-in realizado correctamente.",
+    override
+      ? "Check-in forzado registrado en auditoría."
+      : "Check-in realizado correctamente.",
   );
 }
 
@@ -663,7 +773,9 @@ export async function checkOutAction(form: FormData) {
   await requirePermission("lodging.reservations.manage");
   const id = uuid.parse(form.get("reservation_id"));
   const s = await createSupabaseServerClient();
-  const { error } = await s.rpc("lodging_check_out", { target_reservation: id });
+  const { error } = await s.rpc("lodging_check_out", {
+    target_reservation: id,
+  });
   if (error)
     go(
       `/lodging/reservations/${id}`,
@@ -707,7 +819,10 @@ export async function reassignReservationRoomAction(
     !room ||
     reservation.business_unit_id !== room.business_unit_id
   )
-    return { ok: false as const, message: "Habitación no válida para esta reserva." };
+    return {
+      ok: false as const,
+      message: "Habitación no válida para esta reserva.",
+    };
   const { error } = await s
     .from("lodging_reservations")
     .update({ room_id: parsedRoomId.data })
@@ -754,13 +869,20 @@ export async function removeImportedReservationAction(form: FormData) {
 function cancellationError(error: { code?: string; message: string }) {
   console.error("[lodging-cancel]", error.message);
   if (error.code === "P0001") {
-    if (/motivo de la anulacion/i.test(error.message)) return "Indica el motivo de la anulación (mínimo 5 caracteres).";
-    if (/motivo del rechazo/i.test(error.message)) return "Indica el motivo del rechazo.";
-    if (/pendiente/i.test(error.message)) return "Ya hay una solicitud de anulación pendiente para esta reserva.";
-    if (/ya fue resuelta/i.test(error.message)) return "Esta solicitud ya fue resuelta.";
-    if (/ya no se puede anular/i.test(error.message)) return "La reserva ya no se puede anular (tiene check-in, check-out o ya está anulada).";
-    if (/plataforma/i.test(error.message)) return "Las reservas de Booking o Airbnb se anulan en la plataforma.";
-    if (/autorizacion/i.test(error.message)) return "No tienes autorización para esta acción.";
+    if (/motivo de la anulacion/i.test(error.message))
+      return "Indica el motivo de la anulación (mínimo 5 caracteres).";
+    if (/motivo del rechazo/i.test(error.message))
+      return "Indica el motivo del rechazo.";
+    if (/pendiente/i.test(error.message))
+      return "Ya hay una solicitud de anulación pendiente para esta reserva.";
+    if (/ya fue resuelta/i.test(error.message))
+      return "Esta solicitud ya fue resuelta.";
+    if (/ya no se puede anular/i.test(error.message))
+      return "La reserva ya no se puede anular (tiene check-in, check-out o ya está anulada).";
+    if (/plataforma/i.test(error.message))
+      return "Las reservas de Booking o Airbnb se anulan en la plataforma.";
+    if (/autorizacion/i.test(error.message))
+      return "No tienes autorización para esta acción.";
   }
   return "No fue posible completar la anulación.";
 }
@@ -775,48 +897,76 @@ export async function requestReservationCancellationAction(form: FormData) {
   const parsed = uuid.safeParse(form.get("reservation_id"));
   if (!parsed.success) go("/lodging", "error", "Reserva inválida.");
   const back = `/lodging/reservations/${parsed.data}`;
-  const reason = String(form.get("reason") ?? "").trim().slice(0, 500);
+  const reason = String(form.get("reason") ?? "")
+    .trim()
+    .slice(0, 500);
   const s = await createSupabaseServerClient();
-  const { data, error } = await s.rpc("lodging_reservation_cancel_request", { target_reservation: parsed.data, cancel_reason: reason });
+  const { data, error } = await s.rpc("lodging_reservation_cancel_request", {
+    target_reservation: parsed.data,
+    cancel_reason: reason,
+  });
   if (error) go(back, "error", cancellationError(error));
   const applied = Boolean((data as { applied?: boolean } | null)?.applied);
   if (!applied) await dispatchApprovalEmails().catch(() => {});
   revalidatePath("/lodging");
   revalidatePath("/lodging/reservations");
   revalidatePath(back);
-  go(back, "success", applied ? "Reserva anulada. Queda registrada en la auditoría." : "La reserva empezó en un día anterior: la solicitud de anulación se envió al administrador para su aprobación.");
+  go(
+    back,
+    "success",
+    applied
+      ? "Reserva anulada. Queda registrada en la auditoría."
+      : "La reserva empezó en un día anterior: la solicitud de anulación se envió al administrador para su aprobación.",
+  );
 }
 
 export async function decideReservationCancellationAction(form: FormData) {
   const request = uuid.safeParse(form.get("request_id"));
   const reservation = uuid.safeParse(form.get("reservation_id"));
-  if (!request.success || !reservation.success) go("/lodging", "error", "Solicitud inválida.");
+  if (!request.success || !reservation.success)
+    go("/lodging", "error", "Solicitud inválida.");
   const back = `/lodging/reservations/${reservation.data}`;
   const approve = form.get("decision") === "approve";
   const s = await createSupabaseServerClient();
   const { error } = await s.rpc("lodging_reservation_cancel_decide", {
     target_request: request.data,
     approve,
-    notes: String(form.get("notes") ?? "").trim().slice(0, 500),
+    notes: String(form.get("notes") ?? "")
+      .trim()
+      .slice(0, 500),
   });
   if (error) go(back, "error", cancellationError(error));
   revalidatePath("/lodging");
   revalidatePath("/lodging/reservations");
   revalidatePath(back);
-  go(back, "success", approve ? "Anulación aprobada: la reserva quedó anulada." : "Anulación rechazada: la reserva sigue vigente.");
+  go(
+    back,
+    "success",
+    approve
+      ? "Anulación aprobada: la reserva quedó anulada."
+      : "Anulación rechazada: la reserva sigue vigente.",
+  );
 }
 
 /** Activa o desactiva el circuito de aseo e inspección del hostal seleccionado. */
 export async function setHousekeepingAction(form: FormData) {
   const ctx = await requirePermission("lodging.operations.configure");
   const unitId = uuid.safeParse(form.get("unit_id"));
-  if (!unitId.success || !ctx.units.some((u) => u.id === unitId.data)) go("/lodging/settings", "error", "Hostal no autorizado.");
+  if (!unitId.success || !ctx.units.some((u) => u.id === unitId.data))
+    go("/lodging/settings", "error", "Hostal no autorizado.");
   const enabled = form.get("enabled") === "true";
   const s = await createSupabaseServerClient();
-  const { error } = await s.rpc("lodging_ops_set_housekeeping", { target_unit: unitId.data, enabled });
+  const { error } = await s.rpc("lodging_ops_set_housekeeping", {
+    target_unit: unitId.data,
+    enabled,
+  });
   if (error) {
     console.error("[lodging-housekeeping]", error.message);
-    go("/lodging/settings", "error", "No fue posible cambiar el circuito de aseo.");
+    go(
+      "/lodging/settings",
+      "error",
+      "No fue posible cambiar el circuito de aseo.",
+    );
   }
   revalidatePath("/lodging", "layout");
   revalidatePath("/ops", "layout");

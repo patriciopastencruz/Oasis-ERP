@@ -19,6 +19,11 @@ import {
   auditReservationPrice,
   type PriceAuditStatus,
 } from "@/modules/lodging/domain/reservation-price-audit";
+import {
+  summarizeReceiptReviews,
+  type ReceiptPaymentRow,
+  type ReservationReceiptStatus,
+} from "@/modules/lodging/domain/receipt-ai-review";
 
 const auditLabels: Record<PriceAuditStatus, string> = {
   ok: "Precio correcto",
@@ -43,6 +48,24 @@ const originLabels: Record<string, string> = {
   public_web: "Sitio web",
   maintenance: "Mantención",
   other: "Otro",
+};
+
+const receiptReviewLabels: Record<ReservationReceiptStatus, string> = {
+  missing: "Sin comprobante",
+  pending: "Pendiente IA",
+  matched: "Monto coincide",
+  mismatch: "Monto diferente",
+  unreadable: "Revisión manual",
+  error: "Error de revisión",
+};
+
+const receiptReviewStyles: Record<ReservationReceiptStatus, string> = {
+  missing: "bg-slate-100 text-slate-700",
+  pending: "bg-amber-50 text-amber-800",
+  matched: "bg-emerald-50 text-emerald-700",
+  mismatch: "bg-red-50 text-red-700",
+  unreadable: "bg-amber-50 text-amber-800",
+  error: "bg-red-50 text-red-700",
 };
 
 function currentMonthInSantiago() {
@@ -90,7 +113,7 @@ export default async function ReservationHistoryPage({
     supabase
       .from("lodging_reservations")
       .select(
-        "id,status,origin,created_at,check_in,check_out,nights,guest_count,nightly_rate,discount,surcharge,total_value,commission,company_name,information_complete,lodging_rooms(name),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status)",
+        "id,status,origin,created_at,check_in,check_out,nights,guest_count,nightly_rate,discount,surcharge,total_value,commission,company_name,information_complete,lodging_rooms(name),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status,lodging_payment_receipts(id,deleted_at,ai_review_status,ai_detected_amount,ai_confidence,ai_notes))",
       )
       .eq("business_unit_id", unit.id)
       .gte("check_in", monthStart)
@@ -136,13 +159,15 @@ export default async function ReservationHistoryPage({
   }
 
   const reservations = (data ?? []).map((reservation) => {
+    const payments = (reservation.lodging_reservation_payments ??
+      []) as ReceiptPaymentRow[];
     const audit = auditReservationPrice({
       nights: reservation.nights,
       nightlyRate: reservation.nightly_rate,
       discount: reservation.discount,
       surcharge: reservation.surcharge,
       totalValue: reservation.total_value,
-      payments: reservation.lodging_reservation_payments ?? [],
+      payments,
     });
     const { status: auditStatus, ...priceAudit } = audit;
     const guest = Array.isArray(reservation.lodging_guests)
@@ -151,7 +176,15 @@ export default async function ReservationHistoryPage({
     const room = Array.isArray(reservation.lodging_rooms)
       ? reservation.lodging_rooms[0]
       : reservation.lodging_rooms;
-    return { ...reservation, ...priceAudit, auditStatus, guest, room };
+    const receiptReview = summarizeReceiptReviews(payments);
+    return {
+      ...reservation,
+      ...priceAudit,
+      auditStatus,
+      receiptReview,
+      guest,
+      room,
+    };
   });
 
   const visible = reviewOnly
@@ -274,7 +307,7 @@ export default async function ReservationHistoryPage({
 
         {visible.length ? (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[1380px] text-left text-sm">
+            <table className="w-full min-w-[1600px] text-left text-sm">
               <thead className="border-y bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-2">Control</th>
@@ -286,6 +319,8 @@ export default async function ReservationHistoryPage({
                   <th className="px-3 py-2 text-right">Calculado</th>
                   <th className="px-3 py-2 text-right">Registrado</th>
                   <th className="px-3 py-2 text-right">Pagado</th>
+                  <th className="px-3 py-2">Comprobante</th>
+                  <th className="px-3 py-2">Revisión IA</th>
                   <th className="px-3 py-2 text-right">Detalle</th>
                 </tr>
               </thead>
@@ -377,6 +412,44 @@ export default async function ReservationHistoryPage({
                     </td>
                     <td className="px-3 py-3 text-right align-top tabular-nums text-emerald-700">
                       {clp.format(reservation.paid)}
+                    </td>
+                    <td className="px-3 py-3 align-top">
+                      {reservation.receiptReview.receiptCount > 0 ? (
+                        <span className="font-semibold text-emerald-700">
+                          Sí · {reservation.receiptReview.receiptCount}{" "}
+                          {reservation.receiptReview.receiptCount === 1
+                            ? "archivo"
+                            : "archivos"}
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-red-600">
+                          No subido
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 align-top">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${receiptReviewStyles[reservation.receiptReview.status]}`}
+                      >
+                        {receiptReviewLabels[reservation.receiptReview.status]}
+                      </span>
+                      {reservation.receiptReview.status === "mismatch" &&
+                        reservation.receiptReview.issue && (
+                          <span className="mt-1 block text-xs text-red-600">
+                            Pago{" "}
+                            {clp.format(
+                              reservation.receiptReview.issue.paymentAmount,
+                            )}{" "}
+                            · IA{" "}
+                            {reservation.receiptReview.issue.detectedAmount ===
+                            null
+                              ? "sin monto"
+                              : clp.format(
+                                  reservation.receiptReview.issue
+                                    .detectedAmount,
+                                )}
+                          </span>
+                        )}
                     </td>
                     <td className="px-3 py-3 text-right align-top">
                       <Link

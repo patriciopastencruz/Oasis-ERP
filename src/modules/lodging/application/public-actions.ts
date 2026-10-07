@@ -19,6 +19,7 @@ import { requirePermission } from "@/modules/platform/auth/application/session";
 import { dispatchApprovalEmails } from "@/lib/notifications/approval-email";
 import { totalForStay } from "../domain/reservations";
 import { detectedMime } from "../domain/receipts";
+import { reviewAndSavePaymentReceipt } from "./receipt-ai-review";
 
 const PUBLIC_UNIT_CODE = "HU";
 
@@ -74,20 +75,32 @@ export async function getRoomBookedRangesAction(roomId: string) {
     .not("status", "in", '("cancelled","conflict")')
     .gte("check_out", todayIso);
   if (error) {
-    console.error("[getRoomBookedRangesAction] fallo al leer disponibilidad", error);
+    console.error(
+      "[getRoomBookedRangesAction] fallo al leer disponibilidad",
+      error,
+    );
     return [];
   }
-  return (data ?? []).map((r) => ({ check_in: r.check_in, check_out: r.check_out }));
+  return (data ?? []).map((r) => ({
+    check_in: r.check_in,
+    check_out: r.check_out,
+  }));
 }
 
 const requestSchema = z.object({
   room_id: z.string().uuid({ message: "Debes elegir una habitación." }),
   check_in: z
     .string()
-    .date({ message: "Debes seleccionar tus fechas de entrada y salida en el calendario." }),
+    .date({
+      message:
+        "Debes seleccionar tus fechas de entrada y salida en el calendario.",
+    }),
   check_out: z
     .string()
-    .date({ message: "Debes seleccionar tus fechas de entrada y salida en el calendario." }),
+    .date({
+      message:
+        "Debes seleccionar tus fechas de entrada y salida en el calendario.",
+    }),
   guest_name: z.string().trim().min(2).max(160),
   phone: z.string().trim().min(6).max(50),
   email: z.string().trim().max(160),
@@ -101,21 +114,22 @@ const RETURN_PATH = "/reservar/hostal-uruguay";
 
 export async function submitPublicLodgingRequestAction(form: FormData) {
   const parsed = requestSchema.safeParse(Object.fromEntries(form));
-  if (!parsed.success)
-    go(RETURN_PATH, "error", parsed.error.issues[0].message);
+  if (!parsed.success) go(RETURN_PATH, "error", parsed.error.issues[0].message);
   const data = parsed.data;
-  if (data.website) go(RETURN_PATH, "error", "No fue posible procesar la solicitud.");
+  if (data.website)
+    go(RETURN_PATH, "error", "No fue posible procesar la solicitud.");
 
   const file = form.get("receipt");
   if (!(file instanceof File) || file.size < 1 || file.size > 10_485_760)
     go(RETURN_PATH, "error", "El comprobante es inválido o supera 10 MB.");
-  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-  const mime = detectedMime(bytes);
+  const fileBytes = new Uint8Array(await file.arrayBuffer());
+  const mime = detectedMime(fileBytes.subarray(0, 16));
   if (!mime)
     go(RETURN_PATH, "error", "Formato no permitido. Use PDF, JPG, PNG o WEBP.");
 
   const unit = await resolvePublicUnit();
-  if (!unit) go(RETURN_PATH, "error", "El hostal no está disponible por ahora.");
+  if (!unit)
+    go(RETURN_PATH, "error", "El hostal no está disponible por ahora.");
 
   const db = createSupabaseAdminClient();
   const { data: room } = await db
@@ -125,7 +139,8 @@ export async function submitPublicLodgingRequestAction(form: FormData) {
     .eq("business_unit_id", unit.id)
     .eq("active", true)
     .maybeSingle();
-  if (!room) go(RETURN_PATH, "error", "La habitación seleccionada no está disponible.");
+  if (!room)
+    go(RETURN_PATH, "error", "La habitación seleccionada no está disponible.");
 
   let total: number;
   try {
@@ -135,7 +150,11 @@ export async function submitPublicLodgingRequestAction(form: FormData) {
       nightlyRate: Number(room.base_rate),
     });
   } catch (e) {
-    go(RETURN_PATH, "error", e instanceof Error ? e.message : "Fechas inválidas.");
+    go(
+      RETURN_PATH,
+      "error",
+      e instanceof Error ? e.message : "Fechas inválidas.",
+    );
   }
   if (total <= 0) go(RETURN_PATH, "error", "El rango de fechas no es válido.");
 
@@ -169,7 +188,11 @@ export async function submitPublicLodgingRequestAction(form: FormData) {
     .select("id")
     .single();
   if (guestError || !guest)
-    go(RETURN_PATH, "error", "No fue posible registrar tus datos. Intenta nuevamente.");
+    go(
+      RETURN_PATH,
+      "error",
+      "No fue posible registrar tus datos. Intenta nuevamente.",
+    );
 
   const { data: reservation, error: reservationError } = await db
     .from("lodging_reservations")
@@ -214,14 +237,19 @@ export async function submitPublicLodgingRequestAction(form: FormData) {
       amount: total,
       status: "pending",
       registered_by: null,
-      notes: "Comprobante subido por el huésped desde el sitio web, pendiente de revisión.",
+      notes:
+        "Comprobante subido por el huésped desde el sitio web, pendiente de revisión.",
     })
     .select("id")
     .single();
   if (paymentError || !payment) {
     await db.from("lodging_reservations").delete().eq("id", reservation.id);
     await db.from("lodging_guests").delete().eq("id", guest.id);
-    go(RETURN_PATH, "error", "No fue posible registrar el pago. Intenta nuevamente.");
+    go(
+      RETURN_PATH,
+      "error",
+      "No fue posible registrar el pago. Intenta nuevamente.",
+    );
   }
 
   const ext = {
@@ -239,26 +267,38 @@ export async function submitPublicLodgingRequestAction(form: FormData) {
     await db.from("lodging_reservation_payments").delete().eq("id", payment.id);
     await db.from("lodging_reservations").delete().eq("id", reservation.id);
     await db.from("lodging_guests").delete().eq("id", guest.id);
-    go(RETURN_PATH, "error", "No fue posible subir el comprobante. Intenta nuevamente.");
+    go(
+      RETURN_PATH,
+      "error",
+      "No fue posible subir el comprobante. Intenta nuevamente.",
+    );
   }
 
-  const { error: receiptError } = await db.from("lodging_payment_receipts").insert({
-    company_id: unit.company_id,
-    business_unit_id: unit.id,
-    payment_id: payment.id,
-    original_name: file.name,
-    internal_name: internal,
-    private_path: path,
-    mime_type: mime,
-    size_bytes: file.size,
-    uploaded_by: null,
-  });
-  if (receiptError) {
+  const { data: receipt, error: receiptError } = await db
+    .from("lodging_payment_receipts")
+    .insert({
+      company_id: unit.company_id,
+      business_unit_id: unit.id,
+      payment_id: payment.id,
+      original_name: file.name,
+      internal_name: internal,
+      private_path: path,
+      mime_type: mime,
+      size_bytes: file.size,
+      uploaded_by: null,
+    })
+    .select("id")
+    .single();
+  if (receiptError || !receipt) {
     await db.storage.from("lodging-payment-receipts").remove([path]);
     await db.from("lodging_reservation_payments").delete().eq("id", payment.id);
     await db.from("lodging_reservations").delete().eq("id", reservation.id);
     await db.from("lodging_guests").delete().eq("id", guest.id);
-    go(RETURN_PATH, "error", "No fue posible registrar el comprobante. Intenta nuevamente.");
+    go(
+      RETURN_PATH,
+      "error",
+      "No fue posible registrar el comprobante. Intenta nuevamente.",
+    );
   }
 
   // El correo al staff es un efecto secundario: si Resend falla, la
@@ -269,10 +309,24 @@ export async function submitPublicLodgingRequestAction(form: FormData) {
   // le pide a la plataforma mantener la función viva hasta que esto
   // termine. El cron dispatch-approval-emails es el respaldo si aun así
   // falla.
-  after(() => dispatchApprovalEmails().catch(() => {}));
+  after(async () => {
+    await Promise.allSettled([
+      reviewAndSavePaymentReceipt({
+        receiptId: receipt.id,
+        bytes: fileBytes,
+        mimeType: mime,
+        expectedAmount: total,
+      }),
+      dispatchApprovalEmails(),
+    ]);
+  });
 
   revalidatePath("/lodging");
-  go(RETURN_PATH, "success", "¡Recibimos tu solicitud! Te confirmaremos por WhatsApp o correo en las próximas horas.");
+  go(
+    RETURN_PATH,
+    "success",
+    "¡Recibimos tu solicitud! Te confirmaremos por WhatsApp o correo en las próximas horas.",
+  );
 }
 
 const reviewSchema = z.object({
