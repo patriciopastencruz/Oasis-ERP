@@ -165,13 +165,10 @@ export default async function SurveysPage({
             {[
               ["Respuestas", String(summary.count)],
               ["Puntaje general", `${summary.overall} / 5`],
+              ["Recomendación", `${summary.recommendAverage} / 5`],
               [
-                "NPS (recomendación)",
-                `${summary.nps! > 0 ? "+" : ""}${summary.nps}`,
-              ],
-              [
-                "Recomiendan (9-10)",
-                `${Math.round((summary.promoters / summary.count) * 100)}%`,
+                "Recomiendan (4 o 5)",
+                `${Math.round((summary.recommenders / summary.count) * 100)}%`,
               ],
             ].map(([label, value]) => (
               <div
@@ -262,7 +259,7 @@ export default async function SurveysPage({
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-700">
                         {surveyAverage(s as unknown as SurveyRow)} / 5
                       </span>
-                      <span>Recomendaría: {s.recommend}/10</span>
+                      <span>Recomendaría: {s.recommend}/5</span>
                     </div>
                     <p className="mt-1.5 whitespace-pre-wrap text-slate-800">
                       {s.comment}

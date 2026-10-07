@@ -33,7 +33,7 @@ export const surveySubmissionSchema = z.object({
   comfort: score,
   staff: score,
   value_for_money: score,
-  recommend: z.coerce.number().int().min(0).max(10),
+  recommend: score,
   comment: z.string().trim().max(1000).default(""),
   guest_name: z.string().trim().max(120).default(""),
   contact: z.string().trim().max(160).default(""),
@@ -53,9 +53,8 @@ export function summarizeSurveys(rows: SurveyRow[]) {
     return {
       count: 0,
       overall: null,
-      nps: null,
-      promoters: 0,
-      detractors: 0,
+      recommendAverage: null,
+      recommenders: 0,
       categories: SURVEY_CATEGORIES.map((c) => ({ ...c, average: null })),
       weakest: null,
     };
@@ -68,15 +67,16 @@ export function summarizeSurveys(rows: SurveyRow[]) {
   const overall = round1(
     categories.reduce((sum, c) => sum + c.average, 0) / categories.length,
   );
-  const promoters = rows.filter((row) => row.recommend >= 9).length;
-  const detractors = rows.filter((row) => row.recommend <= 6).length;
+  // Recomienda = puntaje 4 o 5 en "¿qué tan probable es que nos recomiendes?".
+  const recommenders = rows.filter((row) => row.recommend >= 4).length;
   const sorted = [...categories].sort((a, b) => a.average - b.average);
   return {
     count,
     overall,
-    nps: Math.round(((promoters - detractors) / count) * 100),
-    promoters,
-    detractors,
+    recommendAverage: round1(
+      rows.reduce((sum, row) => sum + Number(row.recommend), 0) / count,
+    ),
+    recommenders,
     categories,
     weakest: sorted[0].average < 5 ? sorted[0] : null,
   };

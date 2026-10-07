@@ -137,9 +137,9 @@ export default async function SurveyPage({
           <legend className="text-sm font-semibold text-[#241c16]">
             ¿Qué tan probable es que nos recomiendes a un amigo o familiar?
           </legend>
-          <div className="mt-3 grid grid-cols-6 gap-2 sm:grid-cols-11">
-            {Array.from({ length: 11 }, (_, n) => (
-              <Pill key={n} name="recommend" value={n} required={n === 0}>
+          <div className="mt-3 flex gap-2">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Pill key={n} name="recommend" value={n} required={n === 1}>
                 {n}
               </Pill>
             ))}

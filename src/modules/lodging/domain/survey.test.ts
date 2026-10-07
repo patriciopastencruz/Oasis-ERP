@@ -11,7 +11,7 @@ const row = (over: Partial<SurveyRow> = {}): SurveyRow => ({
   comfort: 4,
   staff: 5,
   value_for_money: 3,
-  recommend: 9,
+  recommend: 5,
   ...over,
 });
 
@@ -20,22 +20,23 @@ describe("encuesta de satisfacción", () => {
     expect(summarizeSurveys([])).toMatchObject({
       count: 0,
       overall: null,
-      nps: null,
+      recommendAverage: null,
       weakest: null,
     });
   });
 
-  it("calcula promedios, NPS y la categoría más débil", () => {
+  it("calcula promedios, recomendación y la categoría más débil", () => {
     const result = summarizeSurveys([
       row(),
-      row({ cleanliness: 3, value_for_money: 2, recommend: 5 }),
-      row({ recommend: 10 }),
+      row({ cleanliness: 3, value_for_money: 2, recommend: 2 }),
+      row({ recommend: 4 }),
     ]);
     expect(result.count).toBe(3);
     expect(result.categories.find((c) => c.key === "cleanliness")?.average).toBe(4.3);
     expect(result.weakest?.key).toBe("value_for_money");
-    // 2 promotores (9, 10), 1 detractor (5) sobre 3 → 33
-    expect(result.nps).toBe(33);
+    // recomendación 5, 2 y 4: promedio 3.7 y 2 de 3 recomiendan (4 o 5)
+    expect(result.recommendAverage).toBe(3.7);
+    expect(result.recommenders).toBe(2);
   });
 
   it("no marca área débil si todo es 5", () => {
@@ -51,11 +52,12 @@ describe("encuesta de satisfacción", () => {
       comfort: "4",
       staff: "5",
       value_for_money: "3",
-      recommend: "10",
+      recommend: "5",
     };
     expect(surveySubmissionSchema.safeParse(ok).success).toBe(true);
     expect(surveySubmissionSchema.safeParse({ ...ok, cleanliness: "6" }).success).toBe(false);
-    expect(surveySubmissionSchema.safeParse({ ...ok, recommend: "11" }).success).toBe(false);
+    expect(surveySubmissionSchema.safeParse({ ...ok, recommend: "6" }).success).toBe(false);
+    expect(surveySubmissionSchema.safeParse({ ...ok, recommend: "0" }).success).toBe(false);
     expect(surveySubmissionSchema.safeParse({ ...ok, token: "xyz" }).success).toBe(false);
   });
 });

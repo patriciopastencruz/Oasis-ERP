@@ -33,6 +33,15 @@ describe("migración de encuestas de satisfacción", () => {
     expect(sql).toContain("check(recommend between 0 and 10)");
   });
 
+  it("la migración posterior pasa la recomendación a escala 1-5", () => {
+    const scale = readFileSync(
+      "supabase/migrations/20261007170000_lodging_survey_recommend_scale.sql",
+      "utf8",
+    );
+    expect(scale).toContain("check(recommend between 1 and 5)");
+    expect(scale).toContain("coalesce(v_rec,0) not between 1 and 5");
+  });
+
   it("cada habitación tiene su token único de encuesta", () => {
     expect(sql).toContain("lodging_rooms_survey_token_key");
   });
