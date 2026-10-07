@@ -1,6 +1,9 @@
 export type ReceiptAiStatus =
   "pending" | "matched" | "mismatch" | "unreadable" | "error";
 
+/** Diferencia máxima (CLP) aceptada entre el pago y el monto leído. */
+export const RECEIPT_AMOUNT_TOLERANCE = 50;
+
 export type ReceiptAiReview = {
   status: ReceiptAiStatus;
   detectedAmount: number | null;
@@ -24,7 +27,8 @@ export function classifyReceiptAmount(input: {
     input.confidence < 0.65
   )
     return "unreadable";
-  return Math.abs(input.expectedAmount - input.detectedAmount) <= 1
+  return Math.abs(input.expectedAmount - input.detectedAmount) <=
+    RECEIPT_AMOUNT_TOLERANCE
     ? "matched"
     : "mismatch";
 }
@@ -84,7 +88,7 @@ function reviewPayment(
     blocking ??
     (detectedAmount === null
       ? "unreadable"
-      : Math.abs(paymentAmount - detectedAmount) <= 1
+      : Math.abs(paymentAmount - detectedAmount) <= RECEIPT_AMOUNT_TOLERANCE
         ? "matched"
         : "mismatch");
   return {

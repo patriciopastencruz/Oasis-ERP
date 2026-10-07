@@ -66,9 +66,13 @@ describe("revisión IA de comprobantes", () => {
       receiptCount: 2,
       issue: { paymentAmount: 100_793, detectedAmount: 100_793, receiptCount: 2 },
     });
-    expect(summarizeReceiptReviews(split(100_791))).toMatchObject({
+    // Diferencias de hasta $50 (redondeos, comisiones menores) se aceptan.
+    expect(summarizeReceiptReviews(split(100_791)).status).toBe("matched");
+    expect(summarizeReceiptReviews(split(100_843)).status).toBe("matched");
+    expect(summarizeReceiptReviews(split(100_844)).status).toBe("mismatch");
+    expect(summarizeReceiptReviews(split(100_000))).toMatchObject({
       status: "mismatch",
-      issue: { paymentAmount: 100_791, detectedAmount: 100_793 },
+      issue: { paymentAmount: 100_000, detectedAmount: 100_793 },
     });
   });
 
