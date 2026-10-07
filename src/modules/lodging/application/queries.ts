@@ -74,10 +74,24 @@ export const clp = new Intl.NumberFormat("es-CL", {
   currency: "CLP",
   maximumFractionDigits: 0,
 });
-export const formatDate = (value: string) =>
-  new Intl.DateTimeFormat("es-CL", {
-    timeZone: "America/Santiago",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(`${value}T12:00:00-04:00`));
+const lodgingDateFormatter = new Intl.DateTimeFormat("es-CL", {
+  timeZone: "America/Santiago",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+export const formatDate = (value: string | null | undefined) => {
+  if (!value) return "—";
+
+  // Las fechas de estadía llegan como YYYY-MM-DD y los datos de auditoría,
+  // como created_at, llegan como timestamps ISO. Agregar siempre otra "T"
+  // vuelve inválidos los timestamps y hacía caer el reporte completo.
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T12:00:00-04:00`)
+    : new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? "Fecha inválida"
+    : lodgingDateFormatter.format(date);
+};
