@@ -14,7 +14,6 @@ import {
   uploadPaymentReceiptAction,
   openPaymentReceiptAction,
   removePaymentReceiptAction,
-  reviewPaymentReceiptAction,
   voidPaymentAction,
   updateImportedReservationInfoAction,
   removeImportedReservationAction,
@@ -635,8 +634,6 @@ export default async function Page({
                       private_path: string;
                       original_name: string;
                       deleted_at: string | null;
-                      ai_review_status: string;
-                      ai_detected_amount: number | string | null;
                     }) => (
                       <div
                         key={receipt.id}
@@ -653,40 +650,8 @@ export default async function Page({
                               Ver {receipt.original_name}
                             </button>
                           </form>
-                          <span className="text-xs text-slate-500">
-                            IA:{" "}
-                            {receipt.ai_review_status === "matched"
-                              ? "monto coincide"
-                              : receipt.ai_review_status === "mismatch"
-                                ? "monto diferente"
-                                : receipt.ai_review_status === "unreadable"
-                                  ? "revisión manual"
-                                  : receipt.ai_review_status === "error"
-                                    ? "error de revisión"
-                                    : "pendiente"}
-                            {receipt.ai_detected_amount !== null
-                              ? ` · detectado ${clp.format(Number(receipt.ai_detected_amount))}`
-                              : ""}
-                          </span>
                         </div>
                         <div className="mt-1 flex gap-2">
-                          {ctx.permissions.has("lodging.payments.manage") && (
-                            <form action={reviewPaymentReceiptAction}>
-                              <input
-                                type="hidden"
-                                name="receipt_id"
-                                value={receipt.id}
-                              />
-                              <input
-                                type="hidden"
-                                name="reservation_id"
-                                value={id}
-                              />
-                              <button className="text-xs font-semibold text-amber-700">
-                                Revisar con IA
-                              </button>
-                            </form>
-                          )}
                           <form action={removePaymentReceiptAction}>
                             <input
                               type="hidden"

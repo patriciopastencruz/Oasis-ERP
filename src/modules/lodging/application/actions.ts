@@ -633,66 +633,6 @@ export async function uploadPaymentReceiptAction(form: FormData) {
   );
 }
 
-export async function reviewPaymentReceiptAction(form: FormData) {
-  const ctx = await requirePermission("lodging.payments.manage");
-  const receiptId = uuid.parse(form.get("receipt_id"));
-  const reservationId = uuid.parse(form.get("reservation_id"));
-  const back = `/lodging/reservations/${reservationId}`;
-  const s = await createSupabaseServerClient();
-  const { data: receipt } = await s
-    .from("lodging_payment_receipts")
-    .select("id,company_id,business_unit_id,payment_id,private_path,mime_type")
-    .eq("id", receiptId)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (
-    !receipt ||
-    !allowedUnit(ctx, receipt.company_id, receipt.business_unit_id)
-  )
-    go(back, "error", "Comprobante no autorizado.");
-  const { data: payment } = await s
-    .from("lodging_reservation_payments")
-    .select("amount")
-    .eq("id", receipt.payment_id)
-    .eq("reservation_id", reservationId)
-    .maybeSingle();
-  if (!payment) go(back, "error", "Pago no encontrado.");
-  const { data: file, error: downloadError } = await s.storage
-    .from("lodging-payment-receipts")
-    .download(receipt.private_path);
-  if (downloadError || !file)
-    go(back, "error", "No fue posible leer el comprobante.");
-
-  const mime = receipt.mime_type as
-    "application/pdf" | "image/jpeg" | "image/png" | "image/webp";
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const admin = createSupabaseAdminClient();
-  await admin
-    .from("lodging_payment_receipts")
-    .update({
-      ai_review_status: "pending",
-      ai_detected_amount: null,
-      ai_detected_date: null,
-      ai_operation_number: null,
-      ai_confidence: null,
-      ai_notes: null,
-      ai_model: null,
-      ai_reviewed_at: null,
-    })
-    .eq("id", receipt.id)
-    .is("deleted_at", null);
-  after(() =>
-    reviewAndSavePaymentReceipt({
-      receiptId: receipt.id,
-      bytes,
-      mimeType: mime,
-      expectedAmount: Number(payment.amount),
-    }),
-  );
-  revalidatePath("/lodging/reports/history");
-  revalidatePath(back);
-  go(back, "success", "Revisión con IA iniciada.");
-}
 export async function removePaymentReceiptAction(form: FormData) {
   await requirePermission("lodging.payments.manage");
   const receiptId = uuid.safeParse(form.get("receipt_id"));

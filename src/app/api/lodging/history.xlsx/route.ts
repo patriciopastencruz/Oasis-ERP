@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
     ) ?? ctx.units.find((u) => lodgingUnitCodes.includes(u.code));
   if (!unit) return Response.json({ error: "Sin unidad" }, { status: 403 });
 
+  const canSeeAi = ctx.permissions.has("lodging.closings.reports");
   const month = parseHistoryMonth(req.nextUrl.searchParams.get("month"));
   const reviewOnly = req.nextUrl.searchParams.get("review") === "issues";
   const s = await createSupabaseServerClient();
@@ -82,10 +83,14 @@ export async function GET(req: NextRequest) {
     { header: "Total registrado", key: "registered", width: 16, style: { numFmt: money } },
     { header: "Pagado", key: "paid", width: 14, style: { numFmt: money } },
     { header: "Comprobantes", key: "receipts", width: 14 },
-    { header: "Revisión IA", key: "review", width: 18 },
-    { header: "Monto pago (IA)", key: "reviewPayment", width: 16, style: { numFmt: money } },
-    { header: "Monto leído por IA", key: "reviewDetected", width: 18, style: { numFmt: money } },
-    { header: "Observación IA", key: "reviewNotes", width: 40 },
+    ...(canSeeAi
+      ? [
+          { header: "Revisión IA", key: "review", width: 18 },
+          { header: "Monto del pago", key: "reviewPayment", width: 16, style: { numFmt: money } },
+          { header: "Monto leído por IA (suma)", key: "reviewDetected", width: 22, style: { numFmt: money } },
+          { header: "Observación IA", key: "reviewNotes", width: 40 },
+        ]
+      : []),
   ];
   for (const r of rows) {
     const issue = r.receiptReview.issue;

@@ -44,6 +44,63 @@ describe("revisión IA de comprobantes", () => {
     ).toBe("unreadable");
   });
 
+  it("suma los comprobantes de un mismo pago antes de compararlo", () => {
+    const receipt = (id: string, amount: number) => ({
+      id,
+      deleted_at: null,
+      ai_review_status: "mismatch" as const,
+      ai_detected_amount: amount,
+      ai_confidence: 0.95,
+      ai_notes: null,
+    });
+    const split = (total: number): ReceiptPaymentRow[] => [
+      {
+        amount: total,
+        type: "total",
+        status: "confirmed",
+        lodging_payment_receipts: [receipt("a", 50_793), receipt("b", 50_000)],
+      },
+    ];
+    expect(summarizeReceiptReviews(split(100_793))).toMatchObject({
+      status: "matched",
+      receiptCount: 2,
+      issue: { paymentAmount: 100_793, detectedAmount: 100_793, receiptCount: 2 },
+    });
+    expect(summarizeReceiptReviews(split(100_791))).toMatchObject({
+      status: "mismatch",
+      issue: { paymentAmount: 100_791, detectedAmount: 100_793 },
+    });
+  });
+
+  it("no da por válida la suma si algún comprobante sigue pendiente o es ilegible", () => {
+    const payments: ReceiptPaymentRow[] = [
+      {
+        amount: 100_000,
+        type: "total",
+        status: "confirmed",
+        lodging_payment_receipts: [
+          {
+            id: "a",
+            deleted_at: null,
+            ai_review_status: "matched",
+            ai_detected_amount: 100_000,
+            ai_confidence: 0.9,
+            ai_notes: null,
+          },
+          {
+            id: "b",
+            deleted_at: null,
+            ai_review_status: "pending",
+            ai_detected_amount: null,
+            ai_confidence: null,
+            ai_notes: null,
+          },
+        ],
+      },
+    ];
+    expect(summarizeReceiptReviews(payments).status).toBe("pending");
+  });
+
   it("prioriza diferencias y omite comprobantes eliminados o pagos anulados", () => {
     const payments: ReceiptPaymentRow[] = [
       {
@@ -59,6 +116,13 @@ describe("revisión IA de comprobantes", () => {
             ai_confidence: 0.98,
             ai_notes: null,
           },
+        ],
+      },
+      {
+        amount: 50_000,
+        type: "partial",
+        status: "confirmed",
+        lodging_payment_receipts: [
           {
             id: "mismatch",
             deleted_at: null,

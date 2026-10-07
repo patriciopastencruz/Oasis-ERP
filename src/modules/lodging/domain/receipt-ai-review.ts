@@ -47,28 +47,72 @@ export type ReceiptPaymentRow = {
 
 export type ReservationReceiptStatus = ReceiptAiStatus | "missing";
 
+type PaymentReviewResult = {
+  status: ReceiptAiStatus;
+  paymentAmount: number;
+  detectedAmount: number | null;
+  receiptCount: number;
+  ai_notes: string | null;
+};
+
+// Un pago puede respaldarse con varios comprobantes (por ejemplo, una parte
+// con tarjeta y otra por transferencia). El monto se valida sumando los
+// montos leídos de todos los comprobantes del pago, no uno por uno.
+function reviewPayment(
+  paymentAmount: number,
+  receipts: ReceiptReviewRow[],
+): PaymentReviewResult {
+  const notes =
+    receipts
+      .map((receipt) => receipt.ai_notes?.trim())
+      .filter(Boolean)
+      .join(" | ") || null;
+  const blocking = (["unreadable", "error", "pending"] as const).find(
+    (candidate) =>
+      receipts.some((receipt) => receipt.ai_review_status === candidate),
+  );
+  const amounts = receipts.map((receipt) =>
+    receipt.ai_detected_amount === null
+      ? null
+      : Number(receipt.ai_detected_amount),
+  );
+  const complete = amounts.every((amount) => amount !== null);
+  const detectedAmount = complete
+    ? amounts.reduce<number>((sum, amount) => sum + (amount ?? 0), 0)
+    : null;
+  const status: ReceiptAiStatus =
+    blocking ??
+    (detectedAmount === null
+      ? "unreadable"
+      : Math.abs(paymentAmount - detectedAmount) <= 1
+        ? "matched"
+        : "mismatch");
+  return {
+    status,
+    paymentAmount,
+    detectedAmount: blocking ? null : detectedAmount,
+    receiptCount: receipts.length,
+    ai_notes: notes,
+  };
+}
+
 export function summarizeReceiptReviews(payments: ReceiptPaymentRow[]) {
-  const receipts = payments
+  const results = payments
     .filter((payment) => payment.status !== "voided")
-    .flatMap((payment) => {
+    .map((payment) => {
       const nested = Array.isArray(payment.lodging_payment_receipts)
         ? payment.lodging_payment_receipts
         : payment.lodging_payment_receipts
           ? [payment.lodging_payment_receipts]
           : [];
-      return nested
-        .filter((receipt) => !receipt.deleted_at)
-        .map((receipt) => ({
-          ...receipt,
-          paymentAmount: Number(payment.amount),
-          detectedAmount:
-            receipt.ai_detected_amount === null
-              ? null
-              : Number(receipt.ai_detected_amount),
-        }));
-    });
+      return reviewPayment(
+        Number(payment.amount),
+        nested.filter((receipt) => !receipt.deleted_at),
+      );
+    })
+    .filter((result) => result.receiptCount > 0);
 
-  if (!receipts.length)
+  if (!results.length)
     return {
       status: "missing" as const,
       receiptCount: 0,
@@ -83,10 +127,13 @@ export function summarizeReceiptReviews(payments: ReceiptPaymentRow[]) {
     "matched",
   ];
   const status = priority.find((candidate) =>
-    receipts.some((receipt) => receipt.ai_review_status === candidate),
+    results.some((result) => result.status === candidate),
   )!;
-  const issue =
-    receipts.find((receipt) => receipt.ai_review_status === status) ?? null;
+  const issue = results.find((result) => result.status === status) ?? null;
 
-  return { status, receiptCount: receipts.length, issue };
+  return {
+    status,
+    receiptCount: results.reduce((sum, result) => sum + result.receiptCount, 0),
+    issue,
+  };
 }

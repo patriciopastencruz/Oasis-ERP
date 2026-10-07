@@ -72,6 +72,9 @@ export default async function ReservationHistoryPage({
   );
   const month = parseHistoryMonth(q.month);
   const reviewOnly = q.review === "issues";
+  // La revisión con IA de comprobantes es de control: solo la ven quienes
+  // acceden a los reportes de cierre, no la recepción.
+  const canSeeAi = ctx.permissions.has("lodging.closings.reports");
   const monthStart = `${month}-01`;
   const nextMonth = shiftMonth(month, 1);
 
@@ -147,7 +150,7 @@ export default async function ReservationHistoryPage({
           .map((receipt) => receipt.id),
       ),
   );
-  if (pendingReceiptIds.length)
+  if (canSeeAi && pendingReceiptIds.length)
     after(() =>
       reviewPendingPaymentReceipts({
         receiptIds: pendingReceiptIds,
@@ -155,7 +158,9 @@ export default async function ReservationHistoryPage({
         concurrency: 5,
       }),
     );
-  const hasPendingReview = reservations.some(
+  const hasPendingReview =
+    canSeeAi &&
+    reservations.some(
     (reservation) => reservation.receiptReview.status === "pending",
   );
 
@@ -301,7 +306,7 @@ export default async function ReservationHistoryPage({
                   <th className="px-3 py-2 text-right">Registrado</th>
                   <th className="px-3 py-2 text-right">Pagado</th>
                   <th className="px-3 py-2">Comprobante</th>
-                  <th className="px-3 py-2">Revisión IA</th>
+                  {canSeeAi && <th className="px-3 py-2">Revisión IA</th>}
                   <th className="px-3 py-2 text-right">Detalle</th>
                 </tr>
               </thead>
@@ -408,30 +413,38 @@ export default async function ReservationHistoryPage({
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-3 align-top">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${receiptReviewStyles[reservation.receiptReview.status]}`}
-                      >
-                        {receiptReviewLabels[reservation.receiptReview.status]}
-                      </span>
-                      {reservation.receiptReview.status === "mismatch" &&
-                        reservation.receiptReview.issue && (
-                          <span className="mt-1 block text-xs text-red-600">
-                            Pago{" "}
-                            {clp.format(
-                              reservation.receiptReview.issue.paymentAmount,
-                            )}{" "}
-                            · IA{" "}
-                            {reservation.receiptReview.issue.detectedAmount ===
-                            null
-                              ? "sin monto"
-                              : clp.format(
-                                  reservation.receiptReview.issue
-                                    .detectedAmount,
-                                )}
-                          </span>
-                        )}
-                    </td>
+                    {canSeeAi && (
+                      <td className="px-3 py-3 align-top">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${receiptReviewStyles[reservation.receiptReview.status]}`}
+                        >
+                          {receiptReviewLabels[reservation.receiptReview.status]}
+                        </span>
+                        {reservation.receiptReview.issue &&
+                          ["matched", "mismatch"].includes(
+                            reservation.receiptReview.status,
+                          ) && (
+                            <span
+                              className={`mt-1 block text-xs ${reservation.receiptReview.status === "mismatch" ? "text-red-600" : "text-slate-500"}`}
+                            >
+                              {reservation.receiptReview.issue.receiptCount > 1 &&
+                                `Suma de ${reservation.receiptReview.issue.receiptCount} comprobantes · `}
+                              Pago{" "}
+                              {clp.format(
+                                reservation.receiptReview.issue.paymentAmount,
+                              )}{" "}
+                              · IA{" "}
+                              {reservation.receiptReview.issue
+                                .detectedAmount === null
+                                ? "sin monto"
+                                : clp.format(
+                                    reservation.receiptReview.issue
+                                      .detectedAmount,
+                                  )}
+                            </span>
+                          )}
+                      </td>
+                    )}
                     <td className="px-3 py-3 text-right align-top">
                       <Link
                         href={`/lodging/reservations/${reservation.id}`}
