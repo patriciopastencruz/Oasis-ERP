@@ -47,8 +47,6 @@ const reviewTool: Tool = {
       },
       confidence: {
         type: "number",
-        minimum: 0,
-        maximum: 1,
         description: "Confianza de lectura del monto entre 0 y 1.",
       },
       legible: { type: "boolean" },
