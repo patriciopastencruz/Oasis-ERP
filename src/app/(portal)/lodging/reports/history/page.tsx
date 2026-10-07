@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import {
   AlertTriangle,
   BedDouble,
@@ -8,6 +9,7 @@ import {
   ReceiptText,
 } from "lucide-react";
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
+import { ReceiptReviewRefresh } from "@/components/lodging/receipt-review-refresh";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
 import {
@@ -19,11 +21,14 @@ import {
   auditReservationPrice,
   type PriceAuditStatus,
 } from "@/modules/lodging/domain/reservation-price-audit";
+import { reviewPendingPaymentReceipts } from "@/modules/lodging/application/receipt-ai-review";
 import {
   summarizeReceiptReviews,
   type ReceiptPaymentRow,
   type ReservationReceiptStatus,
 } from "@/modules/lodging/domain/receipt-ai-review";
+
+export const maxDuration = 60;
 
 const auditLabels: Record<PriceAuditStatus, string> = {
   ok: "Precio correcto",
@@ -187,6 +192,41 @@ export default async function ReservationHistoryPage({
     };
   });
 
+  // La revisión con IA corre sola: los comprobantes del mes que aún no
+  // tienen resultado se leen en segundo plano al abrir el informe y la
+  // página se actualiza hasta mostrarlos.
+  const pendingReceiptIds = (data ?? []).flatMap((reservation) =>
+    (
+      (reservation.lodging_reservation_payments ?? []) as ReceiptPaymentRow[]
+    )
+      .filter((payment) => payment.status !== "voided")
+      .flatMap((payment) =>
+        (Array.isArray(payment.lodging_payment_receipts)
+          ? payment.lodging_payment_receipts
+          : payment.lodging_payment_receipts
+            ? [payment.lodging_payment_receipts]
+            : []
+        )
+          .filter(
+            (receipt) =>
+              !receipt.deleted_at &&
+              ["pending", "error"].includes(receipt.ai_review_status),
+          )
+          .map((receipt) => receipt.id),
+      ),
+  );
+  if (pendingReceiptIds.length)
+    after(() =>
+      reviewPendingPaymentReceipts({
+        receiptIds: pendingReceiptIds,
+        limit: 30,
+        concurrency: 5,
+      }),
+    );
+  const hasPendingReview = reservations.some(
+    (reservation) => reservation.receiptReview.status === "pending",
+  );
+
   const visible = reviewOnly
     ? reservations.filter((reservation) => reservation.auditStatus !== "ok")
     : reservations;
@@ -216,6 +256,7 @@ export default async function ReservationHistoryPage({
   return (
     <>
       <LodgingReportTabs active="history" permissions={ctx.permissions} />
+      {hasPendingReview && <ReceiptReviewRefresh />}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <PageHeader
           eyebrow={unit.name}

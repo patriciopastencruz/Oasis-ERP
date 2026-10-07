@@ -174,6 +174,109 @@ export async function analyzePaymentReceipt(input: {
   }
 }
 
+const ALLOWED_MIMES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+// Un "pending" con ai_reviewed_at reciente es una revisión en curso (la
+// reclamó otro barrido); pasado este plazo se asume cortada y se reintenta.
+const CLAIM_STALE_MS = 10 * 60_000;
+// Un "error" (proveedor caído, clave faltante) se reintenta con calma para
+// no repetirlo en cada carga del informe.
+const ERROR_RETRY_MS = 30 * 60_000;
+
+/**
+ * Revisa con IA los comprobantes que quedaron sin resultado: los subidos
+ * antes de existir la función, los que se cortaron a mitad de camino y los
+ * que fallaron. Así el informe ya muestra el resultado cuando se abre.
+ */
+export async function reviewPendingPaymentReceipts(input: {
+  receiptIds?: string[];
+  businessUnitId?: string;
+  limit?: number;
+  concurrency?: number;
+}) {
+  const db = createSupabaseAdminClient();
+  const limit = Math.min(Math.max(input.limit ?? 20, 1), 100);
+  const now = Date.now();
+  const staleCut = new Date(now - CLAIM_STALE_MS).toISOString();
+  const errorCut = new Date(now - ERROR_RETRY_MS).toISOString();
+  let query = db
+    .from("lodging_payment_receipts")
+    .select(
+      "id,private_path,mime_type,ai_review_status,ai_reviewed_at,lodging_reservation_payments!inner(amount,status)",
+    )
+    .is("deleted_at", null)
+    .neq("lodging_reservation_payments.status", "voided")
+    .or(
+      `and(ai_review_status.eq.pending,ai_reviewed_at.is.null),and(ai_review_status.eq.pending,ai_reviewed_at.lt.${staleCut}),and(ai_review_status.eq.error,ai_reviewed_at.lt.${errorCut})`,
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (input.receiptIds) {
+    if (!input.receiptIds.length) return { reviewed: 0 };
+    query = query.in("id", input.receiptIds);
+  }
+  if (input.businessUnitId)
+    query = query.eq("business_unit_id", input.businessUnitId);
+  const { data, error } = await query;
+  if (error) {
+    console.error("[lodging-receipt-ai] No fue posible listar pendientes", {
+      code: error.code,
+    });
+    return { reviewed: 0 };
+  }
+
+  const queue = [...(data ?? [])];
+  let reviewed = 0;
+  async function worker() {
+    for (let row = queue.shift(); row; row = queue.shift()) {
+      const payment = Array.isArray(row.lodging_reservation_payments)
+        ? row.lodging_reservation_payments[0]
+        : row.lodging_reservation_payments;
+      if (!payment || !ALLOWED_MIMES.has(row.mime_type)) continue;
+      // Reclamo optimista: si otro barrido lo tomó antes, no se duplica la
+      // llamada a la IA.
+      let claim = db
+        .from("lodging_payment_receipts")
+        .update({ ai_reviewed_at: new Date().toISOString() })
+        .eq("id", row.id)
+        .eq("ai_review_status", row.ai_review_status);
+      claim = row.ai_reviewed_at
+        ? claim.eq("ai_reviewed_at", row.ai_reviewed_at)
+        : claim.is("ai_reviewed_at", null);
+      const { data: claimed } = await claim.select("id").maybeSingle();
+      if (!claimed) continue;
+      const { data: file, error: downloadError } = await db.storage
+        .from("lodging-payment-receipts")
+        .download(row.private_path);
+      if (downloadError || !file) {
+        console.error("[lodging-receipt-ai] No fue posible leer el archivo", {
+          receiptId: row.id,
+        });
+        continue;
+      }
+      await reviewAndSavePaymentReceipt({
+        receiptId: row.id,
+        bytes: new Uint8Array(await file.arrayBuffer()),
+        mimeType: row.mime_type as
+          | "application/pdf"
+          | "image/jpeg"
+          | "image/png"
+          | "image/webp",
+        expectedAmount: Number(payment.amount),
+      });
+      reviewed++;
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(input.concurrency ?? 4, queue.length) }, worker),
+  );
+  return { reviewed };
+}
+
 export async function reviewAndSavePaymentReceipt(input: {
   receiptId: string;
   bytes: Uint8Array;
