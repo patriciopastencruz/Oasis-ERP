@@ -283,30 +283,32 @@ export function drawExecutivePage(
   // ---------- Reservas por origen | Disponibilidad 10 días ----------
   const rO = r2 + r2H + 12,
     rOH = 116;
-  card(M, rO, halfW, rOH, "Reservas por origen", "Noche del cierre");
+  card(M, rO, halfW, rOH, "Reservas por origen", "% del monto de la noche");
   const ox0 = M + 12,
     ow = halfW - 24;
   if (!extras.available) text("Disponible en los cierres nuevos.", ox0, rO + 32, 8, R, C.muted);
   else if (!extras.origins.length) text("Sin reservas esta noche.", ox0, rO + 32, 8.5, R, C.ink2);
   else {
-    const cols = [ox0 + ow * 0.52, ox0 + ow * 0.68, ox0 + ow];
+    const cols = [ox0 + ow * 0.4, ox0 + ow * 0.54, ox0 + ow * 0.7, ox0 + ow];
     text("ORIGEN", ox0, rO + 28, 6.5, B, C.muted);
     textR("HAB.", cols[0], rO + 28, 6.5, B, C.muted);
     textR("LLEGAN", cols[1], rO + 28, 6.5, B, C.muted);
-    textR("VENTA NOCHE", cols[2], rO + 28, 6.5, B, C.muted);
+    textR("% MONTO", cols[2], rO + 28, 6.5, B, C.muted);
+    textR("VENTA NOCHE", cols[3], rO + 28, 6.5, B, C.muted);
     extras.origins.slice(0, 5).forEach((o, i) => {
       const top = rO + 40 + i * 14;
       page.drawLine({ start: { x: ox0, y: Y(top - 3) }, end: { x: ox0 + ow, y: Y(top - 3) }, thickness: 0.4, color: C.line });
-      text(fit(o.label, ow * 0.45, 8.5, B), ox0, top, 8.5, B);
+      text(fit(o.label, ow * 0.3, 8.5, B), ox0, top, 8.5, B);
       textR(String(o.rooms), cols[0], top, 8.5);
       textR(String(o.arrivals), cols[1], top, 8.5);
-      textR(clp(o.revenue), cols[2], top, 8.5, B);
+      textR(pct(o.share), cols[2], top, 8.5, B);
+      textR(clp(o.revenue), cols[3], top, 8.5);
     });
     if (extras.origins.length > 5) text(`+${extras.origins.length - 5} origen(es) más`, ox0, rO + rOH - 12, 6.5, R, C.muted);
   }
 
   const ax = M + halfW + gap;
-  card(ax, rO, halfW, rOH, "Disponibilidad últimos 10 días", "Ocupadas / libres");
+  card(ax, rO, halfW, rOH, "Disponibilidad últimos 10 días", "% de ocupación");
   if (!extras.availability.length) text("Disponible en los cierres nuevos.", ax + 12, rO + 32, 8, R, C.muted);
   else {
     const aw = halfW - 24,
@@ -314,21 +316,20 @@ export function drawExecutivePage(
       aH = 50,
       aBase = aTop + aH,
       aSlot = aw / extras.availability.length,
-      aCol = Math.min(16, aSlot * 0.62),
-      aMax = Math.max(...extras.availability.map((d) => d.total), 1);
+      aCol = Math.min(16, aSlot * 0.62);
     page.drawLine({ start: { x: ax + 12, y: Y(aBase) }, end: { x: ax + 12 + aw, y: Y(aBase) }, thickness: 0.7, color: C.muted });
     extras.availability.forEach((d, i) => {
       const x = ax + 12 + aSlot * i + (aSlot - aCol) / 2;
       const last = i === extras.availability.length - 1;
-      const occH = (d.occupied / aMax) * aH,
-        freeH = (d.available / aMax) * aH;
+      const occH = (d.occupiedPct / 100) * aH,
+        freeH = (d.availablePct / 100) * aH;
       // Ocupadas abajo y libres encima, con 1 pt de separación.
       if (occH > 0) page.drawRectangle({ x, y: Y(aBase), width: aCol, height: occH, color: last ? C.blue : C.blueSoft });
       if (freeH > 0) bar(x, aBase - occH - freeH - (occH > 0 ? 1 : 0), aCol, freeH, C.track, "up");
       textC(String(d.day), x + aCol / 2, aBase + 5, 7, last ? B : R, last ? C.ink : C.ink2);
-      textC(String(d.available), x + aCol / 2, aBase + 15, 6.5, R, C.muted);
+      textC(pct(d.occupiedPct), x + aCol / 2, aBase + 15, 6, R, C.muted);
     });
-    text("día / libres", ax + 12, aBase + 26, 6, R, C.muted);
+    text("día / % ocupación", ax + 12, aBase + 26, 6, R, C.muted);
     round(ax + 12 + aw - 118, aBase + 26, 6, 6, 1.5, C.blueSoft);
     text("Ocupadas", ax + 12 + aw - 110, aBase + 26, 6.5, R, C.ink2);
     round(ax + 12 + aw - 58, aBase + 26, 6, 6, 1.5, C.track);

@@ -261,22 +261,33 @@ export const executiveHistoryStart = (date: string) => {
  * lo indica para mostrar "sin datos" en vez de ceros.
  */
 export function closingExtras(m: ClosingMetrics) {
-  const origins = (m.by_origin ?? []).map((o) => ({
+  const originRows = (m.by_origin ?? []).map((o) => ({
     ...o,
     label: reservationOriginLabels[o.origin] ?? o.origin,
     revenue: Number(o.revenue),
   }));
-  const availability = (m.availability_10d ?? []).map((d) => ({
-    ...d,
-    day: Number(d.date.slice(8)),
-    label: shortDayLabel(d.date),
-    available: Math.max(0, d.total - d.occupied),
+  const originRevenue = originRows.reduce((s, o) => s + o.revenue, 0);
+  // Participación de cada origen en el monto total de las reservas de la noche.
+  const origins = originRows.map((o) => ({
+    ...o,
+    share: originRevenue > 0 ? (o.revenue * 100) / originRevenue : 0,
   }));
+  const availability = (m.availability_10d ?? []).map((d) => {
+    const occupiedPct = d.total > 0 ? Math.min(100, (d.occupied * 100) / d.total) : 0;
+    return {
+      ...d,
+      day: Number(d.date.slice(8)),
+      label: shortDayLabel(d.date),
+      available: Math.max(0, d.total - d.occupied),
+      occupiedPct,
+      availablePct: 100 - occupiedPct,
+    };
+  });
   const monthRate = new Map((m.month_by_type ?? []).map((t) => [t.room_type, Number(t.average_rate)]));
   return {
     available: m.by_origin !== undefined,
     origins,
-    originRevenue: origins.reduce((s, o) => s + o.revenue, 0),
+    originRevenue,
     availability,
     monthRate: (roomType: string) => monthRate.get(roomType) ?? null,
     cleaning: m.cleaning ?? null,

@@ -97,7 +97,6 @@ export function ClosingExecutive({
   const priorDays = ctx.week.slice(0, 6).filter((d) => d.income !== null).length;
   const mo = ctx.month;
   const extras = closingExtras(m);
-  const availMax = Math.max(...extras.availability.map((d) => d.total), 1);
 
   const alerts: { level: keyof typeof status; title: string; detail: string }[] = [];
   if (closing.pending_amount > 0)
@@ -234,7 +233,7 @@ export function ClosingExecutive({
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <Card title="Reservas por origen" note="Noche del cierre">
+          <Card title="Reservas por origen" note="% del monto de la noche">
             {!extras.available ? (
               <p className="text-xs text-[#8a96a3]">Disponible en los cierres nuevos.</p>
             ) : !extras.origins.length ? (
@@ -246,6 +245,7 @@ export function ClosingExecutive({
                     <th className="pb-1 font-semibold">Origen</th>
                     <th className="pb-1 text-right font-semibold">Hab.</th>
                     <th className="pb-1 text-right font-semibold">Llegan</th>
+                    <th className="pb-1 text-right font-semibold">% del monto</th>
                     <th className="pb-1 text-right font-semibold">Venta noche</th>
                   </tr>
                 </thead>
@@ -255,6 +255,12 @@ export function ClosingExecutive({
                       <td className="py-1 font-semibold">{o.label}</td>
                       <td className="py-1 text-right">{o.rooms}</td>
                       <td className="py-1 text-right">{o.arrivals}</td>
+                      <td className="py-1 text-right">
+                        <b>{pct(o.share, 0)}</b>
+                        <div className="ml-auto mt-0.5 h-1 w-14 rounded-full bg-[#e8edf3]">
+                          <div className="h-1 rounded-full bg-[#2a78d6]" style={{ width: `${o.share}%` }} />
+                        </div>
+                      </td>
                       <td className="py-1 text-right">{clp(o.revenue)}</td>
                     </tr>
                   ))}
@@ -262,7 +268,7 @@ export function ClosingExecutive({
               </table>
             )}
           </Card>
-          <Card title="Disponibilidad últimos 10 días" note="Ocupadas / libres">
+          <Card title="Disponibilidad últimos 10 días" note="% de ocupación">
             {!extras.availability.length ? (
               <p className="text-xs text-[#8a96a3]">Disponible en los cierres nuevos.</p>
             ) : (
@@ -272,10 +278,10 @@ export function ClosingExecutive({
                     <div
                       key={d.date}
                       className="flex h-full flex-1 flex-col justify-end gap-px"
-                      title={`${d.label}: ${d.occupied} ocupadas, ${d.available} libres`}
+                      title={`${d.label}: ${pct(d.occupiedPct, 0)} ocupadas (${d.occupied} de ${d.total}), ${pct(d.availablePct, 0)} libres`}
                     >
-                      <div className="rounded-t bg-[#e8edf3]" style={{ height: `${(d.available / availMax) * 100}%` }} />
-                      <div className={i === extras.availability.length - 1 ? "bg-[#2a78d6]" : "bg-[#b9d4f4]"} style={{ height: `${(d.occupied / availMax) * 100}%` }} />
+                      <div className="rounded-t bg-[#e8edf3]" style={{ height: `${d.availablePct}%` }} />
+                      <div className={i === extras.availability.length - 1 ? "bg-[#2a78d6]" : "bg-[#b9d4f4]"} style={{ height: `${d.occupiedPct}%` }} />
                     </div>
                   ))}
                 </div>
@@ -283,7 +289,7 @@ export function ClosingExecutive({
                   {extras.availability.map((d, i) => (
                     <div key={d.date} className={`flex-1 ${i === extras.availability.length - 1 ? "font-bold text-[#16202c]" : ""}`}>
                       <p>{d.day}</p>
-                      <p className="text-[#8a96a3]">{d.available} lib.</p>
+                      <p className="text-[#8a96a3]">{pct(d.occupiedPct, 0)}</p>
                     </div>
                   ))}
                 </div>

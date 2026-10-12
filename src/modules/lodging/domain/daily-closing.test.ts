@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  closingExtras,
+  type ClosingMetrics,
   executiveContext,
   executiveHistoryStart,
   formatClosingDate,
@@ -83,5 +85,38 @@ describe("hoja ejecutiva", () => {
     expect(ctx.change).toBeNull();
     expect(ctx.month.previousIncome).toBeNull();
     expect(longDayLabel("2025-09-30")).toBe("Martes 30-09-2025");
+  });
+});
+
+describe("closingExtras: porcentajes", () => {
+  const base = {
+    by_origin: [
+      { origin: "booking", rooms: 2, revenue: 150000, arrivals: 1 },
+      { origin: "direct", rooms: 1, revenue: 50000, arrivals: 0 },
+    ],
+    availability_10d: [
+      { date: "2026-10-09", total: 10, occupied: 4 },
+      { date: "2026-10-10", total: 0, occupied: 0 },
+    ],
+  } as unknown as ClosingMetrics;
+
+  it("reparte el monto entre orígenes en porcentaje del total", () => {
+    const { origins } = closingExtras(base);
+    expect(origins.map((o) => o.share)).toEqual([75, 25]);
+  });
+
+  it("sin monto no divide por cero", () => {
+    const { origins } = closingExtras({
+      ...base,
+      by_origin: [{ origin: "booking", rooms: 1, revenue: 0, arrivals: 0 }],
+    } as unknown as ClosingMetrics);
+    expect(origins[0].share).toBe(0);
+  });
+
+  it("expresa la disponibilidad como porcentaje de ocupación", () => {
+    const { availability } = closingExtras(base);
+    expect(availability[0].occupiedPct).toBe(40);
+    expect(availability[0].availablePct).toBe(60);
+    expect(availability[1].occupiedPct).toBe(0);
   });
 });
