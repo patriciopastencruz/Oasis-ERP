@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { TrendingUp, BedDouble, Wallet, PieChart, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, BedDouble, Wallet, PieChart, Tag, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { redirect } from "next/navigation";
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
+import { rangeOperations } from "@/modules/lodging/domain/monthly-closing";
 
 function todayInSantiago() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -76,12 +77,12 @@ export default async function Page({
     await Promise.all([
       supabase
         .from("lodging_rooms")
-        .select("id,status")
+        .select("id,name,room_type,display_order,status")
         .eq("business_unit_id", unit.id)
         .eq("active", true),
       supabase
         .from("lodging_reservations")
-        .select("room_id,check_in,check_out")
+        .select("room_id,check_in,check_out,total_value")
         .eq("business_unit_id", unit.id)
         .not("status", "in", '("cancelled","conflict")')
         .lt("check_in", addDays(selectedIso, 1))
@@ -94,6 +95,28 @@ export default async function Page({
         .gte("paid_at", `${addDays(monthStartIso, -1)}T00:00:00Z`)
         .lt("paid_at", `${addDays(selectedIso, 1)}T00:00:00Z`),
     ]);
+
+  // Precio promedio de la habitación (ADR) acumulado del mes: venta devengada
+  // por noche dividida por las noches vendidas, considerando todas las
+  // habitaciones activas (también las que hoy estén en mantención).
+  const monthOps = rangeOperations(
+    monthStartIso,
+    selectedIso,
+    (rooms ?? []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      room_type: r.room_type,
+      display_order: r.display_order ?? 0,
+    })),
+    (reservations ?? []).map((r) => ({
+      room_id: r.room_id,
+      check_in: r.check_in,
+      check_out: r.check_out,
+      total_value: Number(r.total_value ?? 0),
+    })),
+    [],
+    selectedIso,
+  );
 
   const sellableRooms = (rooms ?? []).filter(
     (r) => r.status !== "maintenance" && r.status !== "out_of_service",
@@ -174,6 +197,12 @@ export default async function Page({
       TrendingUp,
       null,
     ],
+    [
+      `Precio promedio acumulado de ${monthLabel(selectedIso)}`,
+      clp.format(Math.round(monthOps.adr)),
+      Tag,
+      `Por noche vendida · ${monthOps.nightsSold} noches, todas las habitaciones`,
+    ],
   ] as const;
 
   return (
@@ -205,7 +234,7 @@ export default async function Page({
           </Link>
         </div>
       </div>
-      <div className="mb-5 mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {cards.map(([title, value, Icon, sub]) => (
           <div
             key={title}
