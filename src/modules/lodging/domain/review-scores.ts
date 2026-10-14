@@ -67,3 +67,42 @@ export function summarizeReviewHistory(rows: ReviewScoreRow[]) {
     weakest: scored[0] ?? null,
   };
 }
+
+const CATEGORY_LABELS: Record<ReviewCategoryKey, string> = {
+  cleanliness: "Limpieza",
+  comfort: "Confort",
+  facilities: "Instalaciones y servicios",
+  location: "Ubicación",
+  staff: "Personal",
+  value: "Relación calidad-precio",
+  wifi: "WiFi gratis",
+};
+
+const num = (value: string) => Number(value.replace(",", "."));
+
+/**
+ * Lee el texto copiado de la ficha pública de Booking (bloque "Comentarios de
+ * los clientes" o la página completa) y saca puntaje, cantidad de comentarios
+ * y puntaje por categoría. Devuelve null si no encuentra puntaje y cantidad.
+ */
+export function parseBookingReviewText(text: string) {
+  const flat = text.replace(/\u00a0/g, " ");
+  const summary =
+    flat.match(/Puntuaci[óo]n:\s*[^\d\n]*?(\d+[.,]\d)\s*,?\s*basada en\s*([\d.]+)\s*comentarios?/i) ??
+    flat.match(/(\d+[.,]\d)\s*\n\s*[^\n·]+·\s*([\d.]+)\s*comentarios?/i);
+  if (!summary) return null;
+  const score = num(summary[1]);
+  const reviewCount = Number(summary[2].replace(/\./g, ""));
+  if (!(score >= 0 && score <= 10) || !Number.isInteger(reviewCount)) return null;
+
+  const categories: Partial<Record<ReviewCategoryKey, number>> = {};
+  for (const [key, label] of Object.entries(CATEGORY_LABELS) as [ReviewCategoryKey, string][]) {
+    // "Limpieza, 8,4, Puntuación media..." o "Limpieza\n8,4"
+    const m = flat.match(new RegExp(`${label}\\s*,?\\s*(\\d+[.,]\\d)`, "i"));
+    if (m) {
+      const v = num(m[1]);
+      if (v >= 0 && v <= 10) categories[key] = v;
+    }
+  }
+  return { score, reviewCount, categories };
+}

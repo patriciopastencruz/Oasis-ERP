@@ -1,3 +1,4 @@
+import { ReviewScoreForm } from "@/components/lodging/review-score-form";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { lodgingUnitCodes } from "@/config/business-units";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -80,7 +81,6 @@ export default async function ReviewsPage({
     });
     byUnit.set(r.business_unit_id, list);
   }
-  const input = "mt-1 block w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm";
 
   return (
     <>
@@ -167,34 +167,12 @@ export default async function ReviewsPage({
 
         <Panel>
           <h2 className="font-semibold">Registrar puntaje</h2>
-          <p className="mt-1 text-xs text-slate-500">Copia los valores de la ficha pública de Booking. Si ya hay un registro ese día, se reemplaza.</p>
-          <form action={saveReviewScoreAction} className="mt-3 space-y-3">
-            <label className="block text-sm">Hostal
-              <select name="unit_id" required className={input}>
-                {units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              <label className="col-span-3 block text-sm sm:col-span-1">Fecha
-                <input type="date" name="recorded_on" defaultValue={santiagoToday()} max={santiagoToday()} className={input} />
-              </label>
-              <label className="block text-sm">Puntaje
-                <input name="score" inputMode="decimal" placeholder="7,3" required className={input} />
-              </label>
-              <label className="block text-sm">Comentarios
-                <input name="review_count" inputMode="numeric" placeholder="11" required className={input} />
-              </label>
-            </div>
-            <p className="text-xs font-semibold text-slate-600">Por categoría (opcional)</p>
-            <div className="grid grid-cols-2 gap-2">
-              {REVIEW_CATEGORIES.map(({ key, label }) => (
-                <label key={key} className="block text-xs">{label}
-                  <input name={`cat_${key}`} inputMode="decimal" placeholder="—" className={input} />
-                </label>
-              ))}
-            </div>
-            <button className="w-full rounded-xl bg-[#0b4f9c] px-4 py-2.5 text-sm font-semibold text-white">Guardar registro</button>
-          </form>
+          <p className="mt-1 text-xs text-slate-500">Pega el texto de la ficha de Booking o escribe los valores. Si ya hay un registro ese día, se reemplaza.</p>
+          <ReviewScoreForm
+            units={units.map((u) => ({ id: u.id, name: u.name }))}
+            today={santiagoToday()}
+            action={saveReviewScoreAction}
+          />
         </Panel>
       </div>
     </>

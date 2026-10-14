@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  parseBookingReviewText,
   parseScoreInput,
   summarizeReviewHistory,
   type ReviewScoreRow,
@@ -44,5 +45,47 @@ describe("seguimiento de reseñas", () => {
     expect(result.scoreDelta).toBe(0.4);
     expect(result.countDelta).toBe(12);
     expect(result.categoryDeltas).toEqual({ cleanliness: 0.1, wifi: 0.5 });
+  });
+});
+
+describe("lectura del texto de Booking", () => {
+  const bloque = `Comentarios de los clientes
+Ver disponibilidad
+7,0
+Bien · 324 comentarios
+Leer todos los comentarios
+Categorías:
+Limpieza, 7,6, Puntuación media sobre 10
+Limpieza
+7,6
+Confort, 7,4, Puntuación media sobre 10
+Instalaciones y servicios, 7,2, Puntuación media sobre 10
+Ubicación, 7,0, Puntuación media sobre 10
+Personal, 8,1, Puntuación media sobre 10
+Relación calidad-precio, 7,7, Puntuación media sobre 10`;
+
+  it("saca puntaje, comentarios y categorías del bloque copiado", () => {
+    expect(parseBookingReviewText(bloque)).toEqual({
+      score: 7,
+      reviewCount: 324,
+      categories: {
+        cleanliness: 7.6,
+        comfort: 7.4,
+        facilities: 7.2,
+        location: 7,
+        staff: 8.1,
+        value: 7.7,
+      },
+    });
+  });
+
+  it("entiende la línea de resumen y miles con punto", () => {
+    expect(
+      parseBookingReviewText("Puntuación: Agradable 6.9, basada en 1.465 comentarios WiFi gratis, 7,6"),
+    ).toEqual({ score: 6.9, reviewCount: 1465, categories: { wifi: 7.6 } });
+  });
+
+  it("devuelve null si no hay puntaje reconocible", () => {
+    expect(parseBookingReviewText("hola, nada que ver")).toBeNull();
   });
 });
