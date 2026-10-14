@@ -72,6 +72,16 @@ export default async function ClosingReportsPage({
         >
           <Download size={16} /> PDF del resumen {kind === "week" ? "semanal" : "quincenal"}
         </a>
+        {kind === "week" && (
+          <a
+            href={`/api/lodging/weekly-hostels.pdf?date=${reference}`}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#0b4f9c] bg-white px-4 py-2 text-sm font-semibold text-[#0b4f9c]"
+          >
+            <Download size={16} /> PDF semanal de los 3 hostales
+          </a>
+        )}
       </div>
 
       <PeriodExecutive report={report} />
