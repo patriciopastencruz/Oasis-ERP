@@ -32,7 +32,7 @@ export async function lodgingContext(
 export async function calendarData(from: string, to: string) {
   const { ctx, unit, supabase } = await lodgingContext();
   const canManage = ctx.permissions.has("lodging.reservations.manage");
-  const [{ data: rooms }, { data: reservations }, { data: configs }, { data: housekeepingEnabled }] =
+  const [{ data: rooms }, { data: reservations }, { data: configs }, { data: housekeepingEnabled }, { data: noShows }] =
     await Promise.all([
       supabase
         .from("lodging_rooms")
@@ -58,12 +58,23 @@ export async function calendarData(from: string, to: string) {
         .limit(1),
       // Circuito de aseo e inspección activo en el hostal (se puede desactivar por unidad).
       supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id }),
+      // No-show con pago retenido: anuladas (no se ven en el calendario ni bloquean
+      // la habitación) pero cuentan en ocupación y venta del día.
+      supabase
+        .from("lodging_reservations")
+        .select("room_id,check_in,check_out,total_value,nights")
+        .eq("business_unit_id", unit.id)
+        .eq("status", "cancelled")
+        .eq("no_show_retained", true)
+        .lt("check_in", to)
+        .gt("check_out", from),
     ]);
   return {
     unit,
     housekeepingEnabled: housekeepingEnabled !== false,
     rooms: rooms ?? [],
     reservations: reservations ?? [],
+    noShows: noShows ?? [],
     lastSync: configs?.[0]?.last_sync_at ?? null,
     canManage,
   };

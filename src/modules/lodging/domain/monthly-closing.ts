@@ -113,7 +113,12 @@ export function buildStatement(summary: MonthlySummary): StatementSection[] {
 // Operación del mes a partir de reservas, habitaciones y pagos.
 
 export type OpsRoom = { id: string; name: string; room_type: string; display_order: number };
-export type OpsReservation = { room_id: string; check_in: string; check_out: string; total_value: number };
+/**
+ * `no_show`: reserva anulada con pago retenido. Libera la habitación (se puede
+ * volver a vender) pero su noche cuenta como ocupada y su venta se suma, de modo
+ * que un día puede superar el 100% de ocupación.
+ */
+export type OpsReservation = { room_id: string; check_in: string; check_out: string; total_value: number; no_show?: boolean };
 export type OpsPayment = { paid_at: string; amount: number; payment_method: string };
 
 const santiagoDate = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date(iso));
@@ -180,14 +185,21 @@ export function rangeOperations(
     const active = stays.filter((s) => s.check_in <= day && s.check_out > day);
     const occupiedRooms = new Set<string>();
     let revenue = 0;
+    let noShowNights = 0;
     for (const s of active) {
       revenue += s.perNight;
       const room = perRoom.get(s.room_id)!;
       room.revenue += s.perNight;
+      if (s.no_show) {
+        // Cuenta como una noche ocupada más, aunque la habitación se haya revendido.
+        room.nights += 1;
+        noShowNights += 1;
+        continue;
+      }
       if (!occupiedRooms.has(s.room_id)) room.nights += 1;
       occupiedRooms.add(s.room_id);
     }
-    days.push({ date: day, occupied: occupiedRooms.size, revenue, received: receivedByDay.get(day) ?? 0 });
+    days.push({ date: day, occupied: occupiedRooms.size + noShowNights, revenue, received: receivedByDay.get(day) ?? 0 });
   }
   const totalRooms = rooms.length;
   const roomNights = totalRooms * days.length;

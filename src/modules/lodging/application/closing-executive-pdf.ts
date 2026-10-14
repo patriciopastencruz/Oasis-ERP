@@ -194,6 +194,7 @@ export function drawExecutivePage(
   text(`${closing.occupied_rooms}/${closing.total_rooms}`, kx(1) + 70, kTop + 42, 15, B);
   text("habitaciones", kx(1) + 70, kTop + 60, 7.5, R, C.ink2);
   text(`${m.available_rooms} disponibles`, kx(1) + 70, kTop + 71, 7.5, R, C.ink2);
+  if (Number(m.no_show_rooms) > 0) text(`incl. ${m.no_show_rooms} no-show retenido`, kx(1) + 70, kTop + 81, 6.5, B, hex("#9a6400"));
 
   card(kx(2), kTop, kW, kH, "Venta promedio");
   text(clp(closing.average_rate), kx(2) + 12, kTop + 30, 17, B);
@@ -229,7 +230,7 @@ export function drawExecutivePage(
     text(fit(t.room_type, bw - width(detail, 8) - 10, 8.5, B), bx, top, 8.5, B);
     textR(detail, bx + bw, top, 8, R, C.ink2);
     round(bx, top + 13, bw, 7, 3.5, C.track);
-    bar(bx, top + 13, t.total ? bw * (t.occupied / t.total) : 0, 7, C.blue, "right");
+    bar(bx, top + 13, t.total ? bw * Math.min(1, t.occupied / t.total) : 0, 7, C.blue, "right");
   });
   if (m.by_type.length > 3)
     text(`+${m.by_type.length - 3} tipo(s) más; detalle en el ERP`, M + 12, r2 + r2H - 14, 7, R, C.muted);
@@ -321,7 +322,7 @@ export function drawExecutivePage(
     extras.availability.forEach((d, i) => {
       const x = ax + 12 + aSlot * i + (aSlot - aCol) / 2;
       const last = i === extras.availability.length - 1;
-      const occH = (d.occupiedPct / 100) * aH,
+      const occH = (d.occupiedBar / 100) * aH,
         freeH = (d.availablePct / 100) * aH;
       // Ocupadas abajo y libres encima, con 1 pt de separación.
       if (occH > 0) page.drawRectangle({ x, y: Y(aBase), width: aCol, height: occH, color: last ? C.blue : C.blueSoft });

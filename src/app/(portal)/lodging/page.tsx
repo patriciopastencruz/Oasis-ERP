@@ -41,13 +41,19 @@ export default async function Page() {
   ).length;
   // Una habitación puede tener dos reservas activas el mismo día (manual +
   // importada): ocupación y promedio cuentan habitaciones, no reservas.
-  const occupiedRooms = new Set(todayReservations.map((r) => r.room_id)).size;
+  // Los no-show con pago retenido suman una ocupación y una venta más, aunque
+  // la habitación se haya revendido (el % puede superar 100).
+  const noShowsToday = data.noShows.filter(
+    (r) => r.check_in <= today && r.check_out > today,
+  );
+  const occupiedRooms =
+    new Set(todayReservations.map((r) => r.room_id)).size + noShowsToday.length;
   const occupancyPct = sellableRooms
     ? Math.round((occupiedRooms / sellableRooms) * 100)
     : 0;
   // Prorrateado por noche: una reserva de 3 noches solo aporta 1/3 de su
   // total_value al día de hoy, en vez del contrato completo.
-  const totalAmountToday = todayReservations.reduce(
+  const totalAmountToday = [...todayReservations, ...noShowsToday].reduce(
     (sum, r) => sum + Number(r.total_value) / (r.nights || 1),
     0,
   );

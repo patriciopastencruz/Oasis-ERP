@@ -42,9 +42,11 @@ export async function loadOperationsSource(supabase: Supabase, unitId: string, f
       .order("display_order"),
     supabase
       .from("lodging_reservations")
-      .select("room_id,check_in,check_out,total_value")
+      .select("room_id,check_in,check_out,total_value,no_show_retained")
       .eq("business_unit_id", unitId)
-      .not("status", "in", "(cancelled,conflict)")
+      // Activas, más las anuladas por no-show con pago retenido (su noche y su
+      // venta cuentan aunque la habitación se haya revendido).
+      .or("status.not.in.(cancelled,conflict),and(status.eq.cancelled,no_show_retained.eq.true)")
       .neq("origin", "maintenance")
       .lt("check_in", toExclusive)
       .gt("check_out", from),
@@ -60,7 +62,11 @@ export async function loadOperationsSource(supabase: Supabase, unitId: string, f
   for (const r of [rooms, reservations, payments]) if (r.error) throw r.error;
   return {
     rooms: (rooms.data ?? []).filter((r) => !["out_of_service", "maintenance"].includes(r.status)),
-    reservations: (reservations.data ?? []).map((r) => ({ ...r, total_value: Number(r.total_value) })),
+    reservations: (reservations.data ?? []).map(({ no_show_retained, ...r }) => ({
+      ...r,
+      total_value: Number(r.total_value),
+      no_show: no_show_retained === true,
+    })),
     payments: (payments.data ?? []).map((p) => ({
       paid_at: p.paid_at,
       payment_method: p.payment_method,

@@ -63,6 +63,9 @@ export type ClosingMetrics = {
   }[];
   pending_amount: number;
   // Bloques agregados después: los cierres antiguos no los tienen.
+  // No-show con pago retenido: cuentan como ocupadas y suman venta (el % puede superar 100).
+  no_show_rooms?: number;
+  no_show_revenue?: number;
   by_origin?: { origin: string; rooms: number; revenue: number; arrivals: number }[];
   availability_10d?: { date: string; total: number; occupied: number }[];
   month_by_type?: { room_type: string; nights: number; average_rate: number }[];
@@ -262,7 +265,7 @@ export function executiveContext(current: ClosingHistoryRow, previous: ClosingHi
       income: sum(monthRows, "total_received"),
       expense: sum(monthRows, "expense_total"),
       occupancy: roomNights ? (sum(monthRows, "occupied_rooms") * 100) / roomNights : 0,
-      availablePerDay: monthRows.length ? (roomNights - sum(monthRows, "occupied_rooms")) / monthRows.length : 0,
+      availablePerDay: monthRows.length ? Math.max(0, (roomNights - sum(monthRows, "occupied_rooms")) / monthRows.length) : 0,
       closedDays: monthRows.length,
       elapsedDays: dayOfMonth,
       previousName: monthName(previousMonthDay),
@@ -297,14 +300,17 @@ export function closingExtras(m: ClosingMetrics) {
     share: originRevenue > 0 ? (o.revenue * 100) / originRevenue : 0,
   }));
   const availability = (m.availability_10d ?? []).map((d) => {
-    const occupiedPct = d.total > 0 ? Math.min(100, (d.occupied * 100) / d.total) : 0;
+    // Sin tope: con no-show retenidos la ocupación puede superar el 100%.
+    const occupiedPct = d.total > 0 ? (d.occupied * 100) / d.total : 0;
     return {
       ...d,
       day: Number(d.date.slice(8)),
       label: shortDayLabel(d.date),
       available: Math.max(0, d.total - d.occupied),
       occupiedPct,
-      availablePct: 100 - occupiedPct,
+      // Alto de la barra (la barra no puede pasar de 100%).
+      occupiedBar: Math.min(100, occupiedPct),
+      availablePct: Math.max(0, 100 - occupiedPct),
     };
   });
   const monthRate = new Map((m.month_by_type ?? []).map((t) => [t.room_type, Number(t.average_rate)]));

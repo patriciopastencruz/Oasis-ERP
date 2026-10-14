@@ -84,9 +84,10 @@ export default async function Page({
         .eq("active", true),
       supabase
         .from("lodging_reservations")
-        .select("room_id,check_in,check_out,total_value")
+        .select("room_id,check_in,check_out,total_value,no_show_retained")
         .eq("business_unit_id", unit.id)
-        .not("status", "in", '("cancelled","conflict")')
+        // Activas + anuladas por no-show con pago retenido (cuentan en ocupación y venta).
+        .or("status.not.in.(cancelled,conflict),and(status.eq.cancelled,no_show_retained.eq.true)")
         .lt("check_in", addDays(selectedIso, 1))
         .gt("check_out", monthStartIso),
       supabase
@@ -131,6 +132,7 @@ export default async function Page({
       check_in: r.check_in,
       check_out: r.check_out,
       total_value: Number(r.total_value ?? 0),
+      no_show: r.no_show_retained === true,
     })),
     [],
     selectedIso,
@@ -149,16 +151,22 @@ export default async function Page({
   const occupiedByDay = new Map<string, Set<string>>(
     days.map((d) => [d, new Set<string>()]),
   );
+  // No-show con pago retenido: cuenta como una ocupación adicional ese día
+  // (la habitación pudo revenderse), por eso el % puede superar 100.
+  const noShowByDay = new Map<string, number>(days.map((d) => [d, 0]));
   for (const r of reservations ?? []) {
     if (!sellableIds.has(r.room_id)) continue;
     let d = r.check_in < monthStartIso ? monthStartIso : r.check_in;
     while (d < r.check_out && d <= selectedIso) {
-      occupiedByDay.get(d)?.add(r.room_id);
+      if (r.no_show_retained) noShowByDay.set(d, (noShowByDay.get(d) ?? 0) + 1);
+      else occupiedByDay.get(d)?.add(r.room_id);
       d = addDays(d, 1);
     }
   }
+  const occupiedCount = (d: string) =>
+    (occupiedByDay.get(d)?.size ?? 0) + (noShowByDay.get(d) ?? 0);
   const occupancyRates = days.map((d) =>
-    totalRooms ? (occupiedByDay.get(d)?.size ?? 0) / totalRooms : 0,
+    totalRooms ? occupiedCount(d) / totalRooms : 0,
   );
   const avgOccupancyPct = days.length
     ? Math.round(
@@ -166,7 +174,7 @@ export default async function Page({
       )
     : 0;
 
-  const occupiedSelected = occupiedByDay.get(selectedIso)?.size ?? 0;
+  const occupiedSelected = occupiedCount(selectedIso);
   const occupancyPctSelected = totalRooms
     ? Math.round((occupiedSelected / totalRooms) * 100)
     : 0;

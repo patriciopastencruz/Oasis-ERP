@@ -26,6 +26,7 @@ import {
   ReservationCancellation,
   type CancellationRequest,
 } from "@/components/lodging/reservation-cancellation";
+import { ReservationNoShow } from "@/components/lodging/reservation-no-show";
 import {
   operationalStatusLabels,
   type OperationalStatus,
@@ -206,6 +207,17 @@ export default async function Page({
         canRequest={ctx.permissions.has("lodging.reservations.cancel_request")}
         canApprove={ctx.permissions.has("lodging.reservations.cancel_approve")}
         startsTodayOrLater={r.check_in >= todaySantiago}
+      />
+      <ReservationNoShow
+        reservationId={id}
+        status={r.status}
+        retained={Boolean(r.no_show_retained)}
+        retainedAt={r.no_show_at}
+        totalPaid={Number(s.total_paid)}
+        totalValue={Number(r.total_value)}
+        startsOnOrBeforeToday={r.check_in <= todaySantiago}
+        canMark={canManage}
+        canUnmark={ctx.permissions.has("lodging.reservations.cancel_approve")}
       />
       {r.origin === "public_web" && r.status === "pending" && (
         <Panel className="mb-4 border-amber-200 bg-amber-50">

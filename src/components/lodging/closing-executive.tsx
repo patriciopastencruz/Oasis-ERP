@@ -163,6 +163,9 @@ export function ClosingExecutive({
                 </p>
                 <p className="text-xs text-[#52606f]">habitaciones</p>
                 <p className="text-xs text-[#52606f]">{m.available_rooms} disponibles</p>
+                {Number(m.no_show_rooms) > 0 && (
+                  <p className="text-[11px] font-semibold text-[#9a6400]">incl. {m.no_show_rooms} no-show con pago retenido</p>
+                )}
               </div>
             </div>
           </Card>
@@ -196,7 +199,7 @@ export function ClosingExecutive({
                   <div className="mt-1 h-2 rounded-full bg-[#e8edf3]">
                     <div
                       className="h-2 rounded-r-full bg-[#2a78d6]"
-                      style={{ width: `${t.total ? (t.occupied / t.total) * 100 : 0}%` }}
+                      style={{ width: `${t.total ? Math.min(100, (t.occupied / t.total) * 100) : 0}%` }}
                     />
                   </div>
                 </li>
@@ -281,7 +284,7 @@ export function ClosingExecutive({
                       title={`${d.label}: ${pct(d.occupiedPct, 0)} ocupadas (${d.occupied} de ${d.total}), ${pct(d.availablePct, 0)} libres`}
                     >
                       <div className="rounded-t bg-[#e8edf3]" style={{ height: `${d.availablePct}%` }} />
-                      <div className={i === extras.availability.length - 1 ? "bg-[#2a78d6]" : "bg-[#b9d4f4]"} style={{ height: `${d.occupiedPct}%` }} />
+                      <div className={i === extras.availability.length - 1 ? "bg-[#2a78d6]" : "bg-[#b9d4f4]"} style={{ height: `${d.occupiedBar}%` }} />
                     </div>
                   ))}
                 </div>

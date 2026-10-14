@@ -50,6 +50,9 @@ export function ClosingReport({
             <Row label="Habitaciones Ocupadas" value={closing.occupied_rooms} />
             <Row label="Habitaciones Disponibles" value={m.available_rooms} />
             <Row label="% Ocupación" value={pct(closing.occupancy_pct)} />
+            {Number(m.no_show_rooms) > 0 && (
+              <Row label="No-show con pago retenido (incluidos)" value={`${m.no_show_rooms} · ${clp(Number(m.no_show_revenue ?? 0))}`} />
+            )}
             {m.by_type.map((t) => (
               <Row
                 key={t.room_type}

@@ -860,6 +860,59 @@ export async function requestReservationCancellationAction(form: FormData) {
   );
 }
 
+export async function markNoShowAction(form: FormData) {
+  const parsed = uuid.safeParse(form.get("reservation_id"));
+  if (!parsed.success) go("/lodging", "error", "Reserva inválida.");
+  const back = `/lodging/reservations/${parsed.data}`;
+  const note = String(form.get("note") ?? "")
+    .trim()
+    .slice(0, 300);
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("lodging_mark_no_show", {
+    target_reservation: parsed.data,
+    note,
+  });
+  if (error)
+    go(
+      back,
+      "error",
+      /autoriz/i.test(error.message)
+        ? "No tienes autorización para esta acción."
+        : error.message,
+    );
+  revalidatePath("/lodging");
+  revalidatePath("/lodging/reservations");
+  revalidatePath("/lodging/reports");
+  revalidatePath(back);
+  go(
+    back,
+    "success",
+    "No-show registrado: la habitación quedó libre y la noche cuenta como ocupada con su monto retenido.",
+  );
+}
+
+export async function unmarkNoShowAction(form: FormData) {
+  const parsed = uuid.safeParse(form.get("reservation_id"));
+  if (!parsed.success) go("/lodging", "error", "Reserva inválida.");
+  const back = `/lodging/reservations/${parsed.data}`;
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("lodging_unmark_no_show", {
+    target_reservation: parsed.data,
+  });
+  if (error)
+    go(
+      back,
+      "error",
+      /autoriz/i.test(error.message)
+        ? "No tienes autorización para esta acción."
+        : error.message,
+    );
+  revalidatePath("/lodging");
+  revalidatePath("/lodging/reports");
+  revalidatePath(back);
+  go(back, "success", "Retención quitada: la reserva queda como una anulación normal.");
+}
+
 export async function decideReservationCancellationAction(form: FormData) {
   const request = uuid.safeParse(form.get("request_id"));
   const reservation = uuid.safeParse(form.get("reservation_id"));

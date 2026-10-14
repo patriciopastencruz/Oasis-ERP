@@ -116,7 +116,8 @@ export async function executiveDashboardData() {
         .eq("business_unit_id", unit.id)
         .lte("check_in", today)
         .gt("check_out", today)
-        .neq("status", "cancelled"),
+        // Activas + no-show con pago retenido (cuentan en ocupación y valor).
+        .or("status.neq.cancelled,and(status.eq.cancelled,no_show_retained.eq.true)"),
     ]);
     if (roomsError ?? reservationsError)
       throw new Error(
