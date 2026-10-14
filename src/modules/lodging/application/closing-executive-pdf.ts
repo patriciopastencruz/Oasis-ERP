@@ -194,7 +194,7 @@ export function drawExecutivePage(
   text(`${closing.occupied_rooms}/${closing.total_rooms}`, kx(1) + 70, kTop + 42, 15, B);
   text("habitaciones", kx(1) + 70, kTop + 60, 7.5, R, C.ink2);
   text(`${m.available_rooms} disponibles`, kx(1) + 70, kTop + 71, 7.5, R, C.ink2);
-  if (Number(m.no_show_rooms) > 0) text(`incl. ${m.no_show_rooms} no-show retenido`, kx(1) + 70, kTop + 81, 6.5, B, hex("#9a6400"));
+  if (Number(m.resold_rooms) > 0) text(`incl. ${m.resold_rooms} reventa${Number(m.resold_rooms) > 1 ? "s" : ""}`, kx(1) + 70, kTop + 81, 6.5, B, hex("#9a6400"));
 
   card(kx(2), kTop, kW, kH, "Venta promedio");
   text(clp(closing.average_rate), kx(2) + 12, kTop + 30, 17, B);

@@ -887,7 +887,7 @@ export async function markNoShowAction(form: FormData) {
   go(
     back,
     "success",
-    "No-show registrado: la habitación quedó libre y la noche cuenta como ocupada con su monto retenido.",
+    "No-show registrado: la reserva quedó anulada y la habitación libre.",
   );
 }
 
@@ -910,7 +910,7 @@ export async function unmarkNoShowAction(form: FormData) {
   revalidatePath("/lodging");
   revalidatePath("/lodging/reports");
   revalidatePath(back);
-  go(back, "success", "Retención quitada: la reserva queda como una anulación normal.");
+  go(back, "success", "Marca quitada: la reserva queda como una anulación normal.");
 }
 
 export async function decideReservationCancellationAction(form: FormData) {

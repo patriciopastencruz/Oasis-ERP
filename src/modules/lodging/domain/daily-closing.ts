@@ -63,9 +63,10 @@ export type ClosingMetrics = {
   }[];
   pending_amount: number;
   // Bloques agregados después: los cierres antiguos no los tienen.
-  // No-show con pago retenido: cuentan como ocupadas y suman venta (el % puede superar 100).
-  no_show_rooms?: number;
-  no_show_revenue?: number;
+  // Reventas: habitaciones con más de una reserva activa la misma noche (ocupación sobre 100%).
+  resold_rooms?: number;
+  // No-show (sin pago) que debían llegar ese día; no cuentan en ocupación ni venta.
+  no_shows?: number;
   by_origin?: { origin: string; rooms: number; revenue: number; arrivals: number }[];
   availability_10d?: { date: string; total: number; occupied: number }[];
   month_by_type?: { room_type: string; nights: number; average_rate: number }[];

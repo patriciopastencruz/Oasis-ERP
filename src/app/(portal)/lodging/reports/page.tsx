@@ -84,10 +84,9 @@ export default async function Page({
         .eq("active", true),
       supabase
         .from("lodging_reservations")
-        .select("room_id,check_in,check_out,total_value,no_show_retained")
+        .select("room_id,check_in,check_out,total_value")
         .eq("business_unit_id", unit.id)
-        // Activas + anuladas por no-show con pago retenido (cuentan en ocupación y venta).
-        .or("status.not.in.(cancelled,conflict),and(status.eq.cancelled,no_show_retained.eq.true)")
+        .not("status", "in", '("cancelled","conflict")')
         .lt("check_in", addDays(selectedIso, 1))
         .gt("check_out", monthStartIso),
       supabase
@@ -132,7 +131,6 @@ export default async function Page({
       check_in: r.check_in,
       check_out: r.check_out,
       total_value: Number(r.total_value ?? 0),
-      no_show: r.no_show_retained === true,
     })),
     [],
     selectedIso,
@@ -148,23 +146,18 @@ export default async function Page({
   const days: string[] = [];
   for (let d = monthStartIso; d <= selectedIso; d = addDays(d, 1)) days.push(d);
 
-  const occupiedByDay = new Map<string, Set<string>>(
-    days.map((d) => [d, new Set<string>()]),
-  );
-  // No-show con pago retenido: cuenta como una ocupación adicional ese día
-  // (la habitación pudo revenderse), por eso el % puede superar 100.
-  const noShowByDay = new Map<string, number>(days.map((d) => [d, 0]));
+  // Cada reserva activa cuenta como una ocupación: si la persona que pagó no
+  // llegó y la habitación se revendió, ambas cuentan y el % puede superar 100.
+  const occupiedByDay = new Map<string, number>(days.map((d) => [d, 0]));
   for (const r of reservations ?? []) {
     if (!sellableIds.has(r.room_id)) continue;
     let d = r.check_in < monthStartIso ? monthStartIso : r.check_in;
     while (d < r.check_out && d <= selectedIso) {
-      if (r.no_show_retained) noShowByDay.set(d, (noShowByDay.get(d) ?? 0) + 1);
-      else occupiedByDay.get(d)?.add(r.room_id);
+      if (occupiedByDay.has(d)) occupiedByDay.set(d, (occupiedByDay.get(d) ?? 0) + 1);
       d = addDays(d, 1);
     }
   }
-  const occupiedCount = (d: string) =>
-    (occupiedByDay.get(d)?.size ?? 0) + (noShowByDay.get(d) ?? 0);
+  const occupiedCount = (d: string) => occupiedByDay.get(d) ?? 0;
   const occupancyRates = days.map((d) =>
     totalRooms ? occupiedCount(d) / totalRooms : 0,
   );

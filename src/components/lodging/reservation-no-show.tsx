@@ -11,48 +11,46 @@ const when = (iso: string) =>
   new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
 
 /**
- * No-show con pago retenido: la persona pagó, avisó que no llegaba y por
- * política no se reembolsa. Se libera la habitación para venderla de nuevo,
- * pero esta noche sigue contando como ocupada y su monto se suma en los reportes.
+ * No-show: la persona no llegó y no hay pago asociado (toda reserva debe
+ * cargarse con su pago y comprobante). Se anula: libera la habitación y no
+ * cuenta en ocupación ni en venta. Si la reserva sí tiene pagos, se deja tal
+ * cual (se asume ocupada) y, si la habitación se revende, ambas cuentan.
  */
 export function ReservationNoShow({
   reservationId,
   status,
-  retained,
-  retainedAt,
+  noShow,
+  noShowAt,
   totalPaid,
-  totalValue,
   startsOnOrBeforeToday,
   canMark,
   canUnmark,
 }: {
   reservationId: string;
   status: string;
-  retained: boolean;
-  retainedAt: string | null;
+  noShow: boolean;
+  noShowAt: string | null;
   totalPaid: number;
-  totalValue: number;
   startsOnOrBeforeToday: boolean;
   canMark: boolean;
   canUnmark: boolean;
 }) {
-  if (retained)
+  if (noShow)
     return (
-      <Panel className="mb-4 border-amber-200 bg-amber-50">
-        <h2 className="font-semibold text-amber-900">No-show · pago retenido</h2>
-        <p className="mt-1 text-sm text-amber-800">
-          La habitación quedó libre. Esta noche cuenta como ocupada y su monto se suma en los
-          indicadores (la ocupación del día puede superar el 100%).
-          {retainedAt ? ` Marcado el ${when(retainedAt)}.` : ""}
+      <Panel className="mb-4 border-slate-200 bg-slate-50">
+        <h2 className="font-semibold text-slate-800">No-show · sin pago</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          La persona no se presentó y no había pago asociado. La habitación quedó libre y esta reserva no cuenta en ocupación ni en venta.
+          {noShowAt ? ` Marcado el ${when(noShowAt)}.` : ""}
         </p>
         {canUnmark && (
           <form action={unmarkNoShowAction} className="mt-3">
             <input type="hidden" name="reservation_id" value={reservationId} />
             <ConfirmButton
-              message="¿Quitar la retención? La reserva quedará como una anulación normal y dejará de contar en ocupación y venta."
-              className="text-sm font-semibold text-amber-900 underline"
+              message="¿Quitar la marca de no-show? La reserva quedará como una anulación normal."
+              className="text-sm font-semibold text-slate-700 underline"
             >
-              Quitar retención (dejar como anulación normal)
+              Quitar marca (dejar como anulación normal)
             </ConfirmButton>
           </form>
         )}
@@ -62,30 +60,38 @@ export function ReservationNoShow({
   if (!canMark || !["pending", "confirmed"].includes(status) || !startsOnOrBeforeToday)
     return null;
 
+  if (totalPaid > 0)
+    return (
+      <Panel className="mb-4 border-blue-200 bg-blue-50">
+        <h2 className="font-semibold text-blue-900">Reserva con pago ({clp(totalPaid)})</h2>
+        <p className="mt-1 text-sm text-blue-800">
+          Si la persona no llega, no se marca no-show: la reserva queda registrada y se asume ocupada y pagada.
+          Si la habitación se vuelve a vender, ambas reservas cuentan en la ocupación y en la venta.
+        </p>
+      </Panel>
+    );
+
   return (
     <Panel className="mb-4">
       <h2 className="font-semibold">¿La persona no llegó?</h2>
       <p className="mt-1 text-sm text-slate-600">
-        Si pagó, avisó que no llegaba y no se reembolsa, márcalo como <b>no-show</b>: la habitación
-        queda libre para venderla de nuevo y esta noche sigue contando como ocupada, con su monto
-        ({totalPaid > 0 ? `pagado ${clp(totalPaid)}` : `reserva de ${clp(totalValue)}`}).
+        Esta reserva no tiene pagos. Si no se presentó, márcala como <b>no-show</b>: libera la habitación
+        y no cuenta en ocupación ni en venta.
       </p>
       <form action={markNoShowAction} className="mt-3 flex flex-wrap items-end gap-2">
         <input type="hidden" name="reservation_id" value={reservationId} />
         <label className="min-w-64 flex-1 text-sm">
-          Motivo
+          Observación (opcional)
           <input
             name="note"
-            required
-            minLength={5}
             maxLength={300}
-            placeholder="Ej. Avisó hoy que no llegaría; no hay reembolso"
+            placeholder="Ej. No contestó el teléfono"
             className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
           />
         </label>
         <ConfirmButton
-          message="¿Marcar como no-show con pago retenido? La habitación quedará libre y la noche contará como ocupada con su monto."
-          className="rounded-xl border border-amber-500 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50"
+          message="¿Marcar como no-show? La reserva quedará anulada y la habitación libre."
+          className="rounded-xl border border-slate-400 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
         >
           Marcar no-show
         </ConfirmButton>

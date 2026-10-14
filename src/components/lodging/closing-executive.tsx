@@ -163,8 +163,8 @@ export function ClosingExecutive({
                 </p>
                 <p className="text-xs text-[#52606f]">habitaciones</p>
                 <p className="text-xs text-[#52606f]">{m.available_rooms} disponibles</p>
-                {Number(m.no_show_rooms) > 0 && (
-                  <p className="text-[11px] font-semibold text-[#9a6400]">incl. {m.no_show_rooms} no-show con pago retenido</p>
+                {Number(m.resold_rooms) > 0 && (
+                  <p className="text-[11px] font-semibold text-[#9a6400]">incl. {m.resold_rooms} reventa{Number(m.resold_rooms) > 1 ? "s" : ""} (habitación vendida 2 veces)</p>
                 )}
               </div>
             </div>
