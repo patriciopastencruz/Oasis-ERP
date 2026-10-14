@@ -59,3 +59,63 @@ export function futureOccupancy(
     };
   });
 }
+
+type CancellationStay = Stay & {
+  status: string;
+  origin: string;
+  total_value: number;
+};
+
+export type CancellationRow = {
+  origin: string;
+  reservations: number;
+  cancelled: number;
+  lostNights: number;
+  lostValue: number;
+};
+
+const IGNORED = new Set(["conflict", "review_required"]);
+
+/**
+ * Cancelaciones de las reservas con llegada en el rango. Una cancelada cuya
+ * habitación y fechas volvieron a venderse (cambio de fechas o de huésped, o
+ * una reserva nueva en su lugar) no cuenta como noche perdida: se cancela pero
+ * la venta no se perdió. `stays` debe traer también las reservas vecinas del
+ * rango, para poder detectar ese reemplazo.
+ */
+export function cancellationStats(stays: CancellationStay[], rangeStart: string, rangeEnd: string) {
+  const live = stays.filter((s) => s.status !== "cancelled" && !IGNORED.has(s.status));
+  const cohort = stays.filter(
+    (s) => !IGNORED.has(s.status) && s.check_in >= rangeStart && s.check_in <= rangeEnd,
+  );
+  const rows = new Map<string, CancellationRow>();
+  let replaced = 0;
+  for (const s of cohort) {
+    const row = rows.get(s.origin) ?? { origin: s.origin, reservations: 0, cancelled: 0, lostNights: 0, lostValue: 0 };
+    row.reservations += 1;
+    if (s.status === "cancelled") {
+      row.cancelled += 1;
+      const wasReplaced = live.some(
+        (o) => o.room_id === s.room_id && o.check_in < s.check_out && o.check_out > s.check_in,
+      );
+      if (wasReplaced) replaced += 1;
+      else {
+        row.lostNights += nightsOf(s);
+        row.lostValue += Number(s.total_value) || 0;
+      }
+    }
+    rows.set(s.origin, row);
+  }
+  const list = [...rows.values()];
+  const reservations = list.reduce((a, r) => a + r.reservations, 0);
+  const cancelled = list.reduce((a, r) => a + r.cancelled, 0);
+  return {
+    reservations,
+    cancelled,
+    replaced,
+    rate: reservations ? cancelled / reservations : 0,
+    lostNights: list.reduce((a, r) => a + r.lostNights, 0),
+    lostValue: list.reduce((a, r) => a + r.lostValue, 0),
+    byOrigin: list,
+  };
+}

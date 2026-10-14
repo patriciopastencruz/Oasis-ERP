@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
 import { rangeOperations } from "@/modules/lodging/domain/monthly-closing";
-import { averageStay, futureOccupancy } from "@/modules/lodging/domain/report-indicators";
+import { averageStay, cancellationStats, futureOccupancy } from "@/modules/lodging/domain/report-indicators";
 
 function todayInSantiago() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -74,7 +74,7 @@ export default async function Page({
   const prevIso = addDays(selectedIso, -1);
   const nextIso = addDays(selectedIso, 1);
 
-  const [{ data: rooms }, { data: reservations }, { data: payments }, { data: upcoming }] =
+  const [{ data: rooms }, { data: reservations }, { data: payments }, { data: upcoming }, { data: monthStays }] =
     await Promise.all([
       supabase
         .from("lodging_rooms")
@@ -103,6 +103,14 @@ export default async function Page({
         .not("status", "in", '("cancelled","conflict")')
         .lt("check_in", addDays(todayIso, 30))
         .gt("check_out", todayIso),
+      // Todas las reservas del mes (también canceladas) y sus vecinas, para
+      // medir cancelaciones y detectar si la noche se volvió a vender.
+      supabase
+        .from("lodging_reservations")
+        .select("room_id,check_in,check_out,status,origin,total_value")
+        .eq("business_unit_id", unit.id)
+        .gt("check_out", addDays(monthStartIso, -7))
+        .lte("check_in", addDays(selectedIso, 60)),
     ]);
 
   // Precio promedio de la habitación (ADR) acumulado del mes: venta devengada
@@ -187,6 +195,14 @@ export default async function Page({
 
   const stay = averageStay(reservations ?? [], monthStartIso, selectedIso);
   const future = futureOccupancy(upcoming ?? [], sellableIds, todayIso, [7, 15, 30]);
+  const cancellations = cancellationStats(
+    (monthStays ?? []).map((r) => ({ ...r, total_value: Number(r.total_value ?? 0) })),
+    monthStartIso,
+    selectedIso,
+  );
+  const cancellationRows = cancellations.byOrigin
+    .filter((r) => r.cancelled > 0 || r.reservations > 0)
+    .sort((a, b) => originOrder.indexOf(a.origin) - originOrder.indexOf(b.origin));
   const roomRows = [...monthOps.rooms].sort((a, b) => a.order - b.order);
 
   const label = dayLabel(selectedIso, todayIso);
@@ -386,6 +402,67 @@ export default async function Page({
               <td className="pl-2 text-right">{clp.format(Math.round(monthOps.adr))}</td>
             </tr>
           </tfoot>
+        </table>
+      </Panel>
+      <Panel className="mt-5 overflow-x-auto">
+        <h2 className="font-semibold">Cancelaciones — {monthLabel(selectedIso)}</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Reservas con llegada del 1 del mes hasta {label.toLowerCase()}. Una cancelada cuya habitación se volvió a vender en esas fechas no cuenta como noche perdida.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-[#e5eaf0] p-3">
+            <span className="text-xs text-slate-500">Tasa de cancelación</span>
+            <b className="mt-1 block text-2xl leading-none text-slate-800">
+              {(cancellations.rate * 100).toLocaleString("es-CL", { maximumFractionDigits: 1 })}%
+            </b>
+            <span className="mt-1.5 block text-[11px] text-slate-400">
+              {cancellations.cancelled} de {cancellations.reservations} reservas
+            </span>
+          </div>
+          <div className="rounded-xl border border-[#e5eaf0] p-3">
+            <span className="text-xs text-slate-500">Noches perdidas</span>
+            <b className="mt-1 block text-2xl leading-none text-slate-800">
+              {cancellations.lostNights}
+            </b>
+            <span className="mt-1.5 block text-[11px] text-slate-400">
+              {cancellations.replaced} canceladas se volvieron a vender
+            </span>
+          </div>
+          <div className="rounded-xl border border-[#e5eaf0] p-3">
+            <span className="text-xs text-slate-500">Venta registrada de esas noches</span>
+            <b className="mt-1 block text-2xl leading-none text-slate-800">
+              {clp.format(cancellations.lostValue)}
+            </b>
+            <span className="mt-1.5 block text-[11px] text-slate-400">
+              Las importadas de Airbnb/Booking suelen venir sin precio
+            </span>
+          </div>
+        </div>
+        <table className="mt-4 w-full min-w-[480px] text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs uppercase text-slate-500">
+              <th className="py-2 pr-2">Canal</th>
+              <th className="px-2 text-right">Reservas</th>
+              <th className="px-2 text-right">Canceladas</th>
+              <th className="px-2 text-right">Tasa</th>
+              <th className="pl-2 text-right">Noches perdidas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cancellationRows.map((r) => (
+              <tr key={r.origin} className="border-b last:border-0">
+                <td className="py-2 pr-2 font-medium text-slate-800">
+                  {originLabels[r.origin] ?? r.origin}
+                </td>
+                <td className="px-2 text-right">{r.reservations}</td>
+                <td className="px-2 text-right">{r.cancelled}</td>
+                <td className="px-2 text-right">
+                  {r.reservations ? Math.round((r.cancelled / r.reservations) * 100) : 0}%
+                </td>
+                <td className="pl-2 text-right font-semibold text-slate-800">{r.lostNights}</td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </Panel>
     </>
