@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TrendingUp, BedDouble, Wallet, PieChart, Tag, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, BedDouble, Wallet, PieChart, Tag, Gauge, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { redirect } from "next/navigation";
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
@@ -203,6 +203,12 @@ export default async function Page({
       Tag,
       `Por noche vendida · ${monthOps.nightsSold} noches, todas las habitaciones`,
     ],
+    [
+      `RevPAR acumulado de ${monthLabel(selectedIso)}`,
+      clp.format(Math.round(monthOps.revpar)),
+      Gauge,
+      "Venta por habitación disponible al día (precio × ocupación)",
+    ],
   ] as const;
 
   return (
@@ -234,7 +240,7 @@ export default async function Page({
           </Link>
         </div>
       </div>
-      <div className="mb-5 mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-5 mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map(([title, value, Icon, sub]) => (
           <div
             key={title}
