@@ -225,16 +225,9 @@ function drawOccupancy(p: P, h: HostelWeekly, x: number, top: number, ch: number
   const cx = x + 22, cw = CW - 32, base = top + ch - 20, plotH = ch - 78;
   const full = base - plotH;
   p.line(cx, full, cx + cw, full, C.track, 0.6, [2, 2]);
-  // La meta se rotula en el eje; se omite la guía que le quede muy cerca.
-  const near = (v: number) => g !== null && Math.abs(g - v) < 12;
-  if (!near(100)) p.text("100%", x + 4, full - 3, 5.5, R, C.muted);
+  p.text("100%", x + 4, full - 3, 5.5, R, C.muted);
   p.line(cx, base - plotH / 2, cx + cw, base - plotH / 2, C.track, 0.5, [2, 2]);
-  if (!near(50)) p.text("50%", x + 7, base - plotH / 2 - 3, 5.5, R, C.muted);
-  if (g !== null) {
-    const gy = base - (Math.min(100, g) / 100) * plotH;
-    p.line(cx, gy, cx + cw, gy, C.good, 0.8, [3, 2]);
-    p.textR(`${g.toLocaleString("es-CL")}%`, cx - 2, gy - 3, 5.5, B, C.good);
-  }
+  p.text("50%", x + 7, base - plotH / 2 - 3, 5.5, R, C.muted);
   const n = Math.max(1, m.days.length), slot = cw / n, bw = Math.max(2, Math.min(14, slot - 2));
   m.days.forEach((d, k) => {
     const occ = m.totalRooms ? d.occupied / m.totalRooms : 0;
