@@ -3,6 +3,7 @@ import { TrendingUp, BedDouble, Wallet, PieChart, Tag, Gauge, CalendarClock, Che
 import { PageHeader, Panel } from "@/components/ui/page";
 import { redirect } from "next/navigation";
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
+import { WeeklyHostelsPdfForm } from "@/components/lodging/weekly-hostels-pdf-form";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
 import { rangeOperations } from "@/modules/lodging/domain/monthly-closing";
 import { averageStay, cancellationStats, futureOccupancy } from "@/modules/lodging/domain/report-indicators";
@@ -277,6 +278,11 @@ export default async function Page({
           </Link>
         </div>
       </div>
+      {ctx.permissions.has("lodging.closings.reports") && (
+        <div className="mt-3 flex justify-end">
+          <WeeklyHostelsPdfForm />
+        </div>
+      )}
       <div className="mb-5 mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(([title, value, Icon, sub]) => (
           <div

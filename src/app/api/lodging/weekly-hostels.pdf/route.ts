@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { loadGroupWeeklyReport } from "@/modules/lodging/application/group-weekly-queries";
 import { buildGroupWeeklyPdf } from "@/modules/lodging/application/group-weekly-pdf";
-import { addDays, isValidDay, santiagoToday } from "@/modules/lodging/domain/daily-closing";
+import { addDays, defaultClosingDate, isValidDay, santiagoToday } from "@/modules/lodging/domain/daily-closing";
 
 /** Reporte semanal de los hostales del usuario, uno por columna. */
 export async function GET(request: NextRequest) {
@@ -16,9 +16,11 @@ export async function GET(request: NextRequest) {
   if (!units.length) return NextResponse.json({ error: "Sin hostales asignados" }, { status: 403 });
   const today = santiagoToday();
   const date = request.nextUrl.searchParams.get("date") ?? undefined;
-  // Por defecto, hasta ayer: el día de hoy aún no tiene su cierre.
-  const reference = isValidDay(date) && date <= today ? date : addDays(today, -1);
-  const report = await loadGroupWeeklyReport(await createSupabaseServerClient(), units, reference);
+  // Día de recepción en curso (de madrugada sigue siendo el de ayer): aún sin
+  // cierre. Por defecto el corte es el día anterior a ese.
+  const workingDay = defaultClosingDate();
+  const reference = isValidDay(date) && date <= today ? date : addDays(workingDay, -1);
+  const report = await loadGroupWeeklyReport(await createSupabaseServerClient(), units, reference, workingDay);
   const bytes = await buildGroupWeeklyPdf(report);
   return new NextResponse(bytes as BodyInit, {
     headers: {
