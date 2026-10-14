@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, type Color, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, degrees, type Color, type PDFFont, type PDFPage } from "pdf-lib";
 import { loadLogo } from "./closing-pdf";
 import { C, hex } from "./monthly-pdf";
 import type { GroupWeeklyReport, HostelWeekly } from "./group-weekly-queries";
@@ -59,7 +59,10 @@ function painter(page: PDFPage, R: PDFFont, B: PDFFont) {
     text(s, x + 9, t, 7, B, C.ink2);
     return 9 + w(s, 7, B);
   };
-  return { page, Y, w, text, textR, textC, fit, round, column, line, delta };
+  // Texto vertical (de abajo hacia arriba) que parte en `baseT`.
+  const textUp = (s: string, cx: number, baseT: number, size: number, f: PDFFont = R, c: Color = C.ink) =>
+    page.drawText(safe(s), { x: cx + size * 0.35, y: Y(baseT), size, font: f, color: c, rotate: degrees(90) });
+  return { page, Y, w, text, textR, textC, textUp, fit, round, column, line, delta };
 }
 type P = ReturnType<typeof painter>;
 
@@ -118,7 +121,7 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
 
     // 1. Ocupación del mes
     top = section(p, top, 1, "Ocupación del mes", "habitaciones ocupadas por noche · barras azules: la semana");
-    const oh = 128;
+    const oh = 150;
     hostels.forEach((h, i) => {
       card(p, i, top, oh);
       drawOccupancy(p, h, colX(i), top, oh, report.week, R, B);
@@ -161,19 +164,10 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
 
     // 4. Cierres pendientes y saldos por cobrar
     top = section(p, top, 4, "Cierres pendientes y montos pendientes de pago", `cierres de ${monthName} hasta ayer · estadías del mes ya iniciadas`);
-    const ph = 236;
+    const ph = H - 26 - top;
     hostels.forEach((h, i) => {
       card(p, i, top, ph);
       drawPending(p, h, colX(i), top, ph, R, B);
-    });
-    top += ph + 8;
-
-    // 5. Gestión de recepción
-    top = section(p, top, 5, "Gestión de recepción en la semana", "reservas ingresadas, pagos registrados y cierres emitidos por persona");
-    const sh = H - 26 - top;
-    hostels.forEach((h, i) => {
-      card(p, i, top, sh);
-      drawStaff(p, h, colX(i), top, sh, R, B);
     });
   }
 
@@ -188,7 +182,8 @@ function drawOccupancy(p: P, h: HostelWeekly, x: number, top: number, ch: number
   const last = m.days.at(-1);
   if (last && m.totalRooms) p.textR(`Ocupadas el ${Number(last.date.slice(8))}: ${last.occupied} de ${m.totalRooms}`, x + CW - 10, top + 21, 6.8, R, C.ink2);
 
-  const cx = x + 22, cw = CW - 32, base = top + ch - 20, plotH = ch - 62;
+  // Espacio sobre el 100% para la etiqueta de cada barra.
+  const cx = x + 22, cw = CW - 32, base = top + ch - 20, plotH = ch - 78;
   const full = base - plotH;
   p.line(cx, full, cx + cw, full, C.track, 0.6, [2, 2]);
   p.text("100%", x + 4, full - 3, 5.5, R, C.muted);
@@ -200,6 +195,10 @@ function drawOccupancy(p: P, h: HostelWeekly, x: number, top: number, ch: number
     const inWeek = d.date >= week.start && d.date <= week.end;
     const bx = cx + k * slot + (slot - bw) / 2;
     p.column(bx, base, bw, occ * plotH, inWeek ? C.blue : C.blueSoft);
+    const label = pctTxt(occ);
+    const f = inWeek ? B : R, ink = inWeek ? C.ink : C.ink2;
+    if (p.w(label, 6, f) <= slot - 1) p.textC(label, bx + bw / 2, base - occ * plotH - 9, 6, f, ink);
+    else p.textUp(label, bx + bw / 2, base - occ * plotH - 2, 5.2, f, ink);
     const day = Number(d.date.slice(8));
     if (n <= 12 || day === 1 || day % 5 === 0 || k === n - 1) p.textC(String(day), bx + bw / 2, base + 4, 6, inWeek ? B : R, inWeek ? C.ink : C.muted);
   });
@@ -295,34 +294,3 @@ function drawPending(p: P, h: HostelWeekly, x: number, top: number, ch: number, 
     p.textR(clp(rest.reduce((s, r) => s + r.balance, 0)), x + CW - 10, lt + shown.length * rowH, 7, B, C.ink2);
   }
 }
-
-function drawStaff(p: P, h: HostelWeekly, x: number, top: number, ch: number, R: PDFFont, B: PDFFont) {
-  const cols = [
-    { label: "RESERVAS", r: x + CW * 0.49 },
-    { label: "PAGOS", r: x + CW * 0.61 },
-    { label: "COBRADO", r: x + CW * 0.8 },
-    { label: "CIERRES", r: x + CW - 10 },
-  ];
-  const tt = top + 10;
-  p.text("PERSONA", x + 10, tt, 6.5, B, C.muted);
-  cols.forEach((c) => p.textR(c.label, c.r, tt, 6.5, B, C.muted));
-  p.line(x + 8, tt + 10, x + CW - 8, tt + 10);
-  if (!h.staff.length) {
-    p.text("Sin movimientos registrados en la semana.", x + 10, tt + 18, 7.5, R, C.muted);
-    return;
-  }
-  const rowH = 15;
-  const rows = h.staff.slice(0, Math.max(1, Math.floor((ch - 46) / rowH)));
-  rows.forEach((s, k) => {
-    const ry = tt + 16 + k * rowH;
-    p.text(p.fit(s.name, CW * 0.49 - 52, 7.5, B), x + 10, ry, 7.5, B);
-    const vals = [String(s.reservations), String(s.payments), clp(s.collected), String(s.closings)];
-    vals.forEach((v, j) => p.textR(v, cols[j].r, ry, 7.5, R, v === "0" ? C.muted : C.ink));
-    p.line(x + 8, ry + 10.5, x + CW - 8, ry + 10.5, C.track, 0.4);
-  });
-  const t = h.staff.reduce((a, s) => ({ r: a.r + s.reservations, p: a.p + s.payments, c: a.c + s.collected, k: a.k + s.closings }), { r: 0, p: 0, c: 0, k: 0 });
-  const ry = tt + 16 + rows.length * rowH + 2;
-  p.text("Total semana", x + 10, ry, 7.5, B, C.ink2);
-  [String(t.r), String(t.p), clp(t.c), String(t.k)].forEach((v, j) => p.textR(v, cols[j].r, ry, 7.5, B, C.ink2));
-}
-

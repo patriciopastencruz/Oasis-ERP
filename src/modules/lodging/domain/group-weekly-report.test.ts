@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pendingBalances, pendingClosingDates, staffActivity } from "./group-weekly-report";
+import { pendingBalances, pendingClosingDates } from "./group-weekly-report";
 
 describe("reporte semanal de hostales", () => {
   it("cierres pendientes sin contar el día de hoy", () => {
@@ -23,21 +23,4 @@ describe("reporte semanal de hostales", () => {
     expect([r.total, r.postpaid]).toEqual([60, 20]);
   });
 
-  it("gestión por recepcionista", () => {
-    const rows = staffActivity({
-      names: new Map([["u1", "Carla"], ["u2", "Diego"]]),
-      reservations: [{ created_by: "u1" }, { created_by: "u1" }, { created_by: null }],
-      payments: [
-        { registered_by: "u2", amount: 30000, type: "total" },
-        { registered_by: "u2", amount: 5000, type: "refund" },
-        { registered_by: "u1", amount: 10000, type: "deposit" },
-      ],
-      closings: [{ issued_by: "u2" }, { issued_by: "u3" }],
-    });
-    expect(rows).toEqual([
-      { userId: "u1", name: "Carla", reservations: 2, payments: 1, collected: 10000, closings: 0 },
-      { userId: "u2", name: "Diego", reservations: 0, payments: 2, collected: 25000, closings: 1 },
-      { userId: "u3", name: "Usuario", reservations: 0, payments: 0, collected: 0, closings: 1 },
-    ]);
-  });
 });

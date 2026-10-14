@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { loadOperationsSource } from "./monthly-queries";
 import { addDays, periodRange, santiagoToday } from "../domain/daily-closing";
 import { rangeOperations } from "../domain/monthly-closing";
-import { pendingBalances, pendingClosingDates, staffActivity } from "../domain/group-weekly-report";
+import { pendingBalances, pendingClosingDates } from "../domain/group-weekly-report";
 import type { ReviewScoreRow } from "../domain/review-scores";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -28,11 +28,11 @@ export async function loadGroupWeeklyReport(supabase: Supabase, units: Unit[], r
 async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, weekStart: string, weekEnd: string, reference: string, today: string, workingDay: string) {
   const from = weekStart < monthStart ? weekStart : monthStart;
   const dayAfter = addDays(reference, 1);
-  const [src, closings, stays, reviews, created, payments] = await Promise.all([
+  const [src, closings, stays, reviews] = await Promise.all([
     loadOperationsSource(supabase, unit.id, from, dayAfter),
     supabase
       .from("lodging_daily_closings")
-      .select("closing_date,issued_by")
+      .select("closing_date")
       .eq("business_unit_id", unit.id)
       .eq("status", "issued")
       .gte("closing_date", from)
@@ -54,44 +54,8 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, we
       .lte("recorded_on", reference)
       .order("recorded_on", { ascending: false })
       .limit(8),
-    supabase
-      .from("lodging_reservations")
-      .select("created_by,created_at")
-      .eq("business_unit_id", unit.id)
-      .eq("imported_from_ical", false)
-      .gte("created_at", `${weekStart}T00:00:00-06:00`)
-      .lt("created_at", `${addDays(weekEnd, 1)}T06:00:00Z`),
-    supabase
-      .from("lodging_reservation_payments")
-      .select("registered_by,amount,type,paid_at")
-      .eq("business_unit_id", unit.id)
-      .eq("status", "confirmed")
-      .gte("paid_at", `${weekStart}T00:00:00-06:00`)
-      .lt("paid_at", `${addDays(weekEnd, 1)}T06:00:00Z`),
   ]);
-  for (const r of [closings, stays, reviews, created, payments]) if (r.error) throw r.error;
-
-  const santiagoDate = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date(iso));
-  const weekPayments = (payments.data ?? []).filter((p) => {
-    const d = santiagoDate(p.paid_at);
-    return d >= weekStart && d <= weekEnd;
-  });
-  const weekCreated = (created.data ?? []).filter((r) => {
-    const d = santiagoDate(r.created_at);
-    return d >= weekStart && d <= weekEnd;
-  });
-  const weekClosings = (closings.data ?? []).filter((c) => c.closing_date >= weekStart && c.closing_date <= weekEnd);
-  const userIds = [
-    ...new Set(
-      [...weekCreated.map((r) => r.created_by), ...weekPayments.map((p) => p.registered_by), ...weekClosings.map((c) => c.issued_by)].filter(
-        (v): v is string => !!v,
-      ),
-    ),
-  ];
-  const { data: people } = userIds.length
-    ? await supabase.from("profiles").select("id,first_name,last_name").in("id", userIds)
-    : { data: [] as { id: string; first_name: string | null; last_name: string | null }[] };
-  const names = new Map((people ?? []).map((p) => [p.id, `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "Usuario"]));
+  for (const r of [closings, stays, reviews]) if (r.error) throw r.error;
 
   const month = rangeOperations(monthStart, reference, src.rooms, src.reservations, src.payments, today);
   const weekOps = rangeOperations(weekStart, weekEnd, src.rooms, src.reservations, src.payments, today);
@@ -125,12 +89,6 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, we
         payments: (s.lodging_reservation_payments ?? []).map((p) => ({ amount: Number(p.amount), type: p.type, status: p.status })),
       })),
     ),
-    staff: staffActivity({
-      names,
-      reservations: weekCreated,
-      payments: weekPayments.map((p) => ({ registered_by: p.registered_by, amount: Number(p.amount), type: p.type })),
-      closings: weekClosings,
-    }),
   };
 }
 

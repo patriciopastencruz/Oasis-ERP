@@ -2,7 +2,7 @@ import { addDays } from "./daily-closing";
 
 /**
  * Reporte semanal de los hostales: piezas puras (sin base de datos) para los
- * cierres pendientes, los saldos por cobrar y la gestión de cada recepcionista.
+ * cierres pendientes y los saldos por cobrar.
  */
 
 /**
@@ -44,45 +44,4 @@ export function pendingBalances(reservations: BalanceReservation[]) {
     postpaid: rows.filter((r) => r.postpaid_company).reduce((s, r) => s + r.balance, 0),
     rows,
   };
-}
-
-export type StaffActivity = {
-  userId: string;
-  name: string;
-  reservations: number;
-  payments: number;
-  collected: number;
-  closings: number;
-};
-
-/**
- * Gestión de recepción en la semana: reservas ingresadas, pagos registrados
- * (monto neto) y cierres diarios emitidos por persona. Orden por actividad.
- */
-export function staffActivity(input: {
-  names: Map<string, string>;
-  reservations: { created_by: string | null }[];
-  payments: { registered_by: string | null; amount: number; type: string }[];
-  closings: { issued_by: string | null }[];
-}) {
-  const map = new Map<string, StaffActivity>();
-  const get = (id: string) => {
-    let row = map.get(id);
-    if (!row) {
-      row = { userId: id, name: input.names.get(id) ?? "Usuario", reservations: 0, payments: 0, collected: 0, closings: 0 };
-      map.set(id, row);
-    }
-    return row;
-  };
-  for (const r of input.reservations) if (r.created_by) get(r.created_by).reservations += 1;
-  for (const p of input.payments)
-    if (p.registered_by) {
-      const row = get(p.registered_by);
-      row.payments += 1;
-      row.collected += p.type === "refund" ? -p.amount : p.amount;
-    }
-  for (const c of input.closings) if (c.issued_by) get(c.issued_by).closings += 1;
-  return [...map.values()].sort(
-    (a, b) => b.reservations + b.payments + b.closings - (a.reservations + a.payments + a.closings) || a.name.localeCompare(b.name),
-  );
 }
