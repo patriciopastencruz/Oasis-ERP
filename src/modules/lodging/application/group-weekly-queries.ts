@@ -6,6 +6,7 @@ import { rangeOperations } from "../domain/monthly-closing";
 import { pendingBalances, pendingClosingDates } from "../domain/group-weekly-report";
 import type { ReviewScoreRow } from "../domain/review-scores";
 import { goalsFromRow } from "../domain/report-goals";
+import type { OpsKpis } from "../domain/ops-kpis";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 type Unit = { id: string; code: string; name: string };
@@ -26,7 +27,7 @@ export async function loadGroupWeeklyReport(supabase: Supabase, units: Unit[], r
 async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, reference: string, today: string, workingDay: string) {
   const from = monthStart;
   const dayAfter = addDays(reference, 1);
-  const [src, closings, stays, reviews, goals] = await Promise.all([
+  const [src, closings, stays, reviews, goals, kpis, housekeeping, pendingRooms] = await Promise.all([
     loadOperationsSource(supabase, unit.id, from, dayAfter),
     supabase
       .from("lodging_daily_closings")
@@ -54,9 +55,18 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
       .limit(8),
     supabase
       .from("lodging_report_goals")
-      .select("occupancy_pct,average_rate,booking_score,booking_categories")
+      .select("occupancy_pct,average_rate,revpar,booking_score,booking_categories")
       .eq("business_unit_id", unit.id)
       .maybeSingle(),
+    // Inspecciones del mes (solo quien ve los indicadores de operación).
+    supabase.rpc("lodging_ops_kpis", { target_unit: unit.id, from_date: monthStart, to_date: reference }),
+    supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id }),
+    supabase
+      .from("lodging_rooms")
+      .select("id", { count: "exact", head: true })
+      .eq("business_unit_id", unit.id)
+      .eq("active", true)
+      .eq("operational_status", "pending_inspection"),
   ]);
   for (const r of [closings, stays, reviews, goals]) if (r.error) throw r.error;
 
@@ -73,6 +83,7 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
     month,
     reviews: reviewRows,
     goals: goalsFromRow(goals.data),
+    inspections: inspectionSummary(kpis.error ? null : (kpis.data as OpsKpis | null), housekeeping.data !== false, pendingRooms.count ?? 0),
     pendingClosings: pendingClosingDates(
       monthStart,
       reference,
@@ -91,6 +102,23 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
         payments: (s.lodging_reservation_payments ?? []).map((p) => ({ amount: Number(p.amount), type: p.type, status: p.status })),
       })),
     ),
+  };
+}
+
+/** Inspecciones del mes; `null` si el usuario no ve los indicadores de operación. */
+function inspectionSummary(k: OpsKpis | null, enabled: boolean, pendingNow: number) {
+  if (!k) return { available: false as const, enabled, pendingNow };
+  return {
+    available: true as const,
+    enabled,
+    pendingNow,
+    cleanings: k.totals.cleanings,
+    inspectedCleanings: k.totals.inspected,
+    inspections: k.inspections.total,
+    approved: k.inspections.approved,
+    rejected: k.inspections.rejected,
+    approvedFirstPct: k.totals.first_attempt ? Math.round((k.totals.approved_first / k.totals.first_attempt) * 100) : null,
+    avgWaitMinutes: k.totals.avg_wait_minutes,
   };
 }
 

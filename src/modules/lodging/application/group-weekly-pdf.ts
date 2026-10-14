@@ -8,6 +8,7 @@ import { goalMet, revparGoal } from "../domain/report-goals";
 
 // A4 horizontal: una fila por indicador y una columna por hostal.
 const W = 842, H = 595, M = 24, G = 10;
+const ORANGE = hex("#eb6834");
 const CW = (W - 2 * M - 2 * G) / 3;
 const colX = (i: number) => M + i * (CW + G);
 
@@ -17,6 +18,8 @@ const score = (v: number) => v.toLocaleString("es-CL", { minimumFractionDigits: 
 const dm = (iso: string) => `${iso.slice(8, 10)}-${iso.slice(5, 7)}`;
 const dmy = (iso: string) => iso.split("-").reverse().join("-");
 const pctTxt = (v: number) => `${Math.round(v * 100)}%`;
+const minutes = (m: number | null) => (m === null ? "—" : m < 60 ? `${Math.round(m)} min` : `${Math.floor(m / 60)} h ${Math.round(m % 60)} min`);
+const shortClp = (v: number) => (Math.abs(v) >= 1_000_000 ? `$${(v / 1_000_000).toLocaleString("es-CL", { maximumFractionDigits: 1 })} M` : `$${Math.round(v / 1000).toLocaleString("es-CL")} mil`);
 const longDate = (iso: string, opts: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("es-CL", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T12:00:00Z`));
 
@@ -112,7 +115,7 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
     p.text(periodLabel, M, bandH > 44 ? 26 : 20, bandH > 44 ? 16 : 12, B, C.white);
     p.textR(`Corte al ${dmy(report.reference)}`, W - M, bandH > 44 ? 18 : 12, 9, B, C.white);
     if (bandH > 44) p.textR("Ocupación, venta y RevPAR desde reservas · saldos con pagos confirmados", W - M, 33, 7, R, hex("#c8d6ea"));
-    p.text("Acumulado del mes, del 1 a la fecha de corte. Metas en verde: círculo verde = cumplida, rojo = no cumplida. RevPAR meta = venta prom. meta x ocupación meta.", M, H - 16, 6.5, R, C.muted);
+    p.text("Acumulado del mes, del 1 a la fecha de corte. Metas en verde: círculo verde = cumplida, rojo = no cumplida. Líneas punteadas = metas. RevPAR meta: la del hostal o venta prom. meta x ocupación meta.", M, H - 16, 6.5, R, C.muted);
     p.textR(`Generado ${generated} · OASIS ERP · Página ${n} de 2`, W - M, H - 16, 6.5, B, C.muted);
     return p;
   };
@@ -152,32 +155,34 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
     });
     top += oh + 8;
 
-    // 2. Venta promedio y RevPAR
-    top = section(p, top, 2, "Venta promedio por habitación y RevPAR", "acumulado del mes");
-    const vh = 62;
+    // 2. Venta promedio y RevPAR, con su evolución diaria
+    top = section(p, top, 2, "Venta promedio por habitación y RevPAR", "acumulado del mes · la línea muestra el acumulado de cada día");
+    const vh = 150;
     hostels.forEach((h, i) => {
       card(p, i, top, vh);
       const x = colX(i), half = CW / 2;
-      p.line(x + half, top + 10, x + half, top + vh - 10);
-      const tiles: [string, number, number | null, string][] = [
-        ["Venta prom. habitación", h.month.adr, h.goals.averageRate, `${h.month.nightsSold} noches vendidas`],
-        ["RevPAR", h.month.revpar, revparGoal(h.goals), "Venta por habitación disponible"],
+      p.line(x + half, top + 10, x + half, top + 54);
+      const tiles: [string, number, number | null, string, Color][] = [
+        ["Venta prom. habitación", h.month.adr, h.goals.averageRate, `${h.month.nightsSold} noches vendidas`, C.blue],
+        ["RevPAR", h.month.revpar, revparGoal(h.goals), "Venta por habitación disponible", ORANGE],
       ];
-      tiles.forEach(([label, value, goal, hint], k) => {
+      tiles.forEach(([label, value, goal, hint, color], k) => {
         const tx = x + 10 + k * half;
-        p.text(label.toUpperCase(), tx, top + 10, 6.6, B, C.ink2);
+        p.page.drawRectangle({ x: tx, y: p.Y(top + 16), width: 8, height: 2, color });
+        p.text(label.toUpperCase(), tx + 11, top + 10, 6.6, B, C.ink2);
         p.withGoal(tx, top + 23, clp(value), 14, goal === null ? null : clp(goal), goalMet(Math.round(value), goal), 8);
         p.text(p.fit(hint, half - 18, 6.8), tx, top + 44, 6.8, R, C.muted);
       });
+      drawSalesTrend(p, h, x, top + 60, vh - 60, R, B);
     });
     top += vh + 8;
 
-    // 3. Puntaje Booking
-    top = section(p, top, 3, "Puntaje en Booking", "detalle por área, como en Reputación en Booking");
-    const bh = H - 26 - top;
+    // 3. Inspecciones
+    top = section(p, top, 3, "Inspecciones", `limpiezas de ${monthName} hasta el corte`);
+    const ih = H - 26 - top;
     hostels.forEach((h, i) => {
-      card(p, i, top, bh);
-      drawReviews(p, h, colX(i), top, bh, R, B);
+      card(p, i, top, ih);
+      drawInspections(p, h, colX(i), top, ih, R, B);
     });
   }
 
@@ -186,8 +191,17 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
     const p = newPage(2, 34);
     let top = hostelRow(p, 42) + 8;
 
-    // 4. Cierres pendientes y saldos por cobrar
-    top = section(p, top, 4, "Cierres pendientes y montos pendientes de pago", `cierres de ${monthName} hasta ayer · estadías del mes ya iniciadas`);
+    // 4. Puntaje Booking
+    top = section(p, top, 4, "Puntaje en Booking", "detalle por área, como en Reputación en Booking");
+    const bh = 186;
+    hostels.forEach((h, i) => {
+      card(p, i, top, bh);
+      drawReviews(p, h, colX(i), top, bh, R, B);
+    });
+    top += bh + 8;
+
+    // 5. Cierres pendientes y saldos por cobrar
+    top = section(p, top, 5, "Cierres pendientes y montos pendientes de pago", `cierres de ${monthName} hasta ayer · estadías del mes ya iniciadas`);
     const ph = H - 26 - top;
     hostels.forEach((h, i) => {
       card(p, i, top, ph);
@@ -333,4 +347,93 @@ function drawPending(p: P, h: HostelWeekly, x: number, top: number, ch: number, 
     p.text(`+${rest.length} reservas más`, x + 10, lt + shown.length * rowH, 7, B, C.ink2);
     p.textR(clp(rest.reduce((s, r) => s + r.balance, 0)), x + CW - 10, lt + shown.length * rowH, 7, B, C.ink2);
   }
+}
+
+/** Venta promedio y RevPAR acumulados al cierre de cada día del mes, con sus metas punteadas. */
+function drawSalesTrend(p: P, h: HostelWeekly, x: number, top: number, ch: number, R: PDFFont, B: PDFFont) {
+  const m = h.month;
+  let rev = 0, nights = 0;
+  const adr: (number | null)[] = [], revpar: number[] = [];
+  m.days.forEach((d, k) => {
+    rev += d.revenue;
+    nights += d.occupied;
+    adr.push(nights ? rev / nights : null);
+    revpar.push(m.totalRooms ? rev / (m.totalRooms * (k + 1)) : 0);
+  });
+  const goalAdr = h.goals.averageRate, goalRevpar = revparGoal(h.goals);
+  const values = [...adr.filter((v): v is number => v !== null), ...revpar, ...(goalAdr !== null ? [goalAdr] : []), ...(goalRevpar !== null ? [goalRevpar] : [])];
+  if (m.days.length < 2 || !values.length) {
+    p.text("La evolución aparece desde el segundo día del mes.", x + 10, top + 20, 7, R, C.muted);
+    return;
+  }
+  const lo = Math.min(...values), hi = Math.max(...values), pad = (hi - lo) * 0.12 || hi * 0.1 || 1;
+  const min = Math.max(0, lo - pad), max = hi + pad;
+  const cx = x + 34, cw = CW - 44, plotTop = top + 10, base = top + ch - 16;
+  const X = (k: number) => cx + (k * cw) / (m.days.length - 1);
+  const Yv = (v: number) => base - ((v - min) / (max - min)) * (base - plotTop);
+  p.line(cx, plotTop, cx + cw, plotTop, C.track, 0.5, [2, 2]);
+  p.line(cx, base, cx + cw, base, C.muted, 0.6);
+  p.textR(shortClp(max), cx - 4, plotTop - 3, 5.5, R, C.muted);
+  p.textR(shortClp(min), cx - 4, base - 3, 5.5, R, C.muted);
+  const goal = (v: number | null, color: Color) => {
+    if (v === null) return;
+    p.line(cx, Yv(v), cx + cw, Yv(v), color, 0.6, [3, 2]);
+  };
+  goal(goalAdr, C.blueSoft);
+  goal(goalRevpar, hex("#f5b99f"));
+  const series = (vals: (number | null)[], color: Color) => {
+    let prev: [number, number] | null = null;
+    vals.forEach((v, k) => {
+      if (v === null) return;
+      const pt: [number, number] = [X(k), Yv(v)];
+      if (prev) p.line(prev[0], prev[1], pt[0], pt[1], color, 1.6);
+      prev = pt;
+    });
+    if (prev) p.page.drawCircle({ x: (prev as [number, number])[0], y: p.Y((prev as [number, number])[1]), size: 2.4, color, borderColor: C.white, borderWidth: 0.8 });
+  };
+  series(adr, C.blue);
+  series(revpar, ORANGE);
+  const n = m.days.length;
+  m.days.forEach((d, k) => {
+    const day = Number(d.date.slice(8));
+    if (n <= 12 || day === 1 || day % 5 === 0 || k === n - 1) p.textC(String(day), X(k), base + 4, 6, k === n - 1 ? B : R, k === n - 1 ? C.ink : C.muted);
+  });
+  // Tendencia: último valor contra el de hace 7 días (o el primero).
+  const ref = Math.max(0, n - 8);
+  const trend = (vals: (number | null)[]) => {
+    const now = vals[n - 1], before = vals.slice(ref).find((v) => v !== null);
+    return now == null || before == null || before === 0 ? null : Math.round(((now - before) / before) * 100);
+  };
+  const ta = trend(adr), tr = trend(revpar);
+  const label = (t: number | null) => (t === null ? "—" : t === 0 ? "estable" : `${t > 0 ? "al alza" : "a la baja"} ${t > 0 ? "+" : ""}${t}%`);
+  p.textR(`Últimos 7 días: venta ${label(ta)} · RevPAR ${label(tr)}`, x + CW - 10, top - 2, 5.8, B, C.ink2);
+}
+
+function drawInspections(p: P, h: HostelWeekly, x: number, top: number, ch: number, R: PDFFont, B: PDFFont) {
+  const s = h.inspections;
+  if (!s.enabled) {
+    p.text("Circuito de aseo e inspección desactivado", x + 10, top + 12, 8, B, C.ink2);
+    p.text("en este hostal: no se registran inspecciones.", x + 10, top + 24, 7, R, C.muted);
+    return;
+  }
+  if (!s.available) {
+    p.text("Sin acceso a los indicadores de operación.", x + 10, top + 12, 7.5, R, C.muted);
+    return;
+  }
+  const half = (CW - 20) / 2, rowH = Math.min(46, (ch - 14) / 2);
+  const cells: [string, string, boolean | null, string][] = [
+    ["Limpiezas inspeccionadas", `${s.inspectedCleanings} / ${s.cleanings}`, s.cleanings ? s.inspectedCleanings >= s.cleanings : null, s.rejected ? `${s.rejected} rechazada${s.rejected === 1 ? "" : "s"}` : "Sin rechazos"],
+    ["Tiempo prom. hasta inspección", minutes(s.avgWaitMinutes), null, "Desde que aseo termina"],
+    ["Aprobadas a la primera", s.approvedFirstPct === null ? "—" : `${s.approvedFirstPct}%`, null, `${s.inspections} inspecciones en el mes`],
+    ["Pendientes de inspección ahora", String(s.pendingNow), s.pendingNow === 0, s.pendingNow ? "Habitaciones esperando revisión" : "Ninguna habitación esperando"],
+  ];
+  cells.forEach(([label, value, ok, hint], k) => {
+    const cx = x + 10 + (k % 2) * half, ct = top + 9 + Math.floor(k / 2) * rowH;
+    p.text(label.toUpperCase(), cx, ct, 6.2, B, C.ink2);
+    p.text(value, cx, ct + 11, 13, B);
+    if (ok !== null) p.mark(cx + p.w(value, 13, B) + 9, ct + 16, ok, 5);
+    p.text(p.fit(hint, half - 12, 6.5), cx, ct + 28, 6.5, R, C.muted);
+  });
+  p.line(x + 10 + half - 6, top + 10, x + 10 + half - 6, top + ch - 10);
+  p.line(x + 10, top + 6 + rowH, x + CW - 10, top + 6 + rowH);
 }

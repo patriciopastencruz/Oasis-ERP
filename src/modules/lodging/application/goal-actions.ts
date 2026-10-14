@@ -21,9 +21,11 @@ export async function saveReportGoalsAction(form: FormData) {
   const field = (name: string) => parseScoreInput(String(form.get(name) ?? ""));
   const occupancy = field("occupancy_pct");
   const rate = field("average_rate");
+  const revpar = field("revpar");
   const score = field("booking_score");
   if (occupancy !== null && (occupancy < 0 || occupancy > 100)) go("error", "La meta de ocupación debe estar entre 0 y 100%.");
   if (rate !== null && rate < 0) go("error", "La meta de venta promedio no puede ser negativa.");
+  if (revpar !== null && revpar < 0) go("error", "La meta de RevPAR no puede ser negativa.");
   if (score !== null && (score < 0 || score > 10)) go("error", "El puntaje meta debe estar entre 0 y 10.");
   const categories: Record<string, number> = {};
   for (const { key } of REVIEW_CATEGORIES) {
@@ -35,7 +37,7 @@ export async function saveReportGoalsAction(form: FormData) {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("lodging_set_report_goals", {
     target_unit: unit.data,
-    goals: { occupancy_pct: occupancy, average_rate: rate, booking_score: score, booking_categories: categories },
+    goals: { occupancy_pct: occupancy, average_rate: rate, revpar, booking_score: score, booking_categories: categories },
   });
   if (error) {
     console.error("[lodging-goals]", error.message);

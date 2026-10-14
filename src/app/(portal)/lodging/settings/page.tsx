@@ -15,7 +15,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const canSetGoals = ctx.permissions.has("lodging.goals.manage");
   const { data: goalsRow } = await supabase
     .from("lodging_report_goals")
-    .select("occupancy_pct,average_rate,booking_score,booking_categories")
+    .select("occupancy_pct,average_rate,revpar,booking_score,booking_categories")
     .eq("business_unit_id", unit.id)
     .maybeSingle();
   const goals = goalsFromRow(goalsRow);
@@ -72,7 +72,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           </p>
           <form action={saveReportGoalsAction} className="mt-4">
             <input type="hidden" name="unit_id" value={unit.id} />
-            <fieldset disabled={!canSetGoals} className="grid gap-3 sm:grid-cols-3">
+            <fieldset disabled={!canSetGoals} className="grid gap-3 sm:grid-cols-4">
               <label className="text-sm font-medium">
                 Ocupación del mes (%)
                 <input name="occupancy_pct" type="number" min="0" max="100" step="1" defaultValue={goals.occupancyPct ?? ""} className={input} />
@@ -80,15 +80,21 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               <label className="text-sm font-medium">
                 Venta promedio por habitación ($)
                 <input name="average_rate" type="number" min="0" step="500" defaultValue={goals.averageRate ?? ""} className={input} />
+              </label>
+              <label className="text-sm font-medium">
+                RevPAR ($)
+                <input name="revpar" type="number" min="0" step="500" defaultValue={goals.revpar ?? ""} className={input} />
                 <span className="mt-1 block text-xs font-normal text-slate-500">
-                  RevPAR meta: {revpar === null ? "—" : `$${revpar.toLocaleString("es-CL")}`} (venta × ocupación)
+                  {goals.revpar !== null
+                    ? "Meta propia del hostal."
+                    : `Vacío: venta × ocupación${revpar === null ? "" : ` = $${revpar.toLocaleString("es-CL")}`}.`}
                 </span>
               </label>
               <label className="text-sm font-medium">
                 Puntaje Booking
                 <input name="booking_score" type="number" min="0" max="10" step="0.1" defaultValue={goals.bookingScore ?? ""} className={input} />
               </label>
-              <div className="sm:col-span-3">
+              <div className="sm:col-span-4">
                 <p className="text-sm font-medium">Puntaje Booking por área</p>
                 <div className="mt-1 grid gap-3 sm:grid-cols-4">
                   {REVIEW_CATEGORIES.map(({ key, label }) => (
