@@ -1,24 +1,31 @@
 "use client";
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  decideApprovalAction,
-  type DecisionResult,
-} from "@/modules/finance/payment-control/application/approval-actions";
+  decideAndPayAction,
+  type PayDecisionResult,
+} from "@/modules/finance/payment-control/application/approval-payment-actions";
 export function ApprovalDecisionForm({
   step,
   requestId,
   companyId,
+  payOnApprove,
 }: {
   step: Record<string, unknown>;
   requestId: string;
   companyId: string;
+  /**
+   * Última etapa y el usuario puede registrar pagos: al aprobar se adjunta el
+   * comprobante y el pago queda registrado en el mismo paso.
+   */
+  payOnApprove?: { amount: number };
 }) {
   const router = useRouter();
-  const [state, action, pending] = useActionState(decideApprovalAction, {
+  const [state, action, pending] = useActionState(decideAndPayAction, {
     success: false,
-  } as DecisionResult);
+  } as PayDecisionResult);
   const [decision, setDecision] = useState<string>("");
+  const paying = Boolean(payOnApprove) && decision === "approve";
   useEffect(() => {
     if (state.success) {
       router.refresh();
@@ -40,7 +47,16 @@ export function ApprovalDecisionForm({
           {state.message}
         </p>
       )}
-      <form action={action} className="mt-4 space-y-4">
+      <form
+        // Se envía a mano para que, si falta algún dato, el comprobante elegido
+        // no se borre al volver el formulario.
+        onSubmit={(e) => {
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          startTransition(() => action(data));
+        }}
+        className="mt-4 space-y-4"
+      >
         <input type="hidden" name="step_id" value={String(step.id)} />
         <input type="hidden" name="request_id" value={requestId} />
         <input type="hidden" name="company_id" value={companyId} />
@@ -87,11 +103,55 @@ export function ApprovalDecisionForm({
             />
           </label>
         )}
+        {paying && (
+          <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+            <label className="block text-sm font-medium text-emerald-900">
+              Comprobante de pago
+              <input
+                type="file"
+                name="receipt"
+                accept="application/pdf,image/jpeg,image/png"
+                required
+                className="mt-1.5 w-full rounded-xl border bg-white p-3"
+              />
+            </label>
+            <p className="text-xs text-emerald-800">
+              El sistema lee la fecha, el monto y la operación del comprobante y
+              deja el pago registrado: la solicitud queda pagada, sin otro paso.
+            </p>
+            {state.needs?.date && (
+              <label className="block text-sm font-medium text-emerald-900">
+                Fecha del pago (no se pudo leer)
+                <input
+                  type="datetime-local"
+                  name="paid_at"
+                  required
+                  className="mt-1.5 w-full rounded-xl border bg-white p-3"
+                />
+              </label>
+            )}
+            {(state.needs?.amountMismatch || state.needs?.amountUnknown) && (
+              <label className="flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
+                <input type="checkbox" name="confirm_amount" required className="mt-1" />
+                <span>
+                  Confirmo que el comprobante corresponde al monto aprobado
+                  {payOnApprove ? ` (${new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(payOnApprove.amount)})` : ""}.
+                </span>
+              </label>
+            )}
+          </div>
+        )}
         <button
           disabled={pending || !decision}
           className="w-full rounded-xl bg-[#083f7d] px-4 py-3 font-semibold text-white disabled:opacity-50"
         >
-          {pending ? "Registrando…" : "Confirmar decisión"}
+          {pending
+            ? paying
+              ? "Leyendo comprobante y registrando…"
+              : "Registrando…"
+            : paying
+              ? "Aprobar y registrar pago"
+              : "Confirmar decisión"}
         </button>
       </form>
     </div>

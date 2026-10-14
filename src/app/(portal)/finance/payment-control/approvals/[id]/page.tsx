@@ -221,6 +221,13 @@ export default async function ApprovalDetail({
               step={actionable}
               requestId={id}
               companyId={r.company_id}
+              payOnApprove={
+                // Última etapa pendiente y permiso de pagar: aprobar y pagar de una vez.
+                steps.filter((x: Record<string, unknown>) => x.status === "pending")
+                  .length === 1 && ctx.permissions.has("finance.payments.execute")
+                  ? { amount: Number(r.amount) }
+                  : undefined
+              }
             />
           )}
           {!actionable &&
