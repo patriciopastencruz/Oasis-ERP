@@ -33,6 +33,7 @@ import {
   ListTodo,
   Mail,
   Star,
+  ThumbsUp,
   PieChart,
   Banknote,
   CalendarRange,
@@ -389,6 +390,12 @@ const lodgingNav = [
     icon: PieChart,
     permission: "lodging.reservations.view",
     legacyPermission: "lodging.closings.reports",
+  },
+  {
+    href: "/lodging/reviews",
+    label: "Reputación Booking",
+    icon: ThumbsUp,
+    permission: "lodging.reviews.view",
   },
   {
     href: "/lodging/surveys",
