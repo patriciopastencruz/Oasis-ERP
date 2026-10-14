@@ -5,6 +5,7 @@ import { addDays, periodRange, santiagoToday } from "../domain/daily-closing";
 import { rangeOperations } from "../domain/monthly-closing";
 import { pendingBalances, pendingClosingDates } from "../domain/group-weekly-report";
 import type { ReviewScoreRow } from "../domain/review-scores";
+import { goalsFromRow } from "../domain/report-goals";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 type Unit = { id: string; code: string; name: string };
@@ -28,7 +29,7 @@ export async function loadGroupWeeklyReport(supabase: Supabase, units: Unit[], r
 async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, weekStart: string, weekEnd: string, reference: string, today: string, workingDay: string) {
   const from = weekStart < monthStart ? weekStart : monthStart;
   const dayAfter = addDays(reference, 1);
-  const [src, closings, stays, reviews] = await Promise.all([
+  const [src, closings, stays, reviews, goals] = await Promise.all([
     loadOperationsSource(supabase, unit.id, from, dayAfter),
     supabase
       .from("lodging_daily_closings")
@@ -54,8 +55,13 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, we
       .lte("recorded_on", reference)
       .order("recorded_on", { ascending: false })
       .limit(8),
+    supabase
+      .from("lodging_report_goals")
+      .select("occupancy_pct,average_rate,booking_score,booking_categories")
+      .eq("business_unit_id", unit.id)
+      .maybeSingle(),
   ]);
-  for (const r of [closings, stays, reviews]) if (r.error) throw r.error;
+  for (const r of [closings, stays, reviews, goals]) if (r.error) throw r.error;
 
   const month = rangeOperations(monthStart, reference, src.rooms, src.reservations, src.payments, today);
   const weekOps = rangeOperations(weekStart, weekEnd, src.rooms, src.reservations, src.payments, today);
@@ -71,6 +77,7 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, we
     month,
     week: weekOps,
     reviews: reviewRows,
+    goals: goalsFromRow(goals.data),
     pendingClosings: pendingClosingDates(
       monthStart,
       reference,

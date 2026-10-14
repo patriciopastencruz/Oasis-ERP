@@ -4,6 +4,7 @@ import { C, hex } from "./monthly-pdf";
 import type { GroupWeeklyReport, HostelWeekly } from "./group-weekly-queries";
 import { clp } from "../domain/daily-closing";
 import { REVIEW_CATEGORIES, summarizeReviewHistory } from "../domain/review-scores";
+import { goalMet, revparGoal } from "../domain/report-goals";
 
 // A4 horizontal: una fila por indicador y una columna por hostal.
 const W = 842, H = 595, M = 24, G = 10;
@@ -62,7 +63,30 @@ function painter(page: PDFPage, R: PDFFont, B: PDFFont) {
   // Texto vertical (de abajo hacia arriba) que parte en `baseT`.
   const textUp = (s: string, cx: number, baseT: number, size: number, f: PDFFont = R, c: Color = C.ink) =>
     page.drawText(safe(s), { x: cx + size * 0.35, y: Y(baseT), size, font: f, color: c, rotate: degrees(90) });
-  return { page, Y, w, text, textR, textC, textUp, fit, round, column, line, delta };
+  // Círculo de meta: verde con visto si se cumple, rojo con X si no.
+  const mark = (cx: number, ct: number, ok: boolean, r = 5) => {
+    page.drawCircle({ x: cx, y: Y(ct), size: r, color: ok ? C.good : C.critical });
+    const k = r / 7;
+    page.drawSvgPath(ok ? `M ${-3 * k} 0 L ${-1 * k} ${2.5 * k} L ${3.5 * k} ${-2.5 * k}` : `M ${-2.3 * k} ${-2.3 * k} L ${2.3 * k} ${2.3 * k} M ${-2.3 * k} ${2.3 * k} L ${2.3 * k} ${-2.3 * k}`, {
+      x: cx, y: Y(ct), borderColor: C.white, borderWidth: Math.max(1, 1.4 * k * 1.1),
+    });
+  };
+  // Valor actual + "/ meta" en verde + círculo. Devuelve el ancho usado.
+  const withGoal = (x: number, t: number, value: string, size: number, goal: string | null, ok: boolean | null, goalSize = size * 0.55) => {
+    text(value, x, t, size, B);
+    let used = w(value, size, B);
+    if (goal === null) return used;
+    const gt = t + size * 0.78 - goalSize * 0.78;
+    text(` / ${goal}`, x + used, gt, goalSize, B, C.good);
+    used += w(` / ${goal}`, goalSize, B);
+    if (ok !== null) {
+      const r = Math.max(4, goalSize * 0.55);
+      mark(x + used + 3 + r, gt + goalSize * 0.4, ok, r);
+      used += 3 + 2 * r;
+    }
+    return used;
+  };
+  return { page, Y, w, text, textR, textC, textUp, fit, round, column, line, delta, mark, withGoal };
 }
 type P = ReturnType<typeof painter>;
 
@@ -88,7 +112,7 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
     p.text(weekLabel, M, bandH > 44 ? 26 : 20, bandH > 44 ? 16 : 12, B, C.white);
     p.textR(`Acumulado del mes: 1 al ${Number(report.reference.slice(8))} de ${monthName}`, W - M, bandH > 44 ? 18 : 12, 9, B, C.white);
     if (bandH > 44) p.textR("Ocupación, venta y RevPAR desde reservas · saldos con pagos confirmados", W - M, 33, 7, R, hex("#c8d6ea"));
-    p.text("Mes = del 1 al día de referencia. Semana = lunes a domingo, hasta el día de referencia. Hoy no cuenta como cierre pendiente.", M, H - 16, 6.5, R, C.muted);
+    p.text("Mes = del 1 al día de referencia. Semana = lunes a domingo. Metas en verde: círculo verde = cumplida, rojo = no cumplida. RevPAR meta = venta prom. meta x ocupación meta.", M, H - 16, 6.5, R, C.muted);
     p.textR(`Generado ${generated} · OASIS ERP · Página ${n} de 2`, W - M, H - 16, 6.5, B, C.muted);
     return p;
   };
@@ -135,14 +159,14 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
       card(p, i, top, vh);
       const x = colX(i), half = CW / 2;
       p.line(x + half, top + 10, x + half, top + vh - 10);
-      const tiles: [string, number, string][] = [
-        ["Venta prom. habitación", h.month.adr, `Semana ${clp(h.week.adr)} · ${h.month.nightsSold} noches`],
-        ["RevPAR", h.month.revpar, `Semana ${clp(h.week.revpar)}`],
+      const tiles: [string, number, number | null, string][] = [
+        ["Venta prom. habitación", h.month.adr, h.goals.averageRate, `Semana ${clp(h.week.adr)} · ${h.month.nightsSold} noches`],
+        ["RevPAR", h.month.revpar, revparGoal(h.goals), `Semana ${clp(h.week.revpar)}`],
       ];
-      tiles.forEach(([label, value, hint], k) => {
+      tiles.forEach(([label, value, goal, hint], k) => {
         const tx = x + 10 + k * half;
         p.text(label.toUpperCase(), tx, top + 10, 6.6, B, C.ink2);
-        p.text(clp(value), tx, top + 23, 15, B);
+        p.withGoal(tx, top + 23, clp(value), 14, goal === null ? null : clp(goal), goalMet(Math.round(value), goal), 8);
         p.text(p.fit(hint, half - 18, 6.8), tx, top + 44, 6.8, R, C.muted);
       });
     });
@@ -176,8 +200,9 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
 
 function drawOccupancy(p: P, h: HostelWeekly, x: number, top: number, ch: number, week: { start: string; end: string }, R: PDFFont, B: PDFFont) {
   const m = h.month;
-  p.text(pctTxt(m.occupancy), x + 10, top + 9, 20, B);
-  p.text("ocupación del mes", x + 12 + p.w(pctTxt(m.occupancy), 20, B), top + 17, 7, R, C.ink2);
+  const g = h.goals.occupancyPct;
+  p.withGoal(x + 10, top + 9, pctTxt(m.occupancy), 20, g === null ? null : `${g.toLocaleString("es-CL")}%`, goalMet(Math.round(m.occupancy * 100), g), 11);
+  p.text("ocupación del mes", x + 10, top + 31, 7, R, C.ink2);
   p.textR(`Semana ${pctTxt(h.week.occupancy)}`, x + CW - 10, top + 10, 8, B, C.blue);
   const last = m.days.at(-1);
   if (last && m.totalRooms) p.textR(`Ocupadas el ${Number(last.date.slice(8))}: ${last.occupied} de ${m.totalRooms}`, x + CW - 10, top + 21, 6.8, R, C.ink2);
@@ -189,6 +214,11 @@ function drawOccupancy(p: P, h: HostelWeekly, x: number, top: number, ch: number
   p.text("100%", x + 4, full - 3, 5.5, R, C.muted);
   p.line(cx, base - plotH / 2, cx + cw, base - plotH / 2, C.track, 0.5, [2, 2]);
   p.text("50%", x + 7, base - plotH / 2 - 3, 5.5, R, C.muted);
+  if (g !== null) {
+    const gy = base - (Math.min(100, g) / 100) * plotH;
+    p.line(cx, gy, cx + cw, gy, C.good, 0.8, [3, 2]);
+    p.textR(`Meta ${g.toLocaleString("es-CL")}%`, x + CW - 6, gy - 7, 5.5, B, C.good);
+  }
   const n = Math.max(1, m.days.length), slot = cw / n, bw = Math.max(2, Math.min(14, slot - 2));
   m.days.forEach((d, k) => {
     const occ = m.totalRooms ? d.occupied / m.totalRooms : 0;
@@ -213,8 +243,8 @@ function drawReviews(p: P, h: HostelWeekly, x: number, top: number, ch: number, 
     p.text("Se registran en Hospedaje > Reputación en Booking.", x + 10, top + 24, 7, R, C.muted);
     return;
   }
-  p.text(score(s.latest.score), x + 10, top + 9, 22, B);
-  const after = x + 14 + p.w(score(s.latest.score), 22, B);
+  const sg = h.goals.bookingScore;
+  const after = x + 16 + p.withGoal(x + 10, top + 9, score(s.latest.score), 22, sg === null ? null : score(sg), goalMet(Math.round(s.latest.score * 10) / 10, sg), 11);
   p.delta(after, top + 11, s.scoreDelta, " pts");
   p.text(`${s.latest.review_count} comentarios · al ${dmy(s.latest.recorded_on)}`, after, top + 23, 7, R, C.ink2);
   // Detalle por área del último registro.
@@ -227,9 +257,16 @@ function drawReviews(p: P, h: HostelWeekly, x: number, top: number, ch: number, 
     const ry = at + k * areaH;
     const weakest = s.weakest?.key === key;
     p.text(p.fit(label, lw - 44, 6.8, weakest ? B : R), lx, ry, 6.8, weakest ? B : R, weakest ? C.critical : C.ink);
-    p.textR(score(v), lx + lw, ry, 7.2, B);
+    // Columna fija a la derecha: valor, "/ meta" en verde y círculo.
+    const cg = h.goals.categories[key] ?? null;
+    const valueR = lx + lw - 38;
+    p.textR(score(v), valueR, ry, 7.2, B);
+    if (cg !== null) {
+      p.text(`/ ${score(cg)}`, valueR + 3, ry + 0.5, 6.5, B, C.good);
+      p.mark(lx + lw - 4, ry + 3.6, goalMet(v, cg)!, 4);
+    }
     const d = s.categoryDeltas[key];
-    if (d != null && d !== 0) p.textR(`${d > 0 ? "+" : "-"}${score(Math.abs(d))}`, lx + lw - 16, ry + 0.8, 5.8, B, d > 0 ? C.good : C.critical);
+    if (d != null && d !== 0) p.textR(`${d > 0 ? "+" : "-"}${score(Math.abs(d))}`, valueR - 16, ry + 0.8, 5.8, B, d > 0 ? C.good : C.critical);
     p.round(lx, ry + 9.5, lw, 3, 1.5, C.track);
     p.round(lx, ry + 9.5, Math.max(3, (lw * Math.min(10, v)) / 10), 3, 1.5, weakest ? C.critical : C.blue);
   });
@@ -273,6 +310,7 @@ function drawPending(p: P, h: HostelWeekly, x: number, top: number, ch: number, 
   const b = h.balances;
   p.text("MONTOS PENDIENTES DE PAGO", x + 10, st, 6.6, B, C.ink2);
   p.text(clp(b.total), x + 10, st + 11, 16, B, b.total > 0 ? C.ink : C.good);
+  p.mark(x + 10 + p.w(clp(b.total), 16, B) + 11, st + 17.5, b.total <= 0, 6);
   const sub = b.rows.length
     ? `${b.rows.length} ${b.rows.length === 1 ? "reserva" : "reservas"}${b.postpaid ? ` · empresa postpago ${clp(b.postpaid)}` : ""}`
     : "Sin saldos por cobrar";

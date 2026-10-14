@@ -3,12 +3,24 @@ import { PageHeader, Panel } from "@/components/ui/page";
 import { ConfirmButton } from "@/components/sales/confirm-button";
 import { lodgingContext } from "@/modules/lodging/application/queries";
 import { setHousekeepingAction } from "@/modules/lodging/application/actions";
+import { saveReportGoalsAction } from "@/modules/lodging/application/goal-actions";
+import { goalsFromRow, revparGoal } from "@/modules/lodging/domain/report-goals";
+import { REVIEW_CATEGORIES } from "@/modules/lodging/domain/review-scores";
 export default async function Page({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
   const q = await searchParams;
   const { ctx, unit, supabase } = await lodgingContext();
   const canConfigure = ctx.permissions.has("lodging.operations.configure");
   const { data: housekeepingFlag } = await supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id });
   const housekeepingOn = housekeepingFlag !== false;
+  const canSetGoals = ctx.permissions.has("lodging.goals.manage");
+  const { data: goalsRow } = await supabase
+    .from("lodging_report_goals")
+    .select("occupancy_pct,average_rate,booking_score,booking_categories")
+    .eq("business_unit_id", unit.id)
+    .maybeSingle();
+  const goals = goalsFromRow(goalsRow);
+  const revpar = revparGoal(goals);
+  const input = "mt-1 w-full rounded-lg border border-[#d9dfe6] px-3 py-2 text-sm disabled:bg-slate-50 disabled:text-slate-500";
   return (
     <>
       <PageHeader
@@ -51,6 +63,49 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               </form>
             )}
           </div>
+        </Panel>
+        <Panel className="md:col-span-2">
+          <h2 className="font-semibold">Metas del reporte semanal</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Metas de {unit.name}. En el PDF semanal se muestran en verde junto al valor actual, con un círculo verde si se cumplen y rojo si no. Deja un campo vacío para no fijar meta.
+            {!canSetGoals && " Solo gerencia puede modificarlas."}
+          </p>
+          <form action={saveReportGoalsAction} className="mt-4">
+            <input type="hidden" name="unit_id" value={unit.id} />
+            <fieldset disabled={!canSetGoals} className="grid gap-3 sm:grid-cols-3">
+              <label className="text-sm font-medium">
+                Ocupación del mes (%)
+                <input name="occupancy_pct" type="number" min="0" max="100" step="1" defaultValue={goals.occupancyPct ?? ""} className={input} />
+              </label>
+              <label className="text-sm font-medium">
+                Venta promedio por habitación ($)
+                <input name="average_rate" type="number" min="0" step="500" defaultValue={goals.averageRate ?? ""} className={input} />
+                <span className="mt-1 block text-xs font-normal text-slate-500">
+                  RevPAR meta: {revpar === null ? "—" : `$${revpar.toLocaleString("es-CL")}`} (venta × ocupación)
+                </span>
+              </label>
+              <label className="text-sm font-medium">
+                Puntaje Booking
+                <input name="booking_score" type="number" min="0" max="10" step="0.1" defaultValue={goals.bookingScore ?? ""} className={input} />
+              </label>
+              <div className="sm:col-span-3">
+                <p className="text-sm font-medium">Puntaje Booking por área</p>
+                <div className="mt-1 grid gap-3 sm:grid-cols-4">
+                  {REVIEW_CATEGORIES.map(({ key, label }) => (
+                    <label key={key} className="text-xs text-slate-600">
+                      {label}
+                      <input name={`cat_${key}`} type="number" min="0" max="10" step="0.1" defaultValue={goals.categories[key] ?? ""} className={input} />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </fieldset>
+            {canSetGoals && (
+              <button type="submit" className="mt-4 rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">
+                Guardar metas
+              </button>
+            )}
+          </form>
         </Panel>
         <Link href="/lodging/rooms">
           <Panel>
