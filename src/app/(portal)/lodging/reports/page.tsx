@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { TrendingUp, BedDouble, Wallet, PieChart, Tag, Gauge, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, BedDouble, Wallet, PieChart, Tag, Gauge, CalendarClock, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { redirect } from "next/navigation";
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
 import { rangeOperations } from "@/modules/lodging/domain/monthly-closing";
+import { averageStay, futureOccupancy } from "@/modules/lodging/domain/report-indicators";
 
 function todayInSantiago() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -73,7 +74,7 @@ export default async function Page({
   const prevIso = addDays(selectedIso, -1);
   const nextIso = addDays(selectedIso, 1);
 
-  const [{ data: rooms }, { data: reservations }, { data: payments }] =
+  const [{ data: rooms }, { data: reservations }, { data: payments }, { data: upcoming }] =
     await Promise.all([
       supabase
         .from("lodging_rooms")
@@ -94,6 +95,14 @@ export default async function Page({
         .eq("status", "confirmed")
         .gte("paid_at", `${addDays(monthStartIso, -1)}T00:00:00Z`)
         .lt("paid_at", `${addDays(selectedIso, 1)}T00:00:00Z`),
+      // Reservas de los próximos 30 días desde hoy (independiente del día elegido).
+      supabase
+        .from("lodging_reservations")
+        .select("room_id,check_in,check_out")
+        .eq("business_unit_id", unit.id)
+        .not("status", "in", '("cancelled","conflict")')
+        .lt("check_in", addDays(todayIso, 30))
+        .gt("check_out", todayIso),
     ]);
 
   // Precio promedio de la habitación (ADR) acumulado del mes: venta devengada
@@ -176,6 +185,10 @@ export default async function Page({
       amount: byOrigin.get(origin) ?? 0,
     }));
 
+  const stay = averageStay(reservations ?? [], monthStartIso, selectedIso);
+  const future = futureOccupancy(upcoming ?? [], sellableIds, todayIso, [7, 15, 30]);
+  const roomRows = [...monthOps.rooms].sort((a, b) => a.order - b.order);
+
   const label = dayLabel(selectedIso, todayIso);
   const cards = [
     [`Ingreso recibido — ${label}`, clp.format(selectedIncome), Wallet, null],
@@ -209,6 +222,14 @@ export default async function Page({
       Gauge,
       "Venta por habitación disponible al día (precio × ocupación)",
     ],
+    [
+      `Estadía promedio de ${monthLabel(selectedIso)}`,
+      stay.average === null
+        ? "—"
+        : `${stay.average.toLocaleString("es-CL", { maximumFractionDigits: 1 })} noches`,
+      CalendarClock,
+      `${stay.reservations} reservas con llegada en el mes`,
+    ],
   ] as const;
 
   return (
@@ -240,7 +261,7 @@ export default async function Page({
           </Link>
         </div>
       </div>
-      <div className="mb-5 mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mb-5 mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(([title, value, Icon, sub]) => (
           <div
             key={title}
@@ -300,6 +321,72 @@ export default async function Page({
             </p>
           )}
         </div>
+      </Panel>
+      <Panel className="mt-5">
+        <h2 className="font-semibold">Ocupación futura</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Noches ya reservadas desde hoy sobre las habitaciones disponibles para vender.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {future.map((f) => (
+            <div key={f.days} className="rounded-xl border border-[#e5eaf0] p-3">
+              <span className="text-xs text-slate-500">Próximos {f.days} días</span>
+              <b className="mt-1 block text-2xl leading-none text-slate-800">
+                {Math.round(f.pct * 100)}%
+              </b>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-[#0b4f9c]"
+                  style={{ width: `${Math.min(100, Math.round(f.pct * 100))}%` }}
+                />
+              </div>
+              <span className="mt-1.5 block text-[11px] text-slate-400">
+                {f.nights} de {f.available} noches
+              </span>
+            </div>
+          ))}
+        </div>
+      </Panel>
+      <Panel className="mt-5 overflow-x-auto">
+        <h2 className="font-semibold">
+          Precio promedio y ocupación por habitación — {monthLabel(selectedIso)}
+        </h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Del 1 del mes hasta {label.toLowerCase()}. El precio promedio es la venta por noche vendida de esa habitación.
+        </p>
+        <table className="mt-4 w-full min-w-[480px] text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs uppercase text-slate-500">
+              <th className="py-2 pr-2">Habitación</th>
+              <th className="px-2">Tipo</th>
+              <th className="px-2 text-right">Noches vendidas</th>
+              <th className="px-2 text-right">Ocupación</th>
+              <th className="pl-2 text-right">Precio promedio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {roomRows.map((r) => (
+              <tr key={r.name} className="border-b last:border-0">
+                <td className="py-2 pr-2 font-medium text-slate-800">{r.name}</td>
+                <td className="px-2 text-slate-500">{r.type}</td>
+                <td className="px-2 text-right">{r.nights}</td>
+                <td className="px-2 text-right">{Math.round(r.occ * 100)}%</td>
+                <td className="pl-2 text-right font-semibold text-slate-800">
+                  {r.nights ? clp.format(Math.round(r.adr)) : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 font-semibold text-slate-800">
+              <td className="py-2 pr-2">Todas</td>
+              <td className="px-2" />
+              <td className="px-2 text-right">{monthOps.nightsSold}</td>
+              <td className="px-2 text-right">{Math.round(monthOps.occupancy * 100)}%</td>
+              <td className="pl-2 text-right">{clp.format(Math.round(monthOps.adr))}</td>
+            </tr>
+          </tfoot>
+        </table>
       </Panel>
     </>
   );
