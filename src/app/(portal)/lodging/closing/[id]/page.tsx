@@ -63,6 +63,11 @@ export default async function ClosingDetailPage({
           {q.error || q.success}
         </p>
       )}
+      {!issued && closing.total_received === 0 && (
+        <p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+          Este cierre del {date} no tiene pagos registrados. Antes de emitirlo, confirma que la fecha es la correcta.
+        </p>
+      )}
       <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-4">
           <ClosingExecutive
@@ -134,7 +139,11 @@ export default async function ClosingDetailPage({
                 <form action={issueClosingAction}>
                   <input type="hidden" name="id" value={closing.id} />
                   <ConfirmButton
-                    message="¿Generar el cierre? Quedará emitido, se recalcularán los indicadores con los pagos vigentes y se enviará por correo a administración."
+                    message={
+                      closing.total_received === 0
+                        ? `ATENCIÓN: el cierre del ${date} tiene $0 en pagos. Si es la fecha equivocada, cancela y cambia la fecha. ¿Emitirlo de todos modos? Quedará emitido y se enviará por correo a administración.`
+                        : "¿Generar el cierre? Quedará emitido, se recalcularán los indicadores con los pagos vigentes y se enviará por correo a administración."
+                    }
                     className="w-full rounded-xl bg-[#0b4f9c] px-4 py-3 text-sm font-semibold text-white"
                   >
                     Generar PDF y enviar

@@ -19,6 +19,7 @@ import {
   isValidDay,
   pct,
   santiagoToday,
+  defaultClosingDate,
 } from "@/modules/lodging/domain/daily-closing";
 
 export default async function DailyClosingPage({
@@ -32,7 +33,8 @@ export default async function DailyClosingPage({
   const canReports = ctx.permissions.has("lodging.closings.reports");
   const today = santiagoToday();
   const minDate = canManage ? undefined : addDays(today, -1);
-  let date = isValidDay(q.date) ? q.date : today;
+  const suggested = defaultClosingDate();
+  let date = isValidDay(q.date) ? q.date : suggested;
   if (date > today) date = today;
   if (minDate && date < minDate) date = minDate;
 
@@ -84,6 +86,13 @@ export default async function DailyClosingPage({
         </p>
       )}
 
+      {!q.date && suggested !== today && (
+        <p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+          Es de madrugada, así que se propone cerrar el día anterior (
+          {formatClosingDate(suggested)}). Si necesitas cerrar otro día, cambia la fecha.
+        </p>
+      )}
+
       <form className="mb-5 flex flex-wrap items-end gap-2">
         <label className="text-sm">
           Fecha del cierre
@@ -118,6 +127,11 @@ export default async function DailyClosingPage({
                 </div>
               ))}
             </dl>
+            {Number(metrics.total_received) === 0 && (
+              <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+                El {formatClosingDate(date)} no tiene pagos registrados. Revisa que esta sea la fecha que quieres cerrar antes de emitir.
+              </p>
+            )}
             {metrics.reservations_without_price > 0 && (
               <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
                 {metrics.reservations_without_price} reserva(s) activas sin precio: cárgales el monto para que la venta promedio sea correcta.

@@ -127,6 +127,30 @@ export function santiagoToday(now = new Date()) {
   }).format(now);
 }
 
+/** Hora (0-23) en Santiago. */
+export function santiagoHour(now = new Date()) {
+  return Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "America/Santiago",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(now),
+  );
+}
+
+/** Antes de esta hora, el "día" de la recepción todavía es el de ayer. */
+export const CLOSING_DAY_STARTS_AT_HOUR = 6;
+
+/**
+ * Fecha que se propone al abrir el cierre. Recepción suele cerrar pasada la
+ * medianoche; hasta las 06:00 se propone el día anterior para no emitir por
+ * error un cierre del día nuevo, que todavía no tiene pagos.
+ */
+export function defaultClosingDate(now = new Date()) {
+  const today = santiagoToday(now);
+  return santiagoHour(now) < CLOSING_DAY_STARTS_AT_HOUR ? addDays(today, -1) : today;
+}
+
 export function addDays(day: string, delta: number) {
   const date = new Date(`${day}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + delta);

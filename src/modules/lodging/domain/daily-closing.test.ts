@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   closingExtras,
+  defaultClosingDate,
   type ClosingMetrics,
   executiveContext,
   executiveHistoryStart,
@@ -118,5 +119,18 @@ describe("closingExtras: porcentajes", () => {
     expect(availability[0].occupiedPct).toBe(40);
     expect(availability[0].availablePct).toBe(60);
     expect(availability[1].occupiedPct).toBe(0);
+  });
+});
+
+describe("fecha propuesta para el cierre", () => {
+  // 2026-10-13 en Santiago es UTC-3 (horario de verano ya vigente).
+  it("de madrugada propone el día anterior", () => {
+    expect(defaultClosingDate(new Date("2026-10-13T03:03:00Z"))).toBe("2026-10-12"); // 00:03
+    expect(defaultClosingDate(new Date("2026-10-13T08:59:00Z"))).toBe("2026-10-12"); // 05:59
+  });
+
+  it("desde las 06:00 propone el día de hoy", () => {
+    expect(defaultClosingDate(new Date("2026-10-13T09:00:00Z"))).toBe("2026-10-13"); // 06:00
+    expect(defaultClosingDate(new Date("2026-10-13T23:30:00Z"))).toBe("2026-10-13"); // 20:30
   });
 });
