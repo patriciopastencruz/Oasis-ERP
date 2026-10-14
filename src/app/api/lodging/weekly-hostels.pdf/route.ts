@@ -6,7 +6,7 @@ import { loadGroupWeeklyReport } from "@/modules/lodging/application/group-weekl
 import { buildGroupWeeklyPdf } from "@/modules/lodging/application/group-weekly-pdf";
 import { addDays, defaultClosingDate, isValidDay, santiagoToday } from "@/modules/lodging/domain/daily-closing";
 
-/** Reporte semanal de los hostales del usuario, uno por columna. */
+/** Reporte de los hostales del usuario (acumulado del mes al corte), uno por columna. */
 export async function GET(request: NextRequest) {
   const ctx = await requirePermission("lodging.closings.reports");
   const units = lodgingUnitCodes
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   return new NextResponse(bytes as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="reporte-semanal-hostales-${report.week.start}.pdf"`,
+      "Content-Disposition": `inline; filename="reporte-hostales-al-${report.reference}.pdf"`,
       "Cache-Control": "private, no-store",
     },
   });

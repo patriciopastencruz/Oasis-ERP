@@ -1,7 +1,7 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { loadOperationsSource } from "./monthly-queries";
-import { addDays, periodRange, santiagoToday } from "../domain/daily-closing";
+import { addDays, santiagoToday } from "../domain/daily-closing";
 import { rangeOperations } from "../domain/monthly-closing";
 import { pendingBalances, pendingClosingDates } from "../domain/group-weekly-report";
 import type { ReviewScoreRow } from "../domain/review-scores";
@@ -14,20 +14,17 @@ const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? nu
 
 /**
  * Reporte semanal de todos los hostales del usuario (RLS limita a los suyos).
- * Mes = del 1 al día de referencia; semana = lunes a domingo que contiene la
- * referencia, recortada a la referencia.
+ * Todo es el acumulado del mes: del 1 al día de referencia (fecha de corte).
  */
 export async function loadGroupWeeklyReport(supabase: Supabase, units: Unit[], reference: string, workingDay = santiagoToday()) {
   const today = santiagoToday();
   const monthStart = `${reference.slice(0, 7)}-01`;
-  const week = periodRange("week", reference);
-  const weekEnd = week.end < reference ? week.end : reference;
-  const hostels = await Promise.all(units.map((u) => loadHostel(supabase, u, monthStart, week.start, weekEnd, reference, today, workingDay)));
-  return { reference, monthStart, week: { start: week.start, end: weekEnd }, hostels };
+  const hostels = await Promise.all(units.map((u) => loadHostel(supabase, u, monthStart, reference, today, workingDay)));
+  return { reference, monthStart, hostels };
 }
 
-async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, weekStart: string, weekEnd: string, reference: string, today: string, workingDay: string) {
-  const from = weekStart < monthStart ? weekStart : monthStart;
+async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, reference: string, today: string, workingDay: string) {
+  const from = monthStart;
   const dayAfter = addDays(reference, 1);
   const [src, closings, stays, reviews, goals] = await Promise.all([
     loadOperationsSource(supabase, unit.id, from, dayAfter),
@@ -64,7 +61,6 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, we
   for (const r of [closings, stays, reviews, goals]) if (r.error) throw r.error;
 
   const month = rangeOperations(monthStart, reference, src.rooms, src.reservations, src.payments, today);
-  const weekOps = rangeOperations(weekStart, weekEnd, src.rooms, src.reservations, src.payments, today);
   const reviewRows: ReviewScoreRow[] = (reviews.data ?? []).map((r) => ({
     recorded_on: r.recorded_on,
     score: Number(r.score),
@@ -75,7 +71,6 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, we
   return {
     unit,
     month,
-    week: weekOps,
     reviews: reviewRows,
     goals: goalsFromRow(goals.data),
     pendingClosings: pendingClosingDates(

@@ -92,10 +92,10 @@ type P = ReturnType<typeof painter>;
 
 export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
   const pdf = await PDFDocument.create();
-  const sameMonth = report.week.start.slice(0, 7) === report.week.end.slice(0, 7);
-  const weekLabel = `Semana del ${longDate(report.week.start, sameMonth ? { day: "numeric" } : { day: "numeric", month: "long" })} al ${longDate(report.week.end, { day: "numeric", month: "long", year: "numeric" })}`;
+  // Todo el reporte es el acumulado del mes, del 1 a la fecha de corte.
   const monthName = longDate(report.reference, { month: "long" });
-  pdf.setTitle(`Reporte semanal hostales - ${weekLabel}`);
+  const periodLabel = `Del 1 al ${longDate(report.reference, { day: "numeric", month: "long", year: "numeric" })}`;
+  pdf.setTitle(`Reporte hostales - ${periodLabel}`);
   pdf.setAuthor("OASIS ERP");
   const R = await pdf.embedFont(StandardFonts.Helvetica);
   const B = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -109,10 +109,10 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
     page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: C.page });
     page.drawRectangle({ x: 0, y: p.Y(bandH), width: W, height: bandH, color: C.navy });
     p.text("REPORTE SEMANAL · HOSTALES OASIS", M, bandH > 44 ? 13 : 9, 7.5, B, hex("#9fb8d9"));
-    p.text(weekLabel, M, bandH > 44 ? 26 : 20, bandH > 44 ? 16 : 12, B, C.white);
-    p.textR(`Acumulado del mes: 1 al ${Number(report.reference.slice(8))} de ${monthName}`, W - M, bandH > 44 ? 18 : 12, 9, B, C.white);
+    p.text(periodLabel, M, bandH > 44 ? 26 : 20, bandH > 44 ? 16 : 12, B, C.white);
+    p.textR(`Corte al ${dmy(report.reference)}`, W - M, bandH > 44 ? 18 : 12, 9, B, C.white);
     if (bandH > 44) p.textR("Ocupación, venta y RevPAR desde reservas · saldos con pagos confirmados", W - M, 33, 7, R, hex("#c8d6ea"));
-    p.text("Mes = del 1 al día de referencia. Semana = lunes a domingo. Metas en verde: círculo verde = cumplida, rojo = no cumplida. RevPAR meta = venta prom. meta x ocupación meta.", M, H - 16, 6.5, R, C.muted);
+    p.text("Acumulado del mes, del 1 a la fecha de corte. Metas en verde: círculo verde = cumplida, rojo = no cumplida. RevPAR meta = venta prom. meta x ocupación meta.", M, H - 16, 6.5, R, C.muted);
     p.textR(`Generado ${generated} · OASIS ERP · Página ${n} de 2`, W - M, H - 16, 6.5, B, C.muted);
     return p;
   };
@@ -144,11 +144,11 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
     let top = hostelRow(p, 54) + 8;
 
     // 1. Ocupación del mes
-    top = section(p, top, 1, "Ocupación del mes", "habitaciones ocupadas por noche · barras azules: la semana");
+    top = section(p, top, 1, "Ocupación del mes", "habitaciones ocupadas por noche, del 1 al corte");
     const oh = 150;
     hostels.forEach((h, i) => {
       card(p, i, top, oh);
-      drawOccupancy(p, h, colX(i), top, oh, report.week, R, B);
+      drawOccupancy(p, h, colX(i), top, oh, R, B);
     });
     top += oh + 8;
 
@@ -160,8 +160,8 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
       const x = colX(i), half = CW / 2;
       p.line(x + half, top + 10, x + half, top + vh - 10);
       const tiles: [string, number, number | null, string][] = [
-        ["Venta prom. habitación", h.month.adr, h.goals.averageRate, `Semana ${clp(h.week.adr)} · ${h.month.nightsSold} noches`],
-        ["RevPAR", h.month.revpar, revparGoal(h.goals), `Semana ${clp(h.week.revpar)}`],
+        ["Venta prom. habitación", h.month.adr, h.goals.averageRate, `${h.month.nightsSold} noches vendidas`],
+        ["RevPAR", h.month.revpar, revparGoal(h.goals), "Venta por habitación disponible"],
       ];
       tiles.forEach(([label, value, goal, hint], k) => {
         const tx = x + 10 + k * half;
@@ -198,12 +198,12 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
   return pdf.save();
 }
 
-function drawOccupancy(p: P, h: HostelWeekly, x: number, top: number, ch: number, week: { start: string; end: string }, R: PDFFont, B: PDFFont) {
+function drawOccupancy(p: P, h: HostelWeekly, x: number, top: number, ch: number, R: PDFFont, B: PDFFont) {
   const m = h.month;
   const g = h.goals.occupancyPct;
   p.withGoal(x + 10, top + 9, pctTxt(m.occupancy), 20, g === null ? null : `${g.toLocaleString("es-CL")}%`, goalMet(Math.round(m.occupancy * 100), g), 11);
   p.text("ocupación del mes", x + 10, top + 31, 7, R, C.ink2);
-  p.textR(`Semana ${pctTxt(h.week.occupancy)}`, x + CW - 10, top + 10, 8, B, C.blue);
+  p.textR(`${m.nightsSold} de ${m.totalRooms * m.elapsedDays} noches`, x + CW - 10, top + 10, 8, B, C.blue);
   const last = m.days.at(-1);
   if (last && m.totalRooms) p.textR(`Ocupadas el ${Number(last.date.slice(8))}: ${last.occupied} de ${m.totalRooms}`, x + CW - 10, top + 21, 6.8, R, C.ink2);
 
@@ -222,15 +222,15 @@ function drawOccupancy(p: P, h: HostelWeekly, x: number, top: number, ch: number
   const n = Math.max(1, m.days.length), slot = cw / n, bw = Math.max(2, Math.min(14, slot - 2));
   m.days.forEach((d, k) => {
     const occ = m.totalRooms ? d.occupied / m.totalRooms : 0;
-    const inWeek = d.date >= week.start && d.date <= week.end;
+    const last = k === n - 1;
     const bx = cx + k * slot + (slot - bw) / 2;
-    p.column(bx, base, bw, occ * plotH, inWeek ? C.blue : C.blueSoft);
+    p.column(bx, base, bw, occ * plotH, C.blue);
     const label = pctTxt(occ);
-    const f = inWeek ? B : R, ink = inWeek ? C.ink : C.ink2;
+    const f = last ? B : R, ink = last ? C.ink : C.ink2;
     if (p.w(label, 6, f) <= slot - 1) p.textC(label, bx + bw / 2, base - occ * plotH - 9, 6, f, ink);
     else p.textUp(label, bx + bw / 2, base - occ * plotH - 2, 5.2, f, ink);
     const day = Number(d.date.slice(8));
-    if (n <= 12 || day === 1 || day % 5 === 0 || k === n - 1) p.textC(String(day), bx + bw / 2, base + 4, 6, inWeek ? B : R, inWeek ? C.ink : C.muted);
+    if (n <= 12 || day === 1 || day % 5 === 0 || k === n - 1) p.textC(String(day), bx + bw / 2, base + 4, 6, last ? B : R, last ? C.ink : C.muted);
   });
   p.line(cx, base, cx + cw, base, C.muted, 0.6);
   if (!m.days.length) p.textC("Sin días en el período", x + CW / 2, top + ch / 2, 8, R, C.muted);
