@@ -3,7 +3,7 @@ import { loadLogo } from "./closing-pdf";
 import { C, hex } from "./monthly-pdf";
 import type { GroupWeeklyReport, HostelWeekly } from "./group-weekly-queries";
 import { clp } from "../domain/daily-closing";
-import { summarizeReviewHistory } from "../domain/review-scores";
+import { REVIEW_CATEGORIES, summarizeReviewHistory } from "../domain/review-scores";
 
 // A4 horizontal: una fila por indicador y una columna por hostal.
 const W = 842, H = 595, M = 24, G = 10;
@@ -118,7 +118,7 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
 
     // 1. Ocupación del mes
     top = section(p, top, 1, "Ocupación del mes", "habitaciones ocupadas por noche · barras azules: la semana");
-    const oh = 142;
+    const oh = 128;
     hostels.forEach((h, i) => {
       card(p, i, top, oh);
       drawOccupancy(p, h, colX(i), top, oh, report.week, R, B);
@@ -146,7 +146,7 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
     top += vh + 8;
 
     // 3. Puntaje Booking
-    top = section(p, top, 3, "Puntaje en Booking", "historial de registros, como en Reputación en Booking");
+    top = section(p, top, 3, "Puntaje en Booking", "detalle por área e historial, como en Reputación en Booking");
     const bh = H - 26 - top;
     hostels.forEach((h, i) => {
       card(p, i, top, bh);
@@ -218,30 +218,43 @@ function drawReviews(p: P, h: HostelWeekly, x: number, top: number, ch: number, 
   const after = x + 14 + p.w(score(s.latest.score), 22, B);
   p.delta(after, top + 11, s.scoreDelta, " pts");
   p.text(`${s.latest.review_count} comentarios · al ${dmy(s.latest.recorded_on)}`, after, top + 23, 7, R, C.ink2);
-  if (s.weakest) {
-    p.text("Más baja:", x + 10, top + 40, 7, R, C.ink2);
-    p.text(`${s.weakest.label} ${score(s.weakest.value)}`, x + 12 + p.w("Más baja:", 7, R), top + 40, 7, B, C.critical);
-  }
+  // Izquierda: detalle por área del último registro. Derecha: historial.
+  const lx = x + 10, lw = 136, rx = x + 156, rr = x + CW - 10;
+  const areas = REVIEW_CATEGORIES.filter(({ key }) => s.latest!.categories[key] != null);
+  const at = top + 42, areaH = Math.min(21, (ch - 50) / Math.max(1, areas.length));
+  if (!areas.length) p.text("Sin detalle por área en el registro.", lx, at, 7, R, C.muted);
+  areas.forEach(({ key, label }, k) => {
+    const v = s.latest!.categories[key]!;
+    const ry = at + k * areaH;
+    const weakest = s.weakest?.key === key;
+    p.text(p.fit(label, lw - 44, 6.8, weakest ? B : R), lx, ry, 6.8, weakest ? B : R, weakest ? C.critical : C.ink);
+    p.textR(score(v), lx + lw, ry, 7.2, B);
+    const d = s.categoryDeltas[key];
+    if (d != null && d !== 0) p.textR(`${d > 0 ? "+" : "-"}${score(Math.abs(d))}`, lx + lw - 16, ry + 0.8, 5.8, B, d > 0 ? C.good : C.critical);
+    p.round(lx, ry + 9.5, lw, 3, 1.5, C.track);
+    p.round(lx, ry + 9.5, Math.max(3, (lw * Math.min(10, v)) / 10), 3, 1.5, weakest ? C.critical : C.blue);
+  });
+  if (s.weakest) p.text("En rojo: el área más baja", lx, top + ch - 11, 5.8, R, C.muted);
 
-  // Tabla Fecha | Puntaje | Comentarios
-  const tt = top + 54, rowH = 14.5;
-  const cDate = x + 10, cScore = x + CW * 0.62, cCount = x + CW - 10;
-  p.text("FECHA", cDate, tt, 6.5, B, C.muted);
-  p.textR("PUNTAJE", cScore, tt, 6.5, B, C.muted);
-  p.textR("COMENTARIOS", cCount, tt, 6.5, B, C.muted);
-  p.line(x + 8, tt + 10, x + CW - 8, tt + 10);
-  const rows = h.reviews.slice(0, Math.max(1, Math.floor((ch - 70) / rowH)));
+  p.line(rx - 8, top + 42, rx - 8, top + ch - 10);
+  const tt = top + 42, rowH = 14;
+  const cScore = rx + 62;
+  p.text("FECHA", rx, tt, 6, B, C.muted);
+  p.textR("PUNT.", cScore, tt, 6, B, C.muted);
+  p.textR("COM.", rr, tt, 6, B, C.muted);
+  p.line(rx, tt + 9, rr, tt + 9);
+  const rows = h.reviews.slice(0, Math.max(1, Math.floor((ch - 60) / rowH)));
   rows.forEach((r, k) => {
-    const ry = tt + 15 + k * rowH;
+    const ry = tt + 14 + k * rowH;
     const prev = h.reviews[k + 1];
-    p.text(dmy(r.recorded_on), cDate, ry, 7.5, k === 0 ? B : R);
-    p.textR(score(r.score), cScore, ry, 7.5, B);
+    p.text(dm(r.recorded_on) + "-" + r.recorded_on.slice(2, 4), rx, ry, 7, k === 0 ? B : R);
+    p.textR(score(r.score), cScore - (prev && prev.score !== r.score ? 8 : 0), ry, 7, B);
     if (prev && prev.score !== r.score) {
       const up = r.score > prev.score;
-      p.page.drawSvgPath(up ? "M 0 5 L 3 0 L 6 5 Z" : "M 0 0 L 6 0 L 3 5 Z", { x: cScore + 4, y: p.Y(ry + 1), color: up ? C.good : C.critical });
+      p.page.drawSvgPath(up ? "M 0 5 L 3 0 L 6 5 Z" : "M 0 0 L 6 0 L 3 5 Z", { x: cScore - 6, y: p.Y(ry + 1), color: up ? C.good : C.critical });
     }
-    p.textR(String(r.review_count), cCount, ry, 7.5, R, C.ink2);
-    if (k < rows.length - 1) p.line(x + 8, ry + 10.5, x + CW - 8, ry + 10.5, C.track, 0.4);
+    p.textR(String(r.review_count), rr, ry, 7, R, C.ink2);
+    if (k < rows.length - 1) p.line(rx, ry + 10, rr, ry + 10, C.track, 0.4);
   });
 }
 
