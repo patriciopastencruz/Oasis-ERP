@@ -659,6 +659,16 @@ export async function closeDayAction(form: FormData) {
     .trim()
     .max(1500)
     .parse(String(form.get("observations") ?? ""));
+  const declaredExpenses = z.coerce
+    .number()
+    .min(0)
+    .max(1_000_000_000)
+    .parse(String(form.get("declared_expenses") ?? "").replace(/[^\d]/g, "") || "0");
+  const expenseDetail = z
+    .string()
+    .trim()
+    .max(1500)
+    .parse(String(form.get("expense_detail") ?? ""));
   const { data: snapshot, error: summaryError } = await supabase.rpc(
     "dist_daily_summary",
     { target_unit: unit.id, target_date: date },
@@ -671,7 +681,13 @@ export async function closeDayAction(form: FormData) {
       business_unit_id: unit.id,
       closure_date: date,
       status: "closed",
-      snapshot,
+      snapshot: {
+        ...((snapshot as Record<string, unknown> | null) ?? {}),
+        declared_expenses: declaredExpenses,
+        expense_detail: expenseDetail || null,
+      },
+      declared_expenses: declaredExpenses,
+      expense_detail: expenseDetail || null,
       observations: observations || null,
       closed_by: ctx.user.id,
       closed_at: new Date().toISOString(),

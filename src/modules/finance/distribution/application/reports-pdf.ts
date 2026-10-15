@@ -1,8 +1,44 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type {
+  accumulatedMetrics,
+  buildClosingProducts,
+  cumulativeIncome,
+  KgDay,
+} from "../domain/closing-report";
+import type {
   DistributionDailySummary,
   DistributionPeriodSummary,
 } from "./queries";
+
+/** Lo que suma el cierre completo: gastos declarados, productos agrupados, acumulado del mes y gráficos. */
+export type DailyClosurePdfExtras = {
+  monthLabel: string;
+  closure: {
+    status?: string | null;
+    observations?: string | null;
+    declared_expenses?: number | string | null;
+    expense_detail?: string | null;
+  } | null;
+  closingProducts: ReturnType<typeof buildClosingProducts>;
+  metrics: ReturnType<typeof accumulatedMetrics>;
+  kgDays: KgDay[];
+  incomeDays: ReturnType<typeof cumulativeIncome>;
+};
+
+const wrap = (text: string, max: number) => {
+  const lines: string[] = [];
+  for (const raw of String(text).split("\n")) {
+    let line = "";
+    for (const word of raw.split(/\s+/)) {
+      if ((line + " " + word).trim().length > max) {
+        if (line) lines.push(line);
+        line = word;
+      } else line = (line + " " + word).trim();
+    }
+    lines.push(line);
+  }
+  return lines;
+};
 
 const money = (value: number) =>
   `$ ${Math.round(value).toLocaleString("es-CL")}`;
@@ -20,9 +56,11 @@ const PAGE: [number, number] = [595, 842];
 export async function buildDailyClosurePdf({
   date,
   summary,
+  extras,
 }: {
   date: string;
   summary: DistributionDailySummary;
+  extras?: DailyClosurePdfExtras;
 }) {
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
@@ -146,6 +184,145 @@ export async function buildDailyClosurePdf({
   y -= 6;
   draw("VENTA TOTAL ENTREGADA", 50, 10, bold, primary);
   draw(money(summary.delivered_sales ?? 0), 480, 10, bold, primary);
+  y -= 30;
+
+  if (extras) {
+    const need = (height: number) => {
+      if (y - height < 60) nextPage(false);
+    };
+
+    need(80);
+    draw("GASTOS Y OBSERVACIONES", 44, 11, bold, primary);
+    y -= 20;
+    const declared = Number(extras.closure?.declared_expenses ?? 0);
+    draw("Gastos declarados en el cierre", 50, 9);
+    draw(extras.closure?.status === "closed" ? money(declared) : "Aun sin cerrar", 320, 9, bold, primary);
+    y -= 16;
+    for (const [title, text] of [
+      ["Detalle de gastos", extras.closure?.expense_detail],
+      ["Observaciones", extras.closure?.observations],
+    ] as const) {
+      draw(`${title}:`, 50, 9, bold);
+      y -= 14;
+      for (const line of wrap(text || "Sin registros.", 98)) {
+        need(14);
+        draw(line, 58, 9, regular, text ? rgb(0.08, 0.12, 0.1) : muted);
+        y -= 13;
+      }
+      y -= 4;
+    }
+
+    y -= 10;
+    need(120);
+    draw("CANTIDAD VENDIDA POR PRODUCTO", 44, 11, bold, primary);
+    y -= 20;
+    const drawGroupedHeader = () => {
+      page.drawRectangle({ x: 44, y: y - 8, width: 507, height: 22, color: primary });
+      for (const [label, x] of [
+        ["Producto", 50],
+        ["Hoy", 250],
+        ["Kilos hoy", 310],
+        ["Mes", 385],
+        ["Promedio/dia", 460],
+      ] as const)
+        page.drawText(label, { x, y, size: 8, font: bold, color: rgb(1, 1, 1) });
+      y -= 24;
+    };
+    drawGroupedHeader();
+    for (const group of extras.closingProducts.groups) {
+      need(34);
+      draw(group.label.toUpperCase(), 50, 8, bold, primary);
+      y -= 15;
+      for (const row of group.items) {
+        need(16);
+        draw(safeText(row.name).slice(0, 34), 50, 8);
+        draw(String(row.units), 250, 8, bold);
+        draw(row.kind === "water" ? "-" : kg(row.kg), 310, 8);
+        draw(String(row.monthUnits), 385, 8);
+        draw(String(Math.round(row.monthAvgPerDay * 10) / 10), 460, 8);
+        y -= 15;
+      }
+      need(16);
+      draw(`Total ${group.label.toLowerCase()}`, 50, 8, bold, muted);
+      draw(String(group.units), 250, 8, bold, primary);
+      draw(group.kind === "water" ? "-" : kg(group.kg), 310, 8, bold, primary);
+      y -= 20;
+    }
+
+    need(110);
+    draw(`ACUMULADO DE ${extras.monthLabel.toUpperCase()} (${extras.metrics.days} DIAS)`, 44, 11, bold, primary);
+    y -= 20;
+    for (const [label, value] of [
+      ["Ingreso acumulado a la fecha", money(extras.metrics.income)],
+      ["Kilos de hielo acumulados (cubo y frappe)", kg(extras.metrics.totalKg)],
+      ["Promedio de kilos por dia (cubo y frappe)", kg(Math.round(extras.metrics.avgKgPerDay * 10) / 10)],
+      ...(extras.closingProducts.groups
+        .find((g) => g.kind === "water")
+        ?.items.map((row) => [
+          `Promedio diario ${row.name}`,
+          `${Math.round(row.monthAvgPerDay * 10) / 10} un/dia`,
+        ]) ?? []),
+    ] as [string, string][]) {
+      need(16);
+      draw(label, 50, 9);
+      draw(value, 320, 9, bold, primary);
+      y -= 16;
+    }
+
+    // Gráfico de kilos por día (barras apiladas cubo + frappé).
+    y -= 14;
+    need(170);
+    draw("KILOS DE HIELO VENDIDOS POR DIA (cubo y frappe)", 44, 11, bold, primary);
+    y -= 14;
+    const chartTop = y;
+    const chartHeight = 110;
+    const base = chartTop - chartHeight - 10;
+    const days = extras.kgDays;
+    const slot = 507 / Math.max(days.length, 1);
+    const maxKg = Math.max(...days.map((d) => d.total), 1);
+    page.drawLine({ start: { x: 44, y: base }, end: { x: 551, y: base }, thickness: 0.5, color: muted });
+    days.forEach((d, i) => {
+      const x = 44 + i * slot + slot * 0.15;
+      const w = slot * 0.7;
+      const cubeH = (d.cube / maxKg) * chartHeight;
+      const frappeH = (d.frappe / maxKg) * chartHeight;
+      page.drawRectangle({ x, y: base, width: w, height: cubeH, color: primary });
+      page.drawRectangle({ x, y: base + cubeH, width: w, height: frappeH, color: rgb(0.5, 0.7, 0.9) });
+      page.drawText(String(Number(d.date.slice(8))), { x, y: base - 9, size: 6, font: regular, color: muted });
+    });
+    page.drawRectangle({ x: 44, y: base - 26, width: 8, height: 8, color: primary });
+    page.drawText("Hielo cubo", { x: 56, y: base - 25, size: 7, font: regular, color: muted });
+    page.drawRectangle({ x: 112, y: base - 26, width: 8, height: 8, color: rgb(0.5, 0.7, 0.9) });
+    page.drawText(`Hielo frappe   (maximo del dia: ${kg(maxKg)})`, { x: 124, y: base - 25, size: 7, font: regular, color: muted });
+    y = base - 46;
+
+    // Gráfico del ingreso acumulado.
+    need(170);
+    draw("INGRESO ACUMULADO DEL MES", 44, 11, bold, primary);
+    y -= 14;
+    const incomeBase = y - chartHeight - 10;
+    const income = extras.incomeDays;
+    const maxIncome = Math.max(...income.map((d) => d.cumulative), 1);
+    const step = 507 / Math.max(income.length, 1);
+    page.drawLine({ start: { x: 44, y: incomeBase }, end: { x: 551, y: incomeBase }, thickness: 0.5, color: muted });
+    const points = income.map((d, i) => ({
+      x: 44 + i * step + step / 2,
+      y: incomeBase + (d.cumulative / maxIncome) * chartHeight,
+    }));
+    for (let i = 1; i < points.length; i++)
+      page.drawLine({ start: points[i - 1], end: points[i], thickness: 1.4, color: primary });
+    income.forEach((d, i) =>
+      page.drawText(String(Number(d.date.slice(8))), { x: points[i].x - 3, y: incomeBase - 9, size: 6, font: regular, color: muted }),
+    );
+    if (income.length)
+      page.drawText(money(income[income.length - 1].cumulative), {
+        x: Math.min(points[points.length - 1].x, 480),
+        y: points[points.length - 1].y + 6,
+        size: 8,
+        font: bold,
+        color: primary,
+      });
+  }
 
   return pdf.save();
 }

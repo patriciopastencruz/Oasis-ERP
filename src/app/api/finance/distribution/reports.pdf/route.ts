@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { dailyDistributionData } from "@/modules/finance/distribution/application/queries";
+import { closingReportData } from "@/modules/finance/distribution/application/queries";
 import { buildDailyClosurePdf } from "@/modules/finance/distribution/application/reports-pdf";
 
 export async function GET(request: NextRequest) {
@@ -8,13 +8,25 @@ export async function GET(request: NextRequest) {
     .string()
     .date()
     .parse(request.nextUrl.searchParams.get("date"));
-  const d = await dailyDistributionData(
-    date,
-    "finance.distribution.reports.view",
-  );
+  const d = await closingReportData(date);
   if (!d.ctx.permissions.has("finance.distribution.reports.export"))
     return new NextResponse("No autorizado", { status: 403 });
-  const bytes = await buildDailyClosurePdf({ date, summary: d.summary });
+  const bytes = await buildDailyClosurePdf({
+    date,
+    summary: d.summary,
+    extras: {
+      monthLabel: new Date(`${d.accumulated.month_start}T12:00:00Z`).toLocaleDateString("es-CL", {
+        timeZone: "UTC",
+        month: "long",
+        year: "numeric",
+      }),
+      closure: d.closure,
+      closingProducts: d.closingProducts,
+      metrics: d.metrics,
+      kgDays: d.kgDays,
+      incomeDays: d.incomeDays,
+    },
+  });
   return new NextResponse(bytes as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",

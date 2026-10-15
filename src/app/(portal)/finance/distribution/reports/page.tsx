@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -16,8 +17,12 @@ import {
 import { Panel } from "@/components/ui/page";
 import { closeDayAction } from "@/modules/finance/distribution/application/actions";
 import {
+  CumulativeIncomeChart,
+  KgPerDayChart,
+} from "@/components/finance/distribution/closing-charts";
+import {
   clp,
-  dailyDistributionData,
+  closingReportData,
   periodDistributionData,
   type DistributionDailySales,
 } from "@/modules/finance/distribution/application/queries";
@@ -114,10 +119,7 @@ export default async function Reports({
   const date =
     q.date ??
     new Date().toLocaleDateString("en-CA", { timeZone: "America/Santiago" });
-  const d = await dailyDistributionData(
-    date,
-    "finance.distribution.reports.view",
-  );
+  const d = await closingReportData(date);
   const summary = d.summary;
   const operational = [
     ["Pedidos del día", summary.orders_total ?? 0, ShoppingCart],
@@ -137,8 +139,18 @@ export default async function Reports({
     ["Pago mixto recibido", clp.format(summary.mixed_received ?? 0)],
     ["Monto vendido a crédito", clp.format(summary.credit ?? 0)],
     ["Total recibido", clp.format(summary.total_received ?? 0)],
-    ["Gastos del día", clp.format(summary.expense_total ?? 0)],
+    ["Gastos declarados en el cierre", d.closure?.status === "closed" ? clp.format(Number(d.closure.declared_expenses ?? 0)) : "Se declaran al cerrar"],
+    ["Gastos de caja chica del día", clp.format(summary.expense_total ?? 0)],
   ] as const;
+  const monthLabel = new Date(`${d.accumulated.month_start}T12:00:00Z`).toLocaleDateString("es-CL", {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric",
+  });
+  const waterGroup = d.closingProducts.groups.find((g) => g.kind === "water");
+  const iceKgToday = d.closingProducts.groups
+    .filter((g) => g.kind !== "water")
+    .reduce((sum, g) => sum + g.kg, 0);
   const productRows = summary.product_details ?? [];
   const isClosed = d.closure?.status === "closed";
 
@@ -224,6 +236,90 @@ export default async function Reports({
                 </div>
               </Panel>
             ))}
+          </div>
+
+          <Panel className="overflow-hidden p-0">
+            <div className="border-b px-5 py-4">
+              <h2 className="font-semibold">Cantidad vendida por producto</h2>
+              <p className="text-xs text-[#63778e]">
+                Entregado el {date}, con el promedio diario de {monthLabel} hasta
+                esa fecha ({d.metrics.days} días corridos).
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[620px] text-sm">
+                <thead className="bg-[#f2f5f8] text-left text-xs uppercase text-[#56677b]">
+                  <tr>
+                    <th className="px-5 py-3">Producto</th>
+                    <th className="px-3 py-3 text-right">Vendido hoy</th>
+                    <th className="px-3 py-3 text-right">Kilos hoy</th>
+                    <th className="px-3 py-3 text-right">Acumulado del mes</th>
+                    <th className="px-5 py-3 text-right">Promedio por día</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.closingProducts.groups.map((group) => (
+                    <Fragment key={group.kind}>
+                      <tr className="bg-[#f7f9fb]">
+                        <td colSpan={5} className="px-5 py-2 text-xs font-bold uppercase tracking-wide text-[var(--oasis-primary)]">
+                          {group.label}
+                        </td>
+                      </tr>
+                      {group.items.map((row) => (
+                        <tr key={row.id} className="border-b last:border-0">
+                          <td className="px-5 py-2.5 font-semibold">{row.name}</td>
+                          <td className="px-3 py-2.5 text-right font-semibold">{number.format(row.units)}</td>
+                          <td className="px-3 py-2.5 text-right text-[#56677b]">{row.kind === "water" ? "—" : `${number.format(row.kg)} kg`}</td>
+                          <td className="px-3 py-2.5 text-right">{number.format(row.monthUnits)}</td>
+                          <td className="px-5 py-2.5 text-right">{number.format(Math.round(row.monthAvgPerDay * 10) / 10)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-b font-bold">
+                        <td className="px-5 py-2 text-right text-xs uppercase text-[#56677b]">Total {group.label.toLowerCase()}</td>
+                        <td className="px-3 py-2 text-right">{number.format(group.units)}</td>
+                        <td className="px-3 py-2 text-right">{group.kind === "water" ? "—" : `${number.format(group.kg)} kg`}</td>
+                        <td colSpan={2} />
+                      </tr>
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Kpi label={`Ingreso acumulado de ${monthLabel}`} value={clp.format(d.metrics.income)} hint="Venta entregada del 1 a la fecha" />
+            <Kpi label="Kilos de hielo del día" value={`${number.format(iceKgToday)} kg`} hint="Cubo y frappé" />
+            <Kpi label="Kilos acumulados del mes" value={`${number.format(d.metrics.totalKg)} kg`} hint="Cubo y frappé" />
+            <Kpi label="Promedio de kilos por día" value={`${number.format(Math.round(d.metrics.avgKgPerDay * 10) / 10)} kg`} hint="Acumulado del mes ÷ días corridos, cubo y frappé" />
+          </div>
+
+          {waterGroup && (
+            <Panel>
+              <h2 className="mb-3 font-semibold">Promedio diario de agua por tipo</h2>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {waterGroup.items.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-[#d9dfe6] p-3">
+                    <p className="text-[10px] font-semibold uppercase leading-3 text-[#63778e]">{row.name}</p>
+                    <p className="mt-1.5 text-lg font-bold leading-5">{number.format(Math.round(row.monthAvgPerDay * 10) / 10)} un/día</p>
+                    <p className="mt-1 text-[10px] text-[#909fb1]">{number.format(row.monthUnits)} en el mes</p>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          )}
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Panel>
+              <h2 className="mb-1 font-semibold">Kilos de hielo vendidos por día</h2>
+              <p className="mb-3 text-xs text-[#63778e]">Cubo y frappé, de {monthLabel} hasta el {date}.</p>
+              <KgPerDayChart days={d.kgDays} />
+            </Panel>
+            <Panel>
+              <h2 className="mb-1 font-semibold">Ingreso acumulado</h2>
+              <p className="mb-3 text-xs text-[#63778e]">Venta entregada acumulada de {monthLabel} hasta el {date}.</p>
+              <CumulativeIncomeChart days={d.incomeDays} />
+            </Panel>
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(340px,.7fr)]">
@@ -372,6 +468,12 @@ export default async function Reports({
                       {d.closure?.observations ||
                         "Sin observaciones registradas."}
                     </p>
+                    <p className="mt-3 text-xs font-semibold uppercase text-[#63778e]">
+                      Gastos declarados: {clp.format(Number(d.closure?.declared_expenses ?? 0))}
+                    </p>
+                    {d.closure?.expense_detail && (
+                      <p className="mt-1 whitespace-pre-wrap">{d.closure.expense_detail}</p>
+                    )}
                   </div>
                 ) : d.ctx.permissions.has(
                     "finance.distribution.closures.manage",
@@ -379,6 +481,25 @@ export default async function Reports({
                   <form action={closeDayAction} className="mt-4">
                     <input type="hidden" name="date" value={date} />
                     <label className="text-sm">
+                      Gastos del día (declaración, CLP)
+                      <input
+                        className={`${inputClass} mt-1`}
+                        name="declared_expenses"
+                        inputMode="numeric"
+                        placeholder="0"
+                        defaultValue={0}
+                      />
+                    </label>
+                    <label className="mt-3 block text-sm">
+                      Detalle de los gastos
+                      <textarea
+                        className={`${inputClass} min-h-16 resize-y`}
+                        name="expense_detail"
+                        maxLength={1500}
+                        placeholder="Ej.: combustible $20.000, reparación $15.000."
+                      />
+                    </label>
+                    <label className="mt-3 block text-sm">
                       Observaciones del día
                       <textarea
                         className={`${inputClass} min-h-24 resize-y`}

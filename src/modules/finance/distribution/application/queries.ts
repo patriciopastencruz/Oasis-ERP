@@ -2,6 +2,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
+import {
+  accumulatedMetrics,
+  buildClosingProducts,
+  cumulativeIncome,
+  kgPerDay,
+  type ClosingAccumulated,
+} from "../domain/closing-report";
 
 export async function distributionContext(
   permission = "finance.distribution.view",
@@ -103,7 +110,7 @@ export async function dailyDistributionData(
       permission === "finance.distribution.reports.view"
         ? supabase
             .from("dist_daily_closures")
-            .select("status,observations,closed_at")
+            .select("status,observations,closed_at,declared_expenses,expense_detail")
             .eq("business_unit_id", unit.id)
             .eq("closure_date", date)
             .maybeSingle()
@@ -128,6 +135,31 @@ export async function dailyDistributionData(
     products: products.data ?? [],
     drivers: drivers.data ?? [],
     closure: closure.data,
+  };
+}
+
+/** Datos del cierre diario completo: el día, el acumulado del mes y los gastos declarados. */
+export async function closingReportData(date: string) {
+  const d = await dailyDistributionData(date, "finance.distribution.reports.view");
+  const { data, error } = await (await createSupabaseServerClient()).rpc("dist_closing_accumulated", {
+    target_unit: d.unit.id,
+    target_date: date,
+  });
+  if (error)
+    throw new Error(`No se pudo consultar el acumulado del mes: ${error.message}`);
+  const accumulated = data as ClosingAccumulated;
+  const closingProducts = buildClosingProducts(
+    d.products,
+    d.summary.product_details ?? [],
+    accumulated,
+  );
+  return {
+    ...d,
+    accumulated,
+    metrics: accumulatedMetrics(accumulated),
+    closingProducts,
+    kgDays: kgPerDay(accumulated.daily),
+    incomeDays: cumulativeIncome(accumulated.daily),
   };
 }
 
