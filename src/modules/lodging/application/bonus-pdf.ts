@@ -91,7 +91,7 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
     y -= 4;
     text("Encuesta QR: mitad por reunir el minimo de evaluaciones y mitad por llegar al promedio meta.", M, 7, R, MUTED);
     y -= 9;
-    text("Ocupacion y Booking: cumple o no cumple, segun la meta del hostal (sin parcial).", M, 7, R, MUTED);
+    text("Ocupacion, venta promedio y Booking: cumple o no cumple, segun la meta del hostal (sin parcial).", M, 7, R, MUTED);
     y -= 9;
     text(`Aseo: todos los aseos inspeccionados y, en promedio, dentro de ${b.config.inspectionMaxWait} min de terminado el aseo (cumple o no cumple).`, M, 7, R, MUTED);
     y -= 9;

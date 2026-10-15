@@ -28,6 +28,14 @@ const pool = readFileSync("supabase/migrations/20261016150000_lodging_bonus_pool
 
 const weights = readFileSync("supabase/migrations/20261016180000_lodging_bonus_weights_survey.sql", "utf8");
 
+const goals = readFileSync("supabase/migrations/20261016190000_lodging_bonus_adr_goals.sql", "utf8");
+
+describe("migración de metas de venta promedio", () => {
+  it("fija 29.000 Centro, 32.000 Cobija y 27.000 Uruguay", () => {
+    expect(goals).toContain("('HOC',29000),('HOB',32000),('HU',27000)");
+  });
+});
+
 describe("migración de pesos del bono", () => {
   it("reparte 20/20/25/10/10/15 y fija la meta de la encuesta en 4", () => {
     expect(weights).toContain('"occupancy":20,"adr":20,"booking":25,"survey":10,"inspections":10,"order":15');

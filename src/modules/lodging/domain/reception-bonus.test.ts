@@ -12,7 +12,7 @@ const base: BonusInput = {
   pool: 100000,
   weights: { ...DEFAULT_BONUS_WEIGHTS },
   occupancy: { value: 82, goal: 80 },
-  adr: { value: 31000, goal: 30000 },
+  adr: { value: 31000, goal: 29000 },
   booking: { value: 7.6, goal: 7.5 },
   survey: { value: 4.6, goal: 4, responses: 12, minResponses: 5 },
   inspections: { cleanings: 100, inspected: 100, avgWaitMinutes: 40, maxWaitMinutes: 70 },
@@ -47,9 +47,11 @@ describe("bono de recepción", () => {
     expect(near.earned).toBe(0);
   });
 
-  it("la venta promedio usa los escalones de la meta", () => {
-    expect(row(computeBonus({ ...base, adr: { value: 27000, goal: 30000 } }), "adr").status).toBe("half");
-    expect(row(computeBonus({ ...base, adr: { value: 26999, goal: 30000 } }), "adr").status).toBe("miss");
+  it("venta promedio: cumple o no cumple, sin término medio", () => {
+    expect(row(computeBonus({ ...base, adr: { value: 29000, goal: 29000 } }), "adr").status).toBe("met");
+    const near = row(computeBonus({ ...base, adr: { value: 28999, goal: 29000 } }), "adr");
+    expect(near.status).toBe("miss");
+    expect(near.earned).toBe(0);
   });
 
   it("aseo: cumple solo si todo se inspeccionó y el tiempo promedio no pasa de los 70 minutos", () => {

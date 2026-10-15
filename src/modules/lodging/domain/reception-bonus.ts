@@ -2,11 +2,10 @@ import { clp } from "./daily-closing";
 
 /**
  * Bono mensual de recepción por cumplimiento de metas (un monto fijo por hostal).
- * Venta promedio reparte puntos según su peso: cumple la meta = todo su peso,
- * entre el 90% y el 99% de la meta = la mitad, menos = nada. La encuesta QR da
- * la mitad de su peso por reunir el mínimo de evaluaciones y la otra mitad por
- * llegar al promedio meta. Ocupación, Booking, aseo (inspecciones) y orden
- * administrativo son de cumple o no cumple, sin término medio. Si un indicador no se puede evaluar (sin meta o sin
+ * Ocupación, venta promedio, Booking, aseo (inspecciones) y orden administrativo
+ * son de cumple o no cumple, sin término medio. La encuesta QR da la mitad de su
+ * peso por reunir el mínimo de evaluaciones y la otra mitad por llegar al
+ * promedio meta. Si un indicador no se puede evaluar (sin meta o sin
  * datos suficientes) se deja fuera y su peso se reparte entre los demás, para no
  * premiar ni castigar por falta de información.
  */
@@ -147,7 +146,7 @@ export function computeBonus(input: BonusInput) {
       o.goal === null ? { na: "Sin meta de ocupación" } : o.value === null ? { na: "Sin datos del mes" } : { factor: o.value + 1e-9 >= o.goal ? 1 : 0 },
     ),
     row("adr", a.value, a.goal, () =>
-      a.goal === null ? { na: "Sin meta de venta promedio" } : a.value === null ? { na: "Sin datos del mes" } : { factor: tierFactor(a.value, a.goal) },
+      a.goal === null ? { na: "Sin meta de venta promedio" } : a.value === null ? { na: "Sin datos del mes" } : { factor: a.value + 1e-9 >= a.goal ? 1 : 0 },
     ),
     row("booking", b.value, b.goal, () =>
       b.goal === null ? { na: "Sin meta de puntaje" } : b.value === null ? { na: "Sin puntaje registrado" } : { factor: b.value + 1e-9 >= b.goal ? 1 : 0 },
