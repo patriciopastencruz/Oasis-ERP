@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { clp } from "../domain/daily-closing";
-import { ORDER_FULL, ORDER_HALF, type BonusKey, type BonusStatus } from "../domain/reception-bonus";
+import type { BonusKey, BonusStatus } from "../domain/reception-bonus";
 import type { UnitBonus } from "./bonus-queries";
 
 const W = 595.28, H = 841.89, M = 40;
@@ -12,7 +12,9 @@ const num = (v: number, d = 1) => v.toLocaleString("es-CL", { minimumFractionDig
 const status: Record<BonusStatus, string> = { met: "Cumple", half: "Parcial", miss: "No cumple", na: "No evaluado" };
 function fmt(key: BonusKey, v: number | null) {
   if (v === null) return "-";
-  if (key === "revpar") return clp(v);
+  if (key === "adr") return clp(v);
+  if (key === "inspections") return `${Math.round(v)} min`;
+  if (key === "order") return "-";
   if (key === "booking") return num(v, 1);
   if (key === "survey") return `${num(v, 2)} / 5`;
   return `${num(v, 1)}%`;
@@ -56,7 +58,7 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
     textR(clp(b.result.amount), W - M, 14, B);
     y -= 18;
     text(
-      `${num(b.result.points, 1)} de 100 puntos - bono maximo ${clp(b.config.pool)}${b.result.gateApplied ? ` - compuerta de orden aplicada (antes ${clp(b.result.amountBeforeGate)})` : ""}`,
+      `${num(b.result.points, 1)} de 100 puntos - bono maximo ${clp(b.config.pool)}${b.result.gateApplied ? ` - orden administrativo sin cumplir, bono al 50% (antes ${clp(b.result.amountBeforeGate)})` : ""}`,
       M, 8.5, R, MUTED,
     );
     y -= 16;
@@ -71,7 +73,7 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
       need(26);
       text(r.label, M, 9, R);
       textR(fmt(r.key, r.value), cols.value, 9);
-      textR(r.key === "order" ? `>= ${ORDER_FULL}%` : r.goal === null ? "-" : fmt(r.key, r.goal), cols.goal, 9, R, MUTED);
+      textR(r.key === "inspections" ? `<= ${r.goal} min` : r.goal === null ? "-" : fmt(r.key, r.goal), cols.goal, 9, R, MUTED);
       textR(String(r.weight), cols.weight, 9);
       text(status[r.status], cols.result - 6, 9, B, r.status === "met" ? rgb(0.05, 0.5, 0.3) : r.status === "miss" ? rgb(0.75, 0.15, 0.15) : MUTED);
       textR(r.status === "na" ? "-" : num(r.earned, 1), cols.points, 9, B);
@@ -80,14 +82,16 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
         text(r.note, M + 8, 7.5, R, MUTED);
         y -= 10;
       }
+      for (const c of r.criteria) {
+        need(12);
+        text(`${c.ok ? "Cumple" : "No cumple"} - ${c.label}: ${c.text}`, M + 8, 7.5, R, c.ok ? rgb(0.05, 0.5, 0.3) : rgb(0.75, 0.15, 0.15));
+        y -= 10;
+      }
     }
     y -= 4;
-    const o = b.input.order;
-    const p = (v: number | null) => (v === null ? "-" : `${num(v, 0)}%`);
-    text(
-      `Orden: cierres ${p(o.closings)} (${b.counts.dueDays - b.counts.pendingClosings}/${b.counts.dueDays} dias), reservas con precio ${p(o.prices)} (${b.counts.reservations}), pagos con comprobante ${p(o.receipts)} (${b.counts.paymentsWithReceipt}/${b.counts.payments}). Desde ${ORDER_FULL}% gana todo, desde ${ORDER_HALF}% la mitad.`,
-      M, 7.5, R, MUTED,
-    );
+    text(`Aseo: todos los aseos inspeccionados y, en promedio, dentro de ${b.config.inspectionMaxWait} min de terminado el aseo (cumple o no cumple).`, M, 7, R, MUTED);
+    y -= 9;
+    text("Orden: cierres diarios antes de las 06:00 del dia siguiente y sin saldos pendientes de estadias terminadas (excluye empresa a credito).", M, 7, R, MUTED);
     y -= 24;
   }
   text(`Generado el ${new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" }).format(new Date())} - OASIS ERP`, M, 7.5, R, MUTED);

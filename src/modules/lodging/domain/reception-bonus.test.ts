@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_BONUS_WEIGHTS,
   cappedOccupancyPct,
+  closingDeadline,
   computeBonus,
   tierFactor,
   type BonusInput,
@@ -11,12 +12,14 @@ const base: BonusInput = {
   pool: 100000,
   weights: { ...DEFAULT_BONUS_WEIGHTS },
   occupancy: { value: 82, goal: 80 },
-  revpar: { value: 21000, goal: 20000 },
+  adr: { value: 31000, goal: 30000 },
   booking: { value: 7.6, goal: 7.5, previous: 7.4 },
   survey: { value: 4.6, goal: 4.5, responses: 12, minResponses: 5 },
-  housekeeping: { value: 90, goal: 85 },
-  order: { closings: 100, prices: 98, receipts: 96 },
+  inspections: { cleanings: 100, inspected: 100, avgWaitMinutes: 40, maxWaitMinutes: 60 },
+  order: { closings: { due: 20, onTime: 20, lateDays: [] }, balances: { count: 0, total: 0 } },
 };
+
+const row = (r: ReturnType<typeof computeBonus>, key: string) => r.rows.find((x) => x.key === key)!;
 
 describe("bono de recepción", () => {
   it("los pesos por defecto suman 100", () => {
@@ -37,29 +40,61 @@ describe("bono de recepción", () => {
     expect(tierFactor(5, 0)).toBe(1);
   });
 
-  it("ejemplo: cumple ocupación, RevPAR y Booking; el resto no llega", () => {
-    const r = computeBonus({
-      ...base,
-      survey: { ...base.survey, value: 3.0 },
-      housekeeping: { value: 50, goal: 85 },
-      order: { closings: 92, prices: 92, receipts: 92 }, // 92 → mitad, sin compuerta
-    });
-    // 25 + 25 + 20 + 0 + 0 + 7,5 (mitad de 15)
-    expect(r.points).toBeCloseTo(77.5, 5);
-    expect(r.amount).toBe(77500);
+  it("la venta promedio usa los escalones de la meta", () => {
+    expect(row(computeBonus({ ...base, adr: { value: 27000, goal: 30000 } }), "adr").status).toBe("half");
+    expect(row(computeBonus({ ...base, adr: { value: 26999, goal: 30000 } }), "adr").status).toBe("miss");
   });
 
-  it("la compuerta de orden reduce el bono a la mitad", () => {
-    const r = computeBonus({ ...base, order: { closings: 80, prices: 90, receipts: 85 } }); // 85 < 90
+  it("aseo: cumple solo si todo se inspeccionó y el tiempo promedio no pasa de la hora", () => {
+    expect(row(computeBonus(base), "inspections").status).toBe("met");
+    expect(row(computeBonus({ ...base, inspections: { ...base.inspections, avgWaitMinutes: 60 } }), "inspections").status).toBe("met");
+    const slow = row(computeBonus({ ...base, inspections: { ...base.inspections, avgWaitMinutes: 61 } }), "inspections");
+    expect(slow.status).toBe("miss");
+    expect(slow.earned).toBe(0);
+    const missing = row(computeBonus({ ...base, inspections: { ...base.inspections, inspected: 99 } }), "inspections");
+    expect(missing.status).toBe("miss");
+    expect(missing.criteria.filter((c) => !c.ok)).toHaveLength(1);
+  });
+
+  it("aseo sin aseos terminados en el mes no se evalúa", () => {
+    const r = computeBonus({ ...base, inspections: { cleanings: 0, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 60 } });
+    expect(row(r, "inspections").status).toBe("na");
+    expect(r.points).toBeCloseTo(100, 5);
+  });
+
+  it("orden: un cierre atrasado ya no cumple ese criterio, sin término medio", () => {
+    const r = computeBonus({ ...base, order: { ...base.order, closings: { due: 20, onTime: 19, lateDays: [7] } } });
+    const order = row(r, "order");
+    expect(order.status).toBe("half"); // cumple saldos, no cierres
+    expect(order.earned).toBeCloseTo(7.5, 5);
+    expect(order.criteria[0].text).toContain("7");
+    expect(r.gateApplied).toBe(false);
+    expect(r.amount).toBe(92500);
+  });
+
+  it("orden: un saldo pendiente de una estadía terminada no cumple ese criterio", () => {
+    const r = computeBonus({ ...base, order: { ...base.order, balances: { count: 2, total: 45000 } } });
+    expect(row(r, "order").status).toBe("half");
+    expect(row(r, "order").criteria[1].text).toContain("2 estadías");
+  });
+
+  it("si no cumple ninguno de los dos criterios de orden, el bono se reduce a la mitad", () => {
+    const r = computeBonus({ ...base, order: { closings: { due: 20, onTime: 10, lateDays: [1, 2] }, balances: { count: 1, total: 30000 } } });
+    expect(row(r, "order").status).toBe("miss");
     expect(r.gateApplied).toBe(true);
-    // 85 puntos de 100 (todo menos orden) → 85.000, y la compuerta lo deja en 42.500
     expect(r.amountBeforeGate).toBe(85000);
     expect(r.amount).toBe(42500);
   });
 
+  it("orden: sin cierres vencidos (inicio de mes) se evalúan solo los saldos", () => {
+    const r = computeBonus({ ...base, order: { closings: null, balances: { count: 0, total: 0 } } });
+    expect(row(r, "order").criteria).toHaveLength(1);
+    expect(row(r, "order").status).toBe("met");
+  });
+
   it("si el puntaje de Booking bajó respecto del mes anterior, gana la mitad aunque cumpla la meta", () => {
     const r = computeBonus({ ...base, booking: { value: 7.6, goal: 7.5, previous: 7.9 } });
-    const booking = r.rows.find((x) => x.key === "booking")!;
+    const booking = row(r, "booking");
     expect(booking.status).toBe("half");
     expect(booking.note).toContain("Bajó");
   });
@@ -68,9 +103,9 @@ describe("bono de recepción", () => {
     const r = computeBonus({
       ...base,
       survey: { value: null, goal: 4.5, responses: 2, minResponses: 5 },
-      housekeeping: { value: null, goal: 85 },
+      inspections: { cleanings: null, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 60 },
     });
-    expect(r.rows.find((x) => x.key === "survey")!.status).toBe("na");
+    expect(row(r, "survey").status).toBe("na");
     expect(r.evaluatedWeight).toBe(85);
     expect(r.points).toBeCloseTo(100, 5); // cumple todo lo evaluado
     const effective = r.rows.filter((x) => x.status !== "na").reduce((s, x) => s + x.effectiveWeight, 0);
@@ -81,11 +116,11 @@ describe("bono de recepción", () => {
     const r = computeBonus({
       ...base,
       occupancy: { value: null, goal: null },
-      revpar: { value: null, goal: null },
+      adr: { value: null, goal: null },
       booking: { value: null, goal: null, previous: null },
       survey: { value: null, goal: 4.5, responses: 0, minResponses: 5 },
-      housekeeping: { value: null, goal: null },
-      order: { closings: null, prices: null, receipts: null },
+      inspections: { cleanings: null, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 60 },
+      order: { closings: null, balances: null },
     });
     expect(r.points).toBe(0);
     expect(r.amount).toBe(0);
@@ -95,5 +130,12 @@ describe("bono de recepción", () => {
     // 5 habitaciones: un día con 9 ocupaciones (180%) cuenta como 110%
     expect(cappedOccupancyPct([{ occupied: 5 }, { occupied: 9 }], 5)).toBeCloseTo(105, 5);
     expect(cappedOccupancyPct([], 5)).toBeNull();
+  });
+
+  it("el plazo de un cierre vence a las 06:00 de Santiago del día siguiente", () => {
+    // Octubre: horario de verano de Chile (UTC-3) → 09:00 UTC.
+    expect(closingDeadline("2026-10-10").toISOString()).toBe("2026-10-11T09:00:00.000Z");
+    // Junio: horario de invierno (UTC-4) → 10:00 UTC.
+    expect(closingDeadline("2026-06-10").toISOString()).toBe("2026-06-11T10:00:00.000Z");
   });
 });

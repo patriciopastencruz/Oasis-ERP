@@ -8,7 +8,7 @@ import { requirePermission } from "@/modules/platform/auth/application/session";
 import { loadReceptionBonus, type UnitBonus } from "@/modules/lodging/application/bonus-queries";
 import { saveBonusConfigAction, saveBonusResultAction } from "@/modules/lodging/application/bonus-actions";
 import { clp, santiagoToday } from "@/modules/lodging/domain/daily-closing";
-import { BONUS_INDICATORS, ORDER_FULL, ORDER_HALF, type BonusKey, type BonusStatus } from "@/modules/lodging/domain/reception-bonus";
+import { BONUS_INDICATORS, type BonusKey, type BonusStatus } from "@/modules/lodging/domain/reception-bonus";
 import { parseHistoryMonth, shiftMonth } from "@/modules/lodging/domain/history-report";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,9 @@ export const dynamic = "force-dynamic";
 const num = (v: number, d = 1) => v.toLocaleString("es-CL", { minimumFractionDigits: d, maximumFractionDigits: d });
 function fmt(key: BonusKey, v: number | null) {
   if (v === null) return "—";
-  if (key === "revpar") return clp(v);
+  if (key === "adr") return clp(v);
+  if (key === "inspections") return `${Math.round(v)} min`;
+  if (key === "order") return "—";
   if (key === "booking") return num(v, 1);
   if (key === "survey") return `${num(v, 2)} / 5`;
   return `${num(v, 1)}%`;
@@ -35,7 +37,6 @@ const input = "mt-1 block w-full rounded-lg border bg-white px-2 py-1.5 text-sm"
 
 function Detail({ b }: { b: UnitBonus }) {
   const r = b.result;
-  const o = b.input.order;
   return (
     <Panel>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -44,7 +45,7 @@ function Detail({ b }: { b: UnitBonus }) {
           <p className="mt-1 text-3xl font-bold leading-none">{clp(r.amount)}</p>
           <p className="mt-1 text-xs text-slate-500">
             {num(r.points, 1)} de 100 puntos · bono máximo {clp(b.config.pool)}
-            {r.gateApplied && <span className="ml-1 font-semibold text-red-700">· compuerta de orden aplicada (50%: antes {clp(r.amountBeforeGate)})</span>}
+            {r.gateApplied && <span className="ml-1 font-semibold text-red-700">· orden administrativo sin cumplir (bono al 50%: antes {clp(r.amountBeforeGate)})</span>}
           </p>
         </div>
         {b.saved && (
@@ -76,10 +77,15 @@ function Detail({ b }: { b: UnitBonus }) {
                 <td className="py-2 font-medium">
                   {x.label}
                   {x.note && <span className="block text-[11px] font-normal text-slate-500">{x.note}</span>}
+                  {x.criteria.map((c) => (
+                    <span key={c.label} className={`block text-[11px] font-normal ${c.ok ? "text-emerald-700" : "text-red-700"}`}>
+                      {c.ok ? "✓" : "✗"} {c.label}: {c.text}
+                    </span>
+                  ))}
                 </td>
                 <td className="text-right tabular-nums">{fmt(x.key, x.value)}</td>
                 <td className="text-right tabular-nums text-slate-500">
-                  {x.key === "order" ? `≥ ${ORDER_FULL}%` : x.goal === null ? "—" : fmt(x.key, x.goal)}
+                  {x.key === "inspections" ? `≤ ${x.goal} min` : x.goal === null ? "—" : fmt(x.key, x.goal)}
                 </td>
                 <td className="text-right tabular-nums">
                   {x.weight}
@@ -96,10 +102,9 @@ function Detail({ b }: { b: UnitBonus }) {
       </div>
 
       <p className="mt-3 text-xs text-slate-600">
-        <b>Orden administrativo</b> (promedio de tres): cierres emitidos {o.closings === null ? "—" : `${num(o.closings, 0)}%`} ({b.counts.dueDays - b.counts.pendingClosings} de {b.counts.dueDays} días) ·
-        reservas con precio {o.prices === null ? "—" : `${num(o.prices, 0)}%`} ({b.counts.reservations} reservas) ·
-        pagos con comprobante {o.receipts === null ? "—" : `${num(o.receipts, 0)}%`} ({b.counts.paymentsWithReceipt} de {b.counts.payments} por transferencia o tarjeta).
-        Desde {ORDER_FULL}% gana todo, desde {ORDER_HALF}% la mitad; bajo {ORDER_HALF}% no gana y el bono se reduce a la mitad.
+        <b>Cumple o no cumple, sin término medio:</b> el aseo exige que todos los aseos terminados del mes se inspeccionen y que la inspección ocurra, en promedio, dentro de{" "}
+        {b.config.inspectionMaxWait} minutos de terminado el aseo. El orden administrativo exige cierres diarios emitidos antes de las 06:00 del día siguiente y ninguna estadía terminada con saldo por cobrar
+        (no cuentan las de empresa a crédito); cumplir uno de los dos da la mitad de sus puntos y no cumplir ninguno además reduce el bono a la mitad.
       </p>
     </Panel>
   );
@@ -137,11 +142,11 @@ function ConfigForm({ b, canManage }: { b: UnitBonus; canManage: boolean }) {
             <input name="survey_min_responses" type="number" min={0} defaultValue={c.surveyMinResponses} required className={input} />
           </label>
           <label className="block text-xs">
-            Meta aseo a la primera (%)
-            <input name="housekeeping_goal" inputMode="decimal" defaultValue={String(c.housekeepingGoal).replace(".", ",")} required className={input} />
+            Máx. minutos hasta la inspección
+            <input name="inspection_max_wait_minutes" type="number" min={1} max={1440} defaultValue={c.inspectionMaxWait} required className={input} />
           </label>
         </div>
-        <p className="text-[11px] text-slate-500">Las metas de ocupación, RevPAR y puntaje de Booking son las del reporte de los hostales.</p>
+        <p className="text-[11px] text-slate-500">Las metas de ocupación, venta promedio y puntaje de Booking son las del reporte de los hostales.</p>
         <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">Guardar configuración</button>
       </form>
     </details>

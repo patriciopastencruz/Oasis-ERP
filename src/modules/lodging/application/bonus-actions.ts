@@ -35,10 +35,10 @@ export async function saveBonusConfigAction(form: FormData) {
   if (total !== 100) go(back, "error", `Los pesos deben sumar 100 (ahora suman ${total}).`);
   const surveyGoal = parseScoreInput(String(form.get("survey_goal") ?? ""));
   const minResponses = Number(form.get("survey_min_responses"));
-  const housekeepingGoal = parseScoreInput(String(form.get("housekeeping_goal") ?? ""));
+  const maxWait = Number(form.get("inspection_max_wait_minutes"));
   if (surveyGoal === null || surveyGoal < 1 || surveyGoal > 5) go(back, "error", "La meta de la encuesta va de 1 a 5.");
   if (!Number.isInteger(minResponses) || minResponses < 0) go(back, "error", "El mínimo de respuestas debe ser un número entero.");
-  if (housekeepingGoal === null || housekeepingGoal < 0 || housekeepingGoal > 100) go(back, "error", "La meta de aseo va de 0 a 100.");
+  if (!Number.isInteger(maxWait) || maxWait < 1 || maxWait > 1440) go(back, "error", "El tiempo máximo de inspección va de 1 a 1.440 minutos.");
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("lodging_save_bonus_config", {
@@ -48,7 +48,7 @@ export async function saveBonusConfigAction(form: FormData) {
       weights,
       survey_goal: surveyGoal,
       survey_min_responses: minResponses,
-      housekeeping_goal: housekeepingGoal,
+      inspection_max_wait_minutes: maxWait,
     },
   });
   if (error) go(back, "error", /autoriz/i.test(error.message) ? "No tienes autorización para esta acción." : error.message);

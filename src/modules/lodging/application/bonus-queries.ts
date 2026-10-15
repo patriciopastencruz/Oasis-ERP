@@ -2,10 +2,11 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { addDays, defaultClosingDate, santiagoToday } from "../domain/daily-closing";
 import { loadGroupWeeklyReport } from "./group-weekly-queries";
-import { revparGoal } from "../domain/report-goals";
 import {
   DEFAULT_BONUS_WEIGHTS,
+  DEFAULT_INSPECTION_MAX_WAIT,
   cappedOccupancyPct,
+  closingDeadline,
   computeBonus,
   type BonusInput,
   type BonusWeights,
@@ -15,7 +16,6 @@ type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 type Unit = { id: string; code: string; name: string };
 
 const santiagoDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date(iso));
-const pct = (part: number, total: number) => (total > 0 ? (part / total) * 100 : null);
 
 export function monthBounds(month: string) {
   const start = `${month}-01`;
@@ -30,7 +30,7 @@ export type BonusConfig = {
   weights: BonusWeights;
   surveyGoal: number;
   surveyMinResponses: number;
-  housekeepingGoal: number;
+  inspectionMaxWait: number;
   configured: boolean;
 };
 
@@ -39,7 +39,7 @@ const defaultConfig: BonusConfig = {
   weights: DEFAULT_BONUS_WEIGHTS,
   surveyGoal: 4.5,
   surveyMinResponses: 5,
-  housekeepingGoal: 85,
+  inspectionMaxWait: DEFAULT_INSPECTION_MAX_WAIT,
   configured: false,
 };
 
@@ -62,10 +62,10 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
   let dueDays = 0;
   for (let d = start; d <= lastDue; d = addDays(d, 1)) dueDays++;
 
-  const [configRes, savedRes, reservationsRes, paymentsRes, surveysRes, previousBookingRes] = await Promise.all([
+  const [configRes, savedRes, closingsRes, surveysRes, previousBookingRes] = await Promise.all([
     supabase
       .from("lodging_bonus_config")
-      .select("pool_amount,weights,survey_goal,survey_min_responses,housekeeping_goal")
+      .select("pool_amount,weights,survey_goal,survey_min_responses,inspection_max_wait_minutes")
       .eq("business_unit_id", unit.id)
       .maybeSingle(),
     supabase
@@ -75,21 +75,12 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       .eq("month", start)
       .maybeSingle(),
     supabase
-      .from("lodging_reservations")
-      .select("total_value")
+      .from("lodging_daily_closings")
+      .select("closing_date,first_issued_at")
       .eq("business_unit_id", unit.id)
-      .not("status", "in", "(cancelled,conflict)")
-      .neq("origin", "maintenance")
-      .lte("check_in", reference)
-      .gt("check_out", start),
-    supabase
-      .from("lodging_reservation_payments")
-      .select("paid_at,type,payment_method,lodging_payment_receipts(id,deleted_at)")
-      .eq("business_unit_id", unit.id)
-      .eq("status", "confirmed")
-      .in("payment_method", ["transfer", "card"])
-      .gte("paid_at", `${start}T00:00:00-06:00`)
-      .lt("paid_at", `${addDays(reference, 1)}T06:00:00Z`),
+      .eq("status", "issued")
+      .gte("closing_date", start)
+      .lte("closing_date", lastDue),
     supabase
       .from("lodging_satisfaction_surveys")
       .select("created_at,cleanliness,comfort,staff,value_for_money")
@@ -105,7 +96,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       .order("recorded_on", { ascending: false })
       .limit(1),
   ]);
-  for (const r of [configRes, reservationsRes, paymentsRes, surveysRes]) if (r.error) throw r.error;
+  for (const r of [configRes, closingsRes, surveysRes]) if (r.error) throw r.error;
 
   const c = configRes.data;
   const config: BonusConfig = c
@@ -114,20 +105,11 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
         weights: { ...DEFAULT_BONUS_WEIGHTS, ...(c.weights as Partial<BonusWeights>) },
         surveyGoal: Number(c.survey_goal),
         surveyMinResponses: Number(c.survey_min_responses),
-        housekeepingGoal: Number(c.housekeeping_goal),
+        inspectionMaxWait: Number(c.inspection_max_wait_minutes),
         configured: true,
       }
     : defaultConfig;
 
-  const reservations = reservationsRes.data ?? [];
-  const payments = (paymentsRes.data ?? []).filter((p) => {
-    const day = santiagoDay(p.paid_at);
-    return day >= start && day <= reference && p.type !== "refund";
-  });
-  const withReceipt = payments.filter((p) => {
-    const list = Array.isArray(p.lodging_payment_receipts) ? p.lodging_payment_receipts : p.lodging_payment_receipts ? [p.lodging_payment_receipts] : [];
-    return list.some((r) => !r.deleted_at);
-  }).length;
   const surveys = (surveysRes.data ?? []).filter((s) => {
     const day = santiagoDay(s.created_at);
     return day >= start && day <= reference;
@@ -137,26 +119,40 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
     : null;
   const latestReview = [...h.reviews].sort((a, b) => b.recorded_on.localeCompare(a.recorded_on))[0] ?? null;
 
+  // Cierres: cada día vencido debe haberse emitido por primera vez antes de que terminara su día de trabajo.
+  const firstIssued = new Map((closingsRes.data ?? []).map((c) => [c.closing_date, c.first_issued_at as string | null]));
+  const lateDays: number[] = [];
+  let onTimeClosings = 0;
+  for (let d = start; d <= lastDue; d = addDays(d, 1)) {
+    const issuedAt = firstIssued.get(d) ?? null;
+    if (issuedAt !== null && new Date(issuedAt).getTime() < closingDeadline(d).getTime()) onTimeClosings++;
+    else lateDays.push(Number(d.slice(8)));
+  }
+  // Saldos: estadías ya terminadas con deuda, sin contar las de empresa que paga después.
+  const unpaid = h.balances.rows.filter((r) => !r.postpaid_company && r.check_out <= lastDue);
+  const unpaidTotal = unpaid.reduce((sum, r) => sum + r.balance, 0);
+
   const insp = h.inspections;
   const input: BonusInput = {
     pool: config.pool,
     weights: config.weights,
     occupancy: { value: cappedOccupancyPct(h.month.days, h.month.totalRooms), goal: h.goals.occupancyPct },
-    revpar: { value: h.month.totalRooms ? h.month.revpar : null, goal: revparGoal(h.goals) },
+    adr: { value: h.month.nightsSold ? h.month.adr : null, goal: h.goals.averageRate },
     booking: {
       value: latestReview ? latestReview.score : null,
       goal: h.goals.bookingScore,
       previous: previousBookingRes.data?.[0] ? Number(previousBookingRes.data[0].score) : null,
     },
     survey: { value: surveyAvg, goal: config.surveyGoal, responses: surveys.length, minResponses: config.surveyMinResponses },
-    housekeeping: {
-      value: insp.available && insp.enabled ? insp.approvedFirstPct : null,
-      goal: config.housekeepingGoal,
+    inspections: {
+      cleanings: insp.available && insp.enabled ? insp.cleanings : null,
+      inspected: insp.available ? insp.inspectedCleanings : 0,
+      avgWaitMinutes: insp.available ? insp.avgWaitMinutes : null,
+      maxWaitMinutes: config.inspectionMaxWait,
     },
     order: {
-      closings: pct(dueDays - h.pendingClosings.length, dueDays),
-      prices: pct(reservations.filter((r) => Number(r.total_value) > 0).length, reservations.length),
-      receipts: pct(withReceipt, payments.length),
+      closings: dueDays > 0 ? { due: dueDays, onTime: onTimeClosings, lateDays } : null,
+      balances: { count: unpaid.length, total: unpaidTotal },
     },
   };
   const result = computeBonus(input);
@@ -179,14 +175,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
     input,
     result,
     saved,
-    counts: {
-      dueDays,
-      pendingClosings: h.pendingClosings.length,
-      reservations: reservations.length,
-      payments: payments.length,
-      paymentsWithReceipt: withReceipt,
-      surveyResponses: surveys.length,
-    },
+    counts: { dueDays, surveyResponses: surveys.length },
   };
 }
 
