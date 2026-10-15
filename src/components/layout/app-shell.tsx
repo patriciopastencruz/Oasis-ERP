@@ -509,6 +509,15 @@ export async function AppShell({
           />
         )}
         <nav className="mt-4 flex-1 space-y-1">
+          {isLodgingUnit && ctx.permissions.has("kpis.view") && (
+            <Link
+              href="/kpis"
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 hover:text-white"
+            >
+              <Gauge size={17} />
+              Indicadores KPIs
+            </Link>
+          )}
           {showFinance && (
             <details className="group/finance">
               <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">

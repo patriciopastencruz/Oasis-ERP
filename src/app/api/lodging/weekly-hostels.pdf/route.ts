@@ -8,7 +8,7 @@ import { addDays, defaultClosingDate, isValidDay, santiagoToday } from "@/module
 
 /** Reporte de los hostales del usuario (acumulado del mes al corte), uno por columna. */
 export async function GET(request: NextRequest) {
-  const ctx = await requirePermission("lodging.closings.reports");
+  const ctx = await requirePermission("kpis.view");
   const units = lodgingUnitCodes
     .map((code) => ctx.units.find((u) => u.code === code))
     .filter((u): u is NonNullable<typeof u> => !!u)

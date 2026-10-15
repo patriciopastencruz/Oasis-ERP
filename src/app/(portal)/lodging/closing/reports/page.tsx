@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { PageHeader } from "@/components/ui/page";
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
-import { WeeklyHostelsPdfForm } from "@/components/lodging/weekly-hostels-pdf-form";
 import { PeriodExecutive } from "@/components/lodging/period-executive";
 import { lodgingContext } from "@/modules/lodging/application/queries";
 import { loadPeriodReport } from "@/modules/lodging/application/period-queries";
@@ -73,7 +72,6 @@ export default async function ClosingReportsPage({
         >
           <Download size={16} /> PDF del resumen {kind === "week" ? "semanal" : "quincenal"}
         </a>
-        {kind === "week" && <WeeklyHostelsPdfForm />}
       </div>
 
       <PeriodExecutive report={report} />
