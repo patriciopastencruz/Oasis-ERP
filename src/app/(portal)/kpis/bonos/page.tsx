@@ -102,7 +102,7 @@ function Detail({ b }: { b: UnitBonus }) {
       </div>
 
       <p className="mt-3 text-xs text-slate-600">
-        <b>Cumple o no cumple, sin término medio:</b> el aseo exige que todos los aseos terminados del mes se inspeccionen y que la inspección ocurra, en promedio, dentro de{" "}
+        <b>Cumple o no cumple, sin término medio:</b> la ocupación debe alcanzar la meta del hostal; el aseo exige que todos los aseos terminados del mes se inspeccionen y que la inspección ocurra, en promedio, dentro de{" "}
         {b.config.inspectionMaxWait} minutos de terminado el aseo. El orden administrativo exige cierres diarios emitidos antes de las 06:00 del día siguiente y ninguna estadía terminada con saldo por cobrar
         (no cuentan las de empresa a crédito); cumplir uno de los dos da la mitad de sus puntos y no cumplir ninguno además reduce el bono a la mitad.
       </p>

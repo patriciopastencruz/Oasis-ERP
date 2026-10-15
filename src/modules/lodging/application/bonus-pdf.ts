@@ -89,6 +89,8 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
       }
     }
     y -= 4;
+    text("Ocupacion: cumple o no cumple, segun la meta del hostal (sin parcial).", M, 7, R, MUTED);
+    y -= 9;
     text(`Aseo: todos los aseos inspeccionados y, en promedio, dentro de ${b.config.inspectionMaxWait} min de terminado el aseo (cumple o no cumple).`, M, 7, R, MUTED);
     y -= 9;
     text("Orden: cierres diarios antes de las 06:00 del dia siguiente y sin saldos pendientes de estadias terminadas (excluye empresa a credito).", M, 7, R, MUTED);

@@ -2,9 +2,9 @@ import { clp } from "./daily-closing";
 
 /**
  * Bono mensual de recepción por cumplimiento de metas (un monto fijo por hostal).
- * Ocupación, venta promedio, Booking y encuesta reparten puntos según su peso:
- * cumple la meta = todo su peso, entre el 90% y el 99% de la meta = la mitad,
- * menos = nada. Aseo (inspecciones) y orden administrativo son de cumple o no
+ * Venta promedio, Booking y encuesta reparten puntos según su peso: cumple la
+ * meta = todo su peso, entre el 90% y el 99% de la meta = la mitad, menos =
+ * nada. Ocupación, aseo (inspecciones) y orden administrativo son de cumple o no
  * cumple, sin término medio. Si un indicador no se puede evaluar (sin meta o sin
  * datos suficientes) se deja fuera y su peso se reparte entre los demás, para no
  * premiar ni castigar por falta de información.
@@ -143,7 +143,7 @@ export function computeBonus(input: BonusInput) {
 
   const rows: BonusRow[] = [
     row("occupancy", o.value, o.goal, () =>
-      o.goal === null ? { na: "Sin meta de ocupación" } : o.value === null ? { na: "Sin datos del mes" } : { factor: tierFactor(o.value, o.goal) },
+      o.goal === null ? { na: "Sin meta de ocupación" } : o.value === null ? { na: "Sin datos del mes" } : { factor: o.value + 1e-9 >= o.goal ? 1 : 0 },
     ),
     row("adr", a.value, a.goal, () =>
       a.goal === null ? { na: "Sin meta de venta promedio" } : a.value === null ? { na: "Sin datos del mes" } : { factor: tierFactor(a.value, a.goal) },

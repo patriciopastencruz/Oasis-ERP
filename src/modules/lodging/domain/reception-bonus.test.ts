@@ -40,6 +40,13 @@ describe("bono de recepción", () => {
     expect(tierFactor(5, 0)).toBe(1);
   });
 
+  it("ocupación: cumple o no cumple, sin término medio", () => {
+    expect(row(computeBonus({ ...base, occupancy: { value: 90, goal: 90 } }), "occupancy").status).toBe("met");
+    const near = row(computeBonus({ ...base, occupancy: { value: 89.9, goal: 90 } }), "occupancy");
+    expect(near.status).toBe("miss");
+    expect(near.earned).toBe(0);
+  });
+
   it("la venta promedio usa los escalones de la meta", () => {
     expect(row(computeBonus({ ...base, adr: { value: 27000, goal: 30000 } }), "adr").status).toBe("half");
     expect(row(computeBonus({ ...base, adr: { value: 26999, goal: 30000 } }), "adr").status).toBe("miss");
