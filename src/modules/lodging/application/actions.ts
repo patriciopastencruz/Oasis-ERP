@@ -157,6 +157,7 @@ export async function createReservationAction(form: FormData) {
       surcharge: z.coerce.number().min(0),
       company_name: z.string().trim().max(160),
       estimated_arrival: z.string().trim().max(8),
+      estimated_departure: z.string().trim().max(8).optional(),
       notes: z.string().trim().max(1000),
       license_plate: z.string().trim().max(30),
       payment_option: z.enum(["none", "deposit", "total"]),
@@ -232,11 +233,56 @@ export async function createReservationAction(form: FormData) {
           : "No fue posible crear la reserva.",
     );
   }
+  // La hora de salida es solo informativa: si no se pudo guardar, la reserva
+  // igual queda creada y se puede informar después desde su detalle.
+  if (parsed.data.estimated_departure)
+    await s.rpc("set_lodging_reservation_departure", {
+      target_reservation: data,
+      departure: parsed.data.estimated_departure,
+    });
   revalidatePath("/lodging");
   go(
     `/lodging/reservations/${data}`,
     "success",
     "Reserva creada correctamente.",
+  );
+}
+
+export async function updateReservationDepartureAction(form: FormData) {
+  await requirePermission("lodging.reservations.manage");
+  const parsed = z
+    .object({
+      reservation_id: uuid,
+      estimated_departure: z
+        .string()
+        .trim()
+        .regex(/^(\d{2}:\d{2})?$/, "Hora no válida."),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success)
+    go("/lodging/arrivals", "error", "Hora de salida no válida.");
+  const { reservation_id, estimated_departure } = parsed.data!;
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("set_lodging_reservation_departure", {
+    target_reservation: reservation_id,
+    departure: estimated_departure || null,
+  });
+  if (error)
+    go(
+      `/lodging/reservations/${reservation_id}`,
+      "error",
+      error.message.includes("ya no admite")
+        ? error.message
+        : "No fue posible guardar la hora de salida.",
+    );
+  revalidatePath("/lodging/arrivals");
+  revalidatePath(`/lodging/reservations/${reservation_id}`);
+  go(
+    `/lodging/reservations/${reservation_id}`,
+    "success",
+    estimated_departure
+      ? "Hora de salida guardada."
+      : "Hora de salida eliminada.",
   );
 }
 

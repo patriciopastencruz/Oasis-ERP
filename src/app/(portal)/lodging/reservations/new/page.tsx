@@ -147,6 +147,14 @@ export default async function Page({
             />
           </label>
           <label className="text-sm font-medium">
+            Hora aproximada de salida
+            <input
+              name="estimated_departure"
+              type="time"
+              className={`mt-1 block w-full ${field}`}
+            />
+          </label>
+          <label className="text-sm font-medium">
             Descuento
             <input
               name="discount"

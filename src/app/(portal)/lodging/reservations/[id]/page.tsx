@@ -18,6 +18,7 @@ import {
   updateImportedReservationInfoAction,
   removeImportedReservationAction,
   updateReservationDatesAction,
+  updateReservationDepartureAction,
   updateReservationPriceAction,
 } from "@/modules/lodging/application/actions";
 import { ConfirmButton } from "@/components/sales/confirm-button";
@@ -476,11 +477,36 @@ export default async function Page({
               <dt className="text-slate-500">Llegada estimada</dt>
               <dd>{r.estimated_arrival || "Sin informar"}</dd>
             </div>
+            <div>
+              <dt className="text-slate-500">Salida estimada</dt>
+              <dd>{r.estimated_departure?.slice(0, 5) || "Sin informar"}</dd>
+            </div>
             <div className="sm:col-span-2">
               <dt className="text-slate-500">Observaciones</dt>
               <dd>{r.notes || "Sin observaciones"}</dd>
             </div>
           </dl>
+          {canManage &&
+            !["cancelled", "checked_out", "conflict"].includes(r.status) && (
+              <form
+                action={updateReservationDepartureAction}
+                className="mt-4 flex flex-wrap items-end gap-2"
+              >
+                <input type="hidden" name="reservation_id" value={id} />
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Hora aproximada de salida
+                  <input
+                    name="estimated_departure"
+                    type="time"
+                    defaultValue={r.estimated_departure?.slice(0, 5) ?? ""}
+                    className={field}
+                  />
+                </label>
+                <button className="rounded-xl border border-[#0b4f9c] px-4 py-2 text-sm font-semibold text-[#0b4f9c]">
+                  Guardar hora de salida
+                </button>
+              </form>
+            )}
           <div className="mt-5 flex flex-wrap gap-2">
             {r.status === "confirmed" &&
               (!needsInspection || room?.operational_status === "inspected" ? (

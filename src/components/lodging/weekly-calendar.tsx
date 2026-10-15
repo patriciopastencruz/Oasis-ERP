@@ -22,6 +22,7 @@ type Reservation = {
   nightly_rate?: number | string | null;
   postpaid_company?: boolean | null;
   estimated_arrival?: string | null;
+  estimated_departure?: string | null;
   actual_check_in?: string | null;
   actual_check_out?: string | null;
   lodging_guests: { full_name: string; phone?: string | null } | { full_name: string; phone?: string | null }[] | null;
@@ -63,7 +64,8 @@ function ReservationHover({
   const s = summarizeReservationHover(reservation);
   const arrival = hourLabel(reservation.actual_check_in) ?? hourLabel(reservation.estimated_arrival);
   const arrivalReal = Boolean(reservation.actual_check_in);
-  const departure = hourLabel(reservation.actual_check_out);
+  const departure = hourLabel(reservation.actual_check_out) ?? hourLabel(reservation.estimated_departure);
+  const departureReal = Boolean(reservation.actual_check_out);
   const payment: { text: string; tone: Tone } = {
     paid: { text: "Pago OK", tone: "ok" as Tone },
     partial: { text: `Pago parcial · faltan ${clp(s.balance)}`, tone: "warn" as Tone },
@@ -115,7 +117,9 @@ function ReservationHover({
           {arrival ? `${arrival}${arrivalReal ? "" : " (estimada)"}` : "Sin informar"}
         </dd>
         <dt className="text-slate-500">Hora de salida</dt>
-        <dd className="text-right font-medium">{departure ?? "Aún no registrada"}</dd>
+        <dd className="text-right font-medium">
+          {departure ? `${departure}${departureReal ? "" : " (estimada)"}` : "Sin informar"}
+        </dd>
       </dl>
       <div className="mt-2 flex flex-wrap gap-1.5">
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneClass[payment.tone]}`}>{payment.text}</span>

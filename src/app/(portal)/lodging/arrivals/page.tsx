@@ -31,11 +31,12 @@ export default async function Page() {
     supabase
       .from("lodging_reservations")
       .select(
-        "id,status,total_value,lodging_rooms(name,status),lodging_guests(full_name),lodging_reservation_payments(amount,type,status)",
+        "id,estimated_departure,status,total_value,lodging_rooms(name,status),lodging_guests(full_name),lodging_reservation_payments(amount,type,status)",
       )
       .eq("business_unit_id", unit.id)
       .eq("check_out", today)
-      .neq("status", "cancelled"),
+      .neq("status", "cancelled")
+      .order("estimated_departure", { nullsFirst: false }),
     supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id }),
   ]);
   const showRoomStatus = housekeepingEnabled !== false;
@@ -105,8 +106,9 @@ export default async function Page() {
                 <Link
                   key={r.id}
                   href={`/lodging/reservations/${r.id}`}
-                  className="grid gap-1 rounded-xl border p-4 text-sm sm:grid-cols-[1fr_auto] sm:gap-3"
+                  className="grid gap-1 rounded-xl border p-4 text-sm sm:grid-cols-[70px_1fr_auto] sm:gap-3"
                 >
+                  <b>{r.estimated_departure?.slice(0, 5) || "Sin hora"}</b>
                   <span>
                     <span className="block font-medium">{g?.full_name || "Información pendiente"}</span>
                     <span className="text-slate-500">
