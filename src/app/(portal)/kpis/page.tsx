@@ -71,7 +71,7 @@ export default async function KpisPage({ searchParams }: { searchParams: Promise
           </a>
         </div>
       </div>
-      <HostelDashboard report={report} />
+      <HostelDashboard report={report} live={live} />
     </>
   );
 }

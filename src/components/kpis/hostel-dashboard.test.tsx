@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { HostelDashboard } from "./hostel-dashboard";
 import { rangeOperations } from "@/modules/lodging/domain/monthly-closing";
+import { dayOverDay } from "@/modules/lodging/domain/day-over-day";
 import { pendingBalances } from "@/modules/lodging/domain/group-weekly-report";
 import { emptyGoals } from "@/modules/lodging/domain/report-goals";
 import type { GroupWeeklyReport } from "@/modules/lodging/application/group-weekly-queries";
@@ -26,6 +27,13 @@ function hostel(code: string, name: string, goal: number | null): GroupWeeklyRep
   return {
     unit: { id: code, code, name },
     month,
+    dayCompare: dayOverDay({
+      today: month.days.at(-1),
+      yesterday: month.days.at(-2),
+      totalRooms: month.totalRooms,
+      cumulativeNow: { adr: month.adr, revpar: month.revpar },
+      cumulativeBefore: { adr: month.adr * 0.9, revpar: month.revpar * 1.1 },
+    }),
     reviews: [
       { recorded_on: "2026-10-01", score: 7.0, review_count: 100, categories: { cleanliness: 7.5, wifi: 5 } },
       { recorded_on: "2026-10-03", score: 7.2, review_count: 104, categories: { cleanliness: 7.8, wifi: 5 } },
@@ -54,5 +62,10 @@ describe("tablero de KPIs de los hostales", () => {
     expect(html).toContain("desactualizado hace 9 días"); // puntaje del 03-oct al corte del 12-oct
     expect(html).toContain("$50.000"); // saldo por cobrar de Pieza 1
     expect(html).toContain("03-10"); // cierre pendiente
+    expect(html).toContain("vs acumulado a ayer");
+    expect(html).toContain("▲ +11,1%"); // venta promedio acumulada frente a ayer (+11,1%)
+    expect(html).toContain("▼ -9,1%"); // RevPAR acumulado frente a ayer
+    expect(html).toContain("Hoy $20.000"); // venta promedio de hoy
+    expect(html).toContain("ayer $20.000");
   });
 });

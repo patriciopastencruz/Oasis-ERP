@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { loadOperationsSource } from "./monthly-queries";
 import { addDays, santiagoToday } from "../domain/daily-closing";
 import { rangeOperations } from "../domain/monthly-closing";
+import { dayOverDay } from "../domain/day-over-day";
 import { pendingBalances, pendingClosingDates } from "../domain/group-weekly-report";
 import type { ReviewScoreRow } from "../domain/review-scores";
 import { goalsFromRow } from "../domain/report-goals";
@@ -28,7 +29,8 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
   const from = monthStart;
   const dayAfter = addDays(reference, 1);
   const [src, closings, stays, reviews, goals, kpis, housekeeping, pendingRooms] = await Promise.all([
-    loadOperationsSource(supabase, unit.id, from, dayAfter),
+    // Un día antes del 1 para poder comparar el primer día del mes con ayer.
+    loadOperationsSource(supabase, unit.id, addDays(from, -1), dayAfter),
     supabase
       .from("lodging_daily_closings")
       .select("closing_date")
@@ -71,6 +73,22 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
   for (const r of [closings, stays, reviews, goals]) if (r.error) throw r.error;
 
   const month = rangeOperations(monthStart, reference, src.rooms, src.reservations, src.payments, today);
+  // Variación de la venta promedio y el RevPAR contra el día anterior al corte.
+  const yesterday = addDays(reference, -1);
+  const yesterdayOps = rangeOperations(yesterday, yesterday, src.rooms, src.reservations, src.payments, today);
+  const cumulativeBefore =
+    yesterday >= monthStart
+      ? rangeOperations(monthStart, yesterday, src.rooms, src.reservations, src.payments, today)
+      : null;
+  const dayCompare = dayOverDay({
+    today: month.days.at(-1),
+    yesterday: yesterdayOps.days[0],
+    totalRooms: month.totalRooms,
+    cumulativeNow: { adr: month.nightsSold ? month.adr : null, revpar: month.revpar },
+    cumulativeBefore: cumulativeBefore
+      ? { adr: cumulativeBefore.nightsSold ? cumulativeBefore.adr : null, revpar: cumulativeBefore.revpar }
+      : null,
+  });
   const reviewRows: ReviewScoreRow[] = (reviews.data ?? []).map((r) => ({
     recorded_on: r.recorded_on,
     score: Number(r.score),
@@ -81,6 +99,7 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
   return {
     unit,
     month,
+    dayCompare,
     reviews: reviewRows,
     goals: goalsFromRow(goals.data),
     inspections: inspectionSummary(kpis.error ? null : (kpis.data as OpsKpis | null), housekeeping.data !== false, pendingRooms.count ?? 0),

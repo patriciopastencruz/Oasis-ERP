@@ -2,6 +2,7 @@ import { Panel } from "@/components/ui/page";
 import { clp } from "@/modules/lodging/domain/daily-closing";
 import { goalMet, revparGoal } from "@/modules/lodging/domain/report-goals";
 import { REVIEW_CATEGORIES, summarizeReviewHistory } from "@/modules/lodging/domain/review-scores";
+import type { IndicatorChange } from "@/modules/lodging/domain/day-over-day";
 import type { GroupWeeklyReport, HostelWeekly } from "@/modules/lodging/application/group-weekly-queries";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -30,6 +31,33 @@ function Delta({ value, unit = "", digits = 1 }: { value: number | null; unit?: 
       {value > 0 ? "▲" : "▼"} {Math.abs(value).toLocaleString("es-CL", { maximumFractionDigits: digits })}
       {unit}
     </span>
+  );
+}
+
+/** Hoy contra ayer y acumulado del mes contra el de ayer, para la venta promedio y el RevPAR. */
+function VsYesterday({ day, cumulative, available, live }: { day: IndicatorChange; cumulative: IndicatorChange; available: boolean; live: boolean }) {
+  if (!available)
+    return <p className="mt-1 text-[11px] text-slate-400">Sin día anterior para comparar</p>;
+  const chip = (c: IndicatorChange) =>
+    c.pct === null ? (
+      <span className="text-slate-400">sin comparación</span>
+    ) : (
+      <span className={`font-semibold ${c.pct > 0 ? "text-emerald-600" : c.pct < 0 ? "text-red-600" : "text-slate-500"}`}>
+        {c.pct > 0 ? "▲ +" : c.pct < 0 ? "▼ " : ""}
+        {c.pct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}%
+      </span>
+    );
+  return (
+    <dl className="mt-1.5 space-y-0.5 text-[11px] text-slate-600">
+      <div className="flex items-center justify-between gap-2">
+        <dt>{live ? "Hoy" : "Ese día"} {day.now === null ? "—" : clp(day.now)} <span className="text-slate-400">· ayer {day.before === null ? "—" : clp(day.before)}</span></dt>
+        <dd>{chip(day)}</dd>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <dt>Acumulado del mes <span className="text-slate-400">vs acumulado a ayer</span></dt>
+        <dd>{chip(cumulative)}</dd>
+      </div>
+    </dl>
   );
 }
 
@@ -90,7 +118,7 @@ function Occupancy({ h }: { h: HostelWeekly }) {
   );
 }
 
-function Revenue({ h }: { h: HostelWeekly }) {
+function Revenue({ h, live }: { h: HostelWeekly; live: boolean }) {
   const m = h.month;
   const rg = revparGoal(h.goals);
   const bar = (value: number, goal: number | null) => (
@@ -108,6 +136,7 @@ function Revenue({ h }: { h: HostelWeekly }) {
           <GoalChip met={goalMet(m.adr, h.goals.averageRate)} text={h.goals.averageRate === null ? "" : clp(h.goals.averageRate)} />
         </div>
         {bar(m.adr, h.goals.averageRate)}
+        <VsYesterday day={h.dayCompare.day.adr} cumulative={h.dayCompare.cumulative.adr} available={h.dayCompare.available} live={live} />
       </div>
       <div className="mt-3">
         <p className="text-xs text-slate-500">RevPAR (venta por habitación disponible)</p>
@@ -116,6 +145,7 @@ function Revenue({ h }: { h: HostelWeekly }) {
           <GoalChip met={goalMet(m.revpar, rg)} text={rg === null ? "" : clp(rg)} />
         </div>
         {bar(m.revpar, rg)}
+        <VsYesterday day={h.dayCompare.day.revpar} cumulative={h.dayCompare.cumulative.revpar} available={h.dayCompare.available} live={live} />
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
         <div>
@@ -245,7 +275,7 @@ function Pending({ h }: { h: HostelWeekly }) {
 }
 
 /** Tablero de los hostales: una columna por hostal y una fila por indicador (como el PDF). */
-export function HostelDashboard({ report }: { report: GroupWeeklyReport }) {
+export function HostelDashboard({ report, live = true }: { report: GroupWeeklyReport; live?: boolean }) {
   const hostels = report.hostels;
   const nightsSold = hostels.reduce((s, h) => s + h.month.nightsSold, 0);
   const roomNights = hostels.reduce((s, h) => s + h.month.totalRooms * h.month.elapsedDays, 0);
@@ -277,7 +307,7 @@ export function HostelDashboard({ report }: { report: GroupWeeklyReport }) {
         {hostels.map((h) => <Occupancy key={h.unit.id} h={h} />)}
       </Section>
       <Section n={2} title="Venta promedio por habitación y RevPAR" note="acumulado del mes">
-        {hostels.map((h) => <Revenue key={h.unit.id} h={h} />)}
+        {hostels.map((h) => <Revenue key={h.unit.id} h={h} live={live} />)}
       </Section>
       <Section n={3} title="Inspecciones" note={`limpiezas de ${month} hasta el corte`}>
         {hostels.map((h) => <Inspections key={h.unit.id} h={h} />)}
