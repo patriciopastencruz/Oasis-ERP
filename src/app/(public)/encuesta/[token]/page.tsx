@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { submitSurveyAction } from "@/modules/lodging/application/survey-actions";
+import { SurveySubmit } from "@/components/lodging/survey-submit";
 import { SURVEY_CATEGORIES } from "@/modules/lodging/domain/survey";
 
 export const metadata = {
@@ -181,9 +182,7 @@ export default async function SurveyPage({
           </div>
         </details>
 
-        <button className="w-full rounded-full bg-[#c1652f] px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#a4531f]">
-          Enviar mi opinión
-        </button>
+        <SurveySubmit />
       </form>
     </main>
   );
