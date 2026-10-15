@@ -12,7 +12,7 @@ import {
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 const closingColumns =
-  "id,closing_date,status,metrics,total_rooms,occupied_rooms,occupancy_pct,average_rate,cash_received,transfer_received,card_received,airbnb_received,other_received,total_received,pending_amount,expense_total,net_result,reported_problems,items_to_replenish,observations,issued_at,email_sent_at,email_recipients,business_unit_id,issuer:profiles!lodging_daily_closings_issued_by_fkey(first_name,last_name)";
+  "id,closing_date,status,metrics,total_rooms,occupied_rooms,occupancy_pct,average_rate,cash_received,transfer_received,card_received,airbnb_received,other_received,total_received,pending_amount,expense_total,net_result,version,reported_problems,items_to_replenish,observations,issued_at,email_sent_at,email_recipients,business_unit_id,issuer:profiles!lodging_daily_closings_issued_by_fkey(first_name,last_name)";
 
 type Row = DailyClosing & {
   business_unit_id: string;

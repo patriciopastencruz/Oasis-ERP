@@ -14,7 +14,7 @@ import {
   issueClosingAction,
   resendClosingEmailAction,
 } from "@/modules/lodging/application/closing-actions";
-import { clp, formatClosingDate, pct } from "@/modules/lodging/domain/daily-closing";
+import { addDays, clp, formatClosingDate, pct, santiagoToday } from "@/modules/lodging/domain/daily-closing";
 
 export default async function ClosingDetailPage({
   params,
@@ -35,6 +35,8 @@ export default async function ClosingDetailPage({
   const canManage = ctx.permissions.has("lodging.closings.manage");
   const canCreate = ctx.permissions.has("lodging.closings.create");
   const issued = closing.status === "issued";
+  // Recepción puede corregir el cierre de hoy o de ayer; fechas anteriores, solo quien administra.
+  const canCorrect = canManage || (canCreate && closing.closing_date >= addDays(santiagoToday(), -1));
   const date = formatClosingDate(closing.closing_date);
   const message = [
     `*Cierre diario ${unit.name} - ${date}*`,
@@ -126,7 +128,7 @@ export default async function ClosingDetailPage({
                   <button className="text-sm font-semibold text-[#0b4f9c]">Reenviar correo a administración</button>
                 </form>
                 )}
-                {canManage && (
+                {canCorrect && (
                   <Link href={`/lodging/closing?date=${closing.closing_date}`} className="block text-sm font-semibold text-slate-600">
                     Corregir cierre
                   </Link>

@@ -110,6 +110,8 @@ export type DailyClosing = {
   pending_amount: number;
   expense_total: number;
   net_result: number;
+  /** Cuántas veces se ha emitido (2 o más = versión corregida). */
+  version?: number;
   reported_problems: string | null;
   items_to_replenish: string | null;
   observations: string | null;

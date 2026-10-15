@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { ClosingExpenses } from "@/components/lodging/closing-expenses";
 import { lodgingContext } from "@/modules/lodging/application/queries";
@@ -40,9 +39,6 @@ export default async function DailyClosingPage({
 
   const existingId = await findClosingId(supabase, unit.id, date);
   const existing = existingId ? await loadClosing(supabase, existingId) : null;
-  // Recepción no reabre un cierre emitido: se muestra el cierre ya generado.
-  if (existing?.closing.status === "issued" && !canManage && !q.error)
-    redirect(`/lodging/closing/${existingId}`);
   const [metrics, recent, expenseCategories] = await Promise.all([
     liveMetrics(supabase, unit.id, date),
     listRecentClosings(supabase, unit.id, 10),
@@ -163,7 +159,8 @@ export default async function DailyClosingPage({
             </button>
             {existing?.closing.status === "issued" && (
               <p className="text-xs text-amber-700">
-                Este cierre ya fue emitido. Al guardar vuelve a borrador y deberás emitirlo de nuevo.
+                Este cierre ya fue emitido. Al guardar vuelve a borrador: revísalo y emítelo de nuevo para que quede corregido
+                (administración recibirá el cierre actualizado por correo).
               </p>
             )}
           </Panel>

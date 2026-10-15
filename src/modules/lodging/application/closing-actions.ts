@@ -85,7 +85,8 @@ async function emailClosing(id: string) {
   const date = formatClosingDate(loaded.closing.closing_date);
   const result = await sendClosingEmail({
     to: emails,
-    subject: `[OASIS ERP] Cierre diario ${unit.name} ${date}`,
+    // Desde la segunda emisión es una versión corregida del mismo cierre.
+    subject: `[OASIS ERP] Cierre diario ${unit.name} ${date}${Number(loaded.closing.version ?? 0) > 1 ? " (corregido)" : ""}`,
     html: renderClosingEmail(unit.name, loaded.closing),
     pdf,
     filename: `cierre-${unit.code.toLowerCase()}-${loaded.closing.closing_date}.pdf`,
