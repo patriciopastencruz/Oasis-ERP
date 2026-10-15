@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Download } from "lucide-react";
 import { PageHeader } from "@/components/ui/page";
 import { HostelDashboard } from "@/components/kpis/hostel-dashboard";
@@ -61,6 +62,9 @@ export default async function KpisPage({ searchParams }: { searchParams: Promise
             </label>
             <button className="rounded-lg border border-[#0b4f9c] px-2.5 py-1 text-xs font-semibold text-[#0b4f9c]">Ver</button>
           </form>
+          <Link href="/kpis/bonos" className="inline-flex items-center gap-1.5 rounded-xl bg-[#0b4f9c] px-3 py-1.5 text-xs font-semibold text-white">
+            Bono de recepción →
+          </Link>
           <WeeklyHostelsPdfForm />
           <a
             href={`/api/lodging/weekly-hostels.pdf?date=${reference}`}
