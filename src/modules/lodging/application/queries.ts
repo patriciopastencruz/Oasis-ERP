@@ -43,7 +43,7 @@ export async function calendarData(from: string, to: string) {
       supabase
         .from("lodging_reservations")
         .select(
-          "*,lodging_guests(full_name,phone),lodging_reservation_payments(status,lodging_payment_receipts(id,deleted_at))",
+          "*,lodging_guests(full_name,phone),lodging_reservation_payments(status,amount,type,lodging_payment_receipts(id,deleted_at))",
         )
         .eq("business_unit_id", unit.id)
         .lt("check_in", to)

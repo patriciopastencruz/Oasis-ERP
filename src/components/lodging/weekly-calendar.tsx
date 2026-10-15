@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Banknote, ChevronLeft, ChevronRight, LogIn, User, Users, X } from "lucide-react";
 import { reassignReservationRoomAction } from "@/modules/lodging/application/actions";
 import { operationalStatusColors } from "@/modules/lodging/domain/operations";
+import { hourLabel, summarizeReservationHover } from "@/modules/lodging/domain/reservation-hover";
 
 type Room = { id: string; name: string; status: string; capacity?: number; operational_status?: string };
 type Reservation = {
@@ -17,11 +18,115 @@ type Reservation = {
   total_value: number | string;
   guest_count: number;
   relation_type?: string | null;
-  lodging_guests: { full_name: string } | { full_name: string }[] | null;
+  nights?: number | null;
+  nightly_rate?: number | string | null;
+  postpaid_company?: boolean | null;
+  estimated_arrival?: string | null;
+  actual_check_in?: string | null;
+  actual_check_out?: string | null;
+  lodging_guests: { full_name: string; phone?: string | null } | { full_name: string; phone?: string | null }[] | null;
   lodging_reservation_payments?:
-    | { status: string; lodging_payment_receipts: { id: string; deleted_at: string | null }[] | { id: string; deleted_at: string | null } | null }[]
+    | {
+        status: string;
+        amount?: number | string | null;
+        type?: string | null;
+        lodging_payment_receipts: { id: string; deleted_at: string | null }[] | { id: string; deleted_at: string | null } | null;
+      }[]
     | null;
 };
+
+const clp = (value: number) =>
+  new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(value);
+const shortDate = (value: string) => value.split("-").reverse().slice(0, 2).join("-");
+
+type Tone = "ok" | "warn" | "bad" | "muted";
+const toneClass: Record<Tone, string> = {
+  ok: "bg-emerald-50 text-emerald-700",
+  warn: "bg-amber-50 text-amber-800",
+  bad: "bg-red-50 text-red-700",
+  muted: "bg-slate-100 text-slate-600",
+};
+
+// Recuadro que aparece al pasar el mouse por una reserva. Va en position:fixed
+// para que el desplazamiento horizontal del calendario no lo recorte.
+function ReservationHover({
+  reservation,
+  guest,
+  rect,
+  draggable,
+}: {
+  reservation: Reservation;
+  guest: { full_name: string; phone?: string | null } | undefined;
+  rect: DOMRect;
+  draggable: boolean;
+}) {
+  const s = summarizeReservationHover(reservation);
+  const arrival = hourLabel(reservation.actual_check_in) ?? hourLabel(reservation.estimated_arrival);
+  const arrivalReal = Boolean(reservation.actual_check_in);
+  const departure = hourLabel(reservation.actual_check_out);
+  const payment: { text: string; tone: Tone } = {
+    paid: { text: "Pago OK", tone: "ok" as Tone },
+    partial: { text: `Pago parcial · faltan ${clp(s.balance)}`, tone: "warn" as Tone },
+    unpaid: { text: "Sin pago registrado", tone: "bad" as Tone },
+    postpaid: { text: "Empresa · pago posterior", tone: "muted" as Tone },
+    no_price: { text: "Sin precio cargado", tone: "bad" as Tone },
+  }[s.payment];
+  const receipt: { text: string; tone: Tone } = {
+    ok: { text: "Comprobante OK", tone: "ok" as Tone },
+    partial: { text: `Falta comprobante (${s.withReceipt} de ${s.payments} pagos)`, tone: "warn" as Tone },
+    missing: { text: "Falta comprobante", tone: "bad" as Tone },
+    none: { text: "Sin pagos que respaldar", tone: "muted" as Tone },
+  }[s.receipt];
+  const width = 288;
+  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+  const below = rect.bottom + 8 + 300 < window.innerHeight;
+  return (
+    <div
+      role="tooltip"
+      style={{
+        position: "fixed",
+        left,
+        width,
+        ...(below ? { top: rect.bottom + 6 } : { bottom: window.innerHeight - rect.top + 6 }),
+      }}
+      className="pointer-events-none z-50 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 shadow-xl"
+    >
+      <p className="truncate text-sm font-semibold text-slate-900">
+        {guest?.full_name || `Reserva ${originLabels[reservation.origin] ?? "externa"}`}
+      </p>
+      <p className="text-[11px] text-slate-500">
+        {originLabels[reservation.origin] ?? "Otro"} · {shortDate(reservation.check_in)} → {shortDate(reservation.check_out)}
+        {reservation.nights ? ` · ${reservation.nights} ${reservation.nights === 1 ? "noche" : "noches"}` : ""}
+      </p>
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+        <dt className="text-slate-500">Teléfono</dt>
+        <dd className="text-right font-medium">{guest?.phone && guest.phone !== "Pendiente" ? guest.phone : "—"}</dd>
+        <dt className="text-slate-500">Personas</dt>
+        <dd className="text-right font-medium">{reservation.guest_count}</dd>
+        <dt className="text-slate-500">Precio</dt>
+        <dd className="text-right font-medium">
+          {s.total > 0 ? clp(s.total) : "—"}
+          {Number(reservation.nightly_rate) > 0 && (reservation.nights ?? 1) > 1 ? ` (${clp(Number(reservation.nightly_rate))}/noche)` : ""}
+        </dd>
+        <dt className="text-slate-500">Monto pagado</dt>
+        <dd className="text-right font-medium">{clp(s.paid)}</dd>
+        <dt className="text-slate-500">Hora de llegada</dt>
+        <dd className="text-right font-medium">
+          {arrival ? `${arrival}${arrivalReal ? "" : " (estimada)"}` : "Sin informar"}
+        </dd>
+        <dt className="text-slate-500">Hora de salida</dt>
+        <dd className="text-right font-medium">{departure ?? "Aún no registrada"}</dd>
+      </dl>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneClass[payment.tone]}`}>{payment.text}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneClass[receipt.tone]}`}>{receipt.text}</span>
+      </div>
+      <p className="mt-2 border-t pt-1.5 text-[10px] text-slate-400">
+        Clic para abrir{draggable ? " · arrastra para cambiar de habitación" : ""}
+      </p>
+    </div>
+  );
+}
 
 // Un pago puede tener comprobantes eliminados (subidos por error): solo
 // cuenta si queda al menos uno activo en algún pago confirmado.
@@ -157,6 +262,7 @@ export function WeeklyCalendar({
     setLocalReservations(reservations);
   }
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ id: string; rect: DOMRect; draggable: boolean } | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -407,10 +513,19 @@ export function WeeklyCalendar({
                         tabIndex={0}
                         draggable={draggable}
                         onDragStart={(event) => {
+                          setHover(null);
                           setDraggingId(reservation.id);
                           event.dataTransfer.effectAllowed = "move";
                         }}
                         onDragEnd={() => setDraggingId(null)}
+                        onMouseEnter={(event) =>
+                          setHover({ id: reservation.id, rect: event.currentTarget.getBoundingClientRect(), draggable })
+                        }
+                        onMouseLeave={() => setHover(null)}
+                        onFocus={(event) =>
+                          setHover({ id: reservation.id, rect: event.currentTarget.getBoundingClientRect(), draggable })
+                        }
+                        onBlur={() => setHover(null)}
                         onClick={() =>
                           router.push(`/lodging/reservations/${reservation.id}`)
                         }
@@ -420,11 +535,7 @@ export function WeeklyCalendar({
                               `/lodging/reservations/${reservation.id}`,
                             );
                         }}
-                        title={
-                          draggable
-                            ? `${reservation.check_in} → ${reservation.check_out} — arrastra para cambiar de habitación`
-                            : `${reservation.check_in} → ${reservation.check_out}`
-                        }
+                        aria-label={`${guest?.full_name || "Reserva"} del ${reservation.check_in} al ${reservation.check_out}`}
                         style={{
                           gridColumn: `${start + 1} / ${end + 1}`,
                           gridRow: (laneOf.get(reservation.id) ?? 0) + 1,
@@ -491,6 +602,20 @@ export function WeeklyCalendar({
           })}
         </div>
       </div>
+      {hover &&
+        (() => {
+          const hovered = localReservations.find((r) => r.id === hover.id);
+          if (!hovered) return null;
+          const hoveredGuest = Array.isArray(hovered.lodging_guests) ? hovered.lodging_guests[0] : hovered.lodging_guests;
+          return (
+            <ReservationHover
+              reservation={hovered}
+              guest={hoveredGuest ?? undefined}
+              rect={hover.rect}
+              draggable={hover.draggable}
+            />
+          );
+        })()}
     </section>
   );
 }
