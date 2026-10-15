@@ -26,6 +26,15 @@ const wait = readFileSync("supabase/migrations/20261016140000_lodging_bonus_insp
 
 const pool = readFileSync("supabase/migrations/20261016150000_lodging_bonus_pool_amounts.sql", "utf8");
 
+const weights = readFileSync("supabase/migrations/20261016180000_lodging_bonus_weights_survey.sql", "utf8");
+
+describe("migración de pesos del bono", () => {
+  it("reparte 20/20/25/10/10/15 y fija la meta de la encuesta en 4", () => {
+    expect(weights).toContain('"occupancy":20,"adr":20,"booking":25,"survey":10,"inspections":10,"order":15');
+    expect(weights).toContain("survey_goal=4.00");
+  });
+});
+
 describe("migración de montos del bono", () => {
   it("fija 150.000 en Centro y Cobija y 100.000 en Uruguay", () => {
     expect(pool).toContain("('HOC',150000),('HOB',150000),('HU',100000)");

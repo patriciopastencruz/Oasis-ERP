@@ -37,7 +37,7 @@ export type BonusConfig = {
 const defaultConfig: BonusConfig = {
   pool: 0,
   weights: DEFAULT_BONUS_WEIGHTS,
-  surveyGoal: 4.5,
+  surveyGoal: 4,
   surveyMinResponses: 5,
   inspectionMaxWait: DEFAULT_INSPECTION_MAX_WAIT,
   configured: false,

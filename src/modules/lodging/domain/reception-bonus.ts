@@ -2,10 +2,11 @@ import { clp } from "./daily-closing";
 
 /**
  * Bono mensual de recepción por cumplimiento de metas (un monto fijo por hostal).
- * Venta promedio y encuesta reparten puntos según su peso: cumple la meta =
- * todo su peso, entre el 90% y el 99% de la meta = la mitad, menos = nada.
- * Ocupación, Booking, aseo (inspecciones) y orden administrativo son de cumple o
- * no cumple, sin término medio. Si un indicador no se puede evaluar (sin meta o sin
+ * Venta promedio reparte puntos según su peso: cumple la meta = todo su peso,
+ * entre el 90% y el 99% de la meta = la mitad, menos = nada. La encuesta QR da
+ * la mitad de su peso por reunir el mínimo de evaluaciones y la otra mitad por
+ * llegar al promedio meta. Ocupación, Booking, aseo (inspecciones) y orden
+ * administrativo son de cumple o no cumple, sin término medio. Si un indicador no se puede evaluar (sin meta o sin
  * datos suficientes) se deja fuera y su peso se reparte entre los demás, para no
  * premiar ni castigar por falta de información.
  */
@@ -23,11 +24,11 @@ export type BonusKey = (typeof BONUS_INDICATORS)[number]["key"];
 export type BonusWeights = Record<BonusKey, number>;
 
 export const DEFAULT_BONUS_WEIGHTS: BonusWeights = {
-  occupancy: 25,
-  adr: 25,
-  booking: 20,
+  occupancy: 20,
+  adr: 20,
+  booking: 25,
   survey: 10,
-  inspections: 5,
+  inspections: 10,
   order: 15,
 };
 
@@ -151,11 +152,25 @@ export function computeBonus(input: BonusInput) {
     row("booking", b.value, b.goal, () =>
       b.goal === null ? { na: "Sin meta de puntaje" } : b.value === null ? { na: "Sin puntaje registrado" } : { factor: b.value + 1e-9 >= b.goal ? 1 : 0 },
     ),
-    row("survey", s.value, s.goal, () =>
-      s.responses < s.minResponses || s.value === null
-        ? { na: `Solo ${s.responses} respuesta(s); se necesitan ${s.minResponses}` }
-        : { factor: tierFactor(s.value, s.goal) },
-    ),
+    row("survey", s.value, s.goal, () => {
+      const enough = s.responses >= s.minResponses;
+      const good = enough && s.value !== null && s.value + 1e-9 >= s.goal;
+      const fmt = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 2 });
+      const criteria: BonusCriterion[] = [
+        { label: `Al menos ${s.minResponses} evaluaciones`, ok: enough, text: `${s.responses} evaluaciones` },
+        {
+          label: `Promedio de ${fmt(s.goal)} o más`,
+          ok: good,
+          text:
+            s.value === null
+              ? "sin evaluaciones"
+              : enough
+                ? `promedio ${fmt(s.value)}`
+                : `promedio ${fmt(s.value)}, no cuenta con menos de ${s.minResponses} evaluaciones`,
+        },
+      ];
+      return { factor: (enough ? 0.5 : 0) + (good ? 0.5 : 0), criteria };
+    }),
     row("inspections", i.avgWaitMinutes, i.maxWaitMinutes, () => {
       if (i.cleanings === null || i.cleanings === 0) return { na: "Sin aseos terminados en el mes" };
       const allInspected = i.inspected >= i.cleanings;

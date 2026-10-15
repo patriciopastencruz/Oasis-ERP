@@ -14,7 +14,7 @@ const base: BonusInput = {
   occupancy: { value: 82, goal: 80 },
   adr: { value: 31000, goal: 30000 },
   booking: { value: 7.6, goal: 7.5 },
-  survey: { value: 4.6, goal: 4.5, responses: 12, minResponses: 5 },
+  survey: { value: 4.6, goal: 4, responses: 12, minResponses: 5 },
   inspections: { cleanings: 100, inspected: 100, avgWaitMinutes: 40, maxWaitMinutes: 70 },
   order: { closings: { due: 20, onTime: 20, lateDays: [] }, balances: { count: 0, total: 0 } },
 };
@@ -107,14 +107,29 @@ describe("bono de recepción", () => {
     expect(near.earned).toBe(0);
   });
 
+  it("encuesta: la mitad por reunir el mínimo de evaluaciones y la otra mitad por el promedio", () => {
+    const survey = (value: number | null, responses: number) =>
+      row(computeBonus({ ...base, survey: { value, goal: 4, responses, minResponses: 5 } }), "survey");
+    expect(survey(4, 5).status).toBe("met");
+    expect(survey(4, 5).earned).toBeCloseTo(10, 5);
+    const enoughButLow = survey(3.9, 5);
+    expect(enoughButLow.status).toBe("half");
+    expect(enoughButLow.earned).toBeCloseTo(5, 5);
+    // Con menos de 5 evaluaciones no hay mitad por el mínimo ni cuenta el promedio.
+    const few = survey(5, 4);
+    expect(few.status).toBe("miss");
+    expect(few.earned).toBe(0);
+    expect(survey(null, 0).earned).toBe(0);
+  });
+
   it("los indicadores sin meta o sin datos se dejan fuera y su peso se reparte", () => {
     const r = computeBonus({
       ...base,
-      survey: { value: null, goal: 4.5, responses: 2, minResponses: 5 },
+      adr: { value: null, goal: null },
       inspections: { cleanings: null, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 70 },
     });
-    expect(row(r, "survey").status).toBe("na");
-    expect(r.evaluatedWeight).toBe(85);
+    expect(row(r, "adr").status).toBe("na");
+    expect(r.evaluatedWeight).toBe(70);
     expect(r.points).toBeCloseTo(100, 5); // cumple todo lo evaluado
     const effective = r.rows.filter((x) => x.status !== "na").reduce((s, x) => s + x.effectiveWeight, 0);
     expect(effective).toBeCloseTo(100, 5);
@@ -126,7 +141,7 @@ describe("bono de recepción", () => {
       occupancy: { value: null, goal: null },
       adr: { value: null, goal: null },
       booking: { value: null, goal: null },
-      survey: { value: null, goal: 4.5, responses: 0, minResponses: 5 },
+      survey: { value: null, goal: 4, responses: 0, minResponses: 5 },
       inspections: { cleanings: null, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 70 },
       order: { closings: null, balances: null },
     });
