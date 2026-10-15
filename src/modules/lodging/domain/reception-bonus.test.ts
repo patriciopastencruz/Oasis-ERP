@@ -13,7 +13,7 @@ const base: BonusInput = {
   weights: { ...DEFAULT_BONUS_WEIGHTS },
   occupancy: { value: 82, goal: 80 },
   adr: { value: 31000, goal: 30000 },
-  booking: { value: 7.6, goal: 7.5, previous: 7.4 },
+  booking: { value: 7.6, goal: 7.5 },
   survey: { value: 4.6, goal: 4.5, responses: 12, minResponses: 5 },
   inspections: { cleanings: 100, inspected: 100, avgWaitMinutes: 40, maxWaitMinutes: 70 },
   order: { closings: { due: 20, onTime: 20, lateDays: [] }, balances: { count: 0, total: 0 } },
@@ -69,23 +69,24 @@ describe("bono de recepción", () => {
     expect(r.points).toBeCloseTo(100, 5);
   });
 
-  it("orden: un cierre atrasado ya no cumple ese criterio, sin término medio", () => {
+  it("orden: es de cumple o no cumple; un cierre atrasado basta para no cumplir", () => {
     const r = computeBonus({ ...base, order: { ...base.order, closings: { due: 20, onTime: 19, lateDays: [7] } } });
     const order = row(r, "order");
-    expect(order.status).toBe("half"); // cumple saldos, no cierres
-    expect(order.earned).toBeCloseTo(7.5, 5);
+    expect(order.status).toBe("miss");
+    expect(order.earned).toBe(0);
     expect(order.criteria[0].text).toContain("7");
-    expect(r.gateApplied).toBe(false);
-    expect(r.amount).toBe(92500);
+    expect(r.gateApplied).toBe(false); // cumple el otro criterio
+    expect(r.amount).toBe(85000);
   });
 
-  it("orden: un saldo pendiente de una estadía terminada no cumple ese criterio", () => {
+  it("orden: un saldo pendiente de una estadía terminada también hace que no cumpla", () => {
     const r = computeBonus({ ...base, order: { ...base.order, balances: { count: 2, total: 45000 } } });
-    expect(row(r, "order").status).toBe("half");
+    expect(row(r, "order").status).toBe("miss");
     expect(row(r, "order").criteria[1].text).toContain("2 estadías");
+    expect(r.gateApplied).toBe(false);
   });
 
-  it("si no cumple ninguno de los dos criterios de orden, el bono se reduce a la mitad", () => {
+  it("si no se cumple ningún criterio de orden, además el bono se reduce a la mitad", () => {
     const r = computeBonus({ ...base, order: { closings: { due: 20, onTime: 10, lateDays: [1, 2] }, balances: { count: 1, total: 30000 } } });
     expect(row(r, "order").status).toBe("miss");
     expect(r.gateApplied).toBe(true);
@@ -99,11 +100,11 @@ describe("bono de recepción", () => {
     expect(row(r, "order").status).toBe("met");
   });
 
-  it("si el puntaje de Booking bajó respecto del mes anterior, gana la mitad aunque cumpla la meta", () => {
-    const r = computeBonus({ ...base, booking: { value: 7.6, goal: 7.5, previous: 7.9 } });
-    const booking = row(r, "booking");
-    expect(booking.status).toBe("half");
-    expect(booking.note).toContain("Bajó");
+  it("Booking: cumple o no cumple, sin término medio", () => {
+    expect(row(computeBonus({ ...base, booking: { value: 7.5, goal: 7.5 } }), "booking").status).toBe("met");
+    const near = row(computeBonus({ ...base, booking: { value: 7.4, goal: 7.5 } }), "booking");
+    expect(near.status).toBe("miss");
+    expect(near.earned).toBe(0);
   });
 
   it("los indicadores sin meta o sin datos se dejan fuera y su peso se reparte", () => {
@@ -124,7 +125,7 @@ describe("bono de recepción", () => {
       ...base,
       occupancy: { value: null, goal: null },
       adr: { value: null, goal: null },
-      booking: { value: null, goal: null, previous: null },
+      booking: { value: null, goal: null },
       survey: { value: null, goal: 4.5, responses: 0, minResponses: 5 },
       inspections: { cleanings: null, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 70 },
       order: { closings: null, balances: null },

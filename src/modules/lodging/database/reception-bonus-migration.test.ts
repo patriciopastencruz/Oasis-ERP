@@ -24,6 +24,14 @@ describe("migración del bono de recepción", () => {
 
 const wait = readFileSync("supabase/migrations/20261016140000_lodging_bonus_inspection_wait_70.sql", "utf8");
 
+const pool = readFileSync("supabase/migrations/20261016150000_lodging_bonus_pool_amounts.sql", "utf8");
+
+describe("migración de montos del bono", () => {
+  it("fija 150.000 en Centro y Cobija y 100.000 en Uruguay", () => {
+    expect(pool).toContain("('HOC',150000),('HOB',150000),('HU',100000)");
+  });
+});
+
 describe("migración de reglas exigentes del bono", () => {
   it("fija en 70 minutos el máximo hasta la inspección", () => {
     expect(wait).toContain("inspection_max_wait_minutes set default 70");

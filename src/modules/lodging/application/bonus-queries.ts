@@ -62,7 +62,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
   let dueDays = 0;
   for (let d = start; d <= lastDue; d = addDays(d, 1)) dueDays++;
 
-  const [configRes, savedRes, closingsRes, surveysRes, previousBookingRes] = await Promise.all([
+  const [configRes, savedRes, closingsRes, surveysRes] = await Promise.all([
     supabase
       .from("lodging_bonus_config")
       .select("pool_amount,weights,survey_goal,survey_min_responses,inspection_max_wait_minutes")
@@ -87,14 +87,6 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       .eq("business_unit_id", unit.id)
       .gte("created_at", `${start}T00:00:00-06:00`)
       .lt("created_at", `${addDays(reference, 1)}T06:00:00Z`),
-    supabase
-      .from("lodging_review_scores")
-      .select("score")
-      .eq("business_unit_id", unit.id)
-      .eq("source", "booking")
-      .lt("recorded_on", start)
-      .order("recorded_on", { ascending: false })
-      .limit(1),
   ]);
   for (const r of [configRes, closingsRes, surveysRes]) if (r.error) throw r.error;
 
@@ -141,7 +133,6 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
     booking: {
       value: latestReview ? latestReview.score : null,
       goal: h.goals.bookingScore,
-      previous: previousBookingRes.data?.[0] ? Number(previousBookingRes.data[0].score) : null,
     },
     survey: { value: surveyAvg, goal: config.surveyGoal, responses: surveys.length, minResponses: config.surveyMinResponses },
     inspections: {

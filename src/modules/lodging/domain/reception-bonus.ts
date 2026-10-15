@@ -2,10 +2,10 @@ import { clp } from "./daily-closing";
 
 /**
  * Bono mensual de recepción por cumplimiento de metas (un monto fijo por hostal).
- * Venta promedio, Booking y encuesta reparten puntos según su peso: cumple la
- * meta = todo su peso, entre el 90% y el 99% de la meta = la mitad, menos =
- * nada. Ocupación, aseo (inspecciones) y orden administrativo son de cumple o no
- * cumple, sin término medio. Si un indicador no se puede evaluar (sin meta o sin
+ * Venta promedio y encuesta reparten puntos según su peso: cumple la meta =
+ * todo su peso, entre el 90% y el 99% de la meta = la mitad, menos = nada.
+ * Ocupación, Booking, aseo (inspecciones) y orden administrativo son de cumple o
+ * no cumple, sin término medio. Si un indicador no se puede evaluar (sin meta o sin
  * datos suficientes) se deja fuera y su peso se reparte entre los demás, para no
  * premiar ni castigar por falta de información.
  */
@@ -35,7 +35,7 @@ export const DEFAULT_BONUS_WEIGHTS: BonusWeights = {
 export const OCCUPANCY_DAY_CAP = 1.1;
 /** Tiempo máximo, en minutos, entre terminar el aseo y la inspección (promedio del mes). */
 export const DEFAULT_INSPECTION_MAX_WAIT = 70;
-/** Si ninguno de los dos criterios de orden se cumple, el bono se reduce a la mitad. */
+/** Si no se cumple ningún criterio de orden, el bono completo se reduce a la mitad. */
 export const GATE_MULTIPLIER = 0.5;
 
 export type BonusStatus = "met" | "half" | "miss" | "na";
@@ -46,8 +46,8 @@ export type BonusInput = {
   /** % de ocupación del mes (cada día con tope) y meta. */
   occupancy: { value: number | null; goal: number | null };
   adr: { value: number | null; goal: number | null };
-  /** Último puntaje del mes y el del mes anterior (para que no haya bajado). */
-  booking: { value: number | null; goal: number | null; previous: number | null };
+  /** Último puntaje de Booking registrado en el mes. */
+  booking: { value: number | null; goal: number | null };
   survey: { value: number | null; goal: number; responses: number; minResponses: number };
   /** Aseos terminados en el mes, cuántos se inspeccionaron y el tiempo promedio hasta la inspección. */
   inspections: { cleanings: number | null; inspected: number; avgWaitMinutes: number | null; maxWaitMinutes: number };
@@ -148,17 +148,9 @@ export function computeBonus(input: BonusInput) {
     row("adr", a.value, a.goal, () =>
       a.goal === null ? { na: "Sin meta de venta promedio" } : a.value === null ? { na: "Sin datos del mes" } : { factor: tierFactor(a.value, a.goal) },
     ),
-    row("booking", b.value, b.goal, () => {
-      if (b.goal === null) return { na: "Sin meta de puntaje" };
-      if (b.value === null) return { na: "Sin puntaje registrado" };
-      let factor = tierFactor(b.value, b.goal);
-      let note: string | undefined;
-      if (b.previous !== null && b.value < b.previous - 0.05 && factor === 1) {
-        factor = 0.5;
-        note = `Bajó respecto del mes anterior (${b.previous.toLocaleString("es-CL")} → ${b.value.toLocaleString("es-CL")})`;
-      }
-      return { factor, note };
-    }),
+    row("booking", b.value, b.goal, () =>
+      b.goal === null ? { na: "Sin meta de puntaje" } : b.value === null ? { na: "Sin puntaje registrado" } : { factor: b.value + 1e-9 >= b.goal ? 1 : 0 },
+    ),
     row("survey", s.value, s.goal, () =>
       s.responses < s.minResponses || s.value === null
         ? { na: `Solo ${s.responses} respuesta(s); se necesitan ${s.minResponses}` }
@@ -199,8 +191,7 @@ export function computeBonus(input: BonusInput) {
         });
       }
       if (!criteria.length) return { na: "Sin datos de orden" };
-      const met = criteria.filter((c) => c.ok).length;
-      return { factor: met / criteria.length, criteria };
+      return { factor: criteria.every((c) => c.ok) ? 1 : 0, criteria };
     }),
   ];
 
@@ -212,7 +203,7 @@ export function computeBonus(input: BonusInput) {
   }
   const points = rows.reduce((sum, x) => sum + x.earned, 0);
   const orderRow = rows.find((x) => x.key === "order")!;
-  const gateApplied = orderRow.status === "miss";
+  const gateApplied = orderRow.criteria.length > 0 && orderRow.criteria.every((c) => !c.ok);
   const amountBeforeGate = Math.round((input.pool * points) / 100);
   const amount = Math.round(amountBeforeGate * (gateApplied ? GATE_MULTIPLIER : 1));
   return { rows, points, evaluatedWeight, gateApplied, amountBeforeGate, amount };
