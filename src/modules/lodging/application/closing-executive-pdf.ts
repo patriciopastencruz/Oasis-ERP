@@ -198,9 +198,14 @@ export function drawExecutivePage(
 
   card(kx(2), kTop, kW, kH, "Venta promedio");
   text(clp(closing.average_rate), kx(2) + 12, kTop + 30, 17, B);
-  text("por habitación ocupada", kx(2) + 12, kTop + 52, 8, R, C.ink2);
-  text(`RevPAR ${clp(closing.average_rate * occupancy)}`, kx(2) + 12, kTop + 66, 8, B, C.ink2);
-  text("venta / hab. disponibles", kx(2) + 12, kTop + 77, 7, R, C.muted);
+  if (ctx.averageRateChange !== null) {
+    const v = ctx.averageRateChange;
+    // Pequeño, bajo el monto: verde si sube, rojo si baja.
+    text(`${v > 0 ? "+" : ""}${v}% día anterior`, kx(2) + 12, kTop + 46, 6.8, B, v > 0 ? C.good : v < 0 ? C.critical : C.muted);
+  }
+  text("por habitación ocupada", kx(2) + 12, kTop + 56, 8, R, C.ink2);
+  text(`RevPAR ${clp(closing.average_rate * occupancy)}`, kx(2) + 12, kTop + 69, 8, B, C.ink2);
+  text("venta / hab. disponibles", kx(2) + 12, kTop + 80, 7, R, C.muted);
 
   card(kx(3), kTop, kW, kH, "Resultado del día");
   text(clp(closing.net_result), kx(3) + 12, kTop + 30, 17, B);

@@ -63,7 +63,7 @@ export async function loadClosing(supabase: Supabase, id: string) {
   // Cierres emitidos previos: alimentan la tendencia de 7 días y el mes a la fecha.
   const { data: history, error: historyError } = await supabase
     .from("lodging_daily_closings")
-    .select("closing_date,total_received,expense_total,occupied_rooms,total_rooms")
+    .select("closing_date,total_received,expense_total,occupied_rooms,total_rooms,average_rate")
     .eq("business_unit_id", row.business_unit_id)
     .eq("status", "issued")
     .gte("closing_date", executiveHistoryStart(row.closing_date))
@@ -88,6 +88,7 @@ export async function loadClosing(supabase: Supabase, id: string) {
       expense_total: Number(h.expense_total),
       occupied_rooms: Number(h.occupied_rooms),
       total_rooms: Number(h.total_rooms),
+      average_rate: Number(h.average_rate),
     })) as ClosingHistoryRow[],
   };
 }

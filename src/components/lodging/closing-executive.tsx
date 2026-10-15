@@ -171,6 +171,12 @@ export function ClosingExecutive({
           </Card>
           <Card title="Venta promedio">
             <p className="text-2xl font-bold tabular-nums">{clp(closing.average_rate)}</p>
+            {ctx.averageRateChange !== null && (
+              <p className={`text-[11px] font-semibold ${ctx.averageRateChange > 0 ? "text-[#0ca30c]" : ctx.averageRateChange < 0 ? "text-[#d03b3b]" : "text-[#8a96a3]"}`}>
+                {ctx.averageRateChange > 0 ? "+" : ""}
+                {ctx.averageRateChange}% día anterior
+              </p>
+            )}
             <p className="mt-1 text-xs text-[#52606f]">por habitación ocupada</p>
             <p className="mt-1 text-xs font-semibold text-[#52606f]">RevPAR {clp(closing.average_rate * occupancy)}</p>
           </Card>

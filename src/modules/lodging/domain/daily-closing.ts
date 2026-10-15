@@ -216,6 +216,8 @@ export type ClosingHistoryRow = {
   expense_total: number;
   occupied_rooms: number;
   total_rooms: number;
+  /** Venta promedio por habitación ocupada; opcional en filas antiguas. */
+  average_rate?: number;
 };
 
 const weekdayShort = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -263,6 +265,12 @@ export function executiveContext(current: ClosingHistoryRow, previous: ClosingHi
     week,
     priorAverage,
     change: priorAverage ? ((Number(current.total_received) - priorAverage) / priorAverage) * 100 : null,
+    // Venta promedio contra el cierre emitido del día anterior (si lo hay y tuvo ocupación).
+    averageRateChange: (() => {
+      const y = byDate.get(addDays(date, -1));
+      const before = Number(y?.average_rate ?? 0), now = Number(current.average_rate ?? 0);
+      return y && Number(y.occupied_rooms) > 0 && before > 0 && Number(current.occupied_rooms) > 0 ? Math.round(((now - before) / before) * 100) : null;
+    })(),
     month: {
       name: monthName(date),
       income: sum(monthRows, "total_received"),

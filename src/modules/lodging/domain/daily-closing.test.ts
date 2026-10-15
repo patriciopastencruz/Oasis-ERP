@@ -81,9 +81,19 @@ describe("hoja ejecutiva", () => {
     expect(executiveHistoryStart("2025-03-03")).toBe("2025-02-01");
   });
 
+  it("compara la venta promedio con el cierre del día anterior", () => {
+    const withRate = (d: string, rate: number, occupied = 10) => ({ ...row(d, 0, occupied), average_rate: rate });
+    expect(executiveContext(withRate("2025-09-30", 31500), [withRate("2025-09-29", 30000)]).averageRateChange).toBe(5);
+    expect(executiveContext(withRate("2025-09-30", 29400), [withRate("2025-09-29", 30000)]).averageRateChange).toBe(-2);
+    // Sin cierre ayer, o ayer sin ocupación: no compara.
+    expect(executiveContext(withRate("2025-09-30", 31500), [withRate("2025-09-28", 30000)]).averageRateChange).toBeNull();
+    expect(executiveContext(withRate("2025-09-30", 31500), [withRate("2025-09-29", 0, 0)]).averageRateChange).toBeNull();
+  });
+
   it("sin historia no inventa comparaciones", () => {
     const ctx = executiveContext(row("2025-09-30", 1000), []);
     expect(ctx.change).toBeNull();
+    expect(ctx.averageRateChange).toBeNull();
     expect(ctx.month.previousIncome).toBeNull();
     expect(longDayLabel("2025-09-30")).toBe("Martes 30-09-2025");
   });
