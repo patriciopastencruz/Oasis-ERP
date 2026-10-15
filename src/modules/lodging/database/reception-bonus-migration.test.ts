@@ -22,7 +22,13 @@ describe("migración del bono de recepción", () => {
   });
 });
 
+const wait = readFileSync("supabase/migrations/20261016140000_lodging_bonus_inspection_wait_70.sql", "utf8");
+
 describe("migración de reglas exigentes del bono", () => {
+  it("fija en 70 minutos el máximo hasta la inspección", () => {
+    expect(wait).toContain("inspection_max_wait_minutes set default 70");
+    expect(wait).toContain("set inspection_max_wait_minutes=70");
+  });
   it("guarda la primera emisión de cada cierre y la conserva al reemitir", () => {
     expect(rules).toContain("add column first_issued_at timestamptz");
     expect(rules).toContain("first_issued_at=coalesce(first_issued_at,now())");

@@ -34,7 +34,7 @@ export const DEFAULT_BONUS_WEIGHTS: BonusWeights = {
 /** Cada día cuenta como máximo 110% de ocupación: una reventa no infla el premio. */
 export const OCCUPANCY_DAY_CAP = 1.1;
 /** Tiempo máximo, en minutos, entre terminar el aseo y la inspección (promedio del mes). */
-export const DEFAULT_INSPECTION_MAX_WAIT = 60;
+export const DEFAULT_INSPECTION_MAX_WAIT = 70;
 /** Si ninguno de los dos criterios de orden se cumple, el bono se reduce a la mitad. */
 export const GATE_MULTIPLIER = 0.5;
 

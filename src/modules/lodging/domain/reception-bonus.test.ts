@@ -15,7 +15,7 @@ const base: BonusInput = {
   adr: { value: 31000, goal: 30000 },
   booking: { value: 7.6, goal: 7.5, previous: 7.4 },
   survey: { value: 4.6, goal: 4.5, responses: 12, minResponses: 5 },
-  inspections: { cleanings: 100, inspected: 100, avgWaitMinutes: 40, maxWaitMinutes: 60 },
+  inspections: { cleanings: 100, inspected: 100, avgWaitMinutes: 40, maxWaitMinutes: 70 },
   order: { closings: { due: 20, onTime: 20, lateDays: [] }, balances: { count: 0, total: 0 } },
 };
 
@@ -52,10 +52,10 @@ describe("bono de recepción", () => {
     expect(row(computeBonus({ ...base, adr: { value: 26999, goal: 30000 } }), "adr").status).toBe("miss");
   });
 
-  it("aseo: cumple solo si todo se inspeccionó y el tiempo promedio no pasa de la hora", () => {
+  it("aseo: cumple solo si todo se inspeccionó y el tiempo promedio no pasa de los 70 minutos", () => {
     expect(row(computeBonus(base), "inspections").status).toBe("met");
-    expect(row(computeBonus({ ...base, inspections: { ...base.inspections, avgWaitMinutes: 60 } }), "inspections").status).toBe("met");
-    const slow = row(computeBonus({ ...base, inspections: { ...base.inspections, avgWaitMinutes: 61 } }), "inspections");
+    expect(row(computeBonus({ ...base, inspections: { ...base.inspections, avgWaitMinutes: 70 } }), "inspections").status).toBe("met");
+    const slow = row(computeBonus({ ...base, inspections: { ...base.inspections, avgWaitMinutes: 71 } }), "inspections");
     expect(slow.status).toBe("miss");
     expect(slow.earned).toBe(0);
     const missing = row(computeBonus({ ...base, inspections: { ...base.inspections, inspected: 99 } }), "inspections");
@@ -64,7 +64,7 @@ describe("bono de recepción", () => {
   });
 
   it("aseo sin aseos terminados en el mes no se evalúa", () => {
-    const r = computeBonus({ ...base, inspections: { cleanings: 0, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 60 } });
+    const r = computeBonus({ ...base, inspections: { cleanings: 0, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 70 } });
     expect(row(r, "inspections").status).toBe("na");
     expect(r.points).toBeCloseTo(100, 5);
   });
@@ -110,7 +110,7 @@ describe("bono de recepción", () => {
     const r = computeBonus({
       ...base,
       survey: { value: null, goal: 4.5, responses: 2, minResponses: 5 },
-      inspections: { cleanings: null, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 60 },
+      inspections: { cleanings: null, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 70 },
     });
     expect(row(r, "survey").status).toBe("na");
     expect(r.evaluatedWeight).toBe(85);
@@ -126,7 +126,7 @@ describe("bono de recepción", () => {
       adr: { value: null, goal: null },
       booking: { value: null, goal: null, previous: null },
       survey: { value: null, goal: 4.5, responses: 0, minResponses: 5 },
-      inspections: { cleanings: null, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 60 },
+      inspections: { cleanings: null, inspected: 0, avgWaitMinutes: null, maxWaitMinutes: 70 },
       order: { closings: null, balances: null },
     });
     expect(r.points).toBe(0);
