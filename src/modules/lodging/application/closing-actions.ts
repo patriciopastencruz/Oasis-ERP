@@ -19,6 +19,8 @@ function go(path: string, key: "success" | "error", message: string): never {
 function friendly(error: { message?: string } | null) {
   const message = error?.message ?? "";
   console.error("[lodging-closing]", message);
+  if (/necesitas autorizacion/i.test(message))
+    return "Para cerrar una fecha anterior a ayer necesitas autorización del administrador. Solicítala desde el cierre diario.";
   if (/hoy o el dia anterior/i.test(message))
     return "Solo puedes cerrar el día de hoy o el día anterior. Pide a administración cerrar fechas más antiguas.";
   if (/ya fue emitido/i.test(message))

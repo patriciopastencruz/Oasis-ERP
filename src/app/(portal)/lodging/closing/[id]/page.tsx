@@ -9,6 +9,7 @@ import { ClosingShare } from "@/components/lodging/closing-share";
 import { getBusinessUnitBrand } from "@/config/business-units";
 import { lodgingContext } from "@/modules/lodging/application/queries";
 import { loadClosing } from "@/modules/lodging/application/closing-queries";
+import { isAuthorizationActive, latestClosingAuthorization } from "@/modules/lodging/application/closing-authorization-queries";
 import {
   deleteClosingAction,
   issueClosingAction,
@@ -35,8 +36,12 @@ export default async function ClosingDetailPage({
   const canManage = ctx.permissions.has("lodging.closings.manage");
   const canCreate = ctx.permissions.has("lodging.closings.create");
   const issued = closing.status === "issued";
-  // Recepción puede corregir el cierre de hoy o de ayer; fechas anteriores, solo quien administra.
-  const canCorrect = canManage || (canCreate && closing.closing_date >= addDays(santiagoToday(), -1));
+  // Recepción puede corregir el cierre de hoy o de ayer; fechas anteriores, quien
+  // administra o recepción con una autorización vigente para esa fecha.
+  const recent = closing.closing_date >= addDays(santiagoToday(), -1);
+  const authorized =
+    !recent && canCreate && !canManage && isAuthorizationActive(await latestClosingAuthorization(supabase, unit.id, closing.closing_date));
+  const canCorrect = canManage || (canCreate && (recent || authorized));
   const date = formatClosingDate(closing.closing_date);
   const message = [
     `*Cierre diario ${unit.name} - ${date}*`,

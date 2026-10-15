@@ -8,7 +8,7 @@ Gestión de reservas → **Cierre diario** genera el reporte de cierre del día 
 2. `/lodging/closing/[id]`: vista previa con el mismo formato del PDF. **Generar PDF y enviar** emite el cierre, recalcula los indicadores con los pagos vigentes y envía el PDF por correo a los usuarios activos con rol Administrador o Superadministrador.
 3. Una vez emitido, **Compartir por WhatsApp** abre el menú de compartir del teléfono con el PDF adjunto. En computador descarga el PDF y abre WhatsApp con un resumen del cierre. También está **Descargar PDF** y **Reenviar correo**.
 
-Recepción puede cerrar hoy o, como máximo, el día anterior, y no puede modificar un cierre emitido. Administración (`lodging.closings.manage`) puede cerrar fechas anteriores y corregir un cierre emitido: al corregirlo vuelve a borrador y debe emitirse de nuevo.
+Recepción cierra hoy y el día anterior directamente, y puede corregir esos cierres ya emitidos (vuelven a borrador y se emiten de nuevo). Para una fecha más antigua pide **autorización** con un motivo (`lodging_closing_authorization_request`); la aprueba o rechaza administración o gerencia (`lodging.closings.authorize`) en `/lodging/closing/authorizations`, con aviso y correo. Una autorización aprobada deja preparar, corregir y emitir el cierre de esa fecha en ese hostal durante 48 horas. Administración (`lodging.closings.manage`) cierra cualquier fecha sin pedir autorización. La venta promedio se compara con el cierre emitido del día anterior ("+5% día anterior").
 
 ## PDF
 

@@ -10,6 +10,8 @@ import {
   loadClosing,
 } from "@/modules/lodging/application/closing-queries";
 import { saveClosingAction } from "@/modules/lodging/application/closing-actions";
+import { requestClosingAuthorizationAction } from "@/modules/lodging/application/closing-authorization-actions";
+import { isAuthorizationActive, latestClosingAuthorization } from "@/modules/lodging/application/closing-authorization-queries";
 import {
   addDays,
   clp,
@@ -31,11 +33,14 @@ export default async function DailyClosingPage({
   const canManage = ctx.permissions.has("lodging.closings.manage");
   const canReports = ctx.permissions.has("lodging.closings.reports");
   const today = santiagoToday();
-  const minDate = canManage ? undefined : addDays(today, -1);
+  const canAuthorize = ctx.permissions.has("lodging.closings.authorize");
   const suggested = defaultClosingDate();
   let date = isValidDay(q.date) ? q.date : suggested;
   if (date > today) date = today;
-  if (minDate && date < minDate) date = minDate;
+  // Antes de ayer, recepción necesita una autorización vigente para esa fecha.
+  const needsAuthorization = !canManage && date < addDays(today, -1);
+  const authorization = needsAuthorization ? await latestClosingAuthorization(supabase, unit.id, date) : null;
+  const authorized = !needsAuthorization || isAuthorizationActive(authorization);
 
   const existingId = await findClosingId(supabase, unit.id, date);
   const existing = existingId ? await loadClosing(supabase, existingId) : null;
@@ -70,6 +75,9 @@ export default async function DailyClosingPage({
       />
       <nav className="mb-5 flex flex-wrap gap-2 text-sm">
         <span className="rounded-full border border-[#0b4f9c] bg-[#0b4f9c] px-3 py-1.5 font-medium text-white">Cierre diario</span>
+        <Link href="/lodging/closing/authorizations" className="rounded-full border bg-white px-3 py-1.5 font-medium hover:border-[#0b4f9c]">
+          Autorizaciones de fechas anteriores
+        </Link>
         {canReports && (
           <Link href="/lodging/closing/reports" className="rounded-full border bg-white px-3 py-1.5 font-medium hover:border-[#0b4f9c]">
             Reportabilidad de cierres
@@ -97,17 +105,69 @@ export default async function DailyClosingPage({
             name="date"
             defaultValue={date}
             max={today}
-            min={minDate}
             className="mt-1 block rounded-xl border bg-white px-3 py-2 text-sm"
           />
         </label>
         <button className="rounded-xl border bg-white px-4 py-2 text-sm font-semibold">Cambiar fecha</button>
         {!canManage && (
-          <p className="text-xs text-slate-500">Puedes cerrar el día de hoy o, como máximo, el día anterior.</p>
+          <p className="text-xs text-slate-500">
+            Hoy y ayer se cierran directo. Para una fecha anterior, elígela y pide autorización al administrador.
+          </p>
         )}
       </form>
 
+      {needsAuthorization && authorized && authorization?.expires_at && (
+        <p className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+          Cierre del {formatClosingDate(date)} autorizado hasta el{" "}
+          {new Date(authorization.expires_at).toLocaleString("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" })}.
+        </p>
+      )}
+
       <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
+        {!authorized ? (
+          <Panel className="h-fit space-y-3">
+            <h2 className="font-semibold">El cierre del {formatClosingDate(date)} necesita autorización</h2>
+            <p className="text-sm text-slate-600">
+              Recepción cierra el día de hoy y el anterior. Para fechas más antiguas, el administrador o gerencia debe autorizarlo.
+              Una vez autorizado, tienes 48 horas para preparar y emitir el cierre.
+            </p>
+            {authorization?.status === "pending" ? (
+              <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                Solicitud enviada el{" "}
+                {new Date(authorization.requested_at).toLocaleString("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" })}. Esperando
+                autorización. Motivo: {authorization.reason}
+              </p>
+            ) : (
+              <>
+                {authorization?.status === "rejected" && (
+                  <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                    La solicitud anterior fue rechazada{authorization.decision_notes ? `: ${authorization.decision_notes}` : "."}
+                  </p>
+                )}
+                {authorization?.status === "approved" && (
+                  <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">La autorización anterior venció. Puedes pedir una nueva.</p>
+                )}
+                <form action={requestClosingAuthorizationAction} className="space-y-3">
+                  <input type="hidden" name="closing_date" value={date} />
+                  <label className="block text-sm">
+                    Motivo
+                    <textarea
+                      name="reason"
+                      required
+                      minLength={5}
+                      maxLength={500}
+                      placeholder="Ej.: no alcancé a cerrar ese día por un corte de luz"
+                      className={`${textarea} min-h-20`}
+                    />
+                  </label>
+                  <button className="rounded-xl bg-[#0b4f9c] px-4 py-2.5 text-sm font-semibold text-white">
+                    {canAuthorize ? "Autorizar esta fecha" : "Solicitar autorización"}
+                  </button>
+                </form>
+              </>
+            )}
+          </Panel>
+        ) : (
         <form action={saveClosingAction} className="space-y-5">
           <input type="hidden" name="closing_date" value={date} />
           <Panel>
@@ -165,6 +225,7 @@ export default async function DailyClosingPage({
             )}
           </Panel>
         </form>
+        )}
 
         <Panel className="h-fit">
           <h2 className="mb-3 font-semibold">Últimos cierres</h2>
