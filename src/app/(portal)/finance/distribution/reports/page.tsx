@@ -3,11 +3,7 @@ import Link from "next/link";
 import {
   CheckCircle2,
   CircleDollarSign,
-  ClipboardCheck,
   Clock3,
-  PackageX,
-  ShoppingCart,
-  Truck,
 } from "lucide-react";
 import {
   Flash,
@@ -122,12 +118,7 @@ export default async function Reports({
   const d = await closingReportData(date);
   const summary = d.summary;
   const operational = [
-    ["Pedidos del día", summary.orders_total ?? 0, ShoppingCart],
-    ["Entregados", summary.delivered ?? 0, CheckCircle2],
-    ["Entregas parciales", summary.partial ?? 0, ClipboardCheck],
     ["Pendientes", summary.pending ?? 0, Clock3],
-    ["No entregados", summary.not_delivered ?? 0, PackageX],
-    ["Sin chofer", summary.unassigned ?? 0, Truck],
     ["Ventas en ruta", summary.route_sales ?? 0, CircleDollarSign],
     ["Cumplimiento", `${summary.delivery_rate ?? 0}%`, CheckCircle2],
   ] as const;

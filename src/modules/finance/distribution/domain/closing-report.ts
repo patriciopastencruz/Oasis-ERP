@@ -111,6 +111,10 @@ export function accumulatedMetrics(accumulated: ClosingAccumulated) {
     income: Number(accumulated.income),
     totalKg,
     avgKgPerDay: totalKg / days,
+    kgCube: Number(accumulated.kg_cube),
+    kgFrappe: Number(accumulated.kg_frappe),
+    avgKgCubePerDay: Number(accumulated.kg_cube) / days,
+    avgKgFrappePerDay: Number(accumulated.kg_frappe) / days,
     avgIncomePerDay: Number(accumulated.income) / days,
   };
 }

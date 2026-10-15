@@ -17,12 +17,7 @@ export async function GET(request: NextRequest) {
     { header: "Valor", key: "value", width: 22 },
   ];
   for (const [label, key] of [
-    ["Pedidos del día", "orders_total"],
-    ["Pedidos entregados", "delivered"],
-    ["Entregas parciales", "partial"],
     ["Pendientes", "pending"],
-    ["No entregados", "not_delivered"],
-    ["Pedidos sin chofer", "unassigned"],
     ["Ventas en ruta", "route_sales"],
     ["Cumplimiento (%)", "delivery_rate"],
     ["Venta total del día", "planned_sales"],
