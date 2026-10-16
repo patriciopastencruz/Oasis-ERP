@@ -46,7 +46,9 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
   text(`${input.monthLabel}${input.provisional ? " - resultado PROVISORIO (el mes aun no termina)" : ""}`, M, 10, R, MUTED);
   y -= 22;
   const total = input.bonuses.reduce((s, b) => s + b.result.amount, 0);
-  text(`Total a pagar: ${clp(total)}`, M, 13, B);
+  const supervisorTotal = input.bonuses.reduce((s, b) => s + b.supervisor.result.amount, 0);
+  text(`Total a pagar: ${clp(total + supervisorTotal)}`, M, 13, B);
+  textR(`Recepcion ${clp(total)} - Supervisores ${clp(supervisorTotal)}`, W - M, 9, R, MUTED);
   y -= 26;
 
   const cols = { value: 300, goal: 365, weight: 410, result: 425, points: W - M };
@@ -96,6 +98,25 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
     text(`Aseo: todos los aseos inspeccionados y, en promedio, dentro de ${b.config.inspectionMaxWait} min de terminado el aseo (cumple o no cumple).`, M, 7, R, MUTED);
     y -= 9;
     text("Orden: cierres diarios antes de las 06:00 del dia siguiente y sin saldos pendientes de estadias terminadas (excluye empresa a credito); si no se cumple ninguno, el bono baja al 50%.", M, 7, R, MUTED);
+    y -= 24;
+    // Bono del supervisor del hostal.
+    need(150);
+    text(`Bono del supervisor - ${b.unit.name}`, M, 10.5, B, BLUE);
+    textR(clp(b.supervisor.result.amount), W - M, 12, B);
+    y -= 16;
+    text(`${num(b.supervisor.result.points, 1)} de 100 puntos - bono maximo ${clp(b.config.supervisorPool)}`, M, 8.5, R, MUTED);
+    y -= 14;
+    for (const r of b.supervisor.result.rows) {
+      need(26);
+      text(r.label, M, 9, R);
+      textR(String(r.weight), cols.weight, 9);
+      text(status[r.status], cols.result - 6, 9, B, r.status === "met" ? rgb(0.05, 0.5, 0.3) : r.status === "miss" ? rgb(0.75, 0.15, 0.15) : MUTED);
+      textR(r.status === "na" ? "-" : num(r.earned, 1), cols.points, 9, B);
+      y -= 12;
+      text(r.text, M + 8, 7.5, R, MUTED);
+      y -= 10;
+    }
+    text("60 puntos = puntaje de la recepcion del hostal; 40 puntos = cuatro controles de cumple o no cumple (10 cada uno). Bono = monto x puntos / 100.", M, 7, R, MUTED);
     y -= 24;
   }
   text(`Generado el ${new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" }).format(new Date())} - OASIS ERP`, M, 7.5, R, MUTED);

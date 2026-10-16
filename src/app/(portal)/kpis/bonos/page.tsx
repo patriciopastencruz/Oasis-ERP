@@ -10,6 +10,7 @@ import { saveBonusConfigAction, saveBonusResultAction } from "@/modules/lodging/
 import { clp, santiagoToday } from "@/modules/lodging/domain/daily-closing";
 import { BONUS_INDICATORS, type BonusKey, type BonusStatus } from "@/modules/lodging/domain/reception-bonus";
 import { parseHistoryMonth, shiftMonth } from "@/modules/lodging/domain/history-report";
+import type { SupervisorStatus } from "@/modules/lodging/domain/supervisor-bonus";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,12 @@ const statusUi: Record<BonusStatus, { text: string; cls: string }> = {
   half: { text: "½ Parcial", cls: "bg-amber-50 text-amber-800" },
   miss: { text: "✗ No cumple", cls: "bg-red-50 text-red-700" },
   na: { text: "No evaluado", cls: "bg-slate-100 text-slate-600" },
+};
+const supervisorStatusUi: Record<SupervisorStatus, { text: string; cls: string }> = {
+  met: statusUi.met,
+  half: { text: "Parcial", cls: "bg-amber-50 text-amber-800" },
+  miss: statusUi.miss,
+  na: statusUi.na,
 };
 const monthLabel = (month: string) => {
   const label = new Intl.DateTimeFormat("es-CL", { timeZone: "UTC", month: "long", year: "numeric" }).format(new Date(`${month}-15T12:00:00Z`));
@@ -110,6 +117,64 @@ function Detail({ b }: { b: UnitBonus }) {
   );
 }
 
+function SupervisorDetail({ b }: { b: UnitBonus }) {
+  const r = b.supervisor.result;
+  return (
+    <Panel>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-[#0b4f9c]">Bono del supervisor · {b.unit.name}</p>
+          <p className="mt-1 text-3xl font-bold leading-none">{clp(r.amount)}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {num(r.points, 1)} de 100 puntos · bono máximo {clp(b.config.supervisorPool)}
+          </p>
+        </div>
+        {b.saved?.supervisorAmount != null && (
+          <p className="max-w-xs rounded-lg bg-slate-50 p-2 text-[11px] text-slate-600">
+            Resultado guardado: <b>{clp(b.saved.supervisorAmount)}</b>
+            {b.saved.supervisorAmount !== r.amount && <span className="text-amber-700"> · con los datos de hoy daría {clp(r.amount)}</span>}
+          </p>
+        )}
+      </div>
+      {b.config.supervisorPool === 0 && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Falta configurar el monto del bono del supervisor.</p>}
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
+          <thead className="border-b text-left text-xs uppercase text-slate-500">
+            <tr>
+              <th className="py-1.5">Control</th>
+              <th className="text-right">Peso</th>
+              <th className="pl-3">Resultado</th>
+              <th className="text-right">Puntos</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {r.rows.map((x) => (
+              <tr key={x.key} className="align-top">
+                <td className="py-2 font-medium">
+                  {x.label}
+                  <span className="block text-[11px] font-normal text-slate-500">{x.text}</span>
+                </td>
+                <td className="text-right tabular-nums">
+                  {x.weight}
+                  {x.status !== "na" && Math.round(x.effectiveWeight) !== x.weight && <span className="block text-[10px] text-slate-400">cuenta {num(x.effectiveWeight, 1)}</span>}
+                </td>
+                <td className="pl-3">
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${supervisorStatusUi[x.status].cls}`}>{supervisorStatusUi[x.status].text}</span>
+                </td>
+                <td className="text-right font-semibold tabular-nums">{x.status === "na" ? "—" : num(x.earned, 1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-xs text-slate-600">
+        <b>Cómo se calcula:</b> 60 puntos son el puntaje de la recepción de su hostal (por ejemplo, 70 puntos de la recepción dan 42) y los otros 40 salen de cuatro controles de cumple o no cumple, 10 puntos cada uno:
+        auditorías semanales completas, comprobantes con diferencia resueltos en 48 horas, máximo 10% de cierres corregidos y puntaje de Booking en la meta del hostal. Bono = monto × puntos ÷ 100.
+      </p>
+    </Panel>
+  );
+}
+
 function ConfigForm({ b, canManage }: { b: UnitBonus; canManage: boolean }) {
   if (!canManage) return null;
   const c = b.config;
@@ -123,7 +188,11 @@ function ConfigForm({ b, canManage }: { b: UnitBonus; canManage: boolean }) {
           Monto del bono mensual (CLP)
           <input name="pool_amount" inputMode="numeric" defaultValue={c.pool} required className={input} />
         </label>
-        <p className="text-xs font-semibold text-slate-600">Peso de cada indicador (deben sumar 100)</p>
+        <label className="block text-sm">
+          Monto del bono del supervisor (CLP)
+          <input name="supervisor_pool_amount" inputMode="numeric" defaultValue={c.supervisorPool} required className={input} />
+        </label>
+        <p className="text-xs font-semibold text-slate-600">Peso de cada indicador de recepción (deben sumar 100)</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {BONUS_INDICATORS.map(({ key, label }) => (
             <label key={key} className="block text-xs">
@@ -165,6 +234,7 @@ export default async function BonusPage({ searchParams }: { searchParams: Promis
   const bonuses = units.length ? await loadReceptionBonus(await createSupabaseServerClient(), units, month) : [];
   const provisional = bonuses[0]?.provisional ?? true;
   const total = bonuses.reduce((s, b) => s + b.result.amount, 0);
+  const supervisorTotal = bonuses.reduce((s, b) => s + b.supervisor.result.amount, 0);
   const currentMonth = santiagoToday().slice(0, 7);
   const href = (m: string) => `/kpis/bonos?month=${m}`;
 
@@ -206,13 +276,14 @@ export default async function BonusPage({ searchParams }: { searchParams: Promis
               <div key={b.unit.id} className="rounded-2xl border border-[#d9dfe6] bg-white p-4">
                 <p className="text-xs text-slate-500">{b.unit.name}</p>
                 <b className="mt-1 block text-2xl leading-none">{clp(b.result.amount)}</b>
-                <p className="mt-1.5 text-[11px] text-slate-500">{num(b.result.points, 1)} puntos de 100 · máximo {clp(b.config.pool)}</p>
+                <p className="mt-1.5 text-[11px] text-slate-500">Recepción: {num(b.result.points, 1)} puntos de 100 · máximo {clp(b.config.pool)}</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">Supervisor: <b>{clp(b.supervisor.result.amount)}</b> · {num(b.supervisor.result.points, 1)} puntos</p>
               </div>
             ))}
             <div className="rounded-2xl border border-[#0b4f9c] bg-[#edf4fc] p-4">
               <p className="text-xs text-slate-600">Total a pagar {provisional ? "(provisorio)" : ""}</p>
-              <b className="mt-1 block text-2xl leading-none">{clp(total)}</b>
-              <p className="mt-1.5 text-[11px] text-slate-500">suma de los {bonuses.length} hostales</p>
+              <b className="mt-1 block text-2xl leading-none">{clp(total + supervisorTotal)}</b>
+              <p className="mt-1.5 text-[11px] text-slate-500">Recepción {clp(total)} · Supervisores {clp(supervisorTotal)}</p>
             </div>
           </div>
 
@@ -220,12 +291,13 @@ export default async function BonusPage({ searchParams }: { searchParams: Promis
             {bonuses.map((b) => (
               <div key={b.unit.id} className="space-y-2">
                 <Detail b={b} />
+                <SupervisorDetail b={b} />
                 {canManage && !provisional && (
                   <form action={saveBonusResultAction} className="flex justify-end">
                     <input type="hidden" name="month" value={month} />
                     <input type="hidden" name="unit_id" value={b.unit.id} />
                     <ConfirmButton
-                      message={`¿Guardar el resultado de ${b.unit.name} de ${monthLabel(month)}? Queda como respaldo del pago (${clp(b.result.amount)}); puedes volver a guardarlo si corriges datos.`}
+                      message={`¿Guardar el resultado de ${b.unit.name} de ${monthLabel(month)}? Queda como respaldo del pago (recepción ${clp(b.result.amount)}, supervisor ${clp(b.supervisor.result.amount)}); puedes volver a guardarlo si corriges datos.`}
                       className="rounded-xl border border-[#0b4f9c] px-3 py-1.5 text-xs font-semibold text-[#0b4f9c]"
                     >
                       {b.saved ? "Actualizar resultado guardado" : "Guardar resultado del mes"}

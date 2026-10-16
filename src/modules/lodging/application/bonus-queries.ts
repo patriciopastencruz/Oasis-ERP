@@ -2,6 +2,7 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { addDays, defaultClosingDate, santiagoToday } from "../domain/daily-closing";
 import { loadGroupWeeklyReport } from "./group-weekly-queries";
+import { RECEIPT_RESOLVE_HOURS, computeSupervisorBonus, type SupervisorInput } from "../domain/supervisor-bonus";
 import {
   DEFAULT_BONUS_WEIGHTS,
   DEFAULT_INSPECTION_MAX_WAIT,
@@ -31,6 +32,7 @@ export type BonusConfig = {
   surveyGoal: number;
   surveyMinResponses: number;
   inspectionMaxWait: number;
+  supervisorPool: number;
   configured: boolean;
 };
 
@@ -40,10 +42,19 @@ const defaultConfig: BonusConfig = {
   surveyGoal: 4,
   surveyMinResponses: 5,
   inspectionMaxWait: DEFAULT_INSPECTION_MAX_WAIT,
+  supervisorPool: 0,
   configured: false,
 };
 
-export type SavedBonus = { points: number; amount: number; gateApplied: boolean; savedAt: string; poolAmount: number };
+export type SavedBonus = {
+  points: number;
+  amount: number;
+  gateApplied: boolean;
+  savedAt: string;
+  poolAmount: number;
+  supervisorPoints: number | null;
+  supervisorAmount: number | null;
+};
 
 /** Bono de recepción del mes para cada hostal, calculado con los datos de hoy. */
 export async function loadReceptionBonus(supabase: Supabase, units: Unit[], month: string) {
@@ -62,21 +73,21 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
   let dueDays = 0;
   for (let d = start; d <= lastDue; d = addDays(d, 1)) dueDays++;
 
-  const [configRes, savedRes, closingsRes, surveysRes] = await Promise.all([
+  const [configRes, savedRes, closingsRes, surveysRes, auditsRes, receiptsRes, authorizationsRes] = await Promise.all([
     supabase
       .from("lodging_bonus_config")
-      .select("pool_amount,weights,survey_goal,survey_min_responses,inspection_max_wait_minutes")
+      .select("pool_amount,weights,survey_goal,survey_min_responses,inspection_max_wait_minutes,supervisor_pool_amount")
       .eq("business_unit_id", unit.id)
       .maybeSingle(),
     supabase
       .from("lodging_bonus_results")
-      .select("points,amount,gate_applied,saved_at,pool_amount")
+      .select("points,amount,gate_applied,saved_at,pool_amount,supervisor_points,supervisor_amount")
       .eq("business_unit_id", unit.id)
       .eq("month", start)
       .maybeSingle(),
     supabase
       .from("lodging_daily_closings")
-      .select("closing_date,first_issued_at")
+      .select("closing_date,first_issued_at,issued_at")
       .eq("business_unit_id", unit.id)
       .eq("status", "issued")
       .gte("closing_date", start)
@@ -87,6 +98,29 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       .eq("business_unit_id", unit.id)
       .gte("created_at", `${start}T00:00:00-06:00`)
       .lt("created_at", `${addDays(reference, 1)}T06:00:00Z`),
+    // Controles de supervisión: auditorías semanales, comprobantes con diferencia y cierres corregidos.
+    supabase
+      .from("lodging_supervisor_audits")
+      .select("status")
+      .eq("business_unit_id", unit.id)
+      .gte("week_start", start)
+      .lte("week_start", reference),
+    supabase
+      .from("lodging_payment_receipts")
+      .select("id,ai_reviewed_at,lodging_reservation_payments!inner(status)")
+      .eq("business_unit_id", unit.id)
+      .eq("ai_review_status", "mismatch")
+      .is("deleted_at", null)
+      .eq("lodging_reservation_payments.status", "confirmed")
+      .gte("created_at", `${start}T00:00:00-06:00`)
+      .lt("created_at", `${addDays(reference, 1)}T06:00:00Z`),
+    supabase
+      .from("lodging_closing_authorizations")
+      .select("closing_date")
+      .eq("business_unit_id", unit.id)
+      .eq("status", "approved")
+      .gte("closing_date", start)
+      .lte("closing_date", lastDue),
   ]);
   for (const r of [configRes, closingsRes, surveysRes]) if (r.error) throw r.error;
 
@@ -98,6 +132,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
         surveyGoal: Number(c.survey_goal),
         surveyMinResponses: Number(c.survey_min_responses),
         inspectionMaxWait: Number(c.inspection_max_wait_minutes),
+        supervisorPool: Number(c.supervisor_pool_amount),
         configured: true,
       }
     : defaultConfig;
@@ -147,6 +182,42 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
     },
   };
   const result = computeBonus(input);
+
+  // Bono del supervisor: 60% el resultado de la recepción y cuatro controles de cumple o no cumple.
+  const staleCut = Date.now() - RECEIPT_RESOLVE_HOURS * 3_600_000;
+  const correctedDays = new Set<string>();
+  for (const c of closingsRes.data ?? []) {
+    if (c.first_issued_at && c.issued_at && new Date(c.issued_at).getTime() - new Date(c.first_issued_at).getTime() > 60_000)
+      correctedDays.add(c.closing_date);
+  }
+  for (const a of authorizationsRes.data ?? []) correctedDays.add(a.closing_date);
+  const supervisorInput: SupervisorInput = {
+    pool: config.supervisorPool,
+    receptionPoints: result.points,
+    audits: auditsRes.error
+      ? null
+      : {
+          assigned: (auditsRes.data ?? []).length,
+          completed: (auditsRes.data ?? []).filter((a) => a.status === "passed" || a.status === "failed").length,
+        },
+    receipts: receiptsRes.error
+      ? null
+      : {
+          overdue: (receiptsRes.data ?? []).filter((r) => r.ai_reviewed_at && new Date(r.ai_reviewed_at).getTime() <= staleCut).length,
+        },
+    closings: closingsRes.error
+      ? null
+      : {
+          total: (closingsRes.data ?? []).length,
+          corrected: [...correctedDays].filter((d) => (closingsRes.data ?? []).some((c) => c.closing_date === d)).length,
+          correctedDays: [...correctedDays]
+            .filter((d) => (closingsRes.data ?? []).some((c) => c.closing_date === d))
+            .map((d) => Number(d.slice(8)))
+            .sort((a, b) => a - b),
+        },
+    booking: { value: latestReview ? latestReview.score : null, goal: h.goals.bookingScore },
+  };
+  const supervisor = { input: supervisorInput, result: computeSupervisorBonus(supervisorInput) };
   const saved: SavedBonus | null = savedRes.data
     ? {
         points: Number(savedRes.data.points),
@@ -154,6 +225,8 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
         gateApplied: savedRes.data.gate_applied,
         savedAt: savedRes.data.saved_at,
         poolAmount: Number(savedRes.data.pool_amount),
+        supervisorPoints: savedRes.data.supervisor_points === null ? null : Number(savedRes.data.supervisor_points),
+        supervisorAmount: savedRes.data.supervisor_amount === null ? null : Number(savedRes.data.supervisor_amount),
       }
     : null;
   return {
@@ -165,6 +238,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
     config,
     input,
     result,
+    supervisor,
     saved,
     counts: { dueDays, surveyResponses: surveys.length },
   };
