@@ -75,7 +75,7 @@ export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[],
         .from("lodging_daily_closings")
         .select("closing_date,first_issued_at,issued_at")
         .in("business_unit_id", unitIds)
-        .eq("issued_by", config.userId)
+        .eq("first_issued_by", config.userId)
         .eq("status", "issued")
         .gte("closing_date", start)
         .lte("closing_date", reference),
@@ -133,7 +133,8 @@ export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[],
     code: b.unit.code,
     name: b.unit.name,
     pool: b.config.pool,
-    points: b.result.points,
+    // Lo que realmente se paga a la recepción (con la reducción por orden si corresponde) sobre su máximo.
+    points: b.config.pool > 0 ? (b.result.amount / b.config.pool) * 100 : b.result.points,
     created: counts.get(b.unit.id) ?? 0,
     goal: monthlyGoal(b.unit.code, config.goals, weekdays),
   }));
