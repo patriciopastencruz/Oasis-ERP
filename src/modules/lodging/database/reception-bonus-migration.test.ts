@@ -48,17 +48,14 @@ describe("migración de pesos del bono", () => {
   });
 });
 
-const supervisor = readFileSync("supabase/migrations/20261017130000_lodging_supervisor_bonus.sql", "utf8");
+const removeSupervisor = readFileSync("supabase/migrations/20261017140000_lodging_remove_supervisor_bonus.sql", "utf8");
 
-describe("migración del bono del supervisor", () => {
-  it("guarda el monto del supervisor, con 150.000 por hostal", () => {
-    expect(supervisor).toContain("supervisor_pool_amount numeric(14,0) not null default 0 check(supervisor_pool_amount>=0)");
-    expect(supervisor).toContain("set supervisor_pool_amount=150000");
-  });
-  it("sigue exigiendo el permiso de gestión al configurar y guardar", () => {
-    expect(supervisor.match(/has_permission\('kpis\.bonus\.manage'\)/g)?.length).toBe(2);
-    expect(supervisor).toContain("Solo se guarda el resultado de un mes ya terminado");
-    expect(supervisor).toContain("array['occupancy','adr','booking','survey','inspections','order']");
+describe("retiro del bono del supervisor", () => {
+  it("quita las columnas del supervisor y conserva el permiso de gestión al guardar", () => {
+    expect(removeSupervisor).toContain("drop column supervisor_pool_amount");
+    expect(removeSupervisor).toContain("drop column supervisor_points,drop column supervisor_amount");
+    expect(removeSupervisor.match(/has_permission\('kpis\.bonus\.manage'\)/g)?.length).toBe(2);
+    expect(removeSupervisor).not.toContain("supervisor_pool_amount::");
   });
 });
 

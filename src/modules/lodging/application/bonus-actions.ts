@@ -40,15 +40,11 @@ export async function saveBonusConfigAction(form: FormData) {
   if (!Number.isInteger(minResponses) || minResponses < 0) go(back, "error", "El mínimo de respuestas debe ser un número entero.");
   if (!Number.isInteger(maxWait) || maxWait < 1 || maxWait > 1440) go(back, "error", "El tiempo máximo de inspección va de 1 a 1.440 minutos.");
 
-  const supervisorPool = parseScoreInput(String(form.get("supervisor_pool_amount") ?? "").replace(/\./g, ""));
-  if (supervisorPool === null || supervisorPool < 0) go(back, "error", "Indica el monto del bono del supervisor (número, sin puntos).");
-
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("lodging_save_bonus_config", {
     target_unit: unitId.data,
     payload: {
       pool_amount: pool,
-      supervisor_pool_amount: supervisorPool,
       weights,
       survey_goal: surveyGoal,
       survey_min_responses: minResponses,
@@ -80,14 +76,7 @@ export async function saveBonusResultAction(form: FormData) {
       points: Math.round(bonus.result.points * 100) / 100,
       amount: bonus.result.amount,
       gate_applied: bonus.result.gateApplied,
-      supervisor_points: Math.round(bonus.supervisor.result.points * 100) / 100,
-      supervisor_amount: bonus.supervisor.result.amount,
-      detail: {
-        rows: bonus.result.rows,
-        input: bonus.input,
-        counts: bonus.counts,
-        supervisor: { rows: bonus.supervisor.result.rows, input: bonus.supervisor.input },
-      },
+      detail: { rows: bonus.result.rows, input: bonus.input, counts: bonus.counts },
     },
   });
   if (error) go(m.data, "error", /autoriz/i.test(error.message) ? "No tienes autorización para esta acción." : error.message);
