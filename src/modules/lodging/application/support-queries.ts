@@ -66,16 +66,16 @@ export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[],
 
   let counts = new Map<string, number>();
   let reservationsError = false;
-  let closings: { total: number; onTime: number; corrected: number } | null = null;
+  let closings: { expected: number; issued: number; onTime: number } | null = null;
   let payments: { total: number; withReceipt: number; withDifference: number } | null = null;
   if (config.userId) {
     const unitIds = bonuses.map((b) => b.unit.id);
     const [closingsRes, paymentsRes] = await Promise.all([
       supabase
         .from("lodging_daily_closings")
-        .select("closing_date,first_issued_at,issued_at")
+        .select("closing_date,issued_at")
         .in("business_unit_id", unitIds)
-        .eq("first_issued_by", config.userId)
+        .eq("issued_by", config.userId)
         .eq("status", "issued")
         .gte("closing_date", start)
         .lte("closing_date", reference),
@@ -91,11 +91,12 @@ export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[],
         .limit(5000),
     ]);
     if (!closingsRes.error) {
-      const list = closingsRes.data ?? [];
+      // Los cierres que ella emitió (o reemitió) de lunes a viernes; debe hacer uno por hostal por día laborable.
+      const list = (closingsRes.data ?? []).filter((c) => isWeekday(c.closing_date));
       closings = {
-        total: list.length,
-        onTime: list.filter((c) => c.first_issued_at && new Date(c.first_issued_at).getTime() < closingDeadline(c.closing_date).getTime()).length,
-        corrected: list.filter((c) => c.first_issued_at && c.issued_at && new Date(c.issued_at).getTime() - new Date(c.first_issued_at).getTime() > 60_000).length,
+        expected: unitIds.length * weekdaysInMonth(month),
+        issued: list.length,
+        onTime: list.filter((c) => c.issued_at && new Date(c.issued_at).getTime() < closingDeadline(c.closing_date).getTime()).length,
       };
     }
     if (!paymentsRes.error) {

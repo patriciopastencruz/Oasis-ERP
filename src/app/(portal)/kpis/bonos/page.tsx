@@ -109,7 +109,7 @@ function Detail({ b }: { b: UnitBonus }) {
 
       <p className="mt-3 text-xs text-slate-600">
         <b>Encuesta QR:</b> la mitad de sus puntos por reunir el mínimo de evaluaciones del mes y la otra mitad por llegar al promedio meta (el promedio solo cuenta con el mínimo reunido). <b>Cumple o no cumple, sin término medio:</b> la ocupación, la venta promedio y el puntaje de Booking deben alcanzar la meta del hostal; el aseo exige que todos los aseos terminados del mes se inspeccionen y que la inspección ocurra, en promedio, dentro de{" "}
-        {b.config.inspectionMaxWait} minutos de terminado el aseo. El orden administrativo exige cierres diarios emitidos por la recepcionista de turno antes de las 06:00 del día siguiente (si de lunes a viernes lo emite primero la persona de apoyo, ese día no suma) y ninguna estadía terminada con saldo por cobrar
+        {b.config.inspectionMaxWait} minutos de terminado el aseo. El orden administrativo exige cierres diarios emitidos antes de las 06:00 del día siguiente (da lo mismo si los emite la recepcionista o la persona de apoyo) y ninguna estadía terminada con saldo por cobrar
         (no cuentan las de empresa a crédito); deben cumplirse los dos criterios y, si no se cumple ninguno, además el bono completo se reduce a la mitad.
       </p>
     </Panel>
@@ -167,8 +167,7 @@ function SupportPanel({ s, month, canManage, candidates }: { s: SupportBonus; mo
       </div>
       <p className="mt-3 text-xs text-slate-600">
         <b>Cómo se calcula:</b> 20 puntos son el resultado conjunto de los hostales (lo que ganan las recepciones sobre el máximo posible, ponderado por el bono de cada hostal) y 80 puntos salen de su propia gestión, todos en forma proporcional
-        (puntos = peso × cumplimiento, con tope en la meta): <b>reservas que crea de noche</b> (19:00 a 06:00, de lunes a viernes, con precio y activas): 60 puntos, repartidos en Centro 22, Uruguay 22 y Cobija 16; <b>cierres que emite primero</b> (cuando la recepcionista de turno no lo hizo): 5 por los que
-        salen antes de las 06:00 del día siguiente y 5 por los que no se reemiten; <b>pagos por transferencia o tarjeta que registra de noche</b>: 5 por los que tienen comprobante y 5 por los comprobantes que la revisión no marca con diferencia.
+        (puntos = peso × cumplimiento, con tope en la meta): <b>reservas que crea de noche</b> (19:00 a 06:00, de lunes a viernes, con precio y activas): 60 puntos, repartidos en Centro 22, Uruguay 22 y Cobija 16; <b>cierres de los hostales que hace ella</b> (uno por hostal por día laborable, aunque la recepcionista ya lo haya emitido; si lo corrige y lo reemite, queda hecho por ella): 5 por la cantidad de cierres hechos y 5 por los que salen antes de las 06:00 del día siguiente; <b>pagos por transferencia o tarjeta que registra de noche</b>: 5 por los que tienen comprobante y 5 por los comprobantes que la revisión no marca con diferencia.
         Las metas de reservas de {monthLabel(month)} consideran {s.weekdays} días laborables: Centro {Math.round(goals.HOC.per_day * s.weekdays)} y Uruguay {Math.round(goals.HU.per_day * s.weekdays)} (una por noche) y Cobija{" "}
         {Math.round((goals.HOB.per_week * s.weekdays) / 5)} ({goals.HOB.per_week} por semana). Bono = monto × puntos ÷ 100.
       </p>

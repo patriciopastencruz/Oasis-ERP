@@ -3,7 +3,7 @@
  * apoya a los 3 hostales. 20 puntos salen del resultado conjunto de los hostales
  * (lo que ganan las recepciones sobre el máximo posible) y 80 de su propia
  * gestión, todos de forma proporcional: reservas que crea de noche (60, según la
- * meta de cada hostal), cierres que emite (10) y pagos que registra (10).
+ * meta de cada hostal), cierres que hace (10) y pagos que registra (10).
  */
 
 export const SUPPORT_GROUP_WEIGHT = 20;
@@ -126,8 +126,11 @@ export function groupPoints(hostales: { pool: number; points: number }[]) {
 export type SupportInput = {
   pool: number;
   hostales: SupportHostalInput[];
-  /** Cierres emitidos por la persona de apoyo en el mes: cuántos a tiempo y cuántos se reemitieron. */
-  closings: { total: number; onTime: number; corrected: number } | null;
+  /**
+   * Cierres de los hostales que ella emitió en el mes (de lunes a viernes), sobre los que debía hacer
+   * (uno por hostal por día laborable), y cuántos estuvieron a tiempo.
+   */
+  closings: { expected: number; issued: number; onTime: number } | null;
   /** Pagos por transferencia o tarjeta que registró de noche: con comprobante y con diferencia marcada. */
   payments: { total: number; withReceipt: number; withDifference: number } | null;
 };
@@ -147,9 +150,10 @@ export function computeSupportBonus(input: SupportInput) {
     add(h.code, `Reservas de noche en ${h.name}`, SUPPORT_UNIT_WEIGHTS[h.code] ?? 16, h.created / h.goal, `${h.created} de ${h.goal} reservas (${pct(Math.min(h.created / h.goal, 1))})`);
   }
   const c = input.closings;
-  if (c && c.total > 0) {
-    add("closings_on_time", "Cierres a tiempo", SUPPORT_CLOSING_WEIGHT, c.onTime / c.total, `${c.onTime} de ${c.total} cierres antes de las 06:00 (${pct(c.onTime / c.total)})`);
-    add("closings_clean", "Cierres sin corrección", SUPPORT_CLOSING_WEIGHT, (c.total - c.corrected) / c.total, `${c.total - c.corrected} de ${c.total} sin reemitir (${pct((c.total - c.corrected) / c.total)})`);
+  if (c && c.expected > 0) {
+    add("closings_done", "Cierres de los hostales hechos por ella", SUPPORT_CLOSING_WEIGHT, c.issued / c.expected, `${c.issued} de ${c.expected} cierres (${pct(Math.min(c.issued / c.expected, 1))})`);
+    const onTime = c.issued > 0 ? c.onTime / c.issued : 0;
+    add("closings_on_time", "Cierres a tiempo", SUPPORT_CLOSING_WEIGHT, onTime, `${c.onTime} de ${c.issued} antes de las 06:00 (${pct(onTime)})`);
   }
   const p = input.payments;
   if (p && p.total > 0) {

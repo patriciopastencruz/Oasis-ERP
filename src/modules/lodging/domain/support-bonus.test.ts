@@ -49,7 +49,7 @@ describe("bono de apoyo transversal", () => {
     expect(groupPoints([])).toBeNull();
   });
 
-  const full = { closings: { total: 14, onTime: 14, corrected: 0 }, payments: { total: 19, withReceipt: 19, withDifference: 0 } };
+  const full = { closings: { expected: 66, issued: 66, onTime: 66 }, payments: { total: 19, withReceipt: 19, withDifference: 0 } };
   const hostales = (points: number, created: [number, number, number]) => [
     hostal("HOC", "Centro", 150000, points, created[0], 30),
     hostal("HU", "Uruguay", 100000, points, created[1], 30),
@@ -65,11 +65,11 @@ describe("bono de apoyo transversal", () => {
     expect(r.rows.filter((x) => ["HOC", "HU", "HOB"].includes(x.key)).reduce((s, x) => s + x.weight, 0)).toBe(60);
   });
 
-  it("ejemplo con los datos de octubre: reservas a mitad de camino, 2 cierres reemitidos y 5 comprobantes con diferencia", () => {
+  it("ejemplo con los datos de octubre: reservas a mitad de camino, la mitad de los cierres y 5 comprobantes con diferencia", () => {
     const r = computeSupportBonus({
       pool: 100000,
       hostales: hostales(40, [11, 5, 0]).map((h) => (h.code === "HOC" || h.code === "HU" ? { ...h, goal: 22 } : h)),
-      closings: { total: 14, onTime: 14, corrected: 2 },
+      closings: { expected: 66, issued: 33, onTime: 33 },
       payments: { total: 19, withReceipt: 19, withDifference: 5 },
     });
     const earned = (k: string) => r.rows.find((x) => x.key === k)!.earned;
@@ -77,12 +77,12 @@ describe("bono de apoyo transversal", () => {
     expect(earned("HOC")).toBeCloseTo(11, 5); // 22 × 11/22
     expect(earned("HU")).toBeCloseTo(5, 5); // 22 × 5/22
     expect(earned("HOB")).toBeCloseTo(0, 5);
-    expect(earned("closings_on_time")).toBeCloseTo(5, 5);
-    expect(earned("closings_clean")).toBeCloseTo(4.286, 3);
+    expect(earned("closings_done")).toBeCloseTo(2.5, 5); // hizo 33 de los 66 cierres
+    expect(earned("closings_on_time")).toBeCloseTo(5, 5); // los 33 estuvieron a tiempo
     expect(earned("payments_receipt")).toBeCloseTo(5, 5);
     expect(earned("payments_clean")).toBeCloseTo(3.684, 3);
-    expect(r.points).toBeCloseTo(41.97, 2);
-    expect(r.amount).toBe(41970);
+    expect(r.points).toBeCloseTo(40.18, 2);
+    expect(r.amount).toBe(40184);
   });
 
   it("máximo y mínimo", () => {
@@ -94,7 +94,7 @@ describe("bono de apoyo transversal", () => {
       computeSupportBonus({
         pool: 100000,
         hostales: hostales(100, [0, 0, 0]),
-        closings: { total: 10, onTime: 0, corrected: 10 },
+        closings: { expected: 66, issued: 0, onTime: 0 },
         payments: { total: 10, withReceipt: 0, withDifference: 0 },
       }).amount,
     ).toBe(20000);
@@ -102,7 +102,7 @@ describe("bono de apoyo transversal", () => {
 
   it("sin cierres ni pagos en el mes esas partes se dejan fuera y su peso se reparte", () => {
     const r = computeSupportBonus({ pool: 100000, hostales: hostales(100, [100, 100, 100]), closings: null, payments: { total: 0, withReceipt: 0, withDifference: 0 } });
-    expect(r.rows.find((x) => x.key === "closings_on_time")).toBeUndefined();
+    expect(r.rows.find((x) => x.key === "closings_done")).toBeUndefined();
     expect(r.rows.find((x) => x.key === "payments_receipt")).toBeUndefined();
     expect(r.points).toBeCloseTo(100, 5);
   });

@@ -96,15 +96,6 @@ describe("bono de recepción", () => {
     expect(r.amount).toBe(42500);
   });
 
-  it("orden: un cierre emitido primero por la persona de apoyo no suma para recepción", () => {
-    const r = computeBonus({ ...base, order: { ...base.order, closings: { due: 20, onTime: 19, lateDays: [], coveredDays: [8] } } });
-    const closings = row(r, "order").criteria[0];
-    expect(closings.ok).toBe(false);
-    expect(closings.text).toContain("persona de apoyo");
-    expect(closings.text).toContain("8");
-    expect(row(r, "order").status).toBe("miss");
-  });
-
   it("orden: sin cierres vencidos (inicio de mes) se evalúan solo los saldos", () => {
     const r = computeBonus({ ...base, order: { closings: null, balances: { count: 0, total: 0 } } });
     expect(row(r, "order").criteria).toHaveLength(1);

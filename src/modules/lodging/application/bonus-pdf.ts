@@ -98,9 +98,9 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
     y -= 9;
     text(`Aseo: todos los aseos inspeccionados y, en promedio, dentro de ${b.config.inspectionMaxWait} min de terminado el aseo (cumple o no cumple).`, M, 7, R, MUTED);
     y -= 9;
-    text("Orden: cierres diarios hechos por la recepcion de turno antes de las 06:00 del dia siguiente (si de lunes a viernes lo emite primero la persona", M, 7, R, MUTED);
+    text("Orden: cierres diarios emitidos antes de las 06:00 del dia siguiente (los emita la recepcion o la persona de apoyo) y sin saldos pendientes", M, 7, R, MUTED);
     y -= 9;
-    text("de apoyo, ese dia no suma) y sin saldos pendientes de estadias terminadas (excluye empresa a credito); si no se cumple ninguno, el bono baja al 50%.", M, 7, R, MUTED);
+    text("de estadias terminadas (excluye empresa a credito); si no se cumple ninguno, el bono baja al 50%.", M, 7, R, MUTED);
     y -= 24;
   }
   if (input.support) {
@@ -127,7 +127,7 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
       y -= 10;
     }
     y -= 4;
-    text("20 puntos = resultado conjunto de los hostales; 80 = su gestion: reservas de noche 60, cierres 10 y pagos 10, todo proporcional.", M, 7, R, MUTED);
+    text("20 puntos = resultado conjunto de los hostales; 80 = su gestion: reservas de noche 60, cierres 10 (los 3 hostales cada dia habil) y pagos 10, todo proporcional.", M, 7, R, MUTED);
     y -= 9;
     text("Reservas de noche: 19:00 a 06:00, lunes a viernes, con precio y activas. Bono = monto x puntos / 100.", M, 7, R, MUTED);
     y -= 24;

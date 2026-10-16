@@ -2,7 +2,6 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { addDays, defaultClosingDate, santiagoToday } from "../domain/daily-closing";
 import { loadGroupWeeklyReport } from "./group-weekly-queries";
-import { isWeekday } from "../domain/support-bonus";
 import {
   DEFAULT_BONUS_WEIGHTS,
   DEFAULT_INSPECTION_MAX_WAIT,
@@ -63,7 +62,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
   let dueDays = 0;
   for (let d = start; d <= lastDue; d = addDays(d, 1)) dueDays++;
 
-  const [configRes, savedRes, closingsRes, surveysRes, supportConfigRes] = await Promise.all([
+  const [configRes, savedRes, closingsRes, surveysRes] = await Promise.all([
     supabase
       .from("lodging_bonus_config")
       .select("pool_amount,weights,survey_goal,survey_min_responses,inspection_max_wait_minutes")
@@ -77,7 +76,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       .maybeSingle(),
     supabase
       .from("lodging_daily_closings")
-      .select("closing_date,first_issued_at,first_issued_by")
+      .select("closing_date,first_issued_at")
       .eq("business_unit_id", unit.id)
       .eq("status", "issued")
       .gte("closing_date", start)
@@ -88,8 +87,6 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       .eq("business_unit_id", unit.id)
       .gte("created_at", `${start}T00:00:00-06:00`)
       .lt("created_at", `${addDays(reference, 1)}T06:00:00Z`),
-    // Persona de apoyo: si ella emite el cierre en lugar de la recepcionista de turno, no suma para recepción.
-    supabase.from("lodging_support_bonus_config").select("support_user_id").limit(1).maybeSingle(),
   ]);
   for (const r of [configRes, closingsRes, surveysRes]) if (r.error) throw r.error;
 
@@ -114,18 +111,14 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
     : null;
   const latestReview = [...h.reviews].sort((a, b) => b.recorded_on.localeCompare(a.recorded_on))[0] ?? null;
 
-  // Cierres: cada día vencido debe emitirlo por primera vez la recepcionista de turno antes de que terminara su día de trabajo.
-  // De lunes a viernes, si lo emitió primero la persona de apoyo (que trabaja de noche), ese día no suma para recepción.
-  const supportUserId = supportConfigRes.data?.support_user_id ?? null;
-  const firstIssued = new Map((closingsRes.data ?? []).map((c) => [c.closing_date, { at: c.first_issued_at as string | null, by: c.first_issued_by as string | null }]));
+  // Cierres: cada día vencido debe haberse emitido por primera vez antes de que terminara su día de trabajo,
+  // lo haya hecho la recepcionista o la persona de apoyo.
+  const firstIssued = new Map((closingsRes.data ?? []).map((c) => [c.closing_date, c.first_issued_at as string | null]));
   const lateDays: number[] = [];
-  const coveredDays: number[] = [];
   let onTimeClosings = 0;
   for (let d = start; d <= lastDue; d = addDays(d, 1)) {
-    const first = firstIssued.get(d) ?? null;
-    const covered = !!first && !!supportUserId && first.by === supportUserId && isWeekday(d);
-    if (covered) coveredDays.push(Number(d.slice(8)));
-    else if (first?.at && new Date(first.at).getTime() < closingDeadline(d).getTime()) onTimeClosings++;
+    const issuedAt = firstIssued.get(d) ?? null;
+    if (issuedAt !== null && new Date(issuedAt).getTime() < closingDeadline(d).getTime()) onTimeClosings++;
     else lateDays.push(Number(d.slice(8)));
   }
   // Saldos: estadías ya terminadas con deuda, sin contar las de empresa que paga después.
@@ -150,7 +143,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       maxWaitMinutes: config.inspectionMaxWait,
     },
     order: {
-      closings: dueDays > 0 ? { due: dueDays, onTime: onTimeClosings, lateDays, coveredDays } : null,
+      closings: dueDays > 0 ? { due: dueDays, onTime: onTimeClosings, lateDays } : null,
       balances: { count: unpaid.length, total: unpaidTotal },
     },
   };
