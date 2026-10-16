@@ -29,9 +29,9 @@ const num = (v: unknown, fallback: number) => (v === null || v === undefined || 
 function parseGoals(raw: unknown): SupportGoals {
   const g = (raw ?? {}) as Record<string, Record<string, unknown> | undefined>;
   return {
-    HOC: { per_day: num(g.HOC?.per_day, DEFAULT_SUPPORT_GOALS.HOC.per_day) },
-    HU: { per_day: num(g.HU?.per_day, DEFAULT_SUPPORT_GOALS.HU.per_day) },
-    HOB: { per_week: num(g.HOB?.per_week, DEFAULT_SUPPORT_GOALS.HOB.per_week) },
+    HOC: { per_month: num(g.HOC?.per_month, DEFAULT_SUPPORT_GOALS.HOC.per_month) },
+    HU: { per_month: num(g.HU?.per_month, DEFAULT_SUPPORT_GOALS.HU.per_month) },
+    HOB: { per_month: num(g.HOB?.per_month, DEFAULT_SUPPORT_GOALS.HOB.per_month) },
   };
 }
 
@@ -137,7 +137,7 @@ export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[],
     // Lo que realmente se paga a la recepción (con la reducción por orden si corresponde) sobre su máximo.
     points: b.config.pool > 0 ? (b.result.amount / b.config.pool) * 100 : b.result.points,
     created: counts.get(b.unit.id) ?? 0,
-    goal: monthlyGoal(b.unit.code, config.goals, weekdays),
+    goal: monthlyGoal(b.unit.code, config.goals),
   }));
   const result = computeSupportBonus({ pool: config.pool, hostales, closings, payments });
   const saved = savedRes.data

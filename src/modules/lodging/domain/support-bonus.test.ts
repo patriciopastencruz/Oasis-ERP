@@ -37,11 +37,11 @@ describe("bono de apoyo transversal", () => {
     expect(countNightReservations(created, "2026-10-18", "2026-10-31").get("a")).toBeUndefined();
   });
 
-  it("las metas salen de los días laborables del mes", () => {
+  it("las metas de reservas de noche son un número fijo por mes en cada hostal", () => {
     expect(weekdaysInMonth("2026-10")).toBe(22);
-    expect(monthlyGoal("HU", DEFAULT_SUPPORT_GOALS, 22)).toBe(22);
-    expect(monthlyGoal("HOC", DEFAULT_SUPPORT_GOALS, 22)).toBe(22);
-    expect(monthlyGoal("HOB", DEFAULT_SUPPORT_GOALS, 22)).toBe(13); // 3 por semana: 3 × 22 ÷ 5 = 13,2
+    expect(monthlyGoal("HOC", DEFAULT_SUPPORT_GOALS)).toBe(10);
+    expect(monthlyGoal("HU", DEFAULT_SUPPORT_GOALS)).toBe(10);
+    expect(monthlyGoal("HOB", DEFAULT_SUPPORT_GOALS)).toBe(6);
   });
 
   it("el resultado conjunto pondera cada hostal por su bono máximo", () => {

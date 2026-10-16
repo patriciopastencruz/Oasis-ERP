@@ -168,8 +168,7 @@ function SupportPanel({ s, month, canManage, candidates }: { s: SupportBonus; mo
       <p className="mt-3 text-xs text-slate-600">
         <b>Cómo se calcula:</b> 20 puntos son el resultado conjunto de los hostales (lo que ganan las recepciones sobre el máximo posible, ponderado por el bono de cada hostal) y 80 puntos salen de su propia gestión, todos en forma proporcional
         (puntos = peso × cumplimiento, con tope en la meta): <b>reservas que crea de noche</b> (19:00 a 06:00, de lunes a viernes, con precio y activas): 60 puntos, repartidos en Centro 22, Uruguay 22 y Cobija 16; <b>cierres de los hostales que hace ella</b> (uno por hostal por día laborable, aunque la recepcionista ya lo haya emitido; si lo corrige y lo reemite, queda hecho por ella): 5 por la cantidad de cierres hechos y 5 por los que salen antes de las 06:00 del día siguiente; <b>pagos por transferencia o tarjeta que registra de noche</b>: 5 por los que tienen comprobante y 5 por los comprobantes que la revisión no marca con diferencia.
-        Las metas de reservas de {monthLabel(month)} consideran {s.weekdays} días laborables: Centro {Math.round(goals.HOC.per_day * s.weekdays)} y Uruguay {Math.round(goals.HU.per_day * s.weekdays)} (una por noche) y Cobija{" "}
-        {Math.round((goals.HOB.per_week * s.weekdays) / 5)} ({goals.HOB.per_week} por semana). Bono = monto × puntos ÷ 100.
+        Las metas de reservas de noche por mes son Centro {goals.HOC.per_month}, Uruguay {goals.HU.per_month} y Cobija {goals.HOB.per_month}. Bono = monto × puntos ÷ 100.
       </p>
       {canManage && (
         <details className="mt-3 rounded-xl border border-[#d9dfe6] p-3">
@@ -193,16 +192,16 @@ function SupportPanel({ s, month, canManage, candidates }: { s: SupportBonus; mo
             </label>
             <div className="grid grid-cols-3 gap-2">
               <label className="block text-xs">
-                Centro: reservas por noche
-                <input name="goal_HOC" inputMode="decimal" defaultValue={String(goals.HOC.per_day).replace(".", ",")} required className={input} />
+                Centro: reservas por mes
+                <input name="goal_HOC" inputMode="decimal" defaultValue={String(goals.HOC.per_month).replace(".", ",")} required className={input} />
               </label>
               <label className="block text-xs">
-                Uruguay: reservas por noche
-                <input name="goal_HU" inputMode="decimal" defaultValue={String(goals.HU.per_day).replace(".", ",")} required className={input} />
+                Uruguay: reservas por mes
+                <input name="goal_HU" inputMode="decimal" defaultValue={String(goals.HU.per_month).replace(".", ",")} required className={input} />
               </label>
               <label className="block text-xs">
-                Cobija: reservas por semana
-                <input name="goal_HOB" inputMode="decimal" defaultValue={String(goals.HOB.per_week).replace(".", ",")} required className={input} />
+                Cobija: reservas por mes
+                <input name="goal_HOB" inputMode="decimal" defaultValue={String(goals.HOB.per_month).replace(".", ",")} required className={input} />
               </label>
             </div>
             <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">Guardar configuración</button>

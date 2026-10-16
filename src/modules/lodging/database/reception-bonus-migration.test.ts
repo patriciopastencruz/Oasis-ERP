@@ -91,6 +91,15 @@ describe("migración de quién emite primero el cierre", () => {
   });
 });
 
+const monthlyGoals = readFileSync("supabase/migrations/20261017170000_lodging_support_monthly_goals.sql", "utf8");
+
+describe("migración de metas mensuales del bono de apoyo", () => {
+  it("fija 10 reservas en Centro, 10 en Uruguay y 6 en Cobija por mes y exige el permiso de gestión", () => {
+    expect(monthlyGoals).toContain('{"HOC":{"per_month":10},"HU":{"per_month":10},"HOB":{"per_month":6}}');
+    expect(monthlyGoals).toContain("has_permission('kpis.bonus.manage')");
+  });
+});
+
 describe("migración de montos del bono", () => {
   it("fija 150.000 en Centro y Cobija y 100.000 en Uruguay", () => {
     expect(pool).toContain("('HOC',150000),('HOB',150000),('HU',100000)");

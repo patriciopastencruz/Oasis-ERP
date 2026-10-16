@@ -106,9 +106,9 @@ export async function saveSupportConfigAction(form: FormData) {
       pool_amount: pool,
       support_user_id: user && user.success ? user.data : null,
       goals: {
-        HOC: { per_day: goal("goal_HOC") },
-        HU: { per_day: goal("goal_HU") },
-        HOB: { per_week: goal("goal_HOB") },
+        HOC: { per_month: goal("goal_HOC") },
+        HU: { per_month: goal("goal_HU") },
+        HOB: { per_month: goal("goal_HOB") },
       },
     },
   });

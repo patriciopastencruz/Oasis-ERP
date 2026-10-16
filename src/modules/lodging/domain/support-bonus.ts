@@ -16,11 +16,11 @@ export const NIGHT_STARTS_AT_HOUR = 19;
 export const NIGHT_ENDS_AT_HOUR = 6;
 
 export type SupportGoals = {
-  HOC: { per_day: number };
-  HU: { per_day: number };
-  HOB: { per_week: number };
+  HOC: { per_month: number };
+  HU: { per_month: number };
+  HOB: { per_month: number };
 };
-export const DEFAULT_SUPPORT_GOALS: SupportGoals = { HOC: { per_day: 1 }, HU: { per_day: 1 }, HOB: { per_week: 3 } };
+export const DEFAULT_SUPPORT_GOALS: SupportGoals = { HOC: { per_month: 10 }, HU: { per_month: 10 }, HOB: { per_month: 6 } };
 
 const dayParts = (iso: string) => {
   const parts = Object.fromEntries(
@@ -71,11 +71,10 @@ export function weekdaysInMonth(month: string) {
   return count;
 }
 
-/** Meta mensual de reservas nocturnas de un hostal, según los días laborables del mes. */
-export function monthlyGoal(code: string, goals: SupportGoals, weekdays: number) {
-  if (code === "HOB") return Math.round((goals.HOB.per_week * weekdays) / 5);
-  const perDay = code === "HU" ? goals.HU.per_day : goals.HOC.per_day;
-  return Math.round(perDay * weekdays);
+/** Meta mensual de reservas nocturnas de un hostal. */
+export function monthlyGoal(code: string, goals: SupportGoals) {
+  const perMonth = code === "HOB" ? goals.HOB.per_month : code === "HU" ? goals.HU.per_month : goals.HOC.per_month;
+  return Math.round(perMonth);
 }
 
 /**
