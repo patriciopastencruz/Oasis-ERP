@@ -131,7 +131,8 @@ export default async function Reports({
   const totalReceived = summary.total_received ?? 0;
   const fromToday = Math.min(summary.collected ?? 0, totalReceived);
   const financial = [
-    ["Venta del día (entregada)", clp.format(summary.delivered_sales ?? 0)],
+    ["Venta total del día", clp.format(summary.planned_sales ?? 0)],
+    ["Venta entregada", clp.format(summary.delivered_sales ?? 0)],
     ["Pedidos por entregar", clp.format(Math.max((summary.planned_sales ?? 0) - (summary.delivered_sales ?? 0), 0))],
     ["Venta entregada en efectivo", clp.format(day.cash)],
     ["Venta entregada en transferencia", clp.format(day.transfer)],

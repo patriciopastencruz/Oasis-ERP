@@ -176,19 +176,20 @@ export function drawDistributionClosingPages(
 
     const delivered = Number(summary.delivered_sales ?? 0);
     const collectedToday = Number(summary.collected ?? 0);
-    const toDeliver = Math.max(Number(summary.planned_sales ?? 0) - delivered, 0);
+    const dayTotal = Number(summary.planned_sales ?? 0);
+    const toDeliver = Math.max(dayTotal - delivered, 0);
     card(kx(0), kTop, kW, kH, "Venta del día");
-    text(clp(delivered), kx(0) + 12, kTop + 30, 17, B);
-    text(`Cobrado ${clp(collectedToday)}`, kx(0) + 12, kTop + 54, 8, R, C.ink2);
-    text(`A crédito ${clp(Math.max(delivered - collectedToday, 0))}`, kx(0) + 12, kTop + 65, 8, R, C.ink2);
+    text(clp(dayTotal), kx(0) + 12, kTop + 30, 17, B);
+    text(`Entregada ${clp(delivered)}`, kx(0) + 12, kTop + 54, 8, R, C.ink2);
     text(
       toDeliver > 0 ? `Por entregar ${clp(toDeliver)}` : "Todo entregado",
       kx(0) + 12,
-      kTop + 77,
-      7.5,
+      kTop + 65,
+      8,
       B,
       toDeliver > 0 ? C.warning : C.good,
     );
+    text(`A crédito ${clp(Math.max(delivered - collectedToday, 0))}`, kx(0) + 12, kTop + 77, 7.5, R, C.muted);
 
     card(kx(1), kTop, kW, kH, "Kilos de hielo vendidos");
     text(`${num(kgToday)} kg`, kx(1) + 12, kTop + 30, 17, B);
