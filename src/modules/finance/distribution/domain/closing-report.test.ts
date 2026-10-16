@@ -43,9 +43,9 @@ describe("cierre diario de Distribuidora Altiplánica", () => {
     );
     const [cube, frappe, water] = groups;
     expect(cube.items.map((r) => r.code)).toEqual(["ICE-1KG", "ICE-2KG"]); // 1k antes que 2k
-    expect(cube.kg).toBe(200); // 100 bolsas de 2 kg
+    expect(cube.kg).toBe(100); // la cantidad ya está en kilos: no se multiplica por el formato de 2 kg
     expect(cube.items[0].units).toBe(0); // sin ventas ese día igual aparece
-    expect(frappe.kg).toBe(80);
+    expect(frappe.kg).toBe(40);
     expect(water.units).toBe(12);
     expect(water.items.find((r) => r.code === "WATER-6L")!.monthAvgPerDay).toBe(0);
     expect(water.items.find((r) => r.code === "WATER-20L")!.monthAvgPerDay).toBe(5); // 50 en 10 días
@@ -61,8 +61,8 @@ describe("cierre diario de Distribuidora Altiplánica", () => {
       ],
       { days: 15, by_product: [] },
     );
-    expect(groups[0].kg).toBe(360); // solo lo entregado cuenta como vendido
-    expect(groups[0].pendingKg).toBe(200); // 100 bolsas de 2 kg por entregar
+    expect(groups[0].kg).toBe(180); // solo lo entregado cuenta como vendido
+    expect(groups[0].pendingKg).toBe(100); // 100 kg por entregar
     expect(groups[1].pendingKg).toBe(0);
   });
 

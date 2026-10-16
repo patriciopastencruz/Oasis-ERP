@@ -29,11 +29,12 @@ describe("Distribuidora Altiplánica", () => {
     expect(paymentState(10000, 4000)).toBe("partial");
     expect(() => paymentState(10000, 11000)).toThrow("inválido");
   });
-  it("calcula kilos desde el factor estructurado", () =>
+  it("los kilos de hielo son la cantidad declarada, sin multiplicar por el formato", () =>
     expect(
       iceKilograms([
-        { quantity: 5, iceWeightKg: 2 },
+        { quantity: 5, iceWeightKg: 2 }, // 5 kg del formato de 2 kg
         { quantity: 3, iceWeightKg: 1 },
+        { quantity: 12, iceWeightKg: 0 }, // agua: no es hielo
       ]),
-    ).toBe(13));
+    ).toBe(8));
 });

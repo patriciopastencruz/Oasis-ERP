@@ -104,8 +104,8 @@ export async function GET(request: NextRequest) {
   grouped.columns = [
     { header: "Grupo", key: "group", width: 16 },
     { header: "Producto", key: "name", width: 28 },
+    { header: "Unidad", key: "unit", width: 10 },
     { header: "Vendido hoy", key: "units", width: 14 },
-    { header: "Kilos hoy", key: "kg", width: 12 },
     { header: "Acumulado del mes", key: "month", width: 20 },
     { header: "Promedio por día", key: "avg", width: 18 },
   ];
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
         group: group.label,
         name: row.name,
         units: row.units,
-        kg: row.kind === "water" ? null : row.kg,
+        unit: row.kind === "water" ? "un" : "kg",
         month: row.monthUnits,
         avg: Math.round(row.monthAvgPerDay * 10) / 10,
       });

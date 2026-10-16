@@ -249,7 +249,7 @@ export default async function Reports({
               <h2 className="font-semibold">Cantidad vendida por producto</h2>
               <p className="text-xs text-[#63778e]">
                 Entregado el {date}, con el promedio diario de {monthLabel} hasta
-                esa fecha ({d.metrics.days} días corridos).
+                esa fecha ({d.metrics.days} días corridos). El hielo se declara en kilos; el formato (1 o 2 kg) es solo la presentación.
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -258,7 +258,6 @@ export default async function Reports({
                   <tr>
                     <th className="px-5 py-3">Producto</th>
                     <th className="px-3 py-3 text-right">Vendido hoy</th>
-                    <th className="px-3 py-3 text-right">Kilos hoy</th>
                     <th className="px-3 py-3 text-right">Acumulado del mes</th>
                     <th className="px-5 py-3 text-right">Promedio por día</th>
                   </tr>
@@ -267,23 +266,21 @@ export default async function Reports({
                   {d.closingProducts.groups.map((group) => (
                     <Fragment key={group.kind}>
                       <tr className="bg-[#f7f9fb]">
-                        <td colSpan={5} className="px-5 py-2 text-xs font-bold uppercase tracking-wide text-[var(--oasis-primary)]">
+                        <td colSpan={4} className="px-5 py-2 text-xs font-bold uppercase tracking-wide text-[var(--oasis-primary)]">
                           {group.label}
                         </td>
                       </tr>
                       {group.items.map((row) => (
                         <tr key={row.id} className="border-b last:border-0">
                           <td className="px-5 py-2.5 font-semibold">{row.name}</td>
-                          <td className="px-3 py-2.5 text-right font-semibold">{number.format(row.units)}</td>
-                          <td className="px-3 py-2.5 text-right text-[#56677b]">{row.kind === "water" ? "—" : `${number.format(row.kg)} kg`}</td>
-                          <td className="px-3 py-2.5 text-right">{number.format(row.monthUnits)}</td>
-                          <td className="px-5 py-2.5 text-right">{number.format(Math.round(row.monthAvgPerDay * 10) / 10)}</td>
+                          <td className="px-3 py-2.5 text-right font-semibold">{number.format(row.units)}{row.kind === "water" ? "" : " kg"}</td>
+                          <td className="px-3 py-2.5 text-right">{number.format(row.monthUnits)}{row.kind === "water" ? "" : " kg"}</td>
+                          <td className="px-5 py-2.5 text-right">{number.format(Math.round(row.monthAvgPerDay * 10) / 10)}{row.kind === "water" ? "" : " kg"}</td>
                         </tr>
                       ))}
                       <tr className="border-b font-bold">
                         <td className="px-5 py-2 text-right text-xs uppercase text-[#56677b]">Total {group.label.toLowerCase()}</td>
-                        <td className="px-3 py-2 text-right">{number.format(group.units)}</td>
-                        <td className="px-3 py-2 text-right">{group.kind === "water" ? "—" : `${number.format(group.kg)} kg`}</td>
+                        <td className="px-3 py-2 text-right">{number.format(group.units)}{group.kind === "water" ? "" : " kg"}</td>
                         <td colSpan={2} />
                       </tr>
                     </Fragment>

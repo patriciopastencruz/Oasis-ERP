@@ -49,8 +49,16 @@ export function paymentState(total: number, paid: number) {
   return paid === 0 ? "pending" : paid === total ? "paid" : "partial";
 }
 
+/**
+ * Kilos de hielo de un pedido. La cantidad del hielo ya se declara en kilos
+ * (el "2 kg" de un producto es su formato de venta), así que no se multiplica;
+ * un peso de 0 marca a los productos que no son hielo (aguas).
+ */
 export function iceKilograms(
   lines: readonly { quantity: number; iceWeightKg: number }[],
 ) {
-  return lines.reduce((sum, line) => sum + line.quantity * line.iceWeightKg, 0);
+  return lines.reduce(
+    (sum, line) => sum + (line.iceWeightKg > 0 ? line.quantity : 0),
+    0,
+  );
 }

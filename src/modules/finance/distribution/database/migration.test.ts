@@ -21,6 +21,7 @@ const sql = [
   "supabase/migrations/20260925153740_distribution_direct_order_edit_with_notice.sql",
   "supabase/migrations/20261017100000_dist_closing_accumulated.sql",
   "supabase/migrations/20261017110000_dist_closing_day_delivered.sql",
+  "supabase/migrations/20261017120000_dist_ice_kilos_by_quantity.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -326,5 +327,16 @@ describe("cierre diario con acumulado del mes", () => {
   it("guarda los gastos declarados al cerrar sin permitir montos negativos", () => {
     expect(sql).toContain("declared_expenses numeric(14,2) not null default 0 check(declared_expenses>=0)");
     expect(sql).toContain("expense_detail text");
+  });
+});
+
+describe("kilos de hielo declarados en kilos", () => {
+  const kilos = readFileSync(resolve(process.cwd(), "supabase/migrations/20261017120000_dist_ice_kilos_by_quantity.sql"), "utf8");
+  it("los reportes suman la cantidad vendida de los productos de hielo sin multiplicar por el formato", () => {
+    expect(kilos).toContain("sum(delivered_quantity) filter(where ice_weight_kg>0)");
+    expect(kilos).toContain("sum(quantity) filter(where ice_weight_kg>0)");
+    expect(kilos).toContain("sum(l.qty) filter(where l.ice_weight_kg>0 and not l.is_frappe)");
+    expect(kilos).not.toContain("quantity*ice_weight_kg");
+    expect(kilos).not.toContain("qty*l.ice_weight_kg");
   });
 });

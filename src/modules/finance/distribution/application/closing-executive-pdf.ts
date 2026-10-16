@@ -320,31 +320,29 @@ export function drawDistributionClosingPages(
     const lineH = 14.5;
     const lines = groups.reduce((n, g) => n + (g.items.length ? 2 + g.items.length : 0), 0);
     const r3H = 42 + lines * lineH + 6;
-    card(M, r3, W - 2 * M, r3H, "Cantidad vendida por producto", `Promedio del mes: ${metrics.days} días corridos`);
-    const cols = { name: M + 14, today: M + 270, kg: M + 340, month: M + 425, avg: W - M - 14 };
+    card(M, r3, W - 2 * M, r3H, "Cantidad vendida por producto", `Hielo en kilos · promedio del mes: ${metrics.days} días corridos`);
+    const cols = { name: M + 14, today: M + 330, month: M + 425, avg: W - M - 14 };
     const head = r3 + 28;
     text("PRODUCTO", cols.name, head, 6.5, B, C.muted);
-    textR("HOY", cols.today, head, 6.5, B, C.muted);
-    textR("KILOS HOY", cols.kg, head, 6.5, B, C.muted);
+    textR("VENDIDO HOY", cols.today, head, 6.5, B, C.muted);
     textR("ACUM. MES", cols.month, head, 6.5, B, C.muted);
     textR("PROMEDIO / DÍA", cols.avg, head, 6.5, B, C.muted);
     let top = head + 16;
     for (const g of groups) {
       if (!g.items.length) continue;
+      const unit = g.kind === "water" ? "" : " kg";
       text(g.label.toUpperCase(), cols.name, top, 7, B, C.navy);
       top += lineH;
       for (const r of g.items) {
         text(fit(r.name, 240, 8.5), cols.name + 8, top, 8.5);
-        textR(num(r.units), cols.today, top, 8.5, B);
-        textR(g.kind === "water" ? "-" : `${num(r.kg)} kg`, cols.kg, top, 8.5, R, C.ink2);
-        textR(num(r.monthUnits), cols.month, top, 8.5);
-        textR(one(r.monthAvgPerDay), cols.avg, top, 8.5, R, C.ink2);
+        textR(`${num(r.units)}${unit}`, cols.today, top, 8.5, B);
+        textR(`${num(r.monthUnits)}${unit}`, cols.month, top, 8.5);
+        textR(`${one(r.monthAvgPerDay)}${unit}`, cols.avg, top, 8.5, R, C.ink2);
         top += lineH;
       }
       page.drawLine({ start: { x: cols.name, y: Y(top - 3) }, end: { x: cols.avg, y: Y(top - 3) }, thickness: 0.4, color: C.line });
       text(`Total ${g.label.toLowerCase()}`, cols.name + 8, top, 8, B, C.ink2);
-      textR(num(g.units), cols.today, top, 8.5, B, C.navy);
-      textR(g.kind === "water" ? "-" : `${num(g.kg)} kg`, cols.kg, top, 8.5, B, C.navy);
+      textR(`${num(g.units)}${unit}`, cols.today, top, 8.5, B, C.navy);
       top += lineH + 2;
     }
 

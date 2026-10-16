@@ -41,10 +41,11 @@ export type ClosingProductRow = {
   name: string;
   presentation: string;
   kind: ClosingProductKind;
+  /** Formato del producto (1 o 2 kg); no multiplica la cantidad vendida. */
   iceWeightKg: number;
-  /** Unidades entregadas en el día. */
+  /** Cantidad entregada en el día (kilos en el hielo, unidades en el agua). */
   units: number;
-  /** Kilos del día (unidades × peso del producto); 0 para las aguas. */
+  /** Kilos del día: en el hielo la cantidad ya se declara en kilos (el "2 kg" es el formato); 0 para las aguas. */
   kg: number;
   /** Unidades pedidas para el día que aún no se entregan. */
   pendingUnits: number;
@@ -90,9 +91,9 @@ export function buildClosingProducts(
       kind: productKind(p),
       iceWeightKg,
       units,
-      kg: units * iceWeightKg,
+      kg: iceWeightKg > 0 ? units : 0,
       pendingUnits,
-      pendingKg: pendingUnits * iceWeightKg,
+      pendingKg: iceWeightKg > 0 ? pendingUnits : 0,
       monthUnits: month,
       monthAvgPerDay: month / days,
     };
