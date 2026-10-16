@@ -20,18 +20,32 @@ export async function GET(request: NextRequest) {
     ["Pendientes", "pending"],
     ["Ventas en ruta", "route_sales"],
     ["Cumplimiento (%)", "delivery_rate"],
-    ["Venta total del día", "planned_sales"],
-    ["Venta total entregada", "delivered_sales"],
+    ["Venta del día (entregada)", "delivered_sales"],
+    ["Venta de pedidos aún no entregados", "pending_sales"],
     ["Efectivo recibido", "cash_received"],
     ["Transferencia recibida", "transfer_received"],
     ["Pago mixto recibido", "mixed_received"],
-    ["Monto vendido a crédito", "credit"],
+    ["Monto vendido a crédito (entregado)", "credit_delivered"],
+    ["Cobrado de las ventas de hoy", "collected_today"],
+    ["Cobrado de ventas de días anteriores", "collected_past"],
     ["Total recibido", "total_received"],
     ["Gastos del día", "expense_total"],
     ["Kilos de hielo", "ice_kg"],
     ["Unidades de agua", "water_units"],
   ] as const)
-    sheet.addRow({ label, value: d.summary[key] ?? 0 });
+    sheet.addRow({
+      label,
+      value:
+        key === "pending_sales"
+          ? Math.max((d.summary.planned_sales ?? 0) - (d.summary.delivered_sales ?? 0), 0)
+          : key === "credit_delivered"
+            ? (d.accumulated.day?.credit ?? d.summary.credit ?? 0)
+            : key === "collected_today"
+              ? Math.min(d.summary.collected ?? 0, d.summary.total_received ?? 0)
+              : key === "collected_past"
+                ? Math.max((d.summary.total_received ?? 0) - (d.summary.collected ?? 0), 0)
+                : (d.summary[key] ?? 0),
+    });
   sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
   sheet.getRow(1).fill = {
     type: "pattern",

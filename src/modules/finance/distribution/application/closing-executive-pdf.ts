@@ -174,31 +174,42 @@ export function drawDistributionClosingPages(
       kW = (W - 2 * M - 3 * GAP) / 4;
     const kx = (i: number) => M + i * (kW + GAP);
 
+    const delivered = Number(summary.delivered_sales ?? 0);
+    const collectedToday = Number(summary.collected ?? 0);
+    const toDeliver = Math.max(Number(summary.planned_sales ?? 0) - delivered, 0);
     card(kx(0), kTop, kW, kH, "Venta del día");
-    text(clp(summary.planned_sales ?? 0), kx(0) + 12, kTop + 30, 17, B);
-    text(`Entregada ${clp(summary.delivered_sales ?? 0)}`, kx(0) + 12, kTop + 54, 8, R, C.ink2);
-    const toDeliver = (summary.planned_sales ?? 0) - (summary.delivered_sales ?? 0);
+    text(clp(delivered), kx(0) + 12, kTop + 30, 17, B);
+    text(`Cobrado ${clp(collectedToday)}`, kx(0) + 12, kTop + 54, 8, R, C.ink2);
+    text(`A crédito ${clp(Math.max(delivered - collectedToday, 0))}`, kx(0) + 12, kTop + 65, 8, R, C.ink2);
     text(
       toDeliver > 0 ? `Por entregar ${clp(toDeliver)}` : "Todo entregado",
       kx(0) + 12,
-      kTop + 66,
-      8,
+      kTop + 77,
+      7.5,
       B,
       toDeliver > 0 ? C.warning : C.good,
     );
 
-    card(kx(1), kTop, kW, kH, "Kilos de hielo");
+    card(kx(1), kTop, kW, kH, "Kilos de hielo vendidos");
     text(`${num(kgToday)} kg`, kx(1) + 12, kTop + 30, 17, B);
     text(`Cubo ${num(cubeKg)} · Frappé ${num(frappeKg)}`, kx(1) + 12, kTop + 54, 8, R, C.ink2);
+    const pendingKg = iceGroups.reduce((s, g) => s + g.pendingKg, 0);
+    text(
+      pendingKg > 0 ? `Por entregar ${num(pendingKg)} kg` : "Todo entregado",
+      kx(1) + 12,
+      kTop + 64,
+      7.5,
+      B,
+      pendingKg > 0 ? C.warning : C.good,
+    );
     if (metrics.avgKgPerDay > 0) {
       const change = (kgToday / metrics.avgKgPerDay - 1) * 100;
       page.drawSvgPath(change >= 0 ? "M 0 7 L 4 0 L 8 7 Z" : "M 0 0 L 8 0 L 4 7 Z", {
         x: kx(1) + 12,
-        y: Y(kTop + 75),
+        y: Y(kTop + 82),
         color: change >= 0 ? C.good : C.critical,
       });
-      text(`${change >= 0 ? "+" : ""}${pct(change)} vs prom. del mes`, kx(1) + 24, kTop + 68, 7.5, B, C.ink2);
-      text(`(${one(metrics.avgKgPerDay)} kg/día)`, kx(1) + 24, kTop + 79, 6.5, R, C.muted);
+      text(`${change >= 0 ? "+" : ""}${pct(change)} vs prom. mes (${one(metrics.avgKgPerDay)} kg)`, kx(1) + 24, kTop + 75, 6.8, B, C.ink2);
     }
 
     card(kx(2), kTop, kW, kH, "Agua vendida");
@@ -223,11 +234,17 @@ export function drawDistributionClosingPages(
     const r2 = kTop + kH + 12,
       r2H = 118,
       halfW = (W - 2 * M - GAP) / 2;
-    card(M, r2, halfW, r2H, "Venta por forma de pago", clp(summary.planned_sales ?? 0));
-    const cash = Number(summary.cash ?? 0),
-      transfer = Number(summary.transfer ?? 0),
-      credit = Number(summary.credit ?? 0);
-    const other = Math.max(0, Math.round(Number(summary.planned_sales ?? 0) - cash - transfer - credit));
+    const day = extras.day ?? {
+      delivered: Number(summary.planned_sales ?? 0),
+      cash: Number(summary.cash ?? 0),
+      transfer: Number(summary.transfer ?? 0),
+      credit: Number(summary.credit ?? 0),
+    };
+    card(M, r2, halfW, r2H, "Venta por forma de pago", `Entregada ${clp(day.delivered)}`);
+    const cash = Number(day.cash),
+      transfer = Number(day.transfer),
+      credit = Number(day.credit);
+    const other = Math.max(0, Math.round(Number(day.delivered) - cash - transfer - credit));
     const methods = [
       { key: "cash", label: "Efectivo", amount: cash },
       { key: "transfer", label: "Transferencia", amount: transfer },
@@ -271,22 +288,32 @@ export function drawDistributionClosingPages(
     }
 
     const px = M + halfW + GAP;
-    card(px, r2, halfW, r2H, "Cobros del día", clp(summary.total_received ?? 0));
-    const received: [string, number][] = [
-      ["Efectivo recibido", Number(summary.cash_received ?? 0)],
-      ["Transferencia recibida", Number(summary.transfer_received ?? 0)],
-      ...(Number(summary.mixed_received ?? 0) > 0 ? ([["Pago mixto recibido", Number(summary.mixed_received)]] as [string, number][]) : []),
+    const totalReceived = Number(summary.total_received ?? 0);
+    const fromToday = Math.min(Number(summary.collected ?? 0), totalReceived);
+    const fromPast = Math.max(totalReceived - fromToday, 0);
+    card(px, r2, halfW, r2H, "Cobros del día", clp(totalReceived));
+    const rowsCobros: [string, number, boolean][] = [
+      ["Cobrado de las ventas de hoy", fromToday, false],
+      ["Cobrado de ventas de días anteriores", fromPast, false],
     ];
-    received.forEach(([label, amount], i) => {
+    rowsCobros.forEach(([label, amount], i) => {
       const top = r2 + 32 + i * 18;
       text(label, px + 12, top, 8.5, R, C.ink2);
       textR(clp(amount), px + halfW - 12, top, 9, B);
       page.drawLine({ start: { x: px + 12, y: Y(top + 14) }, end: { x: px + halfW - 12, y: Y(top + 14) }, thickness: 0.4, color: C.line });
     });
-    const totalTop = r2 + 32 + received.length * 18;
+    const totalTop = r2 + 32 + rowsCobros.length * 18;
     text("Total recibido", px + 12, totalTop, 9, B);
-    textR(clp(summary.total_received ?? 0), px + halfW - 12, totalTop, 10, B, C.navy);
-    text("Incluye cobros de créditos de días anteriores.", px + 12, r2 + r2H - 16, 6.8, R, C.muted);
+    textR(clp(totalReceived), px + halfW - 12, totalTop, 10, B, C.navy);
+    text(
+      `En efectivo ${clp(summary.cash_received ?? 0)} · transferencia ${clp(summary.transfer_received ?? 0)}${Number(summary.mixed_received ?? 0) > 0 ? ` · mixto ${clp(summary.mixed_received)}` : ""}`,
+      px + 12,
+      totalTop + 20,
+      7.2,
+      R,
+      C.ink2,
+    );
+    text("Las ventas de días anteriores son pagos de pedidos ya entregados.", px + 12, r2 + r2H - 16, 6.8, R, C.muted);
 
     // ---- Cantidad vendida por producto ----
     const r3 = r2 + r2H + 12;

@@ -20,6 +20,7 @@ const sql = [
   "supabase/migrations/20260716020000_distribution_period_summary.sql",
   "supabase/migrations/20260925153740_distribution_direct_order_edit_with_notice.sql",
   "supabase/migrations/20261017100000_dist_closing_accumulated.sql",
+  "supabase/migrations/20261017110000_dist_closing_day_delivered.sql",
 ]
   .map((file) => readFileSync(resolve(process.cwd(), file), "utf8"))
   .join("\n");
@@ -316,6 +317,11 @@ describe("cierre diario con acumulado del mes", () => {
     expect(fn).toContain("security invoker");
     expect(fn).toContain("has_permission('finance.distribution.reports.view')");
     expect(sql).toContain("revoke all on function public.dist_closing_accumulated(uuid,date) from public,anon");
+  });
+  it("el desglose de la venta del día solo cuenta pedidos entregados", () => {
+    const fn = sql.slice(sql.lastIndexOf("create or replace function public.dist_closing_accumulated"));
+    expect(fn).toContain("'day'");
+    expect(fn).toContain("o.status in('delivered','partially_delivered')");
   });
   it("guarda los gastos declarados al cerrar sin permitir montos negativos", () => {
     expect(sql).toContain("declared_expenses numeric(14,2) not null default 0 check(declared_expenses>=0)");

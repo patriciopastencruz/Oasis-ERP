@@ -122,14 +122,26 @@ export default async function Reports({
     ["Ventas en ruta", summary.route_sales ?? 0, CircleDollarSign],
     ["Cumplimiento", `${summary.delivery_rate ?? 0}%`, CheckCircle2],
   ] as const;
+  const day = d.accumulated.day ?? {
+    delivered: summary.delivered_sales ?? 0,
+    cash: summary.cash ?? 0,
+    transfer: summary.transfer ?? 0,
+    credit: summary.credit ?? 0,
+  };
+  const totalReceived = summary.total_received ?? 0;
+  const fromToday = Math.min(summary.collected ?? 0, totalReceived);
   const financial = [
-    ["Venta total del día", clp.format(summary.planned_sales ?? 0)],
-    ["Venta entregada", clp.format(summary.delivered_sales ?? 0)],
+    ["Venta del día (entregada)", clp.format(summary.delivered_sales ?? 0)],
+    ["Pedidos por entregar", clp.format(Math.max((summary.planned_sales ?? 0) - (summary.delivered_sales ?? 0), 0))],
+    ["Venta entregada en efectivo", clp.format(day.cash)],
+    ["Venta entregada en transferencia", clp.format(day.transfer)],
+    ["Venta entregada a crédito", clp.format(day.credit)],
+    ["Cobrado de las ventas de hoy", clp.format(fromToday)],
+    ["Cobrado de ventas de días anteriores", clp.format(Math.max(totalReceived - fromToday, 0))],
     ["Efectivo recibido", clp.format(summary.cash_received ?? 0)],
     ["Transferencia recibida", clp.format(summary.transfer_received ?? 0)],
     ["Pago mixto recibido", clp.format(summary.mixed_received ?? 0)],
-    ["Monto vendido a crédito", clp.format(summary.credit ?? 0)],
-    ["Total recibido", clp.format(summary.total_received ?? 0)],
+    ["Total recibido hoy", clp.format(totalReceived)],
     ["Gastos declarados en el cierre", d.closure?.status === "closed" ? clp.format(Number(d.closure.declared_expenses ?? 0)) : "Se declaran al cerrar"],
     ["Gastos de caja chica del día", clp.format(summary.expense_total ?? 0)],
   ] as const;
@@ -139,6 +151,9 @@ export default async function Reports({
     year: "numeric",
   });
   const waterGroup = d.closingProducts.groups.find((g) => g.kind === "water");
+  const pendingKgToday = d.closingProducts.groups
+    .filter((g) => g.kind !== "water")
+    .reduce((sum, g) => sum + g.pendingKg, 0);
   const iceKgToday = d.closingProducts.groups
     .filter((g) => g.kind !== "water")
     .reduce((sum, g) => sum + g.kg, 0);
@@ -280,7 +295,11 @@ export default async function Reports({
 
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <Kpi label={`Ingreso acumulado de ${monthLabel}`} value={clp.format(d.metrics.income)} hint="Venta entregada del 1 a la fecha" />
-            <Kpi label="Kilos de hielo del día" value={`${number.format(iceKgToday)} kg`} hint="Cubo y frappé" />
+            <Kpi
+              label="Kilos de hielo vendidos hoy"
+              value={`${number.format(iceKgToday)} kg`}
+              hint={pendingKgToday > 0 ? `Cubo y frappé entregados · por entregar ${number.format(pendingKgToday)} kg` : "Cubo y frappé entregados"}
+            />
             <Kpi label="Kilos acumulados del mes" value={`${number.format(d.metrics.totalKg)} kg`} hint="Cubo y frappé" />
             <Kpi label="Promedio de kilos por día" value={`${number.format(Math.round(d.metrics.avgKgPerDay * 10) / 10)} kg`} hint="Acumulado del mes ÷ días corridos, cubo y frappé" />
           </div>

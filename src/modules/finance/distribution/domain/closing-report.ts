@@ -20,7 +20,7 @@ export type ClosingCatalogProduct = {
   ice_weight_kg: number | string;
 };
 
-export type ClosingDayProduct = { id: string; delivered_quantity: number };
+export type ClosingDayProduct = { id: string; delivered_quantity: number; planned_quantity?: number };
 
 export type ClosingAccumulated = {
   month_start: string;
@@ -31,6 +31,8 @@ export type ClosingAccumulated = {
   kg_frappe: number;
   daily: { date: string; kg_cube: number; kg_frappe: number; sales: number }[];
   by_product: { id: string; units: number }[];
+  /** Venta entregada del día y su desglose por forma de pago (solo pedidos entregados). */
+  day?: { delivered: number; cash: number; transfer: number; credit: number };
 };
 
 export type ClosingProductRow = {
@@ -44,6 +46,10 @@ export type ClosingProductRow = {
   units: number;
   /** Kilos del día (unidades × peso del producto); 0 para las aguas. */
   kg: number;
+  /** Unidades pedidas para el día que aún no se entregan. */
+  pendingUnits: number;
+  /** Kilos pedidos para el día que aún no se entregan. */
+  pendingKg: number;
   /** Unidades entregadas en el mes hasta la fecha. */
   monthUnits: number;
   /** Promedio diario del mes a la fecha (unidades por día). */
@@ -68,11 +74,13 @@ export function buildClosingProducts(
   accumulated: Pick<ClosingAccumulated, "days" | "by_product">,
 ) {
   const dayUnits = new Map(dayProducts.map((p) => [p.id, Number(p.delivered_quantity)]));
+  const dayPlanned = new Map(dayProducts.map((p) => [p.id, Number(p.planned_quantity ?? p.delivered_quantity)]));
   const monthUnits = new Map(accumulated.by_product.map((p) => [p.id, Number(p.units)]));
   const days = Math.max(accumulated.days, 1);
   const rows: ClosingProductRow[] = catalog.map((p) => {
     const iceWeightKg = Number(p.ice_weight_kg);
     const units = dayUnits.get(p.id) ?? 0;
+    const pendingUnits = Math.max((dayPlanned.get(p.id) ?? 0) - units, 0);
     const month = monthUnits.get(p.id) ?? 0;
     return {
       id: p.id,
@@ -83,6 +91,8 @@ export function buildClosingProducts(
       iceWeightKg,
       units,
       kg: units * iceWeightKg,
+      pendingUnits,
+      pendingKg: pendingUnits * iceWeightKg,
       monthUnits: month,
       monthAvgPerDay: month / days,
     };
@@ -97,6 +107,7 @@ export function buildClosingProducts(
       items,
       units: items.reduce((s, r) => s + r.units, 0),
       kg: items.reduce((s, r) => s + r.kg, 0),
+      pendingKg: items.reduce((s, r) => s + r.pendingKg, 0),
     };
   });
   return { groups, rows };

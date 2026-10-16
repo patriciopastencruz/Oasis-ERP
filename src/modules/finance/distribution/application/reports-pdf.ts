@@ -26,6 +26,8 @@ export type DailyClosurePdfExtras = {
   metrics: ReturnType<typeof accumulatedMetrics>;
   kgDays: KgDay[];
   incomeDays: ReturnType<typeof cumulativeIncome>;
+  /** Venta entregada del día por forma de pago; sin ella se usan los totales del resumen. */
+  day?: { delivered: number; cash: number; transfer: number; credit: number };
 };
 
 const money = (value: number) =>

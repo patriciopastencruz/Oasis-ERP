@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
       metrics: d.metrics,
       kgDays: d.kgDays,
       incomeDays: d.incomeDays,
+      day: d.accumulated.day,
     },
   });
   return new NextResponse(bytes as BodyInit, {

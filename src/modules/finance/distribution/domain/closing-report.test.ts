@@ -52,6 +52,20 @@ describe("cierre diario de Distribuidora Altiplánica", () => {
     expect(cube.items.find((r) => r.code === "ICE-2KG")!.monthAvgPerDay).toBe(80);
   });
 
+  it("separa lo entregado de lo pedido que aún no se entrega", () => {
+    const { groups } = buildClosingProducts(
+      catalog,
+      [
+        { id: "c2", delivered_quantity: 180, planned_quantity: 280 },
+        { id: "f2", delivered_quantity: 60, planned_quantity: 60 },
+      ],
+      { days: 15, by_product: [] },
+    );
+    expect(groups[0].kg).toBe(360); // solo lo entregado cuenta como vendido
+    expect(groups[0].pendingKg).toBe(200); // 100 bolsas de 2 kg por entregar
+    expect(groups[1].pendingKg).toBe(0);
+  });
+
   it("el promedio de kilos del mes suma cubo y frappé entre los días corridos", () => {
     const m = accumulatedMetrics({
       month_start: "2026-10-01",
