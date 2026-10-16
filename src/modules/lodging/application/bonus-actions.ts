@@ -7,6 +7,7 @@ import { lodgingUnitCodes } from "@/config/business-units";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { loadReceptionBonus } from "./bonus-queries";
+import { loadSupportBonus } from "./support-queries";
 import { BONUS_INDICATORS } from "../domain/reception-bonus";
 import { parseScoreInput } from "../domain/review-scores";
 
@@ -82,4 +83,72 @@ export async function saveBonusResultAction(form: FormData) {
   if (error) go(m.data, "error", /autoriz/i.test(error.message) ? "No tienes autorización para esta acción." : error.message);
   revalidatePath("/kpis/bonos");
   go(m.data, "success", `Resultado de ${unit.name} guardado.`);
+}
+
+/** Configura el bono de apoyo transversal: monto, persona y metas de reservas nocturnas. */
+export async function saveSupportConfigAction(form: FormData) {
+  await requirePermission("kpis.bonus.manage");
+  const m = month.safeParse(form.get("month"));
+  const back = m.success ? m.data : new Date().toISOString().slice(0, 7);
+  const pool = parseScoreInput(String(form.get("pool_amount") ?? "").replace(/\./g, ""));
+  if (pool === null || pool < 0) go(back, "error", "Indica el monto del bono (número, sin puntos).");
+  const userRaw = String(form.get("support_user_id") ?? "");
+  const user = userRaw === "" ? null : z.string().uuid().safeParse(userRaw);
+  if (user && !user.success) go(back, "error", "Persona no válida.");
+  const goal = (key: string) => {
+    const n = parseScoreInput(String(form.get(key) ?? ""));
+    if (n === null || n < 0 || n > 1000) go(back, "error", "Cada meta debe ser un número entre 0 y 1.000.");
+    return n;
+  };
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("lodging_save_support_bonus_config", {
+    payload: {
+      pool_amount: pool,
+      support_user_id: user && user.success ? user.data : null,
+      goals: {
+        HOC: { per_day: goal("goal_HOC") },
+        HU: { per_day: goal("goal_HU") },
+        HOB: { per_week: goal("goal_HOB") },
+      },
+    },
+  });
+  if (error) go(back, "error", /autoriz/i.test(error.message) ? "No tienes autorización para esta acción." : error.message);
+  revalidatePath("/kpis/bonos");
+  go(back, "success", "Configuración del bono de apoyo guardada.");
+}
+
+/** Guarda el resultado de un mes terminado del bono de apoyo; se recalcula en el servidor. */
+export async function saveSupportResultAction(form: FormData) {
+  const ctx = await requirePermission("kpis.bonus.manage");
+  const m = month.safeParse(form.get("month"));
+  if (!m.success) go(new Date().toISOString().slice(0, 7), "error", "Mes no válido.");
+  const units = lodgingUnitCodes
+    .map((code) => ctx.units.find((u) => u.code === code))
+    .filter((u): u is NonNullable<typeof u> => !!u)
+    .map((u) => ({ id: u.id, code: u.code, name: u.name }));
+  const supabase = await createSupabaseServerClient();
+  const bonuses = await loadReceptionBonus(supabase, units, m.data);
+  const support = await loadSupportBonus(supabase, bonuses, m.data);
+  if (!support) go(m.data, "error", "No tienes hostales asignados.");
+  if (support.provisional) go(m.data, "error", "Solo se guarda el resultado de un mes ya terminado.");
+  const { error } = await supabase.rpc("lodging_save_support_bonus_result", {
+    target_month: support.monthStart,
+    payload: {
+      support_user_id: support.config.userId,
+      pool_amount: support.config.pool,
+      points: Math.round(support.result.points * 100) / 100,
+      amount: support.result.amount,
+      detail: {
+        person: support.personName,
+        rows: support.result.rows,
+        hostales: support.hostales,
+        closings: support.closings,
+        payments: support.payments,
+        weekdays: support.weekdays,
+      },
+    },
+  });
+  if (error) go(m.data, "error", /autoriz/i.test(error.message) ? "No tienes autorización para esta acción." : error.message);
+  revalidatePath("/kpis/bonos");
+  go(m.data, "success", "Resultado del bono de apoyo guardado.");
 }

@@ -3,6 +3,7 @@ import { lodgingUnitCodes } from "@/config/business-units";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { loadReceptionBonus } from "@/modules/lodging/application/bonus-queries";
+import { loadSupportBonus } from "@/modules/lodging/application/support-queries";
 import { buildBonusPdf } from "@/modules/lodging/application/bonus-pdf";
 import { parseHistoryMonth } from "@/modules/lodging/domain/history-report";
 
@@ -15,9 +16,11 @@ export async function GET(request: NextRequest) {
     .map((u) => ({ id: u.id, code: u.code, name: u.name }));
   if (!units.length) return NextResponse.json({ error: "Sin hostales asignados" }, { status: 403 });
   const month = parseHistoryMonth(request.nextUrl.searchParams.get("month"));
-  const bonuses = await loadReceptionBonus(await createSupabaseServerClient(), units, month);
+  const supabase = await createSupabaseServerClient();
+  const bonuses = await loadReceptionBonus(supabase, units, month);
+  const support = await loadSupportBonus(supabase, bonuses, month);
   const monthLabel = new Intl.DateTimeFormat("es-CL", { timeZone: "UTC", month: "long", year: "numeric" }).format(new Date(`${month}-15T12:00:00Z`));
-  const bytes = await buildBonusPdf({ monthLabel, provisional: bonuses[0]?.provisional ?? true, bonuses });
+  const bytes = await buildBonusPdf({ monthLabel, provisional: bonuses[0]?.provisional ?? true, bonuses, support });
   return new NextResponse(bytes as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",

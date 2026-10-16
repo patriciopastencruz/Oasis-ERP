@@ -59,6 +59,27 @@ describe("retiro del bono del supervisor", () => {
   });
 });
 
+const support = readFileSync("supabase/migrations/20261017150000_lodging_support_bonus.sql", "utf8");
+
+describe("migración del bono de apoyo transversal", () => {
+  it("protege las tablas con RLS, sin escritura directa y con auditoría", () => {
+    expect(support).toContain("alter table public.lodging_support_bonus_config enable row level security");
+    expect(support).toContain("alter table public.lodging_support_bonus_results enable row level security");
+    expect(support).toContain("revoke all on public.lodging_support_bonus_config,public.lodging_support_bonus_results from public,anon,authenticated");
+    expect(support).toContain("audit_row_change");
+    expect(support).not.toContain("using(true)");
+  });
+  it("configurar y guardar exigen el permiso de gestión y solo se guardan meses terminados", () => {
+    expect(support.match(/has_permission\('kpis\.bonus\.manage'\)/g)?.length).toBe(3);
+    expect(support).toContain("Solo se guarda el resultado de un mes ya terminado");
+  });
+  it("parte con 100.000 y las metas de una reserva por noche en Centro y Uruguay y tres por semana en Cobija", () => {
+    expect(support).toContain('{"HOC":{"per_day":1},"HU":{"per_day":1},"HOB":{"per_week":3}}');
+    expect(support).toContain("'Alicia' and p.last_name ilike 'Pedraza'");
+    expect(support).toContain(",100000");
+  });
+});
+
 describe("migración de montos del bono", () => {
   it("fija 150.000 en Centro y Cobija y 100.000 en Uruguay", () => {
     expect(pool).toContain("('HOC',150000),('HOB',150000),('HU',100000)");

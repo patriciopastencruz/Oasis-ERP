@@ -6,7 +6,13 @@ import { lodgingUnitCodes } from "@/config/business-units";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { loadReceptionBonus, type UnitBonus } from "@/modules/lodging/application/bonus-queries";
-import { saveBonusConfigAction, saveBonusResultAction } from "@/modules/lodging/application/bonus-actions";
+import {
+  saveBonusConfigAction,
+  saveBonusResultAction,
+  saveSupportConfigAction,
+  saveSupportResultAction,
+} from "@/modules/lodging/application/bonus-actions";
+import { loadSupportBonus, type SupportBonus } from "@/modules/lodging/application/support-queries";
 import { clp, santiagoToday } from "@/modules/lodging/domain/daily-closing";
 import { BONUS_INDICATORS, type BonusKey, type BonusStatus } from "@/modules/lodging/domain/reception-bonus";
 import { parseHistoryMonth, shiftMonth } from "@/modules/lodging/domain/history-report";
@@ -110,6 +116,104 @@ function Detail({ b }: { b: UnitBonus }) {
   );
 }
 
+function SupportPanel({ s, month, canManage, candidates }: { s: SupportBonus; month: string; canManage: boolean; candidates: { id: string; name: string }[] }) {
+  const r = s.result;
+  const goals = s.config.goals;
+  return (
+    <Panel>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-[#0b4f9c]">Bono de apoyo transversal{s.personName ? ` · ${s.personName}` : ""}</p>
+          <p className="mt-1 text-3xl font-bold leading-none">{clp(r.amount)}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {num(r.points, 1)} de 100 puntos · bono máximo {clp(s.config.pool)}
+          </p>
+        </div>
+        {s.saved && (
+          <p className="max-w-xs rounded-lg bg-slate-50 p-2 text-[11px] text-slate-600">
+            Resultado guardado el {new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" }).format(new Date(s.saved.savedAt))}: <b>{clp(s.saved.amount)}</b>
+            {s.saved.amount !== r.amount && <span className="text-amber-700"> · con los datos de hoy daría {clp(r.amount)}</span>}
+          </p>
+        )}
+      </div>
+      {!s.config.configured && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Falta configurar el monto del bono de apoyo.</p>}
+      {s.config.configured && !s.config.userId && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Falta indicar la persona de apoyo: sin ella no se cuentan reservas.</p>}
+      {s.reservationsError && <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-700">No se pudieron leer las reservas; las de noche aparecen en 0.</p>}
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
+          <thead className="border-b text-left text-xs uppercase text-slate-500">
+            <tr>
+              <th className="py-1.5">Parte</th>
+              <th className="text-right">Peso</th>
+              <th className="text-right">Puntos</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {r.rows.map((x) => (
+              <tr key={x.key} className="align-top">
+                <td className="py-2 font-medium">
+                  {x.label}
+                  <span className="block text-[11px] font-normal text-slate-500">{x.text}</span>
+                </td>
+                <td className="text-right tabular-nums">
+                  {x.weight}
+                  {Math.round(x.effectiveWeight) !== x.weight && <span className="block text-[10px] text-slate-400">cuenta {num(x.effectiveWeight, 1)}</span>}
+                </td>
+                <td className="text-right font-semibold tabular-nums">{num(x.earned, 1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-xs text-slate-600">
+        <b>Cómo se calcula:</b> 20 puntos son el resultado conjunto de los hostales (lo que ganan las recepciones sobre el máximo posible, ponderado por el bono de cada hostal) y 80 puntos salen de su propia gestión, todos en forma proporcional
+        (puntos = peso × cumplimiento, con tope en la meta): <b>reservas que crea de noche</b> (19:00 a 06:00, de lunes a viernes, con precio y activas): 60 puntos, repartidos en Centro 22, Uruguay 22 y Cobija 16; <b>cierres que emite</b>: 5 por los que
+        salen antes de las 06:00 del día siguiente y 5 por los que no se reemiten; <b>pagos por transferencia o tarjeta que registra de noche</b>: 5 por los que tienen comprobante y 5 por los comprobantes que la revisión no marca con diferencia.
+        Las metas de reservas de {monthLabel(month)} consideran {s.weekdays} días laborables: Centro {Math.round(goals.HOC.per_day * s.weekdays)} y Uruguay {Math.round(goals.HU.per_day * s.weekdays)} (una por noche) y Cobija{" "}
+        {Math.round((goals.HOB.per_week * s.weekdays) / 5)} ({goals.HOB.per_week} por semana). Bono = monto × puntos ÷ 100.
+      </p>
+      {canManage && (
+        <details className="mt-3 rounded-xl border border-[#d9dfe6] p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-[#0b4f9c]">Configurar el bono de apoyo</summary>
+          <form action={saveSupportConfigAction} className="mt-3 space-y-3">
+            <input type="hidden" name="month" value={month} />
+            <label className="block text-sm">
+              Monto del bono mensual (CLP)
+              <input name="pool_amount" inputMode="numeric" defaultValue={s.config.pool} required className={input} />
+            </label>
+            <label className="block text-sm">
+              Persona de apoyo
+              <select name="support_user_id" defaultValue={s.config.userId ?? ""} className={input}>
+                <option value="">Sin asignar</option>
+                {candidates.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <label className="block text-xs">
+                Centro: reservas por noche
+                <input name="goal_HOC" inputMode="decimal" defaultValue={String(goals.HOC.per_day).replace(".", ",")} required className={input} />
+              </label>
+              <label className="block text-xs">
+                Uruguay: reservas por noche
+                <input name="goal_HU" inputMode="decimal" defaultValue={String(goals.HU.per_day).replace(".", ",")} required className={input} />
+              </label>
+              <label className="block text-xs">
+                Cobija: reservas por semana
+                <input name="goal_HOB" inputMode="decimal" defaultValue={String(goals.HOB.per_week).replace(".", ",")} required className={input} />
+              </label>
+            </div>
+            <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">Guardar configuración</button>
+          </form>
+        </details>
+      )}
+    </Panel>
+  );
+}
+
 function ConfigForm({ b, canManage }: { b: UnitBonus; canManage: boolean }) {
   if (!canManage) return null;
   const c = b.config;
@@ -163,6 +267,11 @@ export default async function BonusPage({ searchParams }: { searchParams: Promis
     .filter((u): u is NonNullable<typeof u> => !!u)
     .map((u) => ({ id: u.id, code: u.code, name: u.name }));
   const bonuses = units.length ? await loadReceptionBonus(await createSupabaseServerClient(), units, month) : [];
+  const supabase = await createSupabaseServerClient();
+  const support = bonuses.length ? await loadSupportBonus(supabase, bonuses, month) : null;
+  const candidates = canManage
+    ? (((await supabase.rpc("lodging_support_candidates")).data ?? []) as { id: string; name: string }[])
+    : [];
   const provisional = bonuses[0]?.provisional ?? true;
   const total = bonuses.reduce((s, b) => s + b.result.amount, 0);
   const currentMonth = santiagoToday().slice(0, 7);
@@ -211,8 +320,8 @@ export default async function BonusPage({ searchParams }: { searchParams: Promis
             ))}
             <div className="rounded-2xl border border-[#0b4f9c] bg-[#edf4fc] p-4">
               <p className="text-xs text-slate-600">Total a pagar {provisional ? "(provisorio)" : ""}</p>
-              <b className="mt-1 block text-2xl leading-none">{clp(total)}</b>
-              <p className="mt-1.5 text-[11px] text-slate-500">suma de los {bonuses.length} hostales</p>
+              <b className="mt-1 block text-2xl leading-none">{clp(total + (support?.result.amount ?? 0))}</b>
+              <p className="mt-1.5 text-[11px] text-slate-500">Recepción {clp(total)} · Apoyo {clp(support?.result.amount ?? 0)}</p>
             </div>
           </div>
 
@@ -236,6 +345,23 @@ export default async function BonusPage({ searchParams }: { searchParams: Promis
               </div>
             ))}
           </div>
+
+          {support && (
+            <div className="mt-5 space-y-2">
+              <SupportPanel s={support} month={month} canManage={canManage} candidates={candidates} />
+              {canManage && !provisional && (
+                <form action={saveSupportResultAction} className="flex justify-end">
+                  <input type="hidden" name="month" value={month} />
+                  <ConfirmButton
+                    message={`¿Guardar el resultado del bono de apoyo de ${monthLabel(month)}? Queda como respaldo del pago (${clp(support.result.amount)}); puedes volver a guardarlo si corriges datos.`}
+                    className="rounded-xl border border-[#0b4f9c] px-3 py-1.5 text-xs font-semibold text-[#0b4f9c]"
+                  >
+                    {support.saved ? "Actualizar resultado guardado" : "Guardar resultado del mes"}
+                  </ConfirmButton>
+                </form>
+              )}
+            </div>
+          )}
         </>
       )}
     </>

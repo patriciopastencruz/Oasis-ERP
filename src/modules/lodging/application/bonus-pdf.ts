@@ -2,6 +2,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 import { clp } from "../domain/daily-closing";
 import type { BonusKey, BonusStatus } from "../domain/reception-bonus";
 import type { UnitBonus } from "./bonus-queries";
+import type { SupportBonus } from "./support-queries";
 
 const W = 595.28, H = 841.89, M = 40;
 const INK = rgb(0.09, 0.13, 0.17), MUTED = rgb(0.4, 0.45, 0.5), LINE = rgb(0.85, 0.87, 0.9), BLUE = rgb(0.043, 0.31, 0.61);
@@ -21,7 +22,7 @@ function fmt(key: BonusKey, v: number | null) {
 }
 
 /** Respaldo en PDF del bono de recepción de un mes: una sección por hostal con el detalle de cada indicador. */
-export async function buildBonusPdf(input: { monthLabel: string; provisional: boolean; bonuses: UnitBonus[] }) {
+export async function buildBonusPdf(input: { monthLabel: string; provisional: boolean; bonuses: UnitBonus[]; support?: SupportBonus | null }) {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Bono de recepcion ${input.monthLabel}`);
   const R = await pdf.embedFont(StandardFonts.Helvetica);
@@ -46,7 +47,9 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
   text(`${input.monthLabel}${input.provisional ? " - resultado PROVISORIO (el mes aun no termina)" : ""}`, M, 10, R, MUTED);
   y -= 22;
   const total = input.bonuses.reduce((s, b) => s + b.result.amount, 0);
-  text(`Total a pagar: ${clp(total)}`, M, 13, B);
+  const supportTotal = input.support?.result.amount ?? 0;
+  text(`Total a pagar: ${clp(total + supportTotal)}`, M, 13, B);
+  if (input.support) textR(`Recepcion ${clp(total)} - Apoyo ${clp(supportTotal)}`, W - M, 9, R, MUTED);
   y -= 26;
 
   const cols = { value: 300, goal: 365, weight: 410, result: 425, points: W - M };
@@ -96,6 +99,35 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
     text(`Aseo: todos los aseos inspeccionados y, en promedio, dentro de ${b.config.inspectionMaxWait} min de terminado el aseo (cumple o no cumple).`, M, 7, R, MUTED);
     y -= 9;
     text("Orden: cierres diarios antes de las 06:00 del dia siguiente y sin saldos pendientes de estadias terminadas (excluye empresa a credito); si no se cumple ninguno, el bono baja al 50%.", M, 7, R, MUTED);
+    y -= 24;
+  }
+  if (input.support) {
+    const sp = input.support;
+    need(200);
+    rule();
+    y -= 10;
+    text(`Bono de apoyo transversal${sp.personName ? ` - ${sp.personName}` : ""}`, M, 12, B, BLUE);
+    textR(clp(sp.result.amount), W - M, 14, B);
+    y -= 18;
+    text(`${num(sp.result.points, 1)} de 100 puntos - bono maximo ${clp(sp.config.pool)}`, M, 8.5, R, MUTED);
+    y -= 16;
+    text("Parte", M, 8, B, MUTED);
+    textR("Peso", cols.weight, 8, B, MUTED);
+    textR("Puntos", cols.points, 8, B, MUTED);
+    y -= 13;
+    for (const r of sp.result.rows) {
+      need(26);
+      text(r.label, M, 9, R);
+      textR(String(r.weight), cols.weight, 9);
+      textR(num(r.earned, 1), cols.points, 9, B);
+      y -= 12;
+      text(r.text, M + 8, 7.5, R, MUTED);
+      y -= 10;
+    }
+    y -= 4;
+    text("20 puntos = resultado conjunto de los hostales; 80 = su gestion: reservas de noche 60, cierres 10 y pagos 10, todo proporcional.", M, 7, R, MUTED);
+    y -= 9;
+    text("Reservas de noche: 19:00 a 06:00, lunes a viernes, con precio y activas. Bono = monto x puntos / 100.", M, 7, R, MUTED);
     y -= 24;
   }
   text(`Generado el ${new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" }).format(new Date())} - OASIS ERP`, M, 7.5, R, MUTED);
