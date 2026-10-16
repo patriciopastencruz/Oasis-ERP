@@ -52,8 +52,11 @@ export type BonusInput = {
   /** Aseos terminados en el mes, cuántos se inspeccionaron y el tiempo promedio hasta la inspección. */
   inspections: { cleanings: number | null; inspected: number; avgWaitMinutes: number | null; maxWaitMinutes: number };
   order: {
-    /** Cierres diarios vencidos, cuántos se emitieron a tiempo y cuáles no (días del mes). */
-    closings: { due: number; onTime: number; lateDays: number[] } | null;
+    /**
+     * Cierres diarios vencidos, cuántos emitió a tiempo la recepcionista de turno y cuáles no (días del mes).
+     * `coveredDays` son los que, de lunes a viernes, emitió primero la persona de apoyo: no cuentan para recepción.
+     */
+    closings: { due: number; onTime: number; lateDays: number[]; coveredDays?: number[] } | null;
     /** Estadías ya terminadas con saldo por cobrar (sin contar las de empresa a crédito). */
     balances: { count: number; total: number } | null;
   };
@@ -188,13 +191,16 @@ export function computeBonus(input: BonusInput) {
       const criteria: BonusCriterion[] = [];
       if (ord.closings && ord.closings.due > 0) {
         const late = ord.closings.due - ord.closings.onTime;
+        const covered = ord.closings.coveredDays ?? [];
         criteria.push({
-          label: "Cierres diarios a tiempo",
+          label: "Cierres diarios a tiempo hechos por la recepción",
           ok: late === 0,
           text:
             late === 0
               ? `${ord.closings.due} de ${ord.closings.due} días`
-              : `${ord.closings.onTime} de ${ord.closings.due} días (atrasados o sin cerrar: ${ord.closings.lateDays.join(", ")})`,
+              : `${ord.closings.onTime} de ${ord.closings.due} días${ord.closings.lateDays.length ? ` (atrasados o sin cerrar: ${ord.closings.lateDays.join(", ")})` : ""}${
+                  covered.length ? ` (cerrados por la persona de apoyo en vez de la recepcionista de turno: ${covered.join(", ")})` : ""
+                }`,
         });
       }
       if (ord.balances) {

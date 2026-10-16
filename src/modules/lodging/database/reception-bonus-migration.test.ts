@@ -80,6 +80,17 @@ describe("migración del bono de apoyo transversal", () => {
   });
 });
 
+const firstIssuer = readFileSync("supabase/migrations/20261017160000_lodging_closing_first_issuer.sql", "utf8");
+
+describe("migración de quién emite primero el cierre", () => {
+  it("guarda y conserva al primer emisor, y mantiene la autorización de fechas anteriores", () => {
+    expect(firstIssuer).toContain("add column first_issued_by uuid references public.profiles(id)");
+    expect(firstIssuer).toContain("first_issued_by=coalesce(first_issued_by,auth.uid())");
+    expect(firstIssuer).toContain("has_permission('lodging.closings.create')");
+    expect(firstIssuer).toContain("lodging_closing_date_authorized");
+  });
+});
+
 describe("migración de montos del bono", () => {
   it("fija 150.000 en Centro y Cobija y 100.000 en Uruguay", () => {
     expect(pool).toContain("('HOC',150000),('HOB',150000),('HU',100000)");
