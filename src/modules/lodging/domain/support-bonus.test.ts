@@ -56,13 +56,13 @@ describe("bono de apoyo transversal", () => {
     hostal("HOB", "Cobija", 150000, points, created[2], 13),
   ];
 
-  it("los pesos suman 100: 20 de los hostales y 80 de su gestión", () => {
+  it("los pesos suman 100: 15 de los hostales y 85 de su gestión", () => {
     const r = computeSupportBonus({ pool: 100000, hostales: hostales(0, [0, 0, 0]), ...full });
     expect(r.rows.reduce((s, x) => s + x.weight, 0)).toBe(100);
-    expect(r.rows.find((x) => x.key === "group")!.weight).toBe(20);
-    expect(r.rows.filter((x) => x.key !== "group").reduce((s, x) => s + x.weight, 0)).toBe(80);
-    // Las reservas de noche son lo que más pesa: 60 de los 80 puntos de su gestión.
-    expect(r.rows.filter((x) => ["HOC", "HU", "HOB"].includes(x.key)).reduce((s, x) => s + x.weight, 0)).toBe(60);
+    expect(r.rows.find((x) => x.key === "group")!.weight).toBe(15);
+    expect(r.rows.filter((x) => x.key !== "group").reduce((s, x) => s + x.weight, 0)).toBe(85);
+    // Las reservas de noche son lo que más pesa: 65 de los 85 puntos de su gestión.
+    expect(r.rows.filter((x) => ["HOC", "HU", "HOB"].includes(x.key)).reduce((s, x) => s + x.weight, 0)).toBe(65);
   });
 
   it("ejemplo con los datos de octubre: reservas a mitad de camino, la mitad de los cierres y 5 comprobantes con diferencia", () => {
@@ -73,23 +73,23 @@ describe("bono de apoyo transversal", () => {
       payments: { total: 19, withReceipt: 19, withDifference: 5 },
     });
     const earned = (k: string) => r.rows.find((x) => x.key === k)!.earned;
-    expect(earned("group")).toBeCloseTo(8, 5); // 40 de 100 en conjunto × 20%
-    expect(earned("HOC")).toBeCloseTo(11, 5); // 22 × 11/22
-    expect(earned("HU")).toBeCloseTo(5, 5); // 22 × 5/22
+    expect(earned("group")).toBeCloseTo(6, 5); // 40 de 100 en conjunto × 15%
+    expect(earned("HOC")).toBeCloseTo(12, 5); // 24 × 11/22
+    expect(earned("HU")).toBeCloseTo(5.4545, 3); // 24 × 5/22
     expect(earned("HOB")).toBeCloseTo(0, 5);
     expect(earned("closings_done")).toBeCloseTo(2.5, 5); // hizo 33 de los 66 cierres
     expect(earned("closings_on_time")).toBeCloseTo(5, 5); // los 33 estuvieron a tiempo
     expect(earned("payments_receipt")).toBeCloseTo(5, 5);
     expect(earned("payments_clean")).toBeCloseTo(3.684, 3);
-    expect(r.points).toBeCloseTo(40.18, 2);
-    expect(r.amount).toBe(40184);
+    expect(r.points).toBeCloseTo(39.64, 2);
+    expect(r.amount).toBe(39639);
   });
 
   it("máximo y mínimo", () => {
     expect(computeSupportBonus({ pool: 100000, hostales: hostales(100, [100, 100, 100]), ...full }).amount).toBe(100000); // las reservas topan en la meta
-    // hostales en 0 y su gestión perfecta: gana el 80%
-    expect(computeSupportBonus({ pool: 100000, hostales: hostales(0, [100, 100, 100]), ...full }).amount).toBe(80000);
-    // hostales al 100% y sin gestión: gana el 20%
+    // hostales en 0 y su gestión perfecta: gana el 85%
+    expect(computeSupportBonus({ pool: 100000, hostales: hostales(0, [100, 100, 100]), ...full }).amount).toBe(85000);
+    // hostales al 100% y sin gestión: gana el 15%
     expect(
       computeSupportBonus({
         pool: 100000,
@@ -97,7 +97,7 @@ describe("bono de apoyo transversal", () => {
         closings: { expected: 66, issued: 0, onTime: 0 },
         payments: { total: 10, withReceipt: 0, withDifference: 0 },
       }).amount,
-    ).toBe(20000);
+    ).toBe(15000);
   });
 
   it("sin cierres ni pagos en el mes esas partes se dejan fuera y su peso se reparte", () => {

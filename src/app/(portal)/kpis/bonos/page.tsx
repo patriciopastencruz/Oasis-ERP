@@ -166,8 +166,8 @@ function SupportPanel({ s, month, canManage, candidates }: { s: SupportBonus; mo
         </table>
       </div>
       <p className="mt-3 text-xs text-slate-600">
-        <b>Cómo se calcula:</b> 20 puntos son el resultado conjunto de los hostales (lo que ganan las recepciones sobre el máximo posible, ponderado por el bono de cada hostal) y 80 puntos salen de su propia gestión, todos en forma proporcional
-        (puntos = peso × cumplimiento, con tope en la meta): <b>reservas que crea de noche</b> (19:00 a 06:00, de lunes a viernes, con precio y activas): 60 puntos, repartidos en Centro 22, Uruguay 22 y Cobija 16; <b>cierres de los hostales que hace ella</b> (uno por hostal por día laborable, aunque la recepcionista ya lo haya emitido; si lo corrige y lo reemite, queda hecho por ella): 5 por la cantidad de cierres hechos y 5 por los que salen antes de las 06:00 del día siguiente; <b>pagos por transferencia o tarjeta que registra de noche</b>: 5 por los que tienen comprobante y 5 por los comprobantes que la revisión no marca con diferencia.
+        <b>Cómo se calcula:</b> 15 puntos son el resultado conjunto de los hostales (lo que ganan las recepciones sobre el máximo posible, ponderado por el bono de cada hostal) y 85 puntos salen de su propia gestión, todos en forma proporcional
+        (puntos = peso × cumplimiento, con tope en la meta): <b>reservas que crea de noche</b> (19:00 a 06:00, de lunes a viernes, con precio y activas): 65 puntos, repartidos en Centro 24, Uruguay 24 y Cobija 17; <b>cierres de los hostales que hace ella</b> (uno por hostal por día laborable, aunque la recepcionista ya lo haya emitido; si lo corrige y lo reemite, queda hecho por ella): 5 por la cantidad de cierres hechos y 5 por los que salen antes de las 06:00 del día siguiente; <b>pagos por transferencia o tarjeta que registra de noche</b>: 5 por los que tienen comprobante y 5 por los comprobantes que la revisión no marca con diferencia.
         Las metas de reservas de noche por mes son Centro {goals.HOC.per_month}, Uruguay {goals.HU.per_month} y Cobija {goals.HOB.per_month}. Bono = monto × puntos ÷ 100.
       </p>
       {canManage && (

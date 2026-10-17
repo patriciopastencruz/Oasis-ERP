@@ -127,7 +127,7 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
       y -= 10;
     }
     y -= 4;
-    text("20 puntos = resultado conjunto de los hostales; 80 = su gestion: reservas de noche 60, cierres 10 (los 3 hostales cada dia habil) y pagos 10, todo proporcional.", M, 7, R, MUTED);
+    text("15 puntos = resultado conjunto de los hostales; 85 = su gestion: reservas de noche 65, cierres 10 (los 3 hostales cada dia habil) y pagos 10, todo proporcional.", M, 7, R, MUTED);
     y -= 9;
     text("Reservas de noche: 19:00 a 06:00, lunes a viernes, con precio y activas. Bono = monto x puntos / 100.", M, 7, R, MUTED);
     y -= 24;

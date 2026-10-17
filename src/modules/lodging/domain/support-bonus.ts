@@ -1,14 +1,14 @@
 /**
  * Bono de apoyo transversal: una persona trabaja de noche de lunes a viernes y
- * apoya a los 3 hostales. 20 puntos salen del resultado conjunto de los hostales
- * (lo que ganan las recepciones sobre el máximo posible) y 80 de su propia
- * gestión, todos de forma proporcional: reservas que crea de noche (60, según la
+ * apoya a los 3 hostales. 15 puntos salen del resultado conjunto de los hostales
+ * (lo que ganan las recepciones sobre el máximo posible) y 85 de su propia
+ * gestión, todos de forma proporcional: reservas que crea de noche (65, según la
  * meta de cada hostal), cierres que hace (10) y pagos que registra (10).
  */
 
-export const SUPPORT_GROUP_WEIGHT = 20;
+export const SUPPORT_GROUP_WEIGHT = 15;
 /** Peso de las reservas de noche por hostal; Cobija pesa menos porque se espera menos volumen. */
-export const SUPPORT_UNIT_WEIGHTS: Record<string, number> = { HOC: 22, HU: 22, HOB: 16 };
+export const SUPPORT_UNIT_WEIGHTS: Record<string, number> = { HOC: 24, HU: 24, HOB: 17 };
 export const SUPPORT_CLOSING_WEIGHT = 5;
 export const SUPPORT_PAYMENT_WEIGHT = 5;
 /** La noche empieza a las 19:00 y termina a las 06:00 del día siguiente. */
@@ -146,7 +146,7 @@ export function computeSupportBonus(input: SupportInput) {
     add("group", "Resultado conjunto de los hostales", SUPPORT_GROUP_WEIGHT, group / 100, `${(Math.round(group * 10) / 10).toLocaleString("es-CL")} de 100 puntos en conjunto`);
   for (const h of input.hostales) {
     if (h.goal <= 0) continue;
-    add(h.code, `Reservas de noche en ${h.name}`, SUPPORT_UNIT_WEIGHTS[h.code] ?? 16, h.created / h.goal, `${h.created} de ${h.goal} reservas (${pct(Math.min(h.created / h.goal, 1))})`);
+    add(h.code, `Reservas de noche en ${h.name}`, SUPPORT_UNIT_WEIGHTS[h.code] ?? 17, h.created / h.goal, `${h.created} de ${h.goal} reservas (${pct(Math.min(h.created / h.goal, 1))})`);
   }
   const c = input.closings;
   if (c && c.expected > 0) {
