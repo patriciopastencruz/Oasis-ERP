@@ -108,6 +108,14 @@ describe("migración de metas de 15 reservas del bono de apoyo", () => {
   });
 });
 
+const goalsCobija15 = readFileSync("supabase/migrations/20261017190000_lodging_support_goals_cobija_15.sql", "utf8");
+
+describe("migración de metas de 15 reservas en los tres hostales", () => {
+  it("fija 15 reservas de noche por mes en Centro, Uruguay y Cobija", () => {
+    expect(goalsCobija15).toContain('{"HOC":{"per_month":15},"HU":{"per_month":15},"HOB":{"per_month":15}}');
+  });
+});
+
 describe("migración de montos del bono", () => {
   it("fija 150.000 en Centro y Cobija y 100.000 en Uruguay", () => {
     expect(pool).toContain("('HOC',150000),('HOB',150000),('HU',100000)");

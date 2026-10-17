@@ -41,7 +41,7 @@ describe("bono de apoyo transversal", () => {
     expect(weekdaysInMonth("2026-10")).toBe(22);
     expect(monthlyGoal("HOC", DEFAULT_SUPPORT_GOALS)).toBe(15);
     expect(monthlyGoal("HU", DEFAULT_SUPPORT_GOALS)).toBe(15);
-    expect(monthlyGoal("HOB", DEFAULT_SUPPORT_GOALS)).toBe(6);
+    expect(monthlyGoal("HOB", DEFAULT_SUPPORT_GOALS)).toBe(15);
   });
 
   it("el resultado conjunto pondera cada hostal por su bono máximo", () => {
