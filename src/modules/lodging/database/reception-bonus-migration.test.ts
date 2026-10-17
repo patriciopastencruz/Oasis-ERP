@@ -100,6 +100,14 @@ describe("migración de metas mensuales del bono de apoyo", () => {
   });
 });
 
+const goals15 = readFileSync("supabase/migrations/20261017180000_lodging_support_goals_15.sql", "utf8");
+
+describe("migración de metas de 15 reservas del bono de apoyo", () => {
+  it("sube Centro y Uruguay a 15 por mes y mantiene Cobija en 6", () => {
+    expect(goals15).toContain('{"HOC":{"per_month":15},"HU":{"per_month":15},"HOB":{"per_month":6}}');
+  });
+});
+
 describe("migración de montos del bono", () => {
   it("fija 150.000 en Centro y Cobija y 100.000 en Uruguay", () => {
     expect(pool).toContain("('HOC',150000),('HOB',150000),('HU',100000)");

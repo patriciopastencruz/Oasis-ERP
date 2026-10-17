@@ -39,8 +39,8 @@ describe("bono de apoyo transversal", () => {
 
   it("las metas de reservas de noche son un número fijo por mes en cada hostal", () => {
     expect(weekdaysInMonth("2026-10")).toBe(22);
-    expect(monthlyGoal("HOC", DEFAULT_SUPPORT_GOALS)).toBe(10);
-    expect(monthlyGoal("HU", DEFAULT_SUPPORT_GOALS)).toBe(10);
+    expect(monthlyGoal("HOC", DEFAULT_SUPPORT_GOALS)).toBe(15);
+    expect(monthlyGoal("HU", DEFAULT_SUPPORT_GOALS)).toBe(15);
     expect(monthlyGoal("HOB", DEFAULT_SUPPORT_GOALS)).toBe(6);
   });
 

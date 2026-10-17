@@ -20,7 +20,7 @@ export type SupportGoals = {
   HU: { per_month: number };
   HOB: { per_month: number };
 };
-export const DEFAULT_SUPPORT_GOALS: SupportGoals = { HOC: { per_month: 10 }, HU: { per_month: 10 }, HOB: { per_month: 6 } };
+export const DEFAULT_SUPPORT_GOALS: SupportGoals = { HOC: { per_month: 15 }, HU: { per_month: 15 }, HOB: { per_month: 6 } };
 
 const dayParts = (iso: string) => {
   const parts = Object.fromEntries(
