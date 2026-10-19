@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
 import {
@@ -7,9 +7,34 @@ import {
   formatDate,
   clp,
 } from "@/modules/lodging/application/queries";
-export default async function Page() {
+import { phoneLikePattern, phoneMatches, searchAsPhone } from "@/modules/lodging/domain/guest-search";
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q: rawQuery } = await searchParams;
+  const query = (rawQuery ?? "").trim().slice(0, 80);
   const { ctx, unit, supabase } = await lodgingContext();
-  const { data } = await supabase
+
+  // Búsqueda por teléfono (últimos 8 dígitos) o por nombre del huésped, dentro del hostal activo.
+  let guestIds: string[] | null = null;
+  if (query) {
+    const phone = searchAsPhone(query);
+    const { data: guests } = phone
+      ? await supabase
+          .from("lodging_guests")
+          .select("id,phone")
+          .eq("business_unit_id", unit.id)
+          .ilike("phone", phoneLikePattern(phone))
+          .limit(200)
+      : await supabase
+          .from("lodging_guests")
+          .select("id,phone")
+          .eq("business_unit_id", unit.id)
+          .ilike("full_name", `%${query.replace(/[%_,()]/g, " ")}%`)
+          .limit(200);
+    guestIds = (guests ?? []).filter((g) => !phone || phoneMatches(g.phone, phone)).map((g) => g.id);
+  }
+
+  let reservationsQuery = supabase
     .from("lodging_reservations")
     .select(
       "id,origin,status,check_in,check_out,total_value,information_complete,lodging_rooms(name),lodging_guests(full_name)",
@@ -17,6 +42,8 @@ export default async function Page() {
     .eq("business_unit_id", unit.id)
     .order("check_in", { ascending: false })
     .limit(100);
+  if (guestIds) reservationsQuery = reservationsQuery.in("guest_id", guestIds.length ? guestIds : ["00000000-0000-0000-0000-000000000000"]);
+  const { data } = await reservationsQuery;
   // Anulaciones por aprobar (administrador o superior).
   const { data: pendingCancellations } = ctx.permissions.has("lodging.reservations.cancel_approve")
     ? await supabase
@@ -45,6 +72,30 @@ export default async function Page() {
           Nueva reserva
         </Link>
       </div>
+      <form action="/lodging/reservations" className="mb-4 flex gap-2">
+        <input
+          name="q"
+          defaultValue={query}
+          placeholder="Buscar por teléfono o nombre del huésped"
+          className="h-11 min-w-0 flex-1 rounded-xl border border-slate-300 px-3 text-sm"
+        />
+        <button className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-800 px-4 text-sm font-semibold text-white">
+          <Search size={16} />
+          Buscar
+        </button>
+        {query && (
+          <Link href="/lodging/reservations" className="inline-flex h-11 items-center rounded-xl px-3 text-sm font-semibold text-[#0b4f9c]">
+            Limpiar
+          </Link>
+        )}
+      </form>
+      {query && (
+        <p className="mb-4 text-sm text-slate-600">
+          {(data ?? []).length
+            ? `${(data ?? []).length} ${(data ?? []).length === 1 ? "reserva encontrada" : "reservas encontradas"} para «${query}» en ${unit.name}.`
+            : `No hay reservas para «${query}» en ${unit.name}. Revisa el número o prueba en otro hostal.`}
+        </p>
+      )}
       {(pendingCancellations ?? []).length > 0 && (
         <Panel className="mb-4 border-amber-300 bg-amber-50">
           <h2 className="font-semibold text-amber-900">Anulaciones por aprobar · {(pendingCancellations ?? []).length}</h2>
