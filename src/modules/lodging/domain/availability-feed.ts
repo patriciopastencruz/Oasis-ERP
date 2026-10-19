@@ -98,7 +98,7 @@ export function buildAvailabilityFeed(input: { rooms: FeedRoom[]; bookings: Feed
         price: rooms[0].baseRate,
         currency: "CLP",
         description:
-          `${hostal.name}: ${rooms.length} habitación${rooms.length === 1 ? "" : "es"} tipo ${rooms[0].roomType} para ${people}, ` +
+          `${hostal.name}: ${rooms.length} ${rooms.length === 1 ? "habitación" : "habitaciones"} tipo ${rooms[0].roomType} para ${people}, ` +
           `tarifa base ${clpText(rooms[0].baseRate)} por noche${hostal.breakfast ? " con desayuno incluido" : " (sin desayuno)"}. ` +
           `Check-in desde las 14:00 y check-out a las 12:00. ` +
           `Habitaciones libres cada noche entre el ${dayLabel(input.today)} y el ${dayLabel(lastNight)} (de ${rooms.length} en total): ${describeRuns(runs)}. ` +
