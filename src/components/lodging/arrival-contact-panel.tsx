@@ -21,7 +21,7 @@ export async function ArrivalContactPanel({
     ? new Date(contact.contacted_at).toLocaleString("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" })
     : null;
   return (
-    <Panel className="mt-4">
+    <Panel>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">Bienvenida al huésped</h2>

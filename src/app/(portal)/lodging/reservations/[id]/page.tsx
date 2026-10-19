@@ -587,13 +587,15 @@ export default async function Page({
           </p>
         </Panel>
       </div>
-      <ArrivalContactPanel reservation={{ id: r.id, status: r.status, origin: r.origin }} canManage={canManage} />
-      <CheckinOnlinePanel
-        reservation={{ id: r.id, status: r.status, check_in: r.check_in, origin: r.origin }}
-        unitName={unit.name}
-        guest={guest ? { full_name: guest.full_name, phone: guest.phone } : null}
-        canManage={canManage}
-      />
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
+        <ArrivalContactPanel reservation={{ id: r.id, status: r.status, origin: r.origin }} canManage={canManage} />
+        <CheckinOnlinePanel
+          reservation={{ id: r.id, status: r.status, check_in: r.check_in, origin: r.origin }}
+          unitName={unit.name}
+          guest={guest ? { full_name: guest.full_name, phone: guest.phone } : null}
+          canManage={canManage}
+        />
+      </div>
       <Panel className="mt-4">
         <h2 className="font-semibold">Registrar nuevo pago</h2>
         <form
