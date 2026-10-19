@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
   const hash = createHash("sha256").update(key).digest("hex");
   const { data: keyRow } = await db.from("lodging_public_feed_keys").select("id").eq("key_hash", hash).eq("active", true).maybeSingle();
   if (!keyRow) return NextResponse.json({ error: "No autorizado" }, { status: 401, headers: noStore });
-  void db.from("lodging_public_feed_keys").update({ last_used_at: new Date().toISOString() }).eq("id", keyRow.id);
+  // Se espera la escritura: en serverless una promesa suelta se pierde al responder.
+  await db.from("lodging_public_feed_keys").update({ last_used_at: new Date().toISOString() }).eq("id", keyRow.id);
 
   const today = santiagoToday();
   const { data: units, error: unitsError } = await db
