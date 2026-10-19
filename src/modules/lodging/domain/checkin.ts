@@ -14,6 +14,7 @@ export type CheckinData = {
   email?: string | null;
   phone?: string | null;
   estimated_arrival?: string | null;
+  estimated_departure?: string | null;
   license_plate?: string | null;
   notes?: string | null;
   companions?: CheckinCompanion[];
@@ -53,6 +54,7 @@ export function parseCheckinForm(form: FormData) {
       email: z.union([z.literal(""), z.string().trim().email("Revisa tu correo.").max(160)]),
       phone: text(40).min(6, "Indica tu teléfono."),
       estimated_arrival: z.union([z.literal(""), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Revisa la hora de llegada.")]),
+      estimated_departure: z.union([z.literal(""), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Revisa la hora de salida.")]),
       license_plate: text(20),
       notes: text(1000),
       accept_rules: z.literal("on", { message: "Debes aceptar las normas del hostal." }),
@@ -65,6 +67,7 @@ export function parseCheckinForm(form: FormData) {
       email: get("email"),
       phone: get("phone"),
       estimated_arrival: get("estimated_arrival"),
+      estimated_departure: get("estimated_departure"),
       license_plate: get("license_plate"),
       notes: get("notes"),
       accept_rules: get("accept_rules"),

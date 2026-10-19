@@ -114,6 +114,12 @@ export async function CheckinOnlinePanel({
                   <dd>{sub.estimated_arrival}</dd>
                 </>
               )}
+              {sub.estimated_departure && (
+                <>
+                  <dt className="text-slate-500">Salida aprox.</dt>
+                  <dd>{sub.estimated_departure}</dd>
+                </>
+              )}
               {sub.license_plate && (
                 <>
                   <dt className="text-slate-500">Patente</dt>

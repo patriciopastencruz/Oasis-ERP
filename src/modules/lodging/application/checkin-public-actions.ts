@@ -30,27 +30,24 @@ export async function submitCheckinAction(form: FormData) {
   const fail = (message: string): never => redirect(`${back}?error=${encodeURIComponent(message)}`);
   const parsed = parseCheckinForm(form);
   if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Revisa los datos.");
-  const [front, rear] = await Promise.all([readPhoto(form.get("document_front")), readPhoto(form.get("document_back"))]);
-  if (front === "invalid" || rear === "invalid") fail("La foto del documento debe ser JPG, PNG o WEBP de hasta 10 MB.");
+  const front = await readPhoto(form.get("document_front"));
+  if (front === "invalid") fail("La foto del documento debe ser JPG, PNG o WEBP de hasta 10 MB.");
 
   const db = createSupabaseAdminClient();
   const uploaded: string[] = [];
-  const paths: { document_front_path?: string; document_back_path?: string } = {};
-  if (front || rear) {
+  const paths: { document_front_path?: string } = {};
+  if (front) {
     const { data: prefix } = await db.rpc("lodging_checkin_upload_prefix", { p_token: token });
     if (!prefix) fail("Este link ya no está disponible. Pide uno nuevo a recepción.");
-    for (const [key, photo] of [["document_front_path", front], ["document_back_path", rear]] as const) {
-      if (!photo || photo === "invalid") continue;
-      const path = `${prefix}${randomUUID()}.${DOCUMENT_PHOTO_EXT[photo.mime]}`;
-      const { error } = await db.storage.from(BUCKET).upload(path, photo.bytes, { contentType: photo.mime, upsert: false });
-      if (error) {
-        console.error("[checkin] No fue posible subir la foto", error.message);
-        if (uploaded.length) await db.storage.from(BUCKET).remove(uploaded);
-        fail("No pudimos subir la foto. Intenta nuevamente.");
-      }
-      uploaded.push(path);
-      paths[key] = path;
+    const photo = front as Photo;
+    const path = `${prefix}${randomUUID()}.${DOCUMENT_PHOTO_EXT[photo.mime]}`;
+    const { error } = await db.storage.from(BUCKET).upload(path, photo.bytes, { contentType: photo.mime, upsert: false });
+    if (error) {
+      console.error("[checkin] No fue posible subir la foto", error.message);
+      fail("No pudimos subir la foto. Intenta nuevamente.");
     }
+    uploaded.push(path);
+    paths.document_front_path = path;
   }
 
   const { data, error } = await db.rpc("lodging_checkin_submit", { p_token: token, p_payload: { ...parsed.data!, ...paths } });

@@ -1,7 +1,7 @@
 begin;
 
--- Check-in online: foto del carnet o pasaporte. El huésped sube el frente
--- (obligatorio) y el reverso (opcional); el servidor las guarda en un bucket
+-- Check-in online: foto del carnet o pasaporte y hora de salida. El huésped
+-- sube la foto del frente (obligatoria; el reverso no se pide); el servidor las guarda en un bucket
 -- privado en la carpeta de la reserva (empresa/hostal/reserva/archivo). Solo
 -- el personal con acceso a las reservas del hostal las ve, a través del ERP
 -- con sesión iniciada. Al reemplazar una foto se borra la anterior.
@@ -54,7 +54,7 @@ begin
   -- Datos ya enviados por el huésped; si no, solo el nombre real de la reserva (no los textos de Booking/Airbnb).
   'data',coalesce(l.submission,jsonb_build_object(
    'full_name',case when g.full_name is null or g.full_name ~* '^reserva ' then null else g.full_name end,
-   'estimated_arrival',to_char(r.estimated_arrival,'HH24:MI'))));
+   'estimated_arrival',to_char(r.estimated_arrival,'HH24:MI'),'estimated_departure',to_char(r.estimated_departure,'HH24:MI'))));
 end $$;
 
 
@@ -67,6 +67,7 @@ declare l public.lodging_checkin_links; r public.lodging_reservations; clean jso
  v_email text:=left(lower(btrim(coalesce(p_payload->>'email',''))),160);
  v_phone text:=left(btrim(coalesce(p_payload->>'phone','')),40);
  v_arrival text:=nullif(btrim(coalesce(p_payload->>'estimated_arrival','')),'');
+ v_departure text:=nullif(btrim(coalesce(p_payload->>'estimated_departure','')),'');
  v_plate text:=upper(left(btrim(coalesce(p_payload->>'license_plate','')),20));
  v_notes text:=left(btrim(coalesce(p_payload->>'notes','')),1000);
  v_front text:=nullif(p_payload->>'document_front_path',''); v_back text:=nullif(p_payload->>'document_back_path',''); v_prefix text; replaced jsonb:='[]'::jsonb;
@@ -79,6 +80,7 @@ begin
  if v_email<>'' and v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'Correo invalido'; end if;
  if char_length(v_phone)<6 then raise exception 'Indica tu telefono'; end if;
  if v_arrival is not null and v_arrival !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' then raise exception 'Hora de llegada invalida'; end if;
+ if v_departure is not null and v_departure !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' then raise exception 'Hora de salida invalida'; end if;
  if coalesce((p_payload->>'accept_rules')::boolean,false) is not true then raise exception 'Debes aceptar las normas del hostal'; end if;
  if jsonb_typeof(coalesce(p_payload->'companions','[]'::jsonb))<>'array' or jsonb_array_length(coalesce(p_payload->'companions','[]'::jsonb))>10 then raise exception 'Acompanantes invalidos'; end if;
  for c in select * from jsonb_array_elements(coalesce(p_payload->'companions','[]'::jsonb)) loop
@@ -92,7 +94,7 @@ begin
  if v_back is not null and (left(v_back,char_length(v_prefix))<>v_prefix or v_back !~ '^[0-9a-f/-]+\.(jpg|png|webp)$') then raise exception 'Foto invalida'; end if;
  if coalesce(v_front,l.document_front_path) is null then raise exception 'Sube la foto de tu documento'; end if;
  clean:=jsonb_build_object('full_name',v_name,'document',v_doc,'nationality',v_nat,'email',nullif(v_email,''),'phone',v_phone,
-  'estimated_arrival',v_arrival,'license_plate',nullif(v_plate,''),'notes',nullif(v_notes,''),'companions',companions,'accepted_rules_at',now(),
+  'estimated_arrival',v_arrival,'estimated_departure',v_departure,'license_plate',nullif(v_plate,''),'notes',nullif(v_notes,''),'companions',companions,'accepted_rules_at',now(),
   'has_document_front',true,'has_document_back',coalesce(v_back,l.document_back_path) is not null);
  select * into r from public.lodging_reservations where id=l.reservation_id for update;
  if v_front is not null and l.document_front_path is not null and l.document_front_path<>v_front then replaced:=replaced||to_jsonb(l.document_front_path); end if;
@@ -108,6 +110,7 @@ begin
   where id=r.guest_id;
  end if;
  update public.lodging_reservations set estimated_arrival=coalesce(v_arrival::time,estimated_arrival),
+  estimated_departure=coalesce(v_departure::time,estimated_departure),
   license_plate=coalesce(nullif(v_plate,''),license_plate) where id=r.id;
  -- Aviso a recepción del hostal (sin correo).
  insert into public.notifications(company_id,business_unit_id,recipient_id,event_key,title,body,entity_type,entity_id,created_by)

@@ -147,6 +147,7 @@ export default async function CheckinPage({
           <Field label="Teléfono (WhatsApp)" name="phone" type="tel" required defaultValue={d.phone} autoComplete="tel" placeholder="+56 9 1234 5678" />
           <Field label="Correo" name="email" type="email" defaultValue={d.email} autoComplete="email" />
           <Field label="Hora estimada de llegada" name="estimated_arrival" type="time" defaultValue={d.estimated_arrival} />
+          <Field label="Hora estimada de salida" name="estimated_departure" type="time" defaultValue={d.estimated_departure} hint="El día de tu salida." />
           <Field label="Patente del vehículo" name="license_plate" defaultValue={d.license_plate} hint="Solo si llegas en auto." />
         </section>
 
@@ -157,11 +158,10 @@ export default async function CheckinPage({
           </p>
           {view.has_document_front && (
             <p className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">
-              Ya recibimos la foto{view.has_document_back ? " del frente y del reverso" : " del frente"}. Sube otra solo si quieres cambiarla.
+              Ya recibimos la foto. Sube otra solo si quieres cambiarla.
             </p>
           )}
-          <PhotoField label="Frente" name="document_front" required={!view.has_document_front} />
-          <PhotoField label="Reverso" name="document_back" hint="Opcional; en el pasaporte no es necesario." />
+          <PhotoField label="Frente del documento" name="document_front" required={!view.has_document_front} />
         </section>
 
         {companionsShown > 0 && (
