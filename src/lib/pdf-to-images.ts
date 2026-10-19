@@ -5,8 +5,13 @@
 export async function pdfToImages(pdf: ArrayBuffer, options: { scale?: number; quality?: number } = {}): Promise<Blob[]> {
   const { scale = 2, quality = 0.92 } = options;
   // Se carga solo al pedir la imagen: el visor de PDF pesa y no hace falta en el resto de las pantallas.
-  const pdfjs = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+  // Versión "legacy" para que funcione también en navegadores más antiguos.
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // El trabajador del visor se ejecuta en la misma página: evita depender de un archivo aparte
+  // (tipo de contenido, bloqueos) y alcanza de sobra para las pocas hojas de estos reportes.
+  // @ts-expect-error el paquete no trae tipos para el trabajador del visor
+  const worker = (await import("pdfjs-dist/legacy/build/pdf.worker.mjs")) as { WorkerMessageHandler: unknown };
+  (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = { WorkerMessageHandler: worker.WorkerMessageHandler };
   const task = pdfjs.getDocument({ data: new Uint8Array(pdf) });
   const doc = await task.promise;
   try {

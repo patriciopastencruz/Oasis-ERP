@@ -37,7 +37,7 @@ export function PdfImageButton({
     setError(null);
     try {
       const response = await fetch(pdfUrl);
-      if (!response.ok) throw new Error("pdf");
+      if (!response.ok) throw new Error(`el reporte respondió ${response.status}`);
       const images = await pdfToImages(await response.arrayBuffer());
       const names = imageFileNames(filename, images.length);
       const files = images.map((blob, i) => new File([blob], names[i], { type: "image/jpeg" }));
@@ -51,8 +51,10 @@ export function PdfImageButton({
         }
       }
       files.forEach((file, i) => setTimeout(() => save(file), i * 400));
-    } catch {
-      setError("No fue posible generar la imagen. Intenta nuevamente.");
+    } catch (e) {
+      console.error("[pdf-image]", e);
+      const detail = e instanceof Error && e.message ? ` (${e.message.slice(0, 80)})` : "";
+      setError(`No fue posible generar la imagen${detail}. Intenta nuevamente.`);
     } finally {
       setBusy(false);
     }
