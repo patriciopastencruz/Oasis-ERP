@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildAvailabilityFeed, compressRuns, describeRuns, freeRoomsPerNight, type FeedRoom } from "./availability-feed";
+import { buildAvailabilityFeed, compressRuns, describeRuns, freeRoomsPerNight, normalizeDescription, type FeedRoom } from "./availability-feed";
 
 const room = (id: string, unitCode: string, roomType: string, capacity: number, baseRate: number): FeedRoom => ({ id, unitCode, name: id, roomType, capacity, baseRate });
 
@@ -66,6 +66,45 @@ describe("calendario de disponibilidad para asistentes", () => {
     expect(cobija.description).toContain("con desayuno incluido");
     expect(feed.find((f) => f.category.includes("Uruguay"))!.link).toContain("reservar/hostal-uruguay");
     expect(JSON.stringify(feed)).not.toMatch(/guest|huésped_|phone|email/i);
+  });
+});
+
+describe("precios por cantidad de personas y nombre de cada opción", () => {
+  it("normaliza las descripciones escritas en mayúsculas", () => {
+    expect(normalizeDescription("MINI DEPTOS 1C MATRIMONIAL, TV, COCINA, FRIGOBAR Y BAÑO PRIVADO")).toBe("Mini deptos 1 cama matrimonial, TV, cocina, frigobar y baño privado");
+    expect(normalizeDescription("HAB. SIMPLE 2 CAMAS INDIVIDUALES, TV Y BAÑO PRIVADO")).toBe("Habitación simple 2 camas individuales, TV y baño privado");
+  });
+
+  it("informa el precio de cada cantidad de personas y no solo la tarifa base", () => {
+    const feed = buildAvailabilityFeed({
+      rooms: [
+        { ...room("c1", "HOB", "Mini depto", 3, 27000), description: "MINI DEPTOS 1C MATRIMONIAL, TV Y BAÑO PRIVADO", ratesByGuests: { "1": 27000, "2": 32000, "3": 36000 } },
+        { ...room("c5", "HOB", "Mini depto", 2, 27000), description: "MINI DEPTOS 1C MATRIMONIAL, TV Y BAÑO PRIVADO", ratesByGuests: { "1": 27000, "2": 32000 } },
+      ],
+      bookings: [],
+      today: "2026-11-01",
+      days: 3,
+      updatedAt: "01-11-2026 10:00",
+    });
+    expect(feed).toHaveLength(2); // distinta capacidad y distinta tabla de precios: dos opciones
+    const three = feed.find((f) => f.capacity === 3)!;
+    expect(three.description).toContain("1 persona $27.000, 2 personas $32.000, 3 personas $36.000");
+    expect(three.name).toContain("Mini deptos 1 cama matrimonial, TV y baño privado");
+    expect(three.prices_by_guests).toEqual({ "1": 27000, "2": 32000, "3": 36000 });
+    expect(three.price).toBe(27000);
+  });
+
+  it("sin precios por persona usa la tarifa y suma la descripción al tipo", () => {
+    const feed = buildAvailabilityFeed({
+      rooms: [{ ...room("p11", "HOC", "Habitación baño compartido", 2, 30000), description: "1 cama de 2 plazas" }],
+      bookings: [],
+      today: "2026-11-01",
+      days: 2,
+      updatedAt: "x",
+    });
+    expect(feed[0].option).toBe("Habitación baño compartido (1 cama de 2 plazas)");
+    expect(feed[0].description).toContain("tarifa $30.000 por noche");
+    expect(feed[0].prices_by_guests).toBeUndefined();
   });
 });
 

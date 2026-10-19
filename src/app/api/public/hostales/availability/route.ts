@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   const [roomsRes, bookingsRes] = await Promise.all([
     db
       .from("lodging_rooms")
-      .select("id,name,room_type,capacity,base_rate,business_unit_id")
+      .select("id,name,room_type,capacity,base_rate,business_unit_id,description,rates_by_guests")
       .in("business_unit_id", unitIds)
       .eq("active", true)
       .not("status", "in", '("maintenance","out_of_service")'),
@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
     roomType: r.room_type ?? "Habitación",
     capacity: Number(r.capacity ?? 1),
     baseRate: Number(r.base_rate ?? 0),
+    description: r.description,
+    ratesByGuests: (r.rates_by_guests as Record<string, number> | null) ?? null,
   }));
   const updatedAt = new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" }).format(new Date());
   const feed = buildAvailabilityFeed({ rooms, bookings: bookingsRes.data ?? [], today, days: DAYS, updatedAt });

@@ -20,6 +20,10 @@ export type FeedRoom = {
   roomType: string;
   capacity: number;
   baseRate: number;
+  /** Descripción de la habitación (camas, baño, extras); puede venir en mayúsculas. */
+  description?: string | null;
+  /** Precio por noche según la cantidad de personas ({"1": 27000, "2": 32000}); si falta, rige la tarifa base. */
+  ratesByGuests?: Record<string, number> | null;
 };
 export type FeedBooking = { room_id: string; check_in: string; check_out: string };
 export type FreeRun = { from: string; to: string; free: number };
@@ -75,6 +79,33 @@ export function describeRuns(runs: FreeRun[]) {
 
 const clpText = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
 
+/** "MINI DEPTOS 1C MATRIMONIAL, TV Y BAÑO PRIVADO" → "Mini deptos 1 cama matrimonial, TV y baño privado". */
+export function normalizeDescription(text: string) {
+  const lower = text
+    .trim()
+    .toLowerCase()
+    .replace(/\bhab\.?\s/g, "habitación ")
+    .replace(/\b1\s?c\b/g, "1 cama")
+    .replace(/\b(\d)\s?c\b/g, "$1 camas")
+    .replace(/\btv\b/g, "TV");
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+/** Precios por cantidad de personas, ordenados: [[1, 27000], [2, 32000]]. */
+const sortedRates = (rates?: Record<string, number> | null) =>
+  Object.entries(rates ?? {})
+    .map(([n, v]) => [Number(n), Number(v)] as const)
+    .filter(([n, v]) => n > 0 && v > 0)
+    .sort((a, b) => a[0] - b[0]);
+
+/** Nombre de la opción: la descripción si ya nombra el tipo ("Habitación simple 1 cama…"); si no, tipo y descripción. */
+function optionLabel(room: FeedRoom) {
+  const description = room.description ? normalizeDescription(room.description) : "";
+  if (!description) return room.roomType;
+  const firstWord = room.roomType.split(/\s+/)[0].toLowerCase().slice(0, 4);
+  return description.toLowerCase().includes(firstWord) ? description : `${room.roomType} (${description.charAt(0).toLowerCase()}${description.slice(1)})`;
+}
+
 /**
  * Un registro por hostal y tipo de habitación (tipo, capacidad y tarifa iguales), con las noches
  * libres de los próximos `days` días a partir de `today`.
@@ -82,7 +113,7 @@ const clpText = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
 export function buildAvailabilityFeed(input: { rooms: FeedRoom[]; bookings: FeedBooking[]; today: string; days: number; updatedAt: string }) {
   const groups = new Map<string, FeedRoom[]>();
   for (const r of input.rooms) {
-    const key = `${r.unitCode}|${r.roomType}|${r.capacity}|${r.baseRate}`;
+    const key = `${r.unitCode}|${r.roomType}|${r.capacity}|${r.baseRate}|${r.description ?? ""}|${JSON.stringify(sortedRates(r.ratesByGuests))}`;
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
   const lastNight = addDays(input.today, input.days - 1);
@@ -99,18 +130,25 @@ export function buildAvailabilityFeed(input: { rooms: FeedRoom[]; bookings: Feed
       const runs = compressRuns(nights);
       const cap = rooms[0].capacity;
       const people = cap === 1 ? "1 persona" : `hasta ${cap} personas`;
-      const title = `Disponibilidad - ${hostal.name} - ${rooms[0].roomType} (${people})`;
+      const label = optionLabel(rooms[0]);
+      const rates = sortedRates(rooms[0].ratesByGuests);
+      const priceText = rates.length
+        ? `precio por noche según la cantidad de personas: ${rates.map(([n, v]) => `${n} ${n === 1 ? "persona" : "personas"} ${clpText(v)}`).join(", ")}`
+        : `tarifa ${clpText(rooms[0].baseRate)} por noche`;
+      const title = `Disponibilidad - ${hostal.name} - ${label} (${people})`;
       return {
-        id: key.replace(/[^A-Za-z0-9]+/g, "-").toLowerCase(),
+        id: key.replace(/[^A-Za-z0-9]+/g, "-").toLowerCase().slice(0, 80),
         name: title,
         category: hostal.name,
         // El asistente filtra los productos por marca: la marca es el hostal.
         brand: hostal.name,
-        price: rooms[0].baseRate,
+        price: rates.length ? rates[0][1] : rooms[0].baseRate,
+        prices_by_guests: rates.length ? Object.fromEntries(rates.map(([n, v]) => [String(n), v])) : undefined,
+        option: label,
         currency: "CLP",
         description:
-          `${hostal.name}: ${rooms.length} ${rooms.length === 1 ? "habitación" : "habitaciones"} tipo ${rooms[0].roomType} para ${people}, ` +
-          `tarifa base ${clpText(rooms[0].baseRate)} por noche${hostal.breakfast ? " con desayuno incluido" : " (sin desayuno)"}. ` +
+          `${hostal.name}: ${rooms.length} ${rooms.length === 1 ? "habitación" : "habitaciones"}: ${label}, para ${people}. ` +
+          `Valor: ${priceText}${hostal.breakfast ? " con desayuno incluido" : " (sin desayuno)"}. ` +
           `Check-in desde las 14:00 y check-out a las 12:00. ` +
           `Habitaciones libres por noche, de ${nightLabel(input.today)} a ${nightLabel(lastNight)} de ${rooms.length} en total (la fecha es la noche que se duerme; el día de salida no cuenta): ${describeNights(nights)}. ` +
           `Para unas fechas de entrada y salida, revisa cada noche desde la entrada hasta la víspera de la salida: quedan libres tantas habitaciones como el mínimo de esas noches. ` +
