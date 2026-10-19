@@ -20,6 +20,9 @@ const PUBLIC = [
   // que vence al día siguiente del check-out (ver
   // src/app/(public)/checkin/[token]/page.tsx).
   "/checkin",
+  // Medidas de pantalla del dispositivo (diagnóstico sin datos de la empresa,
+  // ver src/app/(public)/dispositivo/page.tsx).
+  "/dispositivo",
   // Manifiesto de la PWA "Oasis Operaciones": el navegador lo pide sin sesión.
   "/manifest.webmanifest",
 ];
