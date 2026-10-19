@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { receptionistsLabel } from "../domain/survey";
 
 const A4: [number, number] = [595.28, 841.89];
 const TERRACOTTA = rgb(0.757, 0.396, 0.184);
@@ -12,6 +13,7 @@ const MUTED = rgb(0.42, 0.365, 0.31);
  */
 export async function buildSurveyQrPdf(input: {
   unitName: string;
+  unitCode?: string;
   roomName: string;
   url: string;
 }) {
@@ -53,6 +55,10 @@ export async function buildSurveyQrPdf(input: {
   centered("¿Cómo fue tu estadía?", 230, 30, bold);
   centered("Escanea el código con la cámara de tu celular", 190, 16, regular, MUTED);
   centered("y cuéntanos en 1 minuto. Tu opinión nos ayuda a mejorar.", 168, 16, regular, MUTED);
+  const receptionists = receptionistsLabel(input.unitCode);
+  if (receptionists) {
+    centered(`Cuéntanos también cómo te atendieron ${receptionists} en recepción.`, 140, 15, bold, TERRACOTTA);
+  }
   centered(input.url.replace(/^https?:\/\//, ""), 70, 9, regular, MUTED);
 
   pdf.setTitle(`QR encuesta · ${input.unitName} · ${input.roomName}`);

@@ -13,4 +13,17 @@ describe("PDF del QR de la encuesta", () => {
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(1);
   });
+
+  it("el cartel de Centro nombra a la recepcionista y el de otros hostales no", async () => {
+    const make = (unitCode: string) =>
+      buildSurveyQrPdf({
+        unitName: "Hostal",
+        unitCode,
+        roomName: "1",
+        url: "https://www.oasis-erp.cl/encuesta/33e672b75aae0b81adea1a4fccded616",
+      });
+    const centro = Buffer.from(await make("HOC")).toString("latin1");
+    const cobija = Buffer.from(await make("HOB")).toString("latin1");
+    expect(centro.length).toBeGreaterThan(cobija.length);
+  });
 });

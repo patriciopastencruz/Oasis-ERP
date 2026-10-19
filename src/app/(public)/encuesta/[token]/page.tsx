@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { submitSurveyAction } from "@/modules/lodging/application/survey-actions";
 import { SurveySubmit } from "@/components/lodging/survey-submit";
-import { SURVEY_CATEGORIES } from "@/modules/lodging/domain/survey";
+import { SURVEY_CATEGORIES, receptionistsLabel, surveyQuestion } from "@/modules/lodging/domain/survey";
 
 export const metadata = {
   title: "Tu opinión | Hostal Oasis",
@@ -53,7 +53,7 @@ export default async function SurveyPage({
   const db = createSupabaseAdminClient();
   const { data: room } = await db
     .from("lodging_rooms")
-    .select("name,business_units(name)")
+    .select("name,business_units(name,code)")
     .eq("survey_token", token)
     .eq("active", true)
     .maybeSingle();
@@ -61,6 +61,8 @@ export default async function SurveyPage({
   const unit = Array.isArray(room.business_units)
     ? room.business_units[0]
     : room.business_units;
+
+  const receptionists = receptionistsLabel(unit?.code);
 
   if (q.gracias)
     return (
@@ -93,6 +95,11 @@ export default async function SurveyPage({
       <p className="mt-2 text-sm text-[#6b5d4f]">
         Son menos de 2 minutos. Tu opinión nos ayuda a mejorar.
       </p>
+      {receptionists && (
+        <p className="mt-2 text-sm text-[#6b5d4f]">
+          Cuéntanos también cómo te atendieron <b>{receptionists}</b> en recepción.
+        </p>
+      )}
 
       {q.error && (
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -113,7 +120,7 @@ export default async function SurveyPage({
         {SURVEY_CATEGORIES.map((category) => (
           <fieldset key={category.key}>
             <legend className="text-sm font-semibold text-[#241c16]">
-              {category.question}
+              {surveyQuestion(category, unit?.code)}
             </legend>
             <div className="mt-3 flex gap-2">
               {SCORE_LABELS.map((label, index) => (

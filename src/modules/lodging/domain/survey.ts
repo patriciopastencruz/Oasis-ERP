@@ -25,6 +25,24 @@ export const SURVEY_CATEGORIES = [
 
 export type SurveyCategoryKey = (typeof SURVEY_CATEGORIES)[number]["key"];
 
+/** Recepcionistas que se nombran en la encuesta y en el cartel QR de cada hostal. */
+export const SURVEY_RECEPTIONISTS: Record<string, string[]> = {
+  HOC: ["Kathya", "Alicia"],
+};
+
+/** "Kathya o Alicia" (null si el hostal no nombra a su recepcionista). */
+export function receptionistsLabel(unitCode: string | null | undefined) {
+  const names = unitCode ? SURVEY_RECEPTIONISTS[unitCode] : undefined;
+  return names?.length ? names.join(" o ") : null;
+}
+
+/** Texto de cada pregunta: la de atención nombra a la recepcionista del hostal cuando corresponde. */
+export function surveyQuestion(category: (typeof SURVEY_CATEGORIES)[number], unitCode: string | null | undefined) {
+  const names = receptionistsLabel(unitCode);
+  if (category.key === "staff" && names) return `¿Cómo fue la atención que recibiste de ${names} en recepción?`;
+  return category.question;
+}
+
 const score = z.coerce.number().int().min(1).max(5);
 
 export const surveySubmissionSchema = z.object({

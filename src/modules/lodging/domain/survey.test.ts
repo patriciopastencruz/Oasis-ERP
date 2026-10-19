@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  SURVEY_CATEGORIES,
+  receptionistsLabel,
   summarizeSurveys,
+  surveyQuestion,
   surveyAverage,
   surveySubmissionSchema,
   type SurveyRow,
@@ -61,3 +64,24 @@ describe("encuesta de satisfacción", () => {
     expect(surveySubmissionSchema.safeParse({ ...ok, token: "xyz" }).success).toBe(false);
   });
 });
+
+describe("recepcionistas nombradas en la encuesta", () => {
+  const staff = SURVEY_CATEGORIES.find((c) => c.key === "staff")!;
+  const cleanliness = SURVEY_CATEGORIES.find((c) => c.key === "cleanliness")!;
+
+  it("Centro nombra a Kathya o Alicia", () => {
+    expect(receptionistsLabel("HOC")).toBe("Kathya o Alicia");
+    expect(surveyQuestion(staff, "HOC")).toBe("¿Cómo fue la atención que recibiste de Kathya o Alicia en recepción?");
+  });
+
+  it("los demás hostales conservan la pregunta general", () => {
+    expect(receptionistsLabel("HOB")).toBeNull();
+    expect(receptionistsLabel(undefined)).toBeNull();
+    expect(surveyQuestion(staff, "HU")).toBe(staff.question);
+  });
+
+  it("solo cambia la pregunta de atención", () => {
+    expect(surveyQuestion(cleanliness, "HOC")).toBe(cleanliness.question);
+  });
+});
+

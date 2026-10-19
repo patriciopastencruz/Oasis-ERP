@@ -30,6 +30,7 @@ export async function GET(
 
   const bytes = await buildSurveyQrPdf({
     unitName: unit.name,
+    unitCode: unit.code,
     roomName: room.name,
     url: surveyUrl(surveyBaseUrl(req.headers), room.survey_token),
   });

@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { lodgingUnitCodes } from "@/config/business-units";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
+import { receptionistsLabel } from "@/modules/lodging/domain/survey";
 import {
   surveyBaseUrl,
   surveyUrl,
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
     .eq("active", true)
     .order("display_order");
   const base = surveyBaseUrl(req.headers);
+  const receptionists = receptionistsLabel(unit.code);
 
   const cards = await Promise.all(
     (rooms ?? []).map(async (room) => {
@@ -45,7 +47,9 @@ export async function GET(req: NextRequest) {
   <h2>${esc(room.name)}</h2>
   <div class="qr">${svg}</div>
   <p class="cta">¿Cómo fue tu estadía?</p>
-  <p class="hint">Escanea y cuéntanos en 1 minuto.<br>Tu opinión nos ayuda a mejorar.</p>
+  <p class="hint">Escanea y cuéntanos en 1 minuto.<br>Tu opinión nos ayuda a mejorar.</p>${
+    receptionists ? `\n  <p class="staff">Cuéntanos también cómo te atendieron ${esc(receptionists)} en recepción.</p>` : ""
+  }
 </section>`;
     }),
   );
@@ -67,6 +71,7 @@ export async function GET(req: NextRequest) {
   .qr svg { width: 100%; height: 100%; }
   .cta { margin: 8px 0 2px; font-size: 16px; font-weight: 700; }
   .hint { margin: 0; font-size: 12px; color: #6b5d4f; }
+  .staff { margin: 6px 0 0; font-size: 12px; font-weight: 700; color: #c1652f; }
   @media print { .bar { display: none; } .grid { padding: 0; } }
 </style></head><body>
 <div class="bar"><button onclick="window.print()">Imprimir</button><span>${cards.length} habitaciones · ${esc(base)}</span></div>
