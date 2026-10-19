@@ -14,7 +14,7 @@ import {
 } from "@/modules/lodging/application/bonus-actions";
 import { loadSupportBonus, type SupportBonus } from "@/modules/lodging/application/support-queries";
 import { clp, santiagoToday } from "@/modules/lodging/domain/daily-closing";
-import { BONUS_INDICATORS, type BonusKey, type BonusStatus } from "@/modules/lodging/domain/reception-bonus";
+import { BONUS_INDICATORS, MAX_MISSED_INDICATORS, type BonusKey, type BonusStatus } from "@/modules/lodging/domain/reception-bonus";
 import { parseHistoryMonth, shiftMonth } from "@/modules/lodging/domain/history-report";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +51,11 @@ function Detail({ b }: { b: UnitBonus }) {
           <p className="mt-1 text-3xl font-bold leading-none">{clp(r.amount)}</p>
           <p className="mt-1 text-xs text-slate-500">
             {num(r.points, 1)} de 100 puntos · bono máximo {clp(b.config.pool)}
-            {r.gateApplied && <span className="ml-1 font-semibold text-red-700">· orden administrativo sin cumplir (bono al 50%: antes {clp(r.amountBeforeGate)})</span>}
+            {r.blockedByMisses ? (
+              <span className="ml-1 font-semibold text-red-700">· {r.missedCount} indicadores sin cumplir: no hay bono de desempeño (con lo cumplido serían {clp(r.amountBeforeGate)})</span>
+            ) : (
+              r.gateApplied && <span className="ml-1 font-semibold text-red-700">· orden administrativo sin cumplir (bono al 50%: antes {clp(r.amountBeforeGate)})</span>
+            )}
           </p>
         </div>
         {b.saved && (
@@ -110,7 +114,8 @@ function Detail({ b }: { b: UnitBonus }) {
       <p className="mt-3 text-xs text-slate-600">
         <b>Encuesta QR:</b> la mitad de sus puntos por reunir el mínimo de evaluaciones del mes y la otra mitad por llegar al promedio meta (el promedio solo cuenta con el mínimo reunido). <b>Cumple o no cumple, sin término medio:</b> la ocupación, la venta promedio y el puntaje de Booking deben alcanzar la meta del hostal; el aseo exige que todos los aseos terminados del mes se inspeccionen y que la inspección ocurra, en promedio, dentro de{" "}
         {b.config.inspectionMaxWait} minutos de terminado el aseo. El orden administrativo exige cierres diarios emitidos antes de las 06:00 del día siguiente (da lo mismo si los emite la recepcionista o la persona de apoyo) y ninguna estadía terminada con saldo por cobrar
-        (no cuentan las de empresa a crédito); deben cumplirse los dos criterios y, si no se cumple ninguno, además el bono completo se reduce a la mitad.
+        (no cuentan las de empresa a crédito); deben cumplirse los dos criterios y, si no se cumple ninguno, además el bono completo se reduce a la mitad.{" "}
+        <b>Condición mínima:</b> si {MAX_MISSED_INDICATORS} o más indicadores no se cumplen, no hay bono de desempeño ese mes (la encuesta con la mitad de sus puntos no cuenta como incumplida; los indicadores no evaluados tampoco).
       </p>
     </Panel>
   );

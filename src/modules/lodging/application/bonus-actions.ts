@@ -77,7 +77,7 @@ export async function saveBonusResultAction(form: FormData) {
       points: Math.round(bonus.result.points * 100) / 100,
       amount: bonus.result.amount,
       gate_applied: bonus.result.gateApplied,
-      detail: { rows: bonus.result.rows, input: bonus.input, counts: bonus.counts },
+      detail: { rows: bonus.result.rows, input: bonus.input, counts: bonus.counts, missedCount: bonus.result.missedCount, blockedByMisses: bonus.result.blockedByMisses },
     },
   });
   if (error) go(m.data, "error", /autoriz/i.test(error.message) ? "No tienes autorización para esta acción." : error.message);

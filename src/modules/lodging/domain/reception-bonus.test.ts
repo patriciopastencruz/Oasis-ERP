@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_BONUS_WEIGHTS,
   cappedOccupancyPct,
+  MAX_MISSED_INDICATORS,
   closingDeadline,
   computeBonus,
   tierFactor,
@@ -164,3 +165,72 @@ describe("bono de recepción", () => {
     expect(closingDeadline("2026-06-10").toISOString()).toBe("2026-06-11T10:00:00.000Z");
   });
 });
+
+describe("condición mínima: con 3 indicadores sin cumplir no hay bono", () => {
+  const miss = (n: number): BonusInput => {
+    const input: BonusInput = JSON.parse(JSON.stringify(base));
+    const breakers: ((i: BonusInput) => void)[] = [
+      (i) => (i.occupancy.value = 10),
+      (i) => (i.adr.value = 1000),
+      (i) => (i.booking.value = 1),
+      (i) => (i.inspections.avgWaitMinutes = 500),
+    ];
+    breakers.slice(0, n).forEach((f) => f(input));
+    return input;
+  };
+
+  it("el umbral es 3", () => {
+    expect(MAX_MISSED_INDICATORS).toBe(3);
+  });
+
+  it("con 2 indicadores sin cumplir se paga lo que sumaron", () => {
+    const r = computeBonus(miss(2));
+    expect(r.missedCount).toBe(2);
+    expect(r.blockedByMisses).toBe(false);
+    expect(r.amount).toBe(r.amountBeforeGate);
+    expect(r.amount).toBeGreaterThan(0);
+  });
+
+  it("con 3 indicadores sin cumplir el bono es cero, aunque otros sumen puntos", () => {
+    const r = computeBonus(miss(3));
+    expect(r.missedCount).toBe(3);
+    expect(r.blockedByMisses).toBe(true);
+    expect(r.points).toBeGreaterThan(0);
+    expect(r.amountBeforeGate).toBeGreaterThan(0);
+    expect(r.amount).toBe(0);
+  });
+
+  it("con 4 indicadores sin cumplir también es cero", () => {
+    const r = computeBonus(miss(4));
+    expect(r.blockedByMisses).toBe(true);
+    expect(r.amount).toBe(0);
+  });
+
+  it("la encuesta con la mitad de sus puntos no cuenta como incumplida", () => {
+    const input = miss(2);
+    input.survey = { value: 3.5, goal: 4, responses: 12, minResponses: 5 };
+    const r = computeBonus(input);
+    expect(row(r, "survey").status).toBe("half");
+    expect(r.missedCount).toBe(2);
+    expect(r.blockedByMisses).toBe(false);
+  });
+
+  it("la encuesta sin el mínimo de evaluaciones sí cuenta como incumplida", () => {
+    const input = miss(2);
+    input.survey = { value: 4.8, goal: 4, responses: 2, minResponses: 5 };
+    const r = computeBonus(input);
+    expect(row(r, "survey").status).toBe("miss");
+    expect(r.missedCount).toBe(3);
+    expect(r.amount).toBe(0);
+  });
+
+  it("los indicadores no evaluados no cuentan como incumplidos", () => {
+    const input = miss(2);
+    input.booking = { value: null, goal: 7.5 };
+    const r = computeBonus(input);
+    expect(row(r, "booking").status).toBe("na");
+    expect(r.missedCount).toBe(2);
+    expect(r.blockedByMisses).toBe(false);
+  });
+});
+

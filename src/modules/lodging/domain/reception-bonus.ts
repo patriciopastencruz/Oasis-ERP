@@ -5,7 +5,7 @@ import { clp } from "./daily-closing";
  * Ocupación, venta promedio, Booking, aseo (inspecciones) y orden administrativo
  * son de cumple o no cumple, sin término medio. La encuesta QR da la mitad de su
  * peso por reunir el mínimo de evaluaciones y la otra mitad por llegar al
- * promedio meta. Si un indicador no se puede evaluar (sin meta o sin
+ * promedio meta. Si 3 o más indicadores no se cumplen no hay bono. Si un indicador no se puede evaluar (sin meta o sin
  * datos suficientes) se deja fuera y su peso se reparte entre los demás, para no
  * premiar ni castigar por falta de información.
  */
@@ -37,6 +37,8 @@ export const OCCUPANCY_DAY_CAP = 1.1;
 export const DEFAULT_INSPECTION_MAX_WAIT = 70;
 /** Si no se cumple ningún criterio de orden, el bono completo se reduce a la mitad. */
 export const GATE_MULTIPLIER = 0.5;
+/** Con tantos indicadores o más sin cumplir (de los evaluados), no hay bono de desempeño. */
+export const MAX_MISSED_INDICATORS = 3;
 
 export type BonusStatus = "met" | "half" | "miss" | "na";
 
@@ -219,8 +221,12 @@ export function computeBonus(input: BonusInput) {
   const orderRow = rows.find((x) => x.key === "order")!;
   const gateApplied = orderRow.criteria.length > 0 && orderRow.criteria.every((c) => !c.ok);
   const amountBeforeGate = Math.round((input.pool * points) / 100);
-  const amount = Math.round(amountBeforeGate * (gateApplied ? GATE_MULTIPLIER : 1));
-  return { rows, points, evaluatedWeight, gateApplied, amountBeforeGate, amount };
+  // Indicadores sin cumplir: los que no suman nada. La encuesta con la mitad de sus puntos no cuenta como incumplida,
+  // y los no evaluados (sin meta o sin datos) tampoco.
+  const missedCount = rows.filter((x) => x.status === "miss").length;
+  const blockedByMisses = missedCount >= MAX_MISSED_INDICATORS;
+  const amount = blockedByMisses ? 0 : Math.round(amountBeforeGate * (gateApplied ? GATE_MULTIPLIER : 1));
+  return { rows, points, evaluatedWeight, gateApplied, amountBeforeGate, amount, missedCount, blockedByMisses };
 }
 
 export type BonusResult = ReturnType<typeof computeBonus>;

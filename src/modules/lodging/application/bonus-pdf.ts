@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { clp } from "../domain/daily-closing";
-import type { BonusKey, BonusStatus } from "../domain/reception-bonus";
+import { MAX_MISSED_INDICATORS, type BonusKey, type BonusStatus } from "../domain/reception-bonus";
 import type { UnitBonus } from "./bonus-queries";
 import type { SupportBonus } from "./support-queries";
 
@@ -61,7 +61,7 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
     textR(clp(b.result.amount), W - M, 14, B);
     y -= 18;
     text(
-      `${num(b.result.points, 1)} de 100 puntos - bono maximo ${clp(b.config.pool)}${b.result.gateApplied ? ` - orden administrativo sin cumplir, bono al 50% (antes ${clp(b.result.amountBeforeGate)})` : ""}`,
+      `${num(b.result.points, 1)} de 100 puntos - bono maximo ${clp(b.config.pool)}${b.result.blockedByMisses ? ` - ${b.result.missedCount} indicadores sin cumplir: sin bono de desempeno (con lo cumplido serian ${clp(b.result.amountBeforeGate)})` : b.result.gateApplied ? ` - orden administrativo sin cumplir, bono al 50% (antes ${clp(b.result.amountBeforeGate)})` : ""}`,
       M, 8.5, R, MUTED,
     );
     y -= 16;
@@ -101,6 +101,8 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
     text("Orden: cierres diarios emitidos antes de las 06:00 del dia siguiente (los emita la recepcion o la persona de apoyo) y sin saldos pendientes", M, 7, R, MUTED);
     y -= 9;
     text("de estadias terminadas (excluye empresa a credito); si no se cumple ninguno, el bono baja al 50%.", M, 7, R, MUTED);
+    y -= 9;
+    text(`Condicion minima: si ${MAX_MISSED_INDICATORS} o mas indicadores no se cumplen, no hay bono de desempeno ese mes.`, M, 7, R, MUTED);
     y -= 24;
   }
   if (input.support) {
