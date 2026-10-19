@@ -4,9 +4,13 @@ import { useState } from "react";
 import { ImageDown } from "lucide-react";
 import { imageFileNames, pdfToImages } from "@/lib/pdf-to-images";
 
+/** Celular o tablet: ahí la hoja de compartir lleva directo a WhatsApp. En el computador conviene descargar. */
+const isTouchDevice = () =>
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
 /**
  * Descarga un PDF como imagen (una por hoja) para enviarlo por WhatsApp. En el celular abre la hoja
- * de compartir con las imágenes; en el computador las descarga.
+ * de compartir con las imágenes; en el computador descarga cada hoja como un archivo JPG.
  */
 export function PdfImageButton({
   pdfUrl,
@@ -41,7 +45,7 @@ export function PdfImageButton({
       const images = await pdfToImages(await response.arrayBuffer());
       const names = imageFileNames(filename, images.length);
       const files = images.map((blob, i) => new File([blob], names[i], { type: "image/jpeg" }));
-      if (navigator.canShare?.({ files })) {
+      if (isTouchDevice() && navigator.canShare?.({ files })) {
         try {
           await navigator.share({ files, title: filename });
           return;
