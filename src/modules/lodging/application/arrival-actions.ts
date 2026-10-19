@@ -11,7 +11,7 @@ import { checkinUrl, whatsappNumber } from "../domain/checkin";
 import { santiagoToday } from "../domain/daily-closing";
 import { surveyBaseUrl } from "./survey-links";
 
-export type ArrivalContactResult = { ok: true; message: string; waUrl: string | null } | { ok: false; error: string };
+export type ArrivalContactResult = { ok: true; message: string; phone: string | null; waUrl: string | null } | { ok: false; error: string };
 
 const one = <T,>(value: T | T[] | null) => (Array.isArray(value) ? (value[0] ?? null) : value);
 
@@ -68,7 +68,7 @@ export async function prepareArrivalContactAction(reservationId: string): Promis
   revalidatePath("/lodging/arrivals");
   revalidatePath(`/lodging/reservations/${r.id}`);
   const phone = whatsappNumber(guest?.phone);
-  return { ok: true, message, waUrl: phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : null };
+  return { ok: true, message, phone, waUrl: phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : null };
 }
 
 /** Guarda el texto de "Información de llegada" del hostal (dirección, ubicación, WiFi, etc.). */
