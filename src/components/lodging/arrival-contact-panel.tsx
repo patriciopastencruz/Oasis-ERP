@@ -21,6 +21,7 @@ export async function ArrivalContactPanel({
     ? new Date(contact.contacted_at).toLocaleString("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" })
     : null;
   return (
+    <div className="min-w-0">
     <Panel>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -42,5 +43,6 @@ export async function ArrivalContactPanel({
         <ArrivalContactButton reservationId={reservation.id} contacted={!!sentAt} />
       </div>
     </Panel>
+    </div>
   );
 }

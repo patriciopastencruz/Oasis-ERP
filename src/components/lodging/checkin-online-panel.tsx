@@ -40,7 +40,7 @@ export async function CheckinOnlinePanel({
   ].filter((p): p is { label: string; url: string } => !!p);
 
   return (
-    <div id="checkin-online" className="scroll-mt-4">
+    <div id="checkin-online" className="min-w-0 scroll-mt-4">
     <Panel>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -66,8 +66,8 @@ export async function CheckinOnlinePanel({
           </form>
         )
       ) : (
-        <div className="mt-3 grid gap-4">
-          <div className="space-y-3">
+        <div className="mt-3 grid grid-cols-1 gap-4">
+          <div className="min-w-0 space-y-3">
             {url && (
               <CheckinLinkShare
                 url={url}
