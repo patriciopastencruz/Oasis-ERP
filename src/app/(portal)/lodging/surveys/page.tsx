@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { QrCode } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import {
   formatDate,
   lodgingContext,
 } from "@/modules/lodging/application/queries";
+import { SurveyLinksList } from "@/components/lodging/survey-links-list";
+import { surveyBaseUrl, surveyUrl } from "@/modules/lodging/application/survey-links";
 import {
   parseHistoryMonth,
   shiftMonth,
@@ -50,7 +53,7 @@ export default async function SurveysPage({
   const [{ data: rooms }, { data }] = await Promise.all([
     supabase
       .from("lodging_rooms")
-      .select("id,name")
+      .select("id,name,survey_token,active")
       .eq("business_unit_id", unit.id)
       .order("display_order"),
     (() => {
@@ -94,6 +97,11 @@ export default async function SurveysPage({
       average: summarizeSurveys(r.rows).overall ?? 0,
     }))
     .sort((a, b) => a.average - b.average);
+
+  const base = surveyBaseUrl(await headers());
+  const links = (rooms ?? [])
+    .filter((r) => r.active)
+    .map((r) => ({ id: r.id, name: r.name, url: surveyUrl(base, r.survey_token) }));
 
   const href = (m: string) =>
     `/lodging/surveys?month=${m}${q.room ? `&room=${q.room}` : ""}`;
@@ -150,6 +158,16 @@ export default async function SurveysPage({
           </button>
         </form>
       </div>
+
+      {links.length > 0 && (
+        <Panel className="mb-5">
+          <h2 className="font-semibold">Links de la encuesta por habitación</h2>
+          <p className="mt-1 mb-3 text-xs text-slate-500">
+            Cada habitación tiene su propio link (el mismo de su QR). Cópialo y envíalo por WhatsApp o correo.
+          </p>
+          <SurveyLinksList items={links} />
+        </Panel>
+      )}
 
       {!summary.count ? (
         <Panel className="text-center text-sm text-slate-600">
