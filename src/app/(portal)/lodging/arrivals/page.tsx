@@ -3,7 +3,8 @@ import { LogIn, LogOut } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { uiLabel } from "@/lib/ui-labels";
 import { ArrivalContactButton } from "@/components/lodging/arrival-contact-button";
-import { saveArrivalInfoAction } from "@/modules/lodging/application/arrival-actions";
+import { saveArrivalInfoAction, saveRoomCodesAction } from "@/modules/lodging/application/arrival-actions";
+import { needsRoomCode } from "@/modules/lodging/domain/arrival-message";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
 import { operationalStatusLabels, operationalStatusTone, type OperationalStatus } from "@/modules/lodging/domain/operations";
 
@@ -27,7 +28,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     supabase
       .from("lodging_reservations")
       .select(
-        "id,estimated_arrival,status,origin,total_value,lodging_rooms(name,operational_status),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status)",
+        "id,estimated_arrival,status,origin,room_id,total_value,lodging_rooms(name,operational_status),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status)",
       )
       .eq("business_unit_id", unit.id)
       .eq("check_in", today)
@@ -46,12 +47,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   ]);
   const showRoomStatus = housekeepingEnabled !== false;
   const arrivalIds = (arrivals ?? []).map((r) => r.id);
-  const [{ data: contacts }, { data: infoRow }] = await Promise.all([
+  const [{ data: contacts }, { data: infoRow }, { data: roomCodes }, { data: unitRooms }] = await Promise.all([
     arrivalIds.length
       ? supabase.from("lodging_arrival_contacts").select("reservation_id,contacted_at").in("reservation_id", arrivalIds)
       : Promise.resolve({ data: [] as { reservation_id: string; contacted_at: string }[] }),
     supabase.from("lodging_arrival_info").select("info").eq("business_unit_id", unit.id).maybeSingle(),
+    supabase.from("lodging_room_access_codes").select("room_id,code").eq("business_unit_id", unit.id),
+    supabase.from("lodging_rooms").select("id,name").eq("business_unit_id", unit.id).eq("active", true).order("display_order"),
   ]);
+  const codeByRoom = new Map((roomCodes ?? []).map((c) => [c.room_id, c.code]));
+  const infoNeedsCode = needsRoomCode(infoRow?.info);
   const contactedAt = new Map((contacts ?? []).map((c) => [c.reservation_id, c.contacted_at]));
   const contactedCount = arrivalIds.filter((id) => contactedAt.has(id)).length;
   const timeLabel = (iso: string) => new Date(iso).toLocaleTimeString("es-CL", { timeZone: "America/Santiago", hour: "2-digit", minute: "2-digit" });
@@ -116,6 +121,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                       <ArrivalContactButton reservationId={r.id} contacted={!!sentAt} />
                       <span className="text-right text-[11px] text-slate-500">
                         {sentAt ? <b className="text-emerald-700">✓ Bienvenida enviada a las {timeLabel(sentAt)}</b> : "Sin enviar"}
+                        {infoNeedsCode && !codeByRoom.has(r.room_id) && (
+                          <span className="block text-amber-700">Falta la clave de {room?.name ?? "la habitación"}: el mensaje saldrá sin ella</span>
+                        )}
                         {(r.origin === "booking" || r.origin === "airbnb") && (
                           <span className="block text-amber-700">Reserva de {r.origin === "booking" ? "Booking" : "Airbnb"}: confirma que el teléfono sea del huésped</span>
                         )}
@@ -175,13 +183,35 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             <textarea
               name="info"
               rows={5}
-              maxLength={1500}
+              maxLength={2500}
               defaultValue={infoRow?.info ?? ""}
-              placeholder="Ej.: Estamos en Calle Ejemplo 123. Ubicación: https://maps.app/..."
+              placeholder="Ej.: Estamos en Calle Ejemplo 123. Ubicación: https://maps.app/... Usa {habitacion} y {clave_habitacion} para la clave de ingreso de cada pieza."
               className="w-full rounded-xl border bg-white px-3 py-2 text-sm"
             />
             <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">Guardar información</button>
           </form>
+        )}
+        {canConfigure && (
+          <details className="mt-4 rounded-xl border border-[#d9dfe6] p-3">
+            <summary className="cursor-pointer text-sm font-semibold text-[#0b4f9c]">
+              Claves de ingreso de las habitaciones ({(roomCodes ?? []).length} de {(unitRooms ?? []).length} cargadas)
+            </summary>
+            <p className="mt-2 text-xs text-slate-500">
+              Si el texto de arriba usa <code>{"{clave_habitacion}"}</code>, el mensaje de cada huésped lleva la clave de su habitación. Si una habitación no tiene clave, esa línea se quita.
+            </p>
+            <form action={saveRoomCodesAction} className="mt-3 space-y-2">
+              <input type="hidden" name="unit_id" value={unit.id} />
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {(unitRooms ?? []).map((rm) => (
+                  <label key={rm.id} className="block text-xs">
+                    {rm.name}
+                    <input name={`code_${rm.id}`} defaultValue={codeByRoom.get(rm.id) ?? ""} maxLength={40} autoComplete="off" className="mt-1 block w-full rounded-lg border bg-white px-2 py-1.5 text-sm" />
+                  </label>
+                ))}
+              </div>
+              <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">Guardar claves</button>
+            </form>
+          </details>
         )}
       </Panel>
     </>

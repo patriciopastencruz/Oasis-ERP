@@ -26,7 +26,7 @@ export async function prepareArrivalContactAction(reservationId: string): Promis
   const supabase = await createSupabaseServerClient();
   const { data: r, error } = await supabase
     .from("lodging_reservations")
-    .select("id,status,origin,check_in,business_unit_id,lodging_guests(full_name,phone)")
+    .select("id,status,origin,check_in,business_unit_id,room_id,lodging_rooms(name),lodging_guests(full_name,phone)")
     .eq("id", id.data)
     .maybeSingle();
   if (error || !r) return { ok: false, error: "No encontré la reserva." };
@@ -50,6 +50,8 @@ export async function prepareArrivalContactAction(reservationId: string): Promis
   }
   const { data: info } = await supabase.from("lodging_arrival_info").select("info").eq("business_unit_id", r.business_unit_id).maybeSingle();
   const guest = one(r.lodging_guests);
+  const room = one(r.lodging_rooms);
+  const { data: codeRow } = await supabase.from("lodging_room_access_codes").select("code").eq("room_id", r.room_id).maybeSingle();
   const message = arrivalMessage({
     unitCode: unit.code,
     unitName: unit.name,
@@ -58,6 +60,8 @@ export async function prepareArrivalContactAction(reservationId: string): Promis
     info: info?.info,
     checkIn: r.check_in,
     today: santiagoToday(),
+    roomName: room?.name,
+    roomCode: codeRow?.code,
   });
   const marked = await supabase.rpc("lodging_arrival_contact_mark", { target_reservation: r.id });
   if (marked.error) console.error("[arrival-contact] marca", marked.error.message);
@@ -74,10 +78,28 @@ export async function saveArrivalInfoAction(form: FormData) {
   const info = String(form.get("info") ?? "").trim();
   const go = (key: "success" | "error", message: string): never => redirect(`/lodging/arrivals?${key}=${encodeURIComponent(message)}`);
   if (!unitId.success || !ctx.units.some((u) => u.id === unitId.data)) go("error", "Hostal no válido.");
-  if (info.length > 1500) go("error", "El texto no puede pasar de 1.500 caracteres.");
+  if (info.length > 2500) go("error", "El texto no puede pasar de 2.500 caracteres.");
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("lodging_arrival_info_save", { target_unit: unitId.success ? unitId.data : "", new_info: info });
   if (error) go("error", /autoriz/i.test(error.message) ? "No tienes autorización para esta acción." : "No fue posible guardar el texto.");
   revalidatePath("/lodging/arrivals");
   go("success", "Información de llegada guardada.");
+}
+
+/** Guarda las claves de ingreso autónomo de las habitaciones de un hostal (vacío = sin clave). */
+export async function saveRoomCodesAction(form: FormData) {
+  const ctx = await requirePermission("lodging.operations.configure");
+  const unitId = z.string().uuid().safeParse(form.get("unit_id"));
+  const go = (key: "success" | "error", message: string): never => redirect(`/lodging/arrivals?${key}=${encodeURIComponent(message)}`);
+  if (!unitId.success || !ctx.units.some((u) => u.id === unitId.data)) go("error", "Hostal no válido.");
+  const supabase = await createSupabaseServerClient();
+  const { data: rooms } = await supabase.from("lodging_rooms").select("id").eq("business_unit_id", unitId.success ? unitId.data : "").eq("active", true);
+  for (const room of rooms ?? []) {
+    const code = String(form.get(`code_${room.id}`) ?? "").trim();
+    if (code.length > 40) go("error", "Cada clave puede tener hasta 40 caracteres.");
+    const { error } = await supabase.rpc("lodging_room_access_code_save", { target_room: room.id, new_code: code });
+    if (error) go("error", /autoriz/i.test(error.message) ? "No tienes autorización para esta acción." : "No fue posible guardar las claves.");
+  }
+  revalidatePath("/lodging/arrivals");
+  go("success", "Claves de las habitaciones guardadas.");
 }
