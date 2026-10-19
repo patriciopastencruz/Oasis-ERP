@@ -16,6 +16,10 @@ const PUBLIC = [
   // sesión y protegida por un token opaco (ver
   // src/app/(public)/encuesta/[token]/page.tsx).
   "/encuesta",
+  // Check-in online del huésped, sin sesión y protegido por un token opaco
+  // que vence al día siguiente del check-out (ver
+  // src/app/(public)/checkin/[token]/page.tsx).
+  "/checkin",
   // Manifiesto de la PWA "Oasis Operaciones": el navegador lo pide sin sesión.
   "/manifest.webmanifest",
 ];

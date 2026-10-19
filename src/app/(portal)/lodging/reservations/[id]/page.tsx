@@ -28,6 +28,7 @@ import {
   type CancellationRequest,
 } from "@/components/lodging/reservation-cancellation";
 import { ReservationNoShow } from "@/components/lodging/reservation-no-show";
+import { CheckinOnlinePanel } from "@/components/lodging/checkin-online-panel";
 import {
   operationalStatusLabels,
   type OperationalStatus,
@@ -585,6 +586,12 @@ export default async function Page({
           </p>
         </Panel>
       </div>
+      <CheckinOnlinePanel
+        reservation={{ id: r.id, status: r.status, check_in: r.check_in, origin: r.origin }}
+        unitName={unit.name}
+        guest={guest ? { full_name: guest.full_name, phone: guest.phone } : null}
+        canManage={canManage}
+      />
       <Panel className="mt-4">
         <h2 className="font-semibold">Registrar nuevo pago</h2>
         <form
