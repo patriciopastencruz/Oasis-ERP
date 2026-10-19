@@ -58,6 +58,15 @@ const dayLabel = (iso: string) => {
   return `${d}-${m}-${y}`;
 };
 
+const monthShort = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+/** "20-oct": fácil de cruzar con "20 de octubre". */
+const nightLabel = (iso: string) => `${Number(iso.slice(8))}-${monthShort[Number(iso.slice(5, 7)) - 1]}`;
+
+/** Habitaciones libres noche por noche: "20-oct: 1; 21-oct: 2". */
+export function describeNights(nights: { date: string; free: number }[]) {
+  return nights.map((n) => `${nightLabel(n.date)}: ${n.free}`).join("; ");
+}
+
 export function describeRuns(runs: FreeRun[]) {
   return runs
     .map((r) => `noches del ${dayLabel(r.from)} al ${dayLabel(addDays(r.to, -1))}: ${r.free} libre${r.free === 1 ? "" : "s"}`)
@@ -103,8 +112,8 @@ export function buildAvailabilityFeed(input: { rooms: FeedRoom[]; bookings: Feed
           `${hostal.name}: ${rooms.length} ${rooms.length === 1 ? "habitación" : "habitaciones"} tipo ${rooms[0].roomType} para ${people}, ` +
           `tarifa base ${clpText(rooms[0].baseRate)} por noche${hostal.breakfast ? " con desayuno incluido" : " (sin desayuno)"}. ` +
           `Check-in desde las 14:00 y check-out a las 12:00. ` +
-          `Habitaciones libres cada noche entre el ${dayLabel(input.today)} y el ${dayLabel(lastNight)} (de ${rooms.length} en total): ${describeRuns(runs)}. ` +
-          `Para unas fechas, quedan libres tantas habitaciones como el mínimo de las noches entre la entrada y la víspera de la salida. ` +
+          `Habitaciones libres por noche, de ${nightLabel(input.today)} a ${nightLabel(lastNight)} de ${rooms.length} en total (la fecha es la noche que se duerme; el día de salida no cuenta): ${describeNights(nights)}. ` +
+          `Para unas fechas de entrada y salida, revisa cada noche desde la entrada hasta la víspera de la salida: quedan libres tantas habitaciones como el mínimo de esas noches. ` +
           `Calendario actualizado el ${input.updatedAt}; la reserva final la confirma recepción.`,
         total_rooms: rooms.length,
         capacity: cap,

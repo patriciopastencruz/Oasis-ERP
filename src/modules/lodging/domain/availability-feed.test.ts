@@ -30,6 +30,18 @@ describe("calendario de disponibilidad para asistentes", () => {
     expect(describeRuns(runs)).toContain("noches del 02-11-2026 al 03-11-2026: 1 libre");
   });
 
+  it("la descripción lista las habitaciones libres noche por noche, con el mes abreviado", () => {
+    const feed = buildAvailabilityFeed({
+      rooms: [room("m1", "HOC", "Modulares", 2, 28000), room("m2", "HOC", "Modulares", 2, 28000)],
+      bookings: [{ room_id: "m1", check_in: "2026-11-02", check_out: "2026-11-04" }],
+      today: "2026-11-01",
+      days: 5,
+      updatedAt: "01-11-2026 10:00",
+    });
+    expect(feed[0].description).toContain("1-nov: 2; 2-nov: 1; 3-nov: 1; 4-nov: 2; 5-nov: 2");
+    expect(feed[0].description).toContain("el día de salida no cuenta");
+  });
+
   it("agrupa las habitaciones por hostal, tipo, capacidad y tarifa, sin datos de huéspedes", () => {
     const feed = buildAvailabilityFeed({
       rooms: [
