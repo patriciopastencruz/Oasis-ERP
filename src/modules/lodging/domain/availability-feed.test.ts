@@ -46,6 +46,7 @@ describe("calendario de disponibilidad para asistentes", () => {
     expect(feed).toHaveLength(3);
     const centro = feed.find((f) => f.category.includes("Centro"))!;
     expect(centro.total_rooms).toBe(2);
+    expect(centro.brand).toBe("Hostal Oasis Modulares (Centro)");
     expect(centro.description).toContain("sin desayuno");
     expect(centro.description).toContain("Check-in desde las 14:00 y check-out a las 12:00");
     expect(centro.free_runs.find((r) => r.from === "2026-11-02")!.free).toBe(1);

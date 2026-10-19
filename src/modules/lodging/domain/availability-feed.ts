@@ -95,6 +95,8 @@ export function buildAvailabilityFeed(input: { rooms: FeedRoom[]; bookings: Feed
         id: key.replace(/[^A-Za-z0-9]+/g, "-").toLowerCase(),
         name: title,
         category: hostal.name,
+        // El asistente filtra los productos por marca: la marca es el hostal.
+        brand: hostal.name,
         price: rooms[0].baseRate,
         currency: "CLP",
         description:
