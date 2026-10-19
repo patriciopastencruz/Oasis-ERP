@@ -112,6 +112,13 @@ describe("precios por cantidad de personas y nombre de cada opción", () => {
 
 describe("migración de la clave del calendario", () => {
   const sql = readFileSync("supabase/migrations/20261019140000_lodging_public_feed_keys.sql", "utf8");
+  it("cada clave limita los hostales de los que entrega datos y la del asistente parte solo con Uruguay", () => {
+    const units = readFileSync("supabase/migrations/20261019180000_lodging_public_feed_key_units.sql", "utf8");
+    expect(units).toContain("unit_codes text[]");
+    expect(units).toContain("set unit_codes=array['HU']");
+    const route = readFileSync("src/app/api/public/hostales/availability/route.ts", "utf8");
+    expect(route).toContain("unit_codes");
+  });
   it("guarda solo el hash de la clave y no da acceso a personas usuarias", () => {
     expect(sql).toContain("alter table public.lodging_public_feed_keys enable row level security");
     expect(sql).toContain("revoke all on public.lodging_public_feed_keys from public,anon,authenticated");

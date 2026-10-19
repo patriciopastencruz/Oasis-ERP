@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   if (key.length < 20 || key.length > 200) return NextResponse.json({ error: "No autorizado" }, { status: 401, headers: noStore });
   const db = createSupabaseAdminClient();
   const hash = createHash("sha256").update(key).digest("hex");
-  const { data: keyRow } = await db.from("lodging_public_feed_keys").select("id").eq("key_hash", hash).eq("active", true).maybeSingle();
+  const { data: keyRow } = await db.from("lodging_public_feed_keys").select("id,unit_codes").eq("key_hash", hash).eq("active", true).maybeSingle();
   if (!keyRow) return NextResponse.json({ error: "No autorizado" }, { status: 401, headers: noStore });
   // Se espera la escritura: en serverless una promesa suelta se pierde al responder.
   await db.from("lodging_public_feed_keys").update({ last_used_at: new Date().toISOString() }).eq("id", keyRow.id);
@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
   const { data: units, error: unitsError } = await db
     .from("business_units")
     .select("id,code")
-    .in("code", Object.keys(FEED_HOSTALS))
+    // Solo los hostales que esta clave tiene permitidos (por ahora, Uruguay).
+    .in("code", Object.keys(FEED_HOSTALS).filter((code) => (keyRow.unit_codes as string[] | null)?.includes(code)))
     .is("deleted_at", null);
   if (unitsError || !units?.length) return NextResponse.json({ error: "Sin datos" }, { status: 500, headers: noStore });
   const codeOf = new Map(units.map((u) => [u.id, u.code]));
