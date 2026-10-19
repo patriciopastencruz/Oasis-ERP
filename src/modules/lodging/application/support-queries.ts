@@ -134,6 +134,7 @@ export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[],
     code: b.unit.code,
     name: b.unit.name,
     pool: b.config.pool,
+    missed: b.result.missedCount,
     // Lo que realmente se paga a la recepción (con la reducción por orden si corresponde) sobre su máximo.
     points: b.config.pool > 0 ? (b.result.amount / b.config.pool) * 100 : b.result.points,
     created: counts.get(b.unit.id) ?? 0,

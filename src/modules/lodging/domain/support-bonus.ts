@@ -1,12 +1,17 @@
+import { MAX_MISSED_INDICATORS } from "./reception-bonus";
+
 /**
  * Bono de apoyo transversal: una persona trabaja de noche de lunes a viernes y
- * apoya a los 3 hostales. 15 puntos salen del resultado conjunto de los hostales
- * (lo que ganan las recepciones sobre el máximo posible) y 85 de su propia
- * gestión, todos de forma proporcional: reservas que crea de noche (65, según la
- * meta de cada hostal), cierres que hace (10) y pagos que registra (10).
+ * apoya a los 3 hostales. 15 puntos salen del resultado de recepción del hostal de
+ * referencia (Centro: lo que gana su recepción sobre el máximo posible) y 85 de su
+ * propia gestión, todos de forma proporcional: reservas que crea de noche (65, según
+ * la meta de cada hostal), cierres que hace (10) y pagos que registra (10). Si en
+ * el hostal de referencia 3 o más de los 6 indicadores no se cumplen, no hay bono.
  */
 
 export const SUPPORT_GROUP_WEIGHT = 15;
+/** Hostal cuyos 6 indicadores de recepción evalúan a la persona de apoyo. */
+export const SUPPORT_REFERENCE_UNIT = "HOC";
 /** Peso de las reservas de noche por hostal; Cobija pesa menos porque se espera menos volumen. */
 export const SUPPORT_UNIT_WEIGHTS: Record<string, number> = { HOC: 24, HU: 24, HOB: 17 };
 export const SUPPORT_CLOSING_WEIGHT = 5;
@@ -101,6 +106,8 @@ export type SupportHostalInput = {
   /** Bono de recepción máximo y puntos del hostal (0 a 100). */
   pool: number;
   points: number;
+  /** Indicadores de recepción sin cumplir en el mes. */
+  missed?: number;
   /** Reservas nocturnas creadas por la persona de apoyo y meta del mes. */
   created: number;
   goal: number;
@@ -137,13 +144,22 @@ export type SupportInput = {
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 export function computeSupportBonus(input: SupportInput) {
-  const group = groupPoints(input.hostales);
+  const reference = input.hostales.find((h) => h.code === SUPPORT_REFERENCE_UNIT);
+  const group = reference ? groupPoints([reference]) : null;
+  const missedCount = reference?.missed ?? 0;
+  const blockedByMisses = missedCount >= MAX_MISSED_INDICATORS;
   const rows: SupportRow[] = [];
   const add = (key: string, label: string, weight: number, ratio: number, text: string) =>
     rows.push({ key, label, weight, effectiveWeight: weight, earned: weight * Math.min(Math.max(ratio, 0), 1), text });
 
   if (group !== null)
-    add("group", "Resultado conjunto de los hostales", SUPPORT_GROUP_WEIGHT, group / 100, `${(Math.round(group * 10) / 10).toLocaleString("es-CL")} de 100 puntos en conjunto`);
+    add(
+      "group",
+      `Resultado de recepción en ${reference?.name ?? "el hostal de referencia"}`,
+      SUPPORT_GROUP_WEIGHT,
+      group / 100,
+      `${(Math.round(group * 10) / 10).toLocaleString("es-CL")} de 100 puntos de recepción · ${missedCount} de 6 indicadores sin cumplir`,
+    );
   for (const h of input.hostales) {
     if (h.goal <= 0) continue;
     add(h.code, `Reservas de noche en ${h.name}`, SUPPORT_UNIT_WEIGHTS[h.code] ?? 17, h.created / h.goal, `${h.created} de ${h.goal} reservas (${pct(Math.min(h.created / h.goal, 1))})`);
@@ -170,8 +186,9 @@ export function computeSupportBonus(input: SupportInput) {
       r.earned = r.earned * (r.effectiveWeight / r.weight);
     }
   const points = rows.reduce((s, r) => s + r.earned, 0);
-  const amount = weight > 0 ? Math.round((input.pool * points) / 100) : 0;
-  return { rows, points, amount, groupPoints: group };
+  const amountBeforeBlock = weight > 0 ? Math.round((input.pool * points) / 100) : 0;
+  const amount = blockedByMisses ? 0 : amountBeforeBlock;
+  return { rows, points, amount, amountBeforeBlock, groupPoints: group, missedCount, blockedByMisses };
 }
 
 export type SupportResult = ReturnType<typeof computeSupportBonus>;

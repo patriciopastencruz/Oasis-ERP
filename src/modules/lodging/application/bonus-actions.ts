@@ -145,6 +145,8 @@ export async function saveSupportResultAction(form: FormData) {
         closings: support.closings,
         payments: support.payments,
         weekdays: support.weekdays,
+        missedCount: support.result.missedCount,
+        blockedByMisses: support.result.blockedByMisses,
       },
     },
   });

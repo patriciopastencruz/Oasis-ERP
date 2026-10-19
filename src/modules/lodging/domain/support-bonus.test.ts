@@ -113,4 +113,43 @@ describe("bono de apoyo transversal", () => {
     expect(r.rows.find((x) => x.key === "HU")).toBeUndefined();
     expect(r.points).toBeCloseTo(100, 5);
   });
+
+  it("el resultado de recepción que cuenta es solo el de Centro", () => {
+    const hs = [
+      hostal("HOC", "Centro", 150000, 80, 0, 30),
+      hostal("HU", "Uruguay", 100000, 0, 0, 30),
+      hostal("HOB", "Cobija", 150000, 0, 0, 13),
+    ];
+    const r = computeSupportBonus({ pool: 100000, hostales: hs, closings: null, payments: null });
+    expect(r.groupPoints).toBeCloseTo(80, 5);
+    expect(r.rows.find((x) => x.key === "group")!.label).toContain("Centro");
+  });
+
+  describe("condición mínima: 3 indicadores de Centro sin cumplir", () => {
+    const withMissed = (missed: number) => [
+      { ...hostal("HOC", "Centro", 150000, 100, 100, 30), missed },
+      hostal("HU", "Uruguay", 100000, 100, 100, 30),
+      hostal("HOB", "Cobija", 150000, 100, 100, 13),
+    ];
+    it("con 2 indicadores sin cumplir el bono se paga", () => {
+      const r = computeSupportBonus({ pool: 100000, hostales: withMissed(2), ...full });
+      expect(r.blockedByMisses).toBe(false);
+      expect(r.amount).toBe(r.amountBeforeBlock);
+      expect(r.amount).toBeGreaterThan(0);
+    });
+    it("con 3 o más el bono es cero aunque su gestión sea perfecta", () => {
+      for (const missed of [3, 4, 6]) {
+        const r = computeSupportBonus({ pool: 100000, hostales: withMissed(missed), ...full });
+        expect(r.blockedByMisses).toBe(true);
+        expect(r.missedCount).toBe(missed);
+        expect(r.amountBeforeBlock).toBe(100000);
+        expect(r.amount).toBe(0);
+      }
+    });
+    it("sin dato de indicadores sin cumplir no se bloquea", () => {
+      const r = computeSupportBonus({ pool: 100000, hostales: [hostal("HOC", "Centro", 150000, 100, 100, 30)], ...full });
+      expect(r.blockedByMisses).toBe(false);
+    });
+  });
 });
+
