@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { arrivalMessage } from "../domain/arrival-message";
 import { checkinUrl, whatsappNumber } from "../domain/checkin";
+import { santiagoToday } from "../domain/daily-closing";
 import { surveyBaseUrl } from "./survey-links";
 
 export type ArrivalContactResult = { ok: true; message: string; waUrl: string | null } | { ok: false; error: string };
@@ -25,7 +26,7 @@ export async function prepareArrivalContactAction(reservationId: string): Promis
   const supabase = await createSupabaseServerClient();
   const { data: r, error } = await supabase
     .from("lodging_reservations")
-    .select("id,status,origin,business_unit_id,lodging_guests(full_name,phone)")
+    .select("id,status,origin,check_in,business_unit_id,lodging_guests(full_name,phone)")
     .eq("id", id.data)
     .maybeSingle();
   if (error || !r) return { ok: false, error: "No encontré la reserva." };
@@ -55,10 +56,13 @@ export async function prepareArrivalContactAction(reservationId: string): Promis
     guestName: guest?.full_name,
     checkinUrl: token ? checkinUrl(surveyBaseUrl(await headers()), token) : null,
     info: info?.info,
+    checkIn: r.check_in,
+    today: santiagoToday(),
   });
   const marked = await supabase.rpc("lodging_arrival_contact_mark", { target_reservation: r.id });
   if (marked.error) console.error("[arrival-contact] marca", marked.error.message);
   revalidatePath("/lodging/arrivals");
+  revalidatePath(`/lodging/reservations/${r.id}`);
   const phone = whatsappNumber(guest?.phone);
   return { ok: true, message, waUrl: phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : null };
 }

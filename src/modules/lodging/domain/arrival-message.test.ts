@@ -30,6 +30,16 @@ describe("mensaje de bienvenida del día de llegada", () => {
   });
 });
 
+describe("mensaje según la fecha de llegada", () => {
+  it("el mismo día dice 'Hoy es tu día de llegada', una llegada futura indica la fecha y una estadía en curso lo aclara", () => {
+    const base = { unitCode: "HOC", unitName: "x" };
+    expect(arrivalMessage({ ...base, checkIn: "2026-10-19", today: "2026-10-19" })).toContain("Hoy es tu día de llegada:");
+    expect(arrivalMessage({ ...base, checkIn: "2026-10-25", today: "2026-10-19" })).toContain("Tu llegada es el 25-10-2026:");
+    expect(arrivalMessage({ ...base, checkIn: "2026-10-15", today: "2026-10-19" })).toContain("Información de tu estadía:");
+    expect(arrivalMessage(base)).toContain("Hoy es tu día de llegada:");
+  });
+});
+
 describe("migración de contactos de llegada", () => {
   const sql = readFileSync("supabase/migrations/20261019150000_lodging_arrival_contacts.sql", "utf8");
   it("protege las tablas con RLS, auditoría y sin escritura directa", () => {

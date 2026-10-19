@@ -29,6 +29,7 @@ import {
 } from "@/components/lodging/reservation-cancellation";
 import { ReservationNoShow } from "@/components/lodging/reservation-no-show";
 import { CheckinOnlinePanel } from "@/components/lodging/checkin-online-panel";
+import { ArrivalContactPanel } from "@/components/lodging/arrival-contact-panel";
 import {
   operationalStatusLabels,
   type OperationalStatus,
@@ -586,6 +587,7 @@ export default async function Page({
           </p>
         </Panel>
       </div>
+      <ArrivalContactPanel reservation={{ id: r.id, status: r.status, origin: r.origin }} canManage={canManage} />
       <CheckinOnlinePanel
         reservation={{ id: r.id, status: r.status, check_in: r.check_in, origin: r.origin }}
         unitName={unit.name}
