@@ -3,8 +3,8 @@ begin;
 -- Check-in online: foto del carnet o pasaporte. El huésped sube el frente
 -- (obligatorio) y el reverso (opcional); el servidor las guarda en un bucket
 -- privado en la carpeta de la reserva (empresa/hostal/reserva/archivo). Solo
--- el personal con acceso a las reservas del hostal las ve, con URLs firmadas
--- de corta duración. Al reemplazar una foto se borra la anterior.
+-- el personal con acceso a las reservas del hostal las ve, a través del ERP
+-- con sesión iniciada. Al reemplazar una foto se borra la anterior.
 
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values('lodging-guest-documents','lodging-guest-documents',false,10485760,array['image/jpeg','image/png','image/webp'])

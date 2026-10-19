@@ -33,15 +33,11 @@ export async function CheckinOnlinePanel({
     .maybeSingle();
   const url = link ? checkinUrl(surveyBaseUrl(await headers()), link.token) : null;
   const sub = (link?.submission ?? null) as CheckinData | null;
-  // Fotos del documento en bucket privado: URLs firmadas de 10 minutos (la política exige acceso al hostal).
-  const photoPaths = [link?.document_front_path, link?.document_back_path].filter((p): p is string => !!p);
-  const { data: signed } = photoPaths.length
-    ? await supabase.storage.from("lodging-guest-documents").createSignedUrls(photoPaths, 600)
-    : { data: [] as { signedUrl: string | null }[] };
-  const photos = (signed ?? []).map((s, i) => ({
-    url: s.signedUrl,
-    label: photoPaths[i] === link?.document_front_path ? "Frente" : "Reverso",
-  }));
+  // Fotos del documento: dirección fija del ERP que exige sesión y acceso al hostal (sin vencimiento).
+  const photos = [
+    link?.document_front_path ? { label: "Frente", url: `/api/lodging/reservations/${reservation.id}/document/front` } : null,
+    link?.document_back_path ? { label: "Reverso", url: `/api/lodging/reservations/${reservation.id}/document/back` } : null,
+  ].filter((p): p is { label: string; url: string } => !!p);
 
   return (
     <div id="checkin-online" className="scroll-mt-4">
@@ -147,15 +143,13 @@ export async function CheckinOnlinePanel({
                 <>
                   <dt className="text-slate-500">Documento</dt>
                   <dd className="flex flex-wrap gap-2">
-                    {photos.map((p) =>
-                      p.url ? (
-                        <a key={p.label} href={p.url} target="_blank" rel="noopener" className="block text-center text-xs text-slate-500">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={p.url} alt={`Documento: ${p.label}`} className="h-20 w-32 rounded-lg border object-cover" />
-                          {p.label}
-                        </a>
-                      ) : null,
-                    )}
+                    {photos.map((p) => (
+                      <a key={p.label} href={p.url} target="_blank" rel="noopener" className="block text-center text-xs text-slate-500">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.url} alt={`Documento: ${p.label}`} className="h-20 w-32 rounded-lg border object-cover" />
+                        {p.label}
+                      </a>
+                    ))}
                   </dd>
                 </>
               )}
