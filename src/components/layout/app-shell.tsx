@@ -38,6 +38,7 @@ import {
   Banknote,
   CalendarRange,
   Gauge,
+  FileText,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -370,6 +371,12 @@ const lodgingNav = [
     label: "Llegadas/Salidas",
     icon: LogIn,
     permission: "lodging.reservations.view",
+  },
+  {
+    href: "/lodging/quotations",
+    label: "Cotizaciones",
+    icon: FileText,
+    permission: "lodging.quotations.manage",
   },
   {
     href: "/lodging/closing",
