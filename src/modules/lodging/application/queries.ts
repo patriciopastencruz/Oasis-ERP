@@ -32,7 +32,7 @@ export async function lodgingContext(
 export async function calendarData(from: string, to: string) {
   const { ctx, unit, supabase } = await lodgingContext();
   const canManage = ctx.permissions.has("lodging.reservations.manage");
-  const [{ data: rooms }, { data: reservations }, { data: configs }, { data: housekeepingEnabled }] =
+  const [{ data: rooms }, { data: reservations }, { data: housekeepingEnabled }] =
     await Promise.all([
       supabase
         .from("lodging_rooms")
@@ -50,12 +50,6 @@ export async function calendarData(from: string, to: string) {
         .gt("check_out", from)
         .neq("status", "cancelled")
         .order("check_in"),
-      supabase
-        .from("lodging_ical_configs")
-        .select("last_sync_at")
-        .eq("business_unit_id", unit.id)
-        .order("last_sync_at", { ascending: false })
-        .limit(1),
       // Circuito de aseo e inspección activo en el hostal (se puede desactivar por unidad).
       supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id }),
     ]);
@@ -64,7 +58,6 @@ export async function calendarData(from: string, to: string) {
     housekeepingEnabled: housekeepingEnabled !== false,
     rooms: rooms ?? [],
     reservations: reservations ?? [],
-    lastSync: configs?.[0]?.last_sync_at ?? null,
     canManage,
   };
 }

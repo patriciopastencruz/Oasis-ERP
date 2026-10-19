@@ -133,17 +133,6 @@ export default async function Page() {
           </div>
         ))}
       </div>
-      <p className="mb-2 text-right text-[10px] text-slate-400">
-        Última actualización:{" "}
-        {data.lastSync
-          ? new Intl.DateTimeFormat("es-CL", {
-              timeZone: "America/Santiago",
-              dateStyle: "short",
-              timeStyle: "short",
-              hour12: false,
-            }).format(new Date(data.lastSync))
-          : "Sin actualizaciones"}
-      </p>
       <WeeklyCalendar
         showRoomStatus={data.housekeepingEnabled}
         rooms={data.rooms}
