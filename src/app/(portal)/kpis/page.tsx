@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui/page";
 import { HostelDashboard } from "@/components/kpis/hostel-dashboard";
 import { LiveRefresh } from "@/components/kpis/live-refresh";
 import { WeeklyHostelsPdfForm } from "@/components/lodging/weekly-hostels-pdf-form";
+import { PdfImageButton } from "@/components/ui/pdf-image-button";
 import { lodgingUnitCodes } from "@/config/business-units";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
@@ -73,6 +74,12 @@ export default async function KpisPage({ searchParams }: { searchParams: Promise
           >
             <Download size={14} /> PDF de lo que ves
           </a>
+          <PdfImageButton
+            pdfUrl={`/api/lodging/weekly-hostels.pdf?date=${reference}`}
+            filename={`reporte-hostales-al-${reference}`}
+            label="Imagen de lo que ves"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-[#0b4f9c] px-3 py-1.5 text-xs font-semibold text-[#0b4f9c] disabled:opacity-60"
+          />
         </div>
       </div>
       <HostelDashboard report={report} live={live} />
