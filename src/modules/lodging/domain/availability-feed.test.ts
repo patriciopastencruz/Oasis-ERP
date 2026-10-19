@@ -90,6 +90,8 @@ describe("precios por cantidad de personas y nombre de cada opción", () => {
     const three = feed.find((f) => f.capacity === 3)!;
     expect(three.description).toContain("1 persona $27.000, 2 personas $32.000, 3 personas $36.000");
     expect(three.name).toContain("Mini deptos 1 cama matrimonial, TV y baño privado");
+    expect(three.name).toContain("(1 a 3 personas)");
+    expect(three.description).toContain("Admite de 1 a 3 personas");
     expect(three.prices_by_guests).toEqual({ "1": 27000, "2": 32000, "3": 36000 });
     expect(three.price).toBe(27000);
   });

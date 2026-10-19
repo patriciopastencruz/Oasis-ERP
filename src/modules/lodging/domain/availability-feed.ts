@@ -129,7 +129,8 @@ export function buildAvailabilityFeed(input: { rooms: FeedRoom[]; bookings: Feed
       );
       const runs = compressRuns(nights);
       const cap = rooms[0].capacity;
-      const people = cap === 1 ? "1 persona" : `hasta ${cap} personas`;
+      // "Para 1 a 2 personas": una habitación de capacidad 2 también sirve para 1 persona.
+      const people = cap === 1 ? "1 persona" : `1 a ${cap} personas`;
       const label = optionLabel(rooms[0]);
       const rates = sortedRates(rooms[0].ratesByGuests);
       const priceText = rates.length
@@ -147,7 +148,7 @@ export function buildAvailabilityFeed(input: { rooms: FeedRoom[]; bookings: Feed
         option: label,
         currency: "CLP",
         description:
-          `${hostal.name}: ${rooms.length} ${rooms.length === 1 ? "habitación" : "habitaciones"}: ${label}, para ${people}. ` +
+          `${hostal.name}: ${rooms.length} ${rooms.length === 1 ? "habitación" : "habitaciones"}: ${label}. Admite de ${cap === 1 ? "1 persona" : `1 a ${cap} personas`}. ` +
           `Valor: ${priceText}${hostal.breakfast ? " con desayuno incluido" : " (sin desayuno)"}. ` +
           `Check-in desde las 14:00 y check-out a las 12:00. ` +
           `Habitaciones libres por noche, de ${nightLabel(input.today)} a ${nightLabel(lastNight)} de ${rooms.length} en total (la fecha es la noche que se duerme; el día de salida no cuenta): ${describeNights(nights)}. ` +

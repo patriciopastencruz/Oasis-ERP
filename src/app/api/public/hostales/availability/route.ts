@@ -5,7 +5,7 @@ import { addDays, santiagoToday } from "@/modules/lodging/domain/daily-closing";
 import { FEED_HOSTALS, buildAvailabilityFeed, type FeedRoom } from "@/modules/lodging/domain/availability-feed";
 
 // Noches hacia adelante que cubre el calendario.
-const DAYS = 90;
+const DAYS = 60;
 
 const noStore = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
 
