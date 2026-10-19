@@ -51,6 +51,23 @@ function Field({
   );
 }
 
+function PhotoField({ label, name, required, hint }: { label: string; name: string; required?: boolean; hint?: string }) {
+  return (
+    <label className="block text-sm font-medium text-[#3a2f26]">
+      {label}
+      {required && <span className="text-[#c1652f]"> *</span>}
+      <input
+        name={name}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        required={required}
+        className="mt-1 block w-full rounded-xl border border-dashed border-[#e4d9c8] bg-white p-3 text-sm text-[#3a2f26] file:mr-3 file:rounded-full file:border-0 file:bg-[#f3e7da] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[#7a4320]"
+      />
+      {hint && <span className="mt-1 block text-xs font-normal text-[#8a7b6b]">{hint}</span>}
+    </label>
+  );
+}
+
 export default async function CheckinPage({
   params,
   searchParams,
@@ -131,6 +148,20 @@ export default async function CheckinPage({
           <Field label="Correo" name="email" type="email" defaultValue={d.email} autoComplete="email" />
           <Field label="Hora estimada de llegada" name="estimated_arrival" type="time" defaultValue={d.estimated_arrival} />
           <Field label="Patente del vehículo" name="license_plate" defaultValue={d.license_plate} hint="Solo si llegas en auto." />
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-base font-bold text-[#241c16]">Foto de tu carnet o pasaporte</h2>
+          <p className="text-xs text-[#8a7b6b]">
+            Toma la foto con buena luz y que se lean bien los datos. Solo la ve el equipo del hostal.
+          </p>
+          {view.has_document_front && (
+            <p className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">
+              Ya recibimos la foto{view.has_document_back ? " del frente y del reverso" : " del frente"}. Sube otra solo si quieres cambiarla.
+            </p>
+          )}
+          <PhotoField label="Frente" name="document_front" required={!view.has_document_front} />
+          <PhotoField label="Reverso" name="document_back" hint="Opcional; en el pasaporte no es necesario." />
         </section>
 
         {companionsShown > 0 && (

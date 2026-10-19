@@ -18,6 +18,8 @@ export type CheckinData = {
   notes?: string | null;
   companions?: CheckinCompanion[];
   accepted_rules_at?: string;
+  has_document_front?: boolean;
+  has_document_back?: boolean;
 };
 
 export type CheckinView = {
@@ -28,6 +30,8 @@ export type CheckinView = {
   check_out: string;
   guest_count: number;
   submitted_at: string | null;
+  has_document_front: boolean;
+  has_document_back: boolean;
   data: CheckinData;
 };
 
@@ -66,6 +70,10 @@ export function parseCheckinForm(form: FormData) {
       accept_rules: get("accept_rules"),
     });
 }
+
+/** Fotos del documento: hasta 10 MB, JPG, PNG o WEBP (se verifica el contenido, no la extensión). */
+export const MAX_DOCUMENT_PHOTO_BYTES = 10 * 1024 * 1024;
+export const DOCUMENT_PHOTO_EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
 export function checkinUrl(base: string, token: string) {
   return `${base}/checkin/${token}`;

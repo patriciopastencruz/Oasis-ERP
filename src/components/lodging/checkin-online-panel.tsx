@@ -26,13 +26,22 @@ export async function CheckinOnlinePanel({
   const supabase = await createSupabaseServerClient();
   const { data: link } = await supabase
     .from("lodging_checkin_links")
-    .select("token,expires_at,submitted_at,submission,created_at")
+    .select("token,expires_at,submitted_at,submission,created_at,document_front_path,document_back_path")
     .eq("reservation_id", reservation.id)
     .is("revoked_at", null)
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
   const url = link ? checkinUrl(surveyBaseUrl(await headers()), link.token) : null;
   const sub = (link?.submission ?? null) as CheckinData | null;
+  // Fotos del documento en bucket privado: URLs firmadas de 10 minutos (la política exige acceso al hostal).
+  const photoPaths = [link?.document_front_path, link?.document_back_path].filter((p): p is string => !!p);
+  const { data: signed } = photoPaths.length
+    ? await supabase.storage.from("lodging-guest-documents").createSignedUrls(photoPaths, 600)
+    : { data: [] as { signedUrl: string | null }[] };
+  const photos = (signed ?? []).map((s, i) => ({
+    url: s.signedUrl,
+    label: photoPaths[i] === link?.document_front_path ? "Frente" : "Reverso",
+  }));
 
   return (
     <div id="checkin-online" className="scroll-mt-4">
@@ -132,6 +141,22 @@ export async function CheckinOnlinePanel({
                 <>
                   <dt className="text-slate-500">Comentarios</dt>
                   <dd>{sub.notes}</dd>
+                </>
+              )}
+              {photos.length > 0 && (
+                <>
+                  <dt className="text-slate-500">Documento</dt>
+                  <dd className="flex flex-wrap gap-2">
+                    {photos.map((p) =>
+                      p.url ? (
+                        <a key={p.label} href={p.url} target="_blank" rel="noopener" className="block text-center text-xs text-slate-500">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.url} alt={`Documento: ${p.label}`} className="h-20 w-32 rounded-lg border object-cover" />
+                          {p.label}
+                        </a>
+                      ) : null,
+                    )}
+                  </dd>
                 </>
               )}
             </dl>

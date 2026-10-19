@@ -4,7 +4,8 @@ begin;
 -- Verifica el check-in online: solo recepción con permiso crea el link, uno
 -- vigente por reserva, el huésped ve su estadía sin precios, envía sus datos
 -- (que pasan a la ficha y a la reserva) y el link deja de servir al revocarlo
--- o anular la reserva.
+-- o anular la reserva. La foto del documento es obligatoria y debe estar en
+-- la carpeta de la reserva.
 
 select id as company_id from public.companies where code='OASIS' \gset
 select id as hoc from public.business_units where company_id=:'company_id' and code='HOC' \gset
@@ -60,9 +61,23 @@ begin
   if g->'data'->>'full_name' is not null then raise exception 'No muestra el texto de Booking como nombre'; end if;
   begin perform public.lodging_checkin_submit(t,'{"full_name":"Juan Pérez","document":"12345678-9","nationality":"Chilena","phone":"+56911111111"}'); exception when others then failed := sqlerrm like '%normas%'; end;
   if not failed then raise exception 'Debe aceptar normas'; end if;
-  perform public.lodging_checkin_submit(t,'{"full_name":"Juan Pérez","document":"12345678-9","nationality":"Chilena","email":"JUAN@MAIL.CL","phone":"+56911111111","estimated_arrival":"15:30","license_plate":"ab12cd","accept_rules":true,"companions":[{"full_name":"Ana Soto","document":"98765432-1"},{"full_name":""}]}');
+  -- Sin foto del documento no se envía; una ruta fuera de la carpeta de la reserva se rechaza.
+  failed := false;
+  begin perform public.lodging_checkin_submit(t,'{"full_name":"Juan Pérez","document":"12345678-9","nationality":"Chilena","phone":"+56911111111","accept_rules":true}'); exception when others then failed := sqlerrm like '%foto de tu documento%'; end;
+  if not failed then raise exception 'Exige la foto'; end if;
+  failed := false;
+  begin perform public.lodging_checkin_submit(t,jsonb_build_object('full_name','Juan Pérez','document','12345678-9','nationality','Chilena','phone','+56911111111','accept_rules',true,
+    'document_front_path','00000000-0000-0000-0000-000000000000/x/y/a.jpg')); exception when others then failed := sqlerrm like '%Foto invalida%'; end;
+  if not failed then raise exception 'Ruta ajena'; end if;
+  if public.lodging_checkin_upload_prefix(t) is distinct from (select company_id||'/'||business_unit_id||'/'||id||'/' from public.lodging_reservations where id='00000000-0000-4000-8000-0000000d4301') then raise exception 'Carpeta'; end if;
+  perform public.lodging_checkin_submit(t,'{"full_name":"Juan Pérez","document":"12345678-9","nationality":"Chilena","email":"JUAN@MAIL.CL","phone":"+56911111111","estimated_arrival":"15:30","license_plate":"ab12cd","accept_rules":true,"companions":[{"full_name":"Ana Soto","document":"98765432-1"},{"full_name":""}]}'::jsonb
+    ||jsonb_build_object('document_front_path',public.lodging_checkin_upload_prefix(t)||'11111111-1111-4111-8111-111111111111.jpg'));
   g := public.lodging_checkin_get(t);
-  if g->>'submitted_at' is null or jsonb_array_length(g->'data'->'companions') <> 1 then raise exception 'Envío guardado: %',g; end if;
+  if g->>'submitted_at' is null or jsonb_array_length(g->'data'->'companions') <> 1 or not (g->>'has_document_front')::boolean then raise exception 'Envío guardado: %',g; end if;
+  -- Corrección sin foto nueva conserva la anterior; con foto nueva informa la reemplazada.
+  perform public.lodging_checkin_submit(t,'{"full_name":"Juan Pérez","document":"12345678-9","nationality":"Chilena","phone":"+56911111111","accept_rules":true}');
+  if (public.lodging_checkin_submit(t,jsonb_build_object('full_name','Juan Pérez','document','12345678-9','nationality','Chilena','phone','+56911111111','accept_rules',true,
+      'document_front_path',public.lodging_checkin_upload_prefix(t)||'22222222-2222-4222-8222-222222222222.jpg'))->'replaced'->>0) not like '%11111111-1111%' then raise exception 'Foto reemplazada'; end if;
 end $$;
 reset role;
 do $$
@@ -70,6 +85,7 @@ begin
   if (select full_name||'|'||document||'|'||email from public.lodging_guests where id='00000000-0000-4000-8000-0000000d4201') is distinct from 'Juan Pérez|12345678-9|juan@mail.cl' then raise exception 'Ficha del huésped'; end if;
   if (select to_char(estimated_arrival,'HH24:MI')||'|'||license_plate from public.lodging_reservations where id='00000000-0000-4000-8000-0000000d4301') is distinct from '15:30|AB12CD' then raise exception 'Reserva'; end if;
   if not exists(select 1 from public.notifications where recipient_id='00000000-0000-4000-8000-0000000d4001' and event_key='lodging.checkin.submitted') then raise exception 'Aviso a recepción'; end if;
+  if (select document_front_path from public.lodging_checkin_links where token=(select token from ctx)) not like '%22222222-2222%' then raise exception 'Ruta guardada'; end if;
   -- Al anular la reserva, el link deja de funcionar.
   update public.lodging_reservations set status='cancelled' where id='00000000-0000-4000-8000-0000000d4301';
   if public.lodging_checkin_get((select token from ctx)) is not null then raise exception 'Link de reserva anulada'; end if;
