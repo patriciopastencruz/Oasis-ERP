@@ -29,6 +29,7 @@ import {
 } from "@/components/lodging/reservation-cancellation";
 import { ReservationNoShow } from "@/components/lodging/reservation-no-show";
 import { CheckinOnlinePanel } from "@/components/lodging/checkin-online-panel";
+import { SurveySharePanel } from "@/components/lodging/survey-share-panel";
 import { ArrivalContactPanel } from "@/components/lodging/arrival-contact-panel";
 import {
   operationalStatusLabels,
@@ -596,6 +597,11 @@ export default async function Page({
           canManage={canManage}
         />
       </div>
+      <SurveySharePanel
+        reservation={{ status: r.status, origin: r.origin, room_id: r.room_id }}
+        unitName={unit.name}
+        guest={guest ? { full_name: guest.full_name, phone: guest.phone } : null}
+      />
       <Panel className="mt-4">
         <h2 className="font-semibold">Registrar nuevo pago</h2>
         <form

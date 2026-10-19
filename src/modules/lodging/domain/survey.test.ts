@@ -7,6 +7,7 @@ import {
   surveyAverage,
   surveySubmissionSchema,
   type SurveyRow,
+  surveyMessage,
 } from "./survey";
 
 const row = (over: Partial<SurveyRow> = {}): SurveyRow => ({
@@ -85,3 +86,15 @@ describe("recepcionistas nombradas en la encuesta", () => {
   });
 });
 
+
+describe("surveyMessage", () => {
+  it("saluda por el primer nombre e incluye el link", () => {
+    expect(surveyMessage("Hostal Uruguay", "https://x/encuesta/abc", "Marcela Soto")).toBe(
+      "Hola Marcela, gracias por alojarte en Hostal Uruguay. Nos ayudaría mucho saber cómo fue tu estadía; responde esta breve encuesta (1 minuto): https://x/encuesta/abc",
+    );
+  });
+  it("sin nombre real (reserva importada) saluda sin nombre", () => {
+    expect(surveyMessage("Hostal Uruguay", "https://x/e/1", "Reserva Airbnb")).toMatch(/^Hola, gracias/);
+    expect(surveyMessage("Hostal Uruguay", "https://x/e/1")).toMatch(/^Hola, gracias/);
+  });
+});

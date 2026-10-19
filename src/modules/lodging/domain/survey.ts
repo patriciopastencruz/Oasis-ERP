@@ -107,3 +107,9 @@ export function surveyAverage(row: SurveyRow) {
       SURVEY_CATEGORIES.length,
   );
 }
+
+/** Mensaje de WhatsApp para pedirle al huésped que responda la encuesta de su habitación. */
+export function surveyMessage(unit: string, url: string, guestName?: string | null) {
+  const hello = guestName && !/^reserva /i.test(guestName) ? `Hola ${guestName.split(" ")[0]}` : "Hola";
+  return `${hello}, gracias por alojarte en ${unit}. Nos ayudaría mucho saber cómo fue tu estadía; responde esta breve encuesta (1 minuto): ${url}`;
+}
