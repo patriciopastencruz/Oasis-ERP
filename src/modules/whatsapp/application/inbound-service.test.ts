@@ -309,7 +309,7 @@ describe("handleInboundMessage — fallos del agente y del proveedor", () => {
     ).toBe(true);
   });
 
-  it("escala a humano cuando el agente marca requiresHuman en true", async () => {
+  it("escala a humano cuando el agente marca requiresHuman en true, y no interviene: no envía su respuesta ni la registra", async () => {
     const admin = createFakeAdmin({
       rpc: { whatsapp_ingest_inbound_message: { data: okIngestResult, error: null } },
     });
@@ -319,9 +319,10 @@ describe("handleInboundMessage — fallos del agente y del proveedor", () => {
       reason: "Quiere agendar una visita",
     });
     const agent: WhatsAppAgentProvider = { isConfigured: () => true, generateReply };
+    const provider = fakeProvider();
 
     await handleInboundMessage(
-      { admin: admin as never, provider: fakeProvider(), agent, rateLimiter: noopRateLimiter },
+      { admin: admin as never, provider, agent, rateLimiter: noopRateLimiter },
       inboundMessage,
     );
 
@@ -332,6 +333,12 @@ describe("handleInboundMessage — fallos del agente y del proveedor", () => {
       target_conversation: "conversation-1",
       reason: "Quiere agendar una visita",
     });
+    // La IA no debe intervenir una vez que deriva a un humano: ni envía el
+    // mensaje al cliente ni lo deja registrado como si hubiera respondido.
+    expect(provider.sendTextMessage).not.toHaveBeenCalled();
+    expect(
+      admin.rpcCalls.some((c) => c.name === "whatsapp_record_agent_message"),
+    ).toBe(false);
   });
 });
 

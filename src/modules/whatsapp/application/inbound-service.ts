@@ -299,6 +299,22 @@ export async function respondToConversation(
       .eq("company_id", companyId);
   }
 
+  // Si el agente decide derivar a un humano, no debe intervenir más: se
+  // escala de inmediato y no se envía su borrador de respuesta al cliente
+  // (antes se enviaba igual y recién después escalaba, por lo que la IA
+  // seguía respondiendo justo cuando recepción ya estaba por tomar la
+  // conversación). El motivo queda en ai_paused_reason para que recepción
+  // sepa por qué se derivó.
+  if (output.requiresHuman) {
+    await admin.rpc("whatsapp_escalate_to_human", {
+      target_conversation: conversationId,
+      reason:
+        output.reason ||
+        "El agente detectó intención de compra o necesidad de un vendedor.",
+    });
+    return { status: "ok" };
+  }
+
   try {
     const sent = await provider.sendTextMessage({
       to: fromNumber,
@@ -337,15 +353,6 @@ export async function respondToConversation(
         ai_intent: output.intent,
         delivery_status: "failed",
       },
-    });
-  }
-
-  if (output.requiresHuman) {
-    await admin.rpc("whatsapp_escalate_to_human", {
-      target_conversation: conversationId,
-      reason:
-        output.reason ||
-        "El agente detectó intención de compra o necesidad de un vendedor.",
     });
   }
 
