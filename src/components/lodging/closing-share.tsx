@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Download, Share2 } from "lucide-react";
+import { PdfImageButton } from "@/components/ui/pdf-image-button";
 
 /**
  * Descarga el PDF del cierre o lo comparte con la hoja nativa del teléfono
@@ -100,6 +101,12 @@ export function ClosingShare({
         >
           <Download size={16} /> Descargar PDF
         </button>
+        <PdfImageButton
+          pdfUrl={pdfUrl}
+          filename={filename.replace(/\.pdf$/i, "")}
+          label="Descargar imagen"
+          className="inline-flex items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
+        />
       </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
     </div>

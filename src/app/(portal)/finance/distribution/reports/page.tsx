@@ -11,6 +11,7 @@ import {
   inputClass,
 } from "@/components/finance/distribution/module-nav";
 import { Panel } from "@/components/ui/page";
+import { PdfImageButton } from "@/components/ui/pdf-image-button";
 import { closeDayAction } from "@/modules/finance/distribution/application/actions";
 import {
   CumulativeIncomeChart,
@@ -226,6 +227,12 @@ export default async function Reports({
               >
                 Exportar a PDF
               </Link>
+              <PdfImageButton
+                pdfUrl={`/api/finance/distribution/reports.pdf?date=${date}`}
+                filename={`cierre-distribuidora-${date}`}
+                label="Descargar imagen"
+                className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-60"
+              />
             </form>
           </div>
 
