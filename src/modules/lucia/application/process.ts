@@ -109,6 +109,20 @@ export async function processLuciaConversation(
       },
     });
     if (error) throw new Error(error.message);
+    // El cliente eligió y quiere reservar: se pide confirmación a recepción.
+    // Si la solicitud se crea, el cliente recibe solo el mensaje fijo del
+    // sistema (saludo + resumen) y el texto libre de Lucía no se envía, para
+    // que no lo contradiga. La base valida que la ficha esté completa.
+    if (result.output.booking_request) {
+      const { data: booking, error: bookingError } = await admin.rpc("lucia_request_booking", {
+        payload: { conversation_id: conversationId, app_url: process.env.NEXT_PUBLIC_APP_URL ?? "" },
+      });
+      if (bookingError) throw new Error(bookingError.message);
+      if ((booking as { ok?: boolean } | null)?.ok) {
+        await admin.from("lucia_drafts").update({ status: "superseded" }).eq("id", draftId);
+        return { status: "draft", draftId: draftId as string, autoSent: true };
+      }
+    }
     // La base decide si se envía sola (modo automático, sin derivación,
     // sin pausa y dentro del tope de gasto) o queda como borrador.
     const { data: auto, error: autoError } = await admin.rpc("lucia_auto_send_draft", {
@@ -123,14 +137,6 @@ export async function processLuciaConversation(
         payload: { conversation_id: conversationId, ...result.output.photos },
       });
       if (photosError) throw new Error(photosError.message);
-    }
-    // El cliente eligió y quiere reservar: se pide confirmación a recepción.
-    // La base valida que la ficha esté completa y que no haya otra en curso.
-    if (result.output.booking_request) {
-      const { error: bookingError } = await admin.rpc("lucia_request_booking", {
-        payload: { conversation_id: conversationId, app_url: process.env.NEXT_PUBLIC_APP_URL ?? "" },
-      });
-      if (bookingError) throw new Error(bookingError.message);
     }
     return {
       status: "draft",

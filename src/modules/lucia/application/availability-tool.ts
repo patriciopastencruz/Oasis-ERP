@@ -1,7 +1,11 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { santiagoToday } from "@/modules/lodging/domain/daily-closing";
-import { searchAvailability, type AvailabilityResult } from "@/modules/lucia/domain/availability";
+import {
+  formatAvailabilityForWhatsApp,
+  searchAvailability,
+  type AvailabilityResult,
+} from "@/modules/lucia/domain/availability";
 
 export type AvailabilityQuery = { check_in: string; check_out: string; guests: number };
 
@@ -15,7 +19,7 @@ export async function checkLuciaAvailability(
   admin: SupabaseClient,
   companyId: string,
   query: AvailabilityQuery,
-): Promise<AvailabilityResult> {
+): Promise<AvailabilityResult & { resumen_whatsapp?: string }> {
   const { data: hostelRows, error: hostelsError } = await admin
     .from("lucia_hostels")
     .select("business_unit_id,display_name,business_units(code)")
@@ -50,7 +54,7 @@ export async function checkLuciaAvailability(
   if (roomsRes.error || bookingsRes.error) return { ok: false, error: "No se pudo leer la disponibilidad." };
   const codeOf = new Map(hostels.map((h) => [h.unitId, h.code]));
 
-  return searchAvailability({
+  const result = searchAvailability({
     hostels: hostels.map(({ code, name }) => ({ code, name })),
     rooms: (roomsRes.data ?? []).map((r) => ({
       id: r.id,
@@ -67,4 +71,5 @@ export async function checkLuciaAvailability(
     guests: Number(query.guests),
     today: santiagoToday(),
   });
+  return result.ok ? { ...result, resumen_whatsapp: formatAvailabilityForWhatsApp(result) } : result;
 }

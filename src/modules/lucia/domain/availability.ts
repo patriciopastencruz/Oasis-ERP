@@ -106,3 +106,25 @@ export function searchAvailability(input: {
     sin_disponibilidad: hostales.filter((h) => h.opciones.length === 0).map((h) => h.hostal),
   };
 }
+
+const clp = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
+
+/**
+ * Lista de opciones lista para WhatsApp: todas las opciones, una por línea,
+ * agrupadas por hostal. La arma el sistema para que no se agrupen rangos ni
+ * se omitan opciones.
+ */
+export function formatAvailabilityForWhatsApp(result: AvailabilityResult): string {
+  if (!result.ok) return "";
+  const nights = `${result.noches} noche${result.noches === 1 ? "" : "s"}`;
+  const blocks = result.hostales.map((h) =>
+    [
+      `*${h.hostal}* 🏨`,
+      ...h.opciones.map((o) => `• ${o.habitacion}: ${clp(o.precio_noche)} por noche (${clp(o.total_estadia)} por ${nights})`),
+    ].join("\n"),
+  );
+  if (result.sin_disponibilidad.length) {
+    blocks.push(`${result.sin_disponibilidad.join(" y ")} ${result.sin_disponibilidad.length === 1 ? "está completo" : "están completos"} para esas fechas.`);
+  }
+  return blocks.join("\n\n");
+}

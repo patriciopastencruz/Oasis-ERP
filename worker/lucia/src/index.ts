@@ -336,10 +336,14 @@ async function main() {
   await connect(companyId);
   setInterval(() => void drainOutbox(companyId), 4_000);
   setInterval(() => void setStatus(companyId, {}), 60_000);
-  // Anula las reservas pendientes cuyo plazo de abono venció y avisa al cliente.
+  // Cada minuto: anula reservas pendientes cuyo plazo venció y recontacta a
+  // quien no respondió en 20 minutos (la base decide a quién y qué decir).
   setInterval(() => {
     rpc<number>("lucia_expire_holds", { target_company: companyId }).catch((error) =>
       logger.error({ error: String(error) }, "no se pudieron vencer las reservas pendientes"),
+    );
+    rpc<number>("lucia_send_followups", { target_company: companyId }).catch((error) =>
+      logger.error({ error: String(error) }, "no se pudieron enviar los recontactos"),
     );
   }, 60_000);
 

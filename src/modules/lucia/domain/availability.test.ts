@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { searchAvailability, type AvailabilityRoom } from "./availability";
+import { formatAvailabilityForWhatsApp, searchAvailability, type AvailabilityRoom } from "./availability";
 
 const hostels = [
   { code: "HU", name: "Hostal Uruguay" },
@@ -55,5 +55,27 @@ describe("searchAvailability", () => {
     expect(searchAvailability({ ...base, checkIn: "2026-10-20", rooms: [], bookings: [] }).ok).toBe(false);
     expect(searchAvailability({ ...base, checkOut: "2026-10-24", rooms: [], bookings: [] }).ok).toBe(false);
     expect(searchAvailability({ ...base, checkOut: "2026-12-30", rooms: [], bookings: [] }).ok).toBe(false);
+  });
+});
+
+describe("formatAvailabilityForWhatsApp", () => {
+  it("lista todas las opciones por hostal, una por línea, y avisa las completas", () => {
+    const result = searchAvailability({
+      ...base,
+      rooms: [
+        room("u1", "HU"),
+        room("u2", "HU", { description: "2 camas, baño compartido", ratesByGuests: { "1": 22000, "2": 28000 } }),
+      ],
+      bookings: [],
+    });
+    expect(formatAvailabilityForWhatsApp(result)).toBe(
+      [
+        "*Hostal Uruguay* 🏨",
+        "• Habitación: 2 camas, baño compartido: $28.000 por noche ($56.000 por 2 noches)",
+        "• Habitación: 1 cama matrimonial, baño privado: $30.000 por noche ($60.000 por 2 noches)",
+        "",
+        "Hostal Oasis Centro y Hostal Oasis Cobija están completos para esas fechas.",
+      ].join("\n"),
+    );
   });
 });

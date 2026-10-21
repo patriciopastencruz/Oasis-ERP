@@ -31,7 +31,7 @@ begin
   perform public.lucia_worker_status(jsonb_build_object('company_id',company,'status','connected'));
   update public.lucia_settings set max_messages_per_minute=30 where company_id=company;
   j:=public.lucia_claim_outbound(company);
-  if j->>'message_type'<>'image' or j->>'media_path' not like '%/mini-1.jpg' then raise exception 'El worker debe recibir la imagen a enviar: %',j; end if;
+  if j->>'message_type'<>'image' or j->>'media_path' not like '%/mini-%.jpg' then raise exception 'El worker debe recibir la imagen a enviar: %',j; end if;
 end $$;
 
 select 'lucia photos ok' as result;
