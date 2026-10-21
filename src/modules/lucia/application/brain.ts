@@ -4,10 +4,12 @@ import { clientSaidIt, type ChatTurn } from "@/modules/lucia/domain/history";
 import {
   luciaOutputSchema,
   luciaRespondToolSchema,
+  repairLeakedParameters,
   type LuciaOutput,
 } from "@/modules/lucia/domain/output-schema";
 import { LUCIA_BASE_RULES } from "@/modules/lucia/domain/prompt";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
+import type { AvailabilityQuery } from "./availability-tool";
 
 const RESPOND_TOOL = "responder";
 
@@ -31,7 +33,7 @@ function anthropic() {
 const AVAILABILITY_TOOL = "consultar_disponibilidad";
 const MAX_CALLS = 3;
 
-export type AvailabilityChecker = (query: { check_in: string; check_out: string; guests: number }) => Promise<unknown>;
+export type AvailabilityChecker = (query: AvailabilityQuery) => Promise<unknown>;
 
 /**
  * Pide a Claude la respuesta y la ficha. Antes de responder puede consultar
@@ -86,6 +88,10 @@ export async function generateLuciaReply(input: {
             description:
               "Copia textual de las palabras del cliente, en esta consulta, donde dice cuándo llega y se va o cuántas noches (por ejemplo «del 25 al 27 de noviembre»). Si el cliente no lo dijo, no uses esta herramienta: pregúntale.",
           },
+          solo_bano_privado: {
+            type: "boolean",
+            description: "true si el cliente pidió baño privado: se muestran solo esas opciones.",
+          },
         },
         required: ["check_in", "check_out", "guests", "fechas_del_cliente"],
       },
@@ -131,7 +137,7 @@ export async function generateLuciaReply(input: {
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use" && b.name === RESPOND_TOOL,
     );
     if (respond) {
-      const parsed = luciaOutputSchema.safeParse(respond.input);
+      const parsed = luciaOutputSchema.safeParse(repairLeakedParameters(respond.input));
       if (!parsed.success) {
         // Solo campo y motivo: nunca el contenido de la conversación.
         const detail = parsed.error.issues
@@ -164,7 +170,7 @@ export async function generateLuciaReply(input: {
             };
           }
           try {
-            const result = await input.checkAvailability(block.input as { check_in: string; check_out: string; guests: number });
+            const result = await input.checkAvailability(block.input as AvailabilityQuery);
             return { type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) };
           } catch {
             return { type: "tool_result", tool_use_id: block.id, content: "No se pudo consultar la disponibilidad.", is_error: true };

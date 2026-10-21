@@ -33,7 +33,17 @@ export type AvailabilityResult =
       personas: number;
       hostales: { hostal: string; codigo: string; opciones: AvailabilityOption[] }[];
       sin_disponibilidad: string[];
+      /** Hostales con lugar, pero sin habitaciones con baño privado libres (si se pidió). */
+      sin_bano_privado?: string[];
     };
+
+const plain = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+// Se descartan solo las que dicen baño compartido sin mencionar uno privado:
+// si la descripción no dice nada del baño, la opción se mantiene.
+const hasPrivateBath = (label: string) => {
+  const text = plain(label);
+  return /bano privado|bano propio|con bano\b/.test(text) || !/bano compartido/.test(text);
+};
 
 export const MAX_NIGHTS = 30;
 
@@ -59,6 +69,8 @@ export function searchAvailability(input: {
   checkOut: string;
   guests: number;
   today: string;
+  /** Solo opciones con baño privado, cuando el cliente lo pide. */
+  privateBathOnly?: boolean;
 }): AvailabilityResult {
   const { checkIn, checkOut, guests, today } = input;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(checkIn) || !/^\d{4}-\d{2}-\d{2}$/.test(checkOut))
@@ -104,7 +116,8 @@ export function searchAvailability(input: {
     opciones.length = 0;
     opciones.push(...merged.values());
     opciones.sort((a, b) => a.precio_noche - b.precio_noche || a.habitacion.localeCompare(b.habitacion));
-    return { hostal: hostel.name, codigo: hostel.code, opciones };
+    const elegibles = input.privateBathOnly ? opciones.filter((o) => hasPrivateBath(o.habitacion)) : opciones;
+    return { hostal: hostel.name, codigo: hostel.code, opciones: elegibles, conLugar: opciones.length > 0 };
   });
 
   return {
@@ -113,8 +126,11 @@ export function searchAvailability(input: {
     salida: checkOut,
     noches: nights,
     personas: guests,
-    hostales: hostales.filter((h) => h.opciones.length > 0),
-    sin_disponibilidad: hostales.filter((h) => h.opciones.length === 0).map((h) => h.hostal),
+    hostales: hostales.filter((h) => h.opciones.length > 0).map(({ hostal, codigo, opciones }) => ({ hostal, codigo, opciones })),
+    sin_disponibilidad: hostales.filter((h) => !h.conLugar).map((h) => h.hostal),
+    ...(input.privateBathOnly
+      ? { sin_bano_privado: hostales.filter((h) => h.conLugar && h.opciones.length === 0).map((h) => h.hostal) }
+      : {}),
   };
 }
 
@@ -134,6 +150,9 @@ export function formatAvailabilityForWhatsApp(result: AvailabilityResult): strin
       ...h.opciones.map((o) => `• ${o.habitacion}: ${clp(o.precio_noche)} por noche (${clp(o.total_estadia)} por ${nights})`),
     ].join("\n"),
   );
+  if (result.sin_bano_privado?.length) {
+    blocks.push(`${result.sin_bano_privado.join(" y ")} no ${result.sin_bano_privado.length === 1 ? "tiene" : "tienen"} habitaciones con baño privado libres para esas fechas.`);
+  }
   if (result.sin_disponibilidad.length) {
     blocks.push(`${result.sin_disponibilidad.join(" y ")} ${result.sin_disponibilidad.length === 1 ? "está completo" : "están completos"} para esas fechas.`);
   }

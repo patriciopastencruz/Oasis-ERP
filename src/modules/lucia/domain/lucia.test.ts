@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildChatTurns, clientSaidIt, currentInquiryCustomerText, NEW_INQUIRY_NOTE, type LuciaHistoryMessage } from "./history";
-import { luciaOutputSchema } from "./output-schema";
+import { luciaOutputSchema, repairLeakedParameters } from "./output-schema";
 import { usageCostUsd } from "./pricing";
 import { buildKnowledgeBlock } from "./prompt";
 
@@ -85,6 +85,25 @@ describe("consultas nuevas tras un silencio largo", () => {
     expect(clientSaidIt("el 25/11 y nos vamos el 27/11", withDates)).toBe(true);
     expect(clientSaidIt("Llegamos el 25-11", withDates)).toBe(true);
     expect(clientSaidIt("del 25 al 27 de noviembre", withDates)).toBe(false);
+  });
+});
+
+describe("repairLeakedParameters", () => {
+  it("corta la llamada escrita dentro de reply y recupera los campos", () => {
+    const repaired = repairLeakedParameters({
+      reply: '¿Cuál te acomoda? 🏡",\n<parameter name="intent">availability</parameter>\n<parameter name="needs_human">false',
+    });
+    expect(repaired).toEqual({ reply: "¿Cuál te acomoda? 🏡", intent: "availability", needs_human: false });
+    expect(luciaOutputSchema.parse(repaired).reply).toBe("¿Cuál te acomoda? 🏡");
+  });
+
+  it("no toca una respuesta normal ni pisa campos que sí vinieron", () => {
+    const input = { reply: "Hola 👋", intent: "greeting" };
+    expect(repairLeakedParameters(input)).toEqual(input);
+    expect(repairLeakedParameters({ reply: 'Hola<parameter name="intent">faq', intent: "greeting" })).toEqual({
+      reply: "Hola",
+      intent: "greeting",
+    });
   });
 });
 

@@ -159,3 +159,30 @@ export const luciaRespondToolSchema = {
     "prospect",
   ],
 };
+
+const LEAKED_PARAMETER = /"?\s*,?\s*<\/?(?:parameter|invoke)\b/;
+
+/**
+ * A veces el modelo escribe el resto de la llamada como texto dentro de
+ * reply (`",\n<parameter name="intent">availability…`). Se corta el mensaje
+ * ahí para no enviarlo al cliente y se recuperan los campos que faltan.
+ */
+export function repairLeakedParameters(input: unknown): unknown {
+  if (!input || typeof input !== "object") return input;
+  const record = { ...(input as Record<string, unknown>) };
+  if (typeof record.reply !== "string") return record;
+  const cut = record.reply.search(LEAKED_PARAMETER);
+  if (cut < 0) return record;
+  const tail = record.reply.slice(cut);
+  record.reply = record.reply.slice(0, cut);
+  for (const [, name, raw] of tail.matchAll(/<parameter name="(\w+)">([\s\S]*?)(?=<\/parameter>|<parameter\b|$)/g)) {
+    if (name in record) continue;
+    const value = raw.trim();
+    try {
+      record[name] = JSON.parse(value);
+    } catch {
+      record[name] = value;
+    }
+  }
+  return record;
+}

@@ -47,6 +47,26 @@ describe("searchAvailability", () => {
     expect(result.ok && result.hostales[0].opciones[0].libres).toBe(2);
   });
 
+  it("con baño privado pedido, quita las de baño compartido y avisa la hostal que no tiene", () => {
+    const result = searchAvailability({
+      ...base,
+      privateBathOnly: true,
+      rooms: [
+        room("u1", "HU", { description: "1 cama matrimonial, baño compartido" }),
+        room("c1", "HOC", { roomType: "Habitación baño compartido", description: "mini modular con baño privado" }),
+        room("c2", "HOC", { roomType: "Modulares", description: "2 camas de 1 plaza" }),
+        room("c3", "HOC", { description: "2 camas, baño compartido" }),
+      ],
+      bookings: [],
+    });
+    expect(result.ok && result.hostales.map((h) => [h.hostal, h.opciones.map((o) => o.codigo)])).toEqual([
+      ["Hostal Oasis Centro", ["c1", "c2"]],
+    ]);
+    expect(formatAvailabilityForWhatsApp(result)).toContain(
+      "Hostal Uruguay no tiene habitaciones con baño privado libres para esas fechas.\n\nHostal Oasis Cobija está completo para esas fechas.",
+    );
+  });
+
   it("no ofrece habitaciones que no admiten a todas las personas", () => {
     const result = searchAvailability({ ...base, guests: 3, rooms: [room("u1", "HU")], bookings: [] });
     expect(result.ok && result.hostales).toEqual([]);
