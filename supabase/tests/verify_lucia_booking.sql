@@ -21,7 +21,7 @@ insert into public.user_business_units(user_id,company_id,business_unit_id) valu
 insert into public.lodging_rooms(id,company_id,business_unit_id,code,name,room_type,capacity,base_rate,rates_by_guests,display_order)
 values(:'room1',:'company_id',:'hoc','LB1','Prueba Lucía 1','Modulares',2,27000,'{"1":27000,"2":32000}',990),
       (:'room2',:'company_id',:'hoc','LB2','Prueba Lucía 2','Modulares',2,27000,'{"1":27000,"2":32000}',991);
-update public.lucia_hostels set manager_phone='+56970000001',payment_instructions='Banco Prueba, cuenta corriente 123',deposit_percent=50,hold_minutes=60
+update public.lucia_hostels set manager_phone='+56970000001',payment_instructions='Banco Prueba, cuenta corriente 123',deposit_percent=50,hold_minutes=60,photos_url='https://fotos.test/centro'
 where business_unit_id=:'hoc';
 insert into public.lucia_excluded_contacts(company_id,business_unit_id,phone_e164,label,category)
 select company_id,business_unit_id,'+56970000001','Encargado Centro','encargado' from public.lucia_settings;
@@ -88,6 +88,9 @@ begin
   if c.booking_status<>'confirmed' or c.prospect_status<>'confirmed' then raise exception 'La reserva debía quedar confirmada'; end if;
   if (select status from public.lodging_reservations where id=c.reservation_id)<>'confirmed' then raise exception 'La reserva del ERP debe quedar confirmada'; end if;
   if (select type||':'||amount from public.lodging_reservation_payments where reservation_id=c.reservation_id)<>'deposit:32000.00' then raise exception 'Debe registrarse el abono'; end if;
+  if not exists(select 1 from public.lucia_messages where conversation_id=conv and content like '%reserva quedó confirmada%' and content like '%https://fotos.test/centro%') then
+    raise exception 'La confirmación debe incluir el link de fotos';
+  end if;
 end $$;
 
 -- Rechazo desde el ERP y vencimiento del plazo.

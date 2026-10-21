@@ -51,6 +51,11 @@ export const luciaOutputSchema = z.object({
   answered_from_manual: z.boolean().catch(false),
   needs_human: z.boolean(),
   booking_request: z.boolean().catch(false),
+  photos: z
+    .object({ hostel_code: z.enum(luciaHostelCodes), room_type: z.string().trim().min(1).max(160) })
+    .nullish()
+    .catch(null)
+    .transform((v) => v ?? null),
   reason: optionalText(300),
   prospect: luciaProspectSchema,
 });
@@ -80,6 +85,16 @@ export const luciaRespondToolSchema = {
       type: "boolean",
       description:
         "true SOLO cuando el cliente eligió una opción concreta y quiere reservar, y en la ficha ya están nombre, llegada, salida, personas, hostal (hostel_code) y tipo de habitación. Activa la confirmación de recepción.",
+    },
+    photos: {
+      type: ["object", "null"],
+      description:
+        "Solo si el cliente pide fotos y la habitación aparece en 'Fotos disponibles' del manual: hostal y tipo de habitación EXACTO de esa lista. El sistema envía hasta 3 fotos. null en otro caso.",
+      properties: {
+        hostel_code: { type: "string", enum: [...luciaHostelCodes] },
+        room_type: { type: "string" },
+      },
+      required: ["hostel_code", "room_type"],
     },
     reason: {
       type: ["string", "null"],
@@ -126,6 +141,7 @@ export const luciaRespondToolSchema = {
     "answered_from_manual",
     "needs_human",
     "booking_request",
+    "photos",
     "reason",
     "prospect",
   ],

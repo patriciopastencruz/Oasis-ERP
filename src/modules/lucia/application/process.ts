@@ -116,6 +116,14 @@ export async function processLuciaConversation(
       answered_message: last.id,
     });
     if (autoError) throw new Error(autoError.message);
+    // Fotos a pedido: solo si la respuesta se envió sola (en modo borrador
+    // las fotos irían sin el texto que las acompaña).
+    if (result.output.photos && (auto as { sent?: boolean } | null)?.sent) {
+      const { error: photosError } = await admin.rpc("lucia_queue_photos", {
+        payload: { conversation_id: conversationId, ...result.output.photos },
+      });
+      if (photosError) throw new Error(photosError.message);
+    }
     // El cliente eligió y quiere reservar: se pide confirmación a recepción.
     // La base valida que la ficha esté completa y que no haya otra en curso.
     if (result.output.booking_request) {
@@ -156,13 +164,20 @@ async function loadHostelKnowledge(
     .select("business_unit_id,display_name,manual,enabled,business_units(code)")
     .eq("company_id", companyId);
   const unitIds = (hostels ?? []).map((h) => h.business_unit_id);
-  const { data: rooms } = unitIds.length
-    ? await admin
-        .from("lodging_rooms")
-        .select("business_unit_id,room_type,name,capacity")
-        .in("business_unit_id", unitIds)
-        .eq("active", true)
-    : { data: [] };
+  const [{ data: rooms }, { data: photos }] = unitIds.length
+    ? await Promise.all([
+        admin
+          .from("lodging_rooms")
+          .select("business_unit_id,room_type,name,capacity")
+          .in("business_unit_id", unitIds)
+          .eq("active", true),
+        admin
+          .from("lucia_room_photos")
+          .select("business_unit_id,room_type")
+          .in("business_unit_id", unitIds)
+          .is("deleted_at", null),
+      ])
+    : [{ data: [] }, { data: [] }];
   return (hostels ?? []).map((h) => {
     const unit = Array.isArray(h.business_units) ? h.business_units[0] : h.business_units;
     return {
@@ -173,6 +188,9 @@ async function loadHostelKnowledge(
       rooms: (rooms ?? [])
         .filter((r) => r.business_unit_id === h.business_unit_id)
         .map((r) => ({ room_type: r.room_type, name: r.name, capacity: r.capacity })),
+      photoTypes: [
+        ...new Set((photos ?? []).filter((ph) => ph.business_unit_id === h.business_unit_id).map((ph) => ph.room_type as string)),
+      ],
     };
   });
 }

@@ -216,7 +216,14 @@ async function drainOutbox(companyId: string) {
   try {
     for (;;) {
       // kind: "customer" (cliente) o "staff" (aviso a un encargado).
-      const job = await rpc<{ kind: string; id: string; jid: string; content: string } | null>("lucia_claim_outbound", {
+      const job = await rpc<{
+        kind: string;
+        id: string;
+        jid: string;
+        content: string;
+        message_type?: string;
+        media_path?: string | null;
+      } | null>("lucia_claim_outbound", {
         target_company: companyId,
       });
       if (!job) break;
@@ -225,10 +232,20 @@ async function drainOutbox(companyId: string) {
       try {
         await sock.presenceSubscribe(job.jid).catch(() => undefined);
         await sock.sendPresenceUpdate("composing", job.jid);
-        const typingMs = Math.min(12_000, 1_500 + job.content.length * 45) + Math.floor(Math.random() * 1_500);
+        const isImage = job.message_type === "image" && Boolean(job.media_path);
+        const typingMs = isImage
+          ? 1_500 + Math.floor(Math.random() * 1_500)
+          : Math.min(12_000, 1_500 + job.content.length * 45) + Math.floor(Math.random() * 1_500);
         await delay(typingMs);
         await sock.sendPresenceUpdate("paused", job.jid);
-        await sock.sendMessage(job.jid, { text: job.content }, { messageId });
+        if (isImage) {
+          // Fotos de habitaciones: bucket privado del ERP, se leen con la clave de servicio.
+          const { data: file, error: downloadError } = await admin.storage.from("lucia-photos").download(job.media_path!);
+          if (downloadError || !file) throw new Error(`No se pudo leer la foto: ${downloadError?.message ?? "sin archivo"}`);
+          await sock.sendMessage(job.jid, { image: Buffer.from(await file.arrayBuffer()), caption: job.content }, { messageId });
+        } else {
+          await sock.sendMessage(job.jid, { text: job.content }, { messageId });
+        }
         await rpc("lucia_mark_outbound", { payload: { kind: job.kind, id: job.id, ok: true, external_id: messageId } });
       } catch (error) {
         ownMessageIds.delete(messageId);

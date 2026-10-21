@@ -106,6 +106,9 @@ export default async function LuciaSettingsPage({
                   <input type="time" name="checkout_time" defaultValue={h.checkout_time.slice(0, 5)} className={inputClass} />
                 </label>
               </div>
+              <label className="block">Link del álbum de fotos (se envía al confirmar la reserva)
+                <input type="url" name="photos_url" defaultValue={h.photos_url ?? ""} placeholder="https://…" className={inputClass} />
+              </label>
               <label className="block">Datos para transferencia
                 <textarea name="payment_instructions" rows={5} defaultValue={h.payment_instructions} className={inputClass}
                   placeholder="Banco, tipo y número de cuenta, RUT, nombre y correo. Lucía los envía al cliente solo cuando recepción confirma la disponibilidad." />

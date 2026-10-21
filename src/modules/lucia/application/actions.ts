@@ -220,6 +220,7 @@ const hostelSchema = z.object({
   hold_minutes: z.coerce.number().int().min(15).max(1440),
   checkin_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Hora de check-in inválida."),
   checkout_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Hora de check-out inválida."),
+  photos_url: z.union([z.literal(""), z.string().trim().url("El link de fotos no es válido.").max(500)]),
 });
 
 export async function saveHostelAction(form: FormData) {
@@ -236,6 +237,7 @@ export async function saveHostelAction(form: FormData) {
     hold_minutes: form.get("hold_minutes") ?? 60,
     checkin_time: form.get("checkin_time") ?? "14:00",
     checkout_time: form.get("checkout_time") ?? "12:00",
+    photos_url: String(form.get("photos_url") ?? "").trim(),
   });
   if (!parsed.success) back(SETTINGS_PATH, "error", parsed.error.issues[0]?.message ?? "Datos inválidos.");
   const phone = parsed.data.manager_phone ? normalizePhoneNumber(parsed.data.manager_phone) : null;
@@ -248,6 +250,7 @@ export async function saveHostelAction(form: FormData) {
       ...parsed.data,
       manager_name: parsed.data.manager_name || null,
       manager_phone: phone,
+      photos_url: parsed.data.photos_url || null,
       enabled: form.get("enabled") === "on",
       updated_at: new Date().toISOString(),
       updated_by: user.id,
@@ -300,4 +303,57 @@ export async function removeExcludedContactAction(form: FormData) {
   if (error || !data?.length) back(SETTINGS_PATH, "error", friendly(error));
   revalidatePath(SETTINGS_PATH);
   back(SETTINGS_PATH, "success", "Contacto quitado de la lista de excluidos.");
+}
+
+// ===== Fotos de habitaciones =====
+
+const PHOTOS_PATH = `${BASE}/fotos`;
+const PHOTO_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
+export async function uploadRoomPhotosAction(form: FormData) {
+  await requirePermission("lucia.settings.manage");
+  const unitId = uuid.parse(form.get("business_unit_id"));
+  const roomType = text(form, "room_type");
+  const files = form.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+  if (!roomType) back(PHOTOS_PATH, "error", "Elige el tipo de habitación.");
+  if (!files.length) back(PHOTOS_PATH, "error", "Selecciona al menos una foto.");
+  // Vercel acepta hasta ~4,5 MB por envío de formulario.
+  if (files.reduce((sum, f) => sum + f.size, 0) > 4 * 1024 * 1024)
+    back(PHOTOS_PATH, "error", "Las fotos suman más de 4 MB: súbelas de a una o en menor tamaño.");
+  const supabase = await createSupabaseServerClient();
+  const { data: hostel } = await supabase.from("lucia_hostels").select("company_id").eq("business_unit_id", unitId).maybeSingle();
+  if (!hostel) back(PHOTOS_PATH, "error", "Hostal no autorizada.");
+  const admin = createSupabaseAdminClient();
+  let added = 0;
+  for (const file of files) {
+    const ext = PHOTO_TYPES[file.type];
+    if (!ext) back(PHOTOS_PATH, "error", `${file.name}: solo se aceptan fotos JPG, PNG o WEBP.`);
+    const path = `${hostel.company_id}/${unitId}/${crypto.randomUUID()}.${ext}`;
+    // Se sube con la clave de servicio; la función valida permiso, hostal y tipo.
+    const { error: uploadError } = await admin.storage.from("lucia-photos").upload(path, file, { contentType: file.type });
+    if (uploadError) back(PHOTOS_PATH, "error", `No se pudo subir ${file.name}.`);
+    const { error } = await supabase.rpc("lucia_photo_add", {
+      target_unit: unitId,
+      photo_room_type: roomType,
+      photo_path: path,
+      mime: file.type,
+      photo_size: file.size,
+    });
+    if (error) {
+      await admin.storage.from("lucia-photos").remove([path]);
+      back(PHOTOS_PATH, "error", friendly(error));
+    }
+    added++;
+  }
+  revalidatePath(PHOTOS_PATH);
+  back(PHOTOS_PATH, "success", `${added} foto${added === 1 ? "" : "s"} agregada${added === 1 ? "" : "s"} a ${roomType}.`);
+}
+
+export async function removeRoomPhotoAction(form: FormData) {
+  await requirePermission("lucia.settings.manage");
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("lucia_photo_remove", { target_photo: uuid.parse(form.get("id")) });
+  if (error) back(PHOTOS_PATH, "error", friendly(error));
+  revalidatePath(PHOTOS_PATH);
+  back(PHOTOS_PATH, "success", "Foto eliminada.");
 }

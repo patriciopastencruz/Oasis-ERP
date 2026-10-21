@@ -126,3 +126,30 @@ describe("luciaOutputSchema", () => {
     });
   });
 });
+
+describe("fotos", () => {
+  it("el manual lista los tipos con fotos, ordenados", () => {
+    const block = buildKnowledgeBlock("Lucía", "", [
+      { code: "HOB", display_name: "Cobija", manual: "", enabled: true, rooms: [], photoTypes: ["Simple matrimonial", "Mini depto"] },
+    ]);
+    expect(block).toContain("### Fotos disponibles");
+    expect(block.indexOf("- Mini depto")).toBeLessThan(block.indexOf("- Simple matrimonial"));
+  });
+
+  it("acepta un pedido de fotos válido e ignora uno mal formado", () => {
+    const base = {
+      reply: "¡Claro! Te envío unas fotos 📸",
+      intent: "faq",
+      answered_from_manual: true,
+      needs_human: false,
+      booking_request: false,
+      reason: null,
+      prospect: {},
+    };
+    expect(luciaOutputSchema.parse({ ...base, photos: { hostel_code: "HOB", room_type: "Mini depto" } }).photos).toEqual({
+      hostel_code: "HOB",
+      room_type: "Mini depto",
+    });
+    expect(luciaOutputSchema.parse({ ...base, photos: { hostel_code: "XX", room_type: "" } }).photos).toBeNull();
+  });
+});
