@@ -58,5 +58,19 @@ begin
   if c.check_in<>ci or not c.needs_review then raise exception 'Con reserva creada no se cambian fechas y queda para revisión'; end if;
 end $$;
 
+-- Sin código de opción: se elige por la descripción, no la más barata.
+do $$
+declare company uuid:=current_setting('lucia.company')::uuid; priv uuid:=current_setting('lucia.private')::uuid; r jsonb; conv uuid; ci date:=current_date+80; code text;
+begin
+  r:=public.lucia_ingest_message(jsonb_build_object('company_id',company,'jid','56986666666@s.whatsapp.net','phone','+56986666666','external_id','N1','content','La de baño privado'));
+  conv:=(r->>'conversation_id')::uuid;
+  perform public.lucia_record_draft(jsonb_build_object('conversation_id',conv,'content','Perfecto','intent','booking_intent','needs_human',false,
+    'extracted',jsonb_build_object('guest_name','Beto','check_in',ci,'check_out',ci+2,'guests',2,'hostel_code','HU',
+      'room_type','Habitación con 1 cama matrimonial, baño privado')));
+  code:=public.lucia_request_booking(jsonb_build_object('conversation_id',conv))->>'code';
+  perform public.lucia_ingest_message(jsonb_build_object('company_id',company,'jid','56970000011@s.whatsapp.net','phone','+56970000011','external_id','N2','content','OK '||code));
+  if (select booking_room_id from public.lucia_conversations where id=conv)<>priv then raise exception 'Sin código debía elegirse por descripción'; end if;
+end $$;
+
 select 'lucia option change ok' as result;
 rollback;
