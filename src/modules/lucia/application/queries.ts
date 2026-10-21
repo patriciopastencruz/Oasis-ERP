@@ -24,6 +24,9 @@ export type LuciaHostel = {
   manager_name: string | null;
   manager_phone: string | null;
   mode: "draft" | "auto";
+  payment_instructions: string;
+  deposit_percent: number;
+  hold_minutes: number;
   enabled: boolean;
   code: string;
 };
@@ -32,7 +35,7 @@ export async function loadHostels(supabase: SupabaseClient): Promise<LuciaHostel
   const { data } = await supabase
     .from("lucia_hostels")
     .select(
-      "business_unit_id,display_name,manual,manager_name,manager_phone,mode,enabled,business_units(code)",
+      "business_unit_id,display_name,manual,manager_name,manager_phone,mode,enabled,payment_instructions,deposit_percent,hold_minutes,business_units(code)",
     )
     .order("display_name");
   return (data ?? []).map((row) => {
@@ -76,6 +79,7 @@ export type InboxRow = {
   last_outbound_at: string | null;
   unanswered_since: string | null;
   quoted_amount: number | null;
+  booking_status: string;
   pending_drafts: { count: number }[];
 };
 
@@ -93,7 +97,7 @@ export async function loadInbox(
   let query = supabase
     .from("lucia_conversations")
     .select(
-      "id,channel,status,contact_name,contact_phone,guest_name,prospect_status,check_in,check_out,guests,hostel_assigned,business_unit_id,needs_review,review_reason,paused_until,last_message_at,last_inbound_at,last_outbound_at,unanswered_since,quoted_amount,pending_drafts:lucia_drafts(count)",
+      "id,channel,status,contact_name,contact_phone,guest_name,prospect_status,check_in,check_out,guests,hostel_assigned,business_unit_id,needs_review,review_reason,paused_until,last_message_at,last_inbound_at,last_outbound_at,unanswered_since,quoted_amount,booking_status,pending_drafts:lucia_drafts(count)",
     )
     .eq("pending_drafts.status", "pending")
     .order("last_message_at", { ascending: false, nullsFirst: false })
@@ -140,6 +144,44 @@ export async function loadConversation(supabase: SupabaseClient, id: string) {
       .limit(20),
   ]);
   return { conversation, messages: messages ?? [], drafts: drafts ?? [] };
+}
+
+export const bookingStatusLabels: Record<string, string> = {
+  awaiting_reception: "Esperando confirmación de recepción",
+  awaiting_payment: "Esperando pago",
+  proof_received: "Comprobante recibido: verificar",
+  confirmed: "Reserva confirmada",
+  expired: "Venció el plazo de pago",
+  rejected: "Sin disponibilidad",
+};
+
+/** Habitaciones de la hostal libres para la estadía que admiten a todas las personas. */
+export async function loadFreeRooms(
+  supabase: SupabaseClient,
+  unitId: string,
+  checkIn: string,
+  checkOut: string,
+  guests: number,
+) {
+  const [{ data: rooms }, { data: busy }] = await Promise.all([
+    supabase
+      .from("lodging_rooms")
+      .select("id,name,room_type,capacity,display_order")
+      .eq("business_unit_id", unitId)
+      .eq("active", true)
+      .gte("capacity", guests)
+      .not("status", "in", '("maintenance","out_of_service")')
+      .order("display_order"),
+    supabase
+      .from("lodging_reservations")
+      .select("room_id")
+      .eq("business_unit_id", unitId)
+      .not("status", "in", '("cancelled","conflict")')
+      .lt("check_in", checkOut)
+      .gt("check_out", checkIn),
+  ]);
+  const taken = new Set((busy ?? []).map((b) => b.room_id));
+  return (rooms ?? []).filter((r) => !taken.has(r.id));
 }
 
 export async function loadTodayUsage(supabase: SupabaseClient) {

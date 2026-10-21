@@ -36,6 +36,10 @@ export function notificationActionPath(
       return "/finance/distribution/requests";
     case "lodging_reservation":
       return `/lodging/reservations/${entityId}`;
+    case "lucia_conversation":
+      return `/lodging/lucia/${entityId}`;
+    case "lucia_settings":
+      return "/lodging/lucia/conexion";
     case "lodging_closing_authorization":
       return "/lodging/closing/authorizations";
     default:

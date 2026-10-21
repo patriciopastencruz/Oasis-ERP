@@ -111,6 +111,34 @@ export async function updateProspectAction(form: FormData) {
   );
 }
 
+// ===== Reserva y pago =====
+
+export async function confirmBookingAction(form: FormData) {
+  const room = String(form.get("room_id") ?? "");
+  await conversationRpc(
+    form,
+    "lucia_booking_confirm",
+    (id) => ({ target_conversation: id, target_room: room ? uuid.parse(room) : null }),
+    "Disponibilidad confirmada: se creó la reserva pendiente y Lucía envió al cliente el monto y los datos de pago.",
+  );
+}
+
+export async function rejectBookingAction(form: FormData) {
+  await conversationRpc(form, "lucia_booking_reject", (id) => ({ target_conversation: id }), "Lucía le avisó al cliente que no hay disponibilidad.");
+}
+
+export async function verifyPaymentAction(form: FormData) {
+  const id = uuid.parse(form.get("conversation_id"));
+  const amount = z.coerce.number().positive().max(999_999_999).safeParse(form.get("amount"));
+  if (!amount.success) back(`${BASE}/${id}`, "error", "Indica el monto recibido.");
+  await conversationRpc(
+    form,
+    "lucia_verify_payment",
+    () => ({ target_conversation: id, paid_amount: amount.data, operation: text(form, "operation") }),
+    "Pago registrado y reserva confirmada. Lucía le avisó al cliente.",
+  );
+}
+
 // ===== Simulador =====
 
 export async function startSimulationAction(form: FormData) {
@@ -187,6 +215,9 @@ const hostelSchema = z.object({
   manager_name: z.string().trim().max(120),
   manager_phone: z.string().trim().max(20),
   mode: z.enum(["draft", "auto"]),
+  payment_instructions: z.string().trim().max(2000),
+  deposit_percent: z.coerce.number().int().min(1).max(100),
+  hold_minutes: z.coerce.number().int().min(15).max(1440),
 });
 
 export async function saveHostelAction(form: FormData) {
@@ -198,6 +229,9 @@ export async function saveHostelAction(form: FormData) {
     manager_name: form.get("manager_name") ?? "",
     manager_phone: form.get("manager_phone") ?? "",
     mode: form.get("mode"),
+    payment_instructions: form.get("payment_instructions") ?? "",
+    deposit_percent: form.get("deposit_percent") ?? 50,
+    hold_minutes: form.get("hold_minutes") ?? 60,
   });
   if (!parsed.success) back(SETTINGS_PATH, "error", parsed.error.issues[0]?.message ?? "Datos inválidos.");
   const phone = parsed.data.manager_phone ? normalizePhoneNumber(parsed.data.manager_phone) : null;

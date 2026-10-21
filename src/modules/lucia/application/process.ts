@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildChatTurns, type LuciaHistoryMessage } from "@/modules/lucia/domain/history";
 import { usageCostUsd } from "@/modules/lucia/domain/pricing";
+import { describeBookingState } from "@/modules/lucia/domain/booking-context";
 import { buildKnowledgeBlock, type LuciaHostelKnowledge } from "@/modules/lucia/domain/prompt";
 import { santiagoToday } from "@/modules/lodging/domain/daily-closing";
 import { checkLuciaAvailability } from "./availability-tool";
@@ -35,7 +36,7 @@ export async function processLuciaConversation(
 ): Promise<ProcessResult> {
   const { data: conversation } = await admin
     .from("lucia_conversations")
-    .select("id,company_id,status,paused_until")
+    .select("id,company_id,status,paused_until,booking_status,booking_total,booking_deposit,hold_expires_at")
     .eq("id", conversationId)
     .maybeSingle();
   if (!conversation) return { status: "skipped", reason: "not_found" };
@@ -77,6 +78,7 @@ export async function processLuciaConversation(
       turns,
       today: todayInChile(),
       todayIso: santiagoToday(),
+      stateNote: describeBookingState(conversation),
       checkAvailability: (query) => checkLuciaAvailability(admin, conversation.company_id, query),
     });
     const costUsd = usageCostUsd(settings.model, result.usage);
@@ -114,6 +116,14 @@ export async function processLuciaConversation(
       answered_message: last.id,
     });
     if (autoError) throw new Error(autoError.message);
+    // El cliente eligió y quiere reservar: se pide confirmación a recepción.
+    // La base valida que la ficha esté completa y que no haya otra en curso.
+    if (result.output.booking_request) {
+      const { error: bookingError } = await admin.rpc("lucia_request_booking", {
+        payload: { conversation_id: conversationId, app_url: process.env.NEXT_PUBLIC_APP_URL ?? "" },
+      });
+      if (bookingError) throw new Error(bookingError.message);
+    }
     return {
       status: "draft",
       draftId: draftId as string,

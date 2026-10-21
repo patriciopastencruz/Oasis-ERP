@@ -50,6 +50,7 @@ export const luciaOutputSchema = z.object({
   intent: z.enum(luciaIntents).catch("other"),
   answered_from_manual: z.boolean().catch(false),
   needs_human: z.boolean(),
+  booking_request: z.boolean().catch(false),
   reason: optionalText(300),
   prospect: luciaProspectSchema,
 });
@@ -74,6 +75,11 @@ export const luciaRespondToolSchema = {
       type: "boolean",
       description:
         "true si quiere reservar, reclama, pide una persona, pregunta algo fuera del manual o pide precio/disponibilidad que no tienes.",
+    },
+    booking_request: {
+      type: "boolean",
+      description:
+        "true SOLO cuando el cliente eligió una opción concreta y quiere reservar, y en la ficha ya están nombre, llegada, salida, personas, hostal (hostel_code) y tipo de habitación. Activa la confirmación de recepción.",
     },
     reason: {
       type: ["string", "null"],
@@ -119,6 +125,7 @@ export const luciaRespondToolSchema = {
     "intent",
     "answered_from_manual",
     "needs_human",
+    "booking_request",
     "reason",
     "prospect",
   ],

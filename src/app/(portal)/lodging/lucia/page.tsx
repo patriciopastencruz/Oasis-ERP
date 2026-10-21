@@ -6,6 +6,7 @@ import {
   loadHostels,
   loadInbox,
   luciaContext,
+  bookingStatusLabels,
   prospectStatusLabels,
   type InboxFilters,
 } from "@/modules/lucia/application/queries";
@@ -142,6 +143,9 @@ export default async function LuciaInboxPage({
                       <td>{formatClp(row.quoted_amount)}</td>
                       <td className="text-xs">{formatDateTime(row.last_message_at)}</td>
                       <td className="space-y-1">
+                        {row.booking_status !== "none" && (
+                          <div><Pill tone={row.booking_status === "confirmed" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}>{bookingStatusLabels[row.booking_status] ?? row.booking_status}</Pill></div>
+                        )}
                         {pending > 0 && <div><Pill tone="bg-indigo-50 text-indigo-800">Borrador listo</Pill></div>}
                         {row.needs_review && <div><Pill tone="bg-red-50 text-red-700">{row.review_reason ?? "Revisar"}</Pill></div>}
                         {row.status === "human" && <div><Pill>Atiende una persona</Pill></div>}

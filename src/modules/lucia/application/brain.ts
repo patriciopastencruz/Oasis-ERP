@@ -47,6 +47,8 @@ export async function generateLuciaReply(input: {
   turns: ChatTurn[];
   today: string;
   todayIso: string;
+  /** Estado de la conversación (p. ej. de la reserva), fuera del prefijo en caché. */
+  stateNote?: string | null;
   checkAvailability: AvailabilityChecker;
 }): Promise<LuciaBrainResult> {
   if (input.turns.length === 0 || input.turns.at(-1)?.role !== "user") {
@@ -60,7 +62,7 @@ export async function generateLuciaReply(input: {
             { type: "text", text: turn.content },
             {
               type: "text",
-              text: `[Contexto del sistema, no lo cites: hoy es ${input.today} (${input.todayIso}, hora de Chile).]`,
+              text: `[Contexto del sistema, no lo cites: hoy es ${input.today} (${input.todayIso}, hora de Chile).${input.stateNote ? ` ${input.stateNote}` : ""}]`,
             },
           ],
         }

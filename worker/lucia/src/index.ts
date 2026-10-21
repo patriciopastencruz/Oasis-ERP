@@ -200,6 +200,7 @@ async function handleIncoming(companyId: string, message: WAMessage) {
       content: content.text,
       push_name: message.key.fromMe ? null : message.pushName,
       from_me: Boolean(message.key.fromMe),
+      app_url: ERP_URL,
     },
   });
   if (isLid && result.status === "ok") {
@@ -214,7 +215,8 @@ async function drainOutbox(companyId: string) {
   sending = true;
   try {
     for (;;) {
-      const job = await rpc<{ id: string; jid: string; content: string } | null>("lucia_claim_outbound", {
+      // kind: "customer" (cliente) o "staff" (aviso a un encargado).
+      const job = await rpc<{ kind: string; id: string; jid: string; content: string } | null>("lucia_claim_outbound", {
         target_company: companyId,
       });
       if (!job) break;
@@ -227,10 +229,10 @@ async function drainOutbox(companyId: string) {
         await delay(typingMs);
         await sock.sendPresenceUpdate("paused", job.jid);
         await sock.sendMessage(job.jid, { text: job.content }, { messageId });
-        await rpc("lucia_mark_outbound", { payload: { id: job.id, ok: true, external_id: messageId } });
+        await rpc("lucia_mark_outbound", { payload: { kind: job.kind, id: job.id, ok: true, external_id: messageId } });
       } catch (error) {
         ownMessageIds.delete(messageId);
-        await rpc("lucia_mark_outbound", { payload: { id: job.id, ok: false, error: String(error) } });
+        await rpc("lucia_mark_outbound", { payload: { kind: job.kind, id: job.id, ok: false, error: String(error) } });
       }
       if (ownMessageIds.size > 5_000) ownMessageIds.clear();
       // Pausa entre mensajes para no enviar ráfagas.
@@ -317,6 +319,12 @@ async function main() {
   await connect(companyId);
   setInterval(() => void drainOutbox(companyId), 4_000);
   setInterval(() => void setStatus(companyId, {}), 60_000);
+  // Anula las reservas pendientes cuyo plazo de abono venció y avisa al cliente.
+  setInterval(() => {
+    rpc<number>("lucia_expire_holds", { target_company: companyId }).catch((error) =>
+      logger.error({ error: String(error) }, "no se pudieron vencer las reservas pendientes"),
+    );
+  }, 60_000);
 
   const shutdown = async () => {
     logger.info("deteniendo worker");

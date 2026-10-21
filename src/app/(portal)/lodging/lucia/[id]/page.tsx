@@ -3,14 +3,19 @@ import { notFound } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { LiveRefresh } from "@/components/kpis/live-refresh";
 import {
+  bookingStatusLabels,
   channelLabels,
   loadConversation,
+  loadFreeRooms,
   loadHostels,
   luciaContext,
   prospectStatusLabels,
 } from "@/modules/lucia/application/queries";
 import {
   closeConversationAction,
+  confirmBookingAction,
+  rejectBookingAction,
+  verifyPaymentAction,
   discardDraftAction,
   markReviewedAction,
   releaseControlAction,
@@ -71,6 +76,10 @@ export default async function LuciaConversationPage({
   const paused = c.paused_until && new Date(c.paused_until) > new Date();
   const hostelName = hostels.find((h) => h.business_unit_id === c.business_unit_id)?.display_name;
   const title = c.guest_name || c.contact_name || c.contact_phone || "Conversación";
+  const freeRooms =
+    c.booking_status === "awaiting_reception" && c.check_in && c.check_out && c.guests
+      ? await loadFreeRooms(supabase, c.business_unit_id, c.check_in, c.check_out, c.guests)
+      : [];
 
   return (
     <>
@@ -181,6 +190,67 @@ export default async function LuciaConversationPage({
         </div>
 
         <aside className="space-y-4">
+          {c.booking_status !== "none" && (
+            <Panel className={["awaiting_reception", "proof_received"].includes(c.booking_status) ? "border-amber-300" : ""}>
+              <h2 className="mb-1 font-semibold">Reserva</h2>
+              <p className="mb-3 text-sm">
+                <Pill tone={c.booking_status === "confirmed" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}>
+                  {bookingStatusLabels[c.booking_status] ?? c.booking_status}
+                </Pill>
+                {c.booking_code && <span className="ml-2 text-xs text-slate-500">Código WhatsApp: {c.booking_code}</span>}
+              </p>
+              {c.booking_total !== null && (
+                <p className="mb-2 text-sm">
+                  Total {formatClp(c.booking_total)} · Abono {formatClp(c.booking_deposit)}
+                  {c.hold_expires_at && <span className="block text-xs text-slate-500">Habitación guardada hasta {formatDateTime(c.hold_expires_at)}</span>}
+                </p>
+              )}
+              {c.booking_confirmed_via && (
+                <p className="mb-2 text-xs text-slate-500">
+                  Disponibilidad respondida {c.booking_confirmed_via === "whatsapp" ? "por WhatsApp" : "en el ERP"} el {formatDateTime(c.booking_confirmed_at)}
+                </p>
+              )}
+              {c.reservation_id && (
+                <p className="mb-3 text-sm">
+                  <Link href={`/lodging/reservations/${c.reservation_id}`} className="text-[var(--oasis-primary)] hover:underline">Ver reserva en el ERP →</Link>
+                </p>
+              )}
+              {canReply && c.booking_status === "awaiting_reception" && (
+                <div className="space-y-2">
+                  <form action={confirmBookingAction} className="space-y-2">
+                    <input type="hidden" name="conversation_id" value={c.id} />
+                    <label className="block text-sm">Habitación
+                      <select name="room_id" className={inputClass} defaultValue="">
+                        <option value="">Automática (la más adecuada)</option>
+                        {freeRooms.map((r) => (
+                          <option key={r.id} value={r.id}>{r.name} · {r.room_type} · hasta {r.capacity} pers.</option>
+                        ))}
+                      </select>
+                    </label>
+                    {freeRooms.length === 0 && <p className="text-xs text-red-700">No hay habitaciones libres que admitan {c.guests} personas en esas fechas.</p>}
+                    <button className="w-full rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white">Confirmar disponibilidad</button>
+                  </form>
+                  <form action={rejectBookingAction}>
+                    <input type="hidden" name="conversation_id" value={c.id} />
+                    <button className="w-full rounded-xl border bg-white px-3 py-2 text-sm font-semibold">No hay disponibilidad</button>
+                  </form>
+                </div>
+              )}
+              {canReply && ["awaiting_payment", "proof_received"].includes(c.booking_status) && (
+                <form action={verifyPaymentAction} className="space-y-2">
+                  <input type="hidden" name="conversation_id" value={c.id} />
+                  <label className="block text-sm">Monto recibido
+                    <input type="number" min={1} name="amount" required defaultValue={c.booking_deposit ?? ""} className={inputClass} />
+                  </label>
+                  <label className="block text-sm">N° de operación (opcional)
+                    <input name="operation" className={inputClass} />
+                  </label>
+                  <button className="w-full rounded-xl bg-emerald-700 px-3 py-2 text-sm font-semibold text-white">Pago verificado: confirmar reserva</button>
+                  <p className="text-xs text-slate-500">Verifica primero el depósito en el banco. Se registra el pago y la reserva queda confirmada.</p>
+                </form>
+              )}
+            </Panel>
+          )}
           {canReply && !closed && (
             <Panel>
               <h2 className="mb-3 font-semibold">Control del chat</h2>

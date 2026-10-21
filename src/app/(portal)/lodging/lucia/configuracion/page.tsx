@@ -90,6 +90,18 @@ export default async function LuciaSettingsPage({
               <label className="flex items-center gap-2">
                 <input type="checkbox" name="enabled" defaultChecked={h.enabled} /> Lucía ofrece esta hostal
               </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">Abono (% del total)
+                  <input type="number" min={1} max={100} name="deposit_percent" defaultValue={h.deposit_percent} className={inputClass} />
+                </label>
+                <label className="block">Guardar habitación (minutos)
+                  <input type="number" min={15} max={1440} name="hold_minutes" defaultValue={h.hold_minutes} className={inputClass} />
+                </label>
+              </div>
+              <label className="block">Datos para transferencia
+                <textarea name="payment_instructions" rows={5} defaultValue={h.payment_instructions} className={inputClass}
+                  placeholder="Banco, tipo y número de cuenta, RUT, nombre y correo. Lucía los envía al cliente solo cuando recepción confirma la disponibilidad." />
+              </label>
               <label className="block">Manual de la hostal
                 <textarea name="manual" rows={12} defaultValue={h.manual} className={inputClass}
                   placeholder="Dirección, horarios de check-in/out, desayuno, estacionamiento, wifi, políticas, cómo llegar, preguntas frecuentes…" />
