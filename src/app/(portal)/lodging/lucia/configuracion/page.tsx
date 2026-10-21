@@ -98,6 +98,9 @@ export default async function LuciaSettingsPage({
                   <input type="number" min={15} max={1440} name="hold_minutes" defaultValue={h.hold_minutes} className={inputClass} />
                 </label>
               </div>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="full_payment_single_night" defaultChecked={h.full_payment_single_night} /> Reservas de 1 noche se pagan completas
+              </label>
               <div className="grid grid-cols-2 gap-2">
                 <label className="block">Check-in desde
                   <input type="time" name="checkin_time" defaultValue={h.checkin_time.slice(0, 5)} className={inputClass} />

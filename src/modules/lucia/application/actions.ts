@@ -251,6 +251,7 @@ export async function saveHostelAction(form: FormData) {
       manager_name: parsed.data.manager_name || null,
       manager_phone: phone,
       photos_url: parsed.data.photos_url || null,
+      full_payment_single_night: form.get("full_payment_single_night") === "on",
       enabled: form.get("enabled") === "on",
       updated_at: new Date().toISOString(),
       updated_by: user.id,

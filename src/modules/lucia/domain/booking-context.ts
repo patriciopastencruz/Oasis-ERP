@@ -19,7 +19,11 @@ export function describeBookingState(state: BookingState): string | null {
     case "awaiting_reception":
       return "Estado de la reserva: ya se pidió a recepción confirmar la disponibilidad y aún no responde. Dile al cliente que estás esperando la confirmación; no pidas pagos ni des datos de pago.";
     case "awaiting_payment":
-      return `Estado de la reserva: recepción confirmó y el sistema ya envió al cliente el total (${clp(state.booking_total)}), el abono del 50% (${clp(state.booking_deposit)}) y los datos de transferencia. La habitación está guardada hasta las ${state.hold_expires_at ? hour(state.hold_expires_at) : "—"}. Si pregunta, recuérdale enviar el comprobante por este chat; no repitas los datos bancarios.`;
+      return `Estado de la reserva: recepción confirmó y el sistema ya envió al cliente el total (${clp(state.booking_total)}), ${
+        Number(state.booking_deposit) >= Number(state.booking_total)
+          ? "que debe pagarse completo para confirmar"
+          : `el abono (${clp(state.booking_deposit)})`
+      } y los datos de transferencia. La habitación está guardada hasta las ${state.hold_expires_at ? hour(state.hold_expires_at) : "—"}. Si pregunta, recuérdale enviar el comprobante por este chat; no repitas los datos bancarios.`;
     case "proof_received":
       return "Estado de la reserva: el cliente ya envió el comprobante y el encargado lo está verificando. Agradécele y dile que le confirmamos apenas se revise el pago.";
     case "confirmed":
