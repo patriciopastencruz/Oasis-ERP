@@ -1,0 +1,24 @@
+{
+  "name": "lucia-whatsapp-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Conexión de WhatsApp (Baileys) del número central de Lucía, OASIS ERP.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.110.2",
+    "baileys": "7.0.0-rc14",
+    "pino": "9.6.0",
+    "tsx": "4.20.3"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.0",
+    "typescript": "5.9.3"
+  }
+}

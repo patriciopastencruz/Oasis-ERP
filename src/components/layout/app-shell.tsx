@@ -379,6 +379,12 @@ const lodgingNav = [
     permission: "lodging.quotations.manage",
   },
   {
+    href: "/lodging/lucia",
+    label: "Prospectos (Lucía)",
+    icon: MessageCircle,
+    permission: "lucia.inbox.view",
+  },
+  {
     href: "/lodging/closing",
     label: "Cierre diario",
     icon: ClipboardCheck,

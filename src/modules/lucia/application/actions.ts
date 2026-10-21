@@ -1,0 +1,261 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/modules/platform/auth/application/session";
+import { normalizePhoneNumber } from "@/modules/whatsapp/domain/phone";
+import { supportedLuciaModels } from "@/modules/lucia/domain/pricing";
+import { processLuciaConversation } from "./process";
+
+const BASE = "/lodging/lucia";
+const uuid = z.string().uuid();
+
+function back(path: string, type: "success" | "error", message: string): never {
+  redirect(`${path}${path.includes("?") ? "&" : "?"}${type}=${encodeURIComponent(message)}`);
+}
+function friendly(error: { message?: string } | null) {
+  const value = error?.message ?? "No fue posible completar la operación.";
+  if (/permission denied|row-level/i.test(value)) return "No tienes autorización para esta acción.";
+  return value;
+}
+const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
+
+// ===== Bandeja =====
+
+async function conversationRpc(
+  form: FormData,
+  fn: string,
+  args: (id: string) => Record<string, unknown>,
+  success: string,
+) {
+  await requirePermission("lucia.inbox.reply");
+  const id = uuid.parse(form.get("conversation_id"));
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc(fn, args(id));
+  const path = `${BASE}/${id}`;
+  if (error) back(path, "error", friendly(error));
+  revalidatePath(path);
+  back(path, "success", success);
+}
+
+export async function sendDraftAction(form: FormData) {
+  const draftId = uuid.parse(form.get("draft_id"));
+  await conversationRpc(
+    form,
+    "lucia_send_draft",
+    () => ({ target_draft: draftId, final_content: text(form, "content") }),
+    "Mensaje enviado. En WhatsApp sale en unos segundos, con pausa de \"escribiendo…\".",
+  );
+}
+
+export async function discardDraftAction(form: FormData) {
+  const draftId = uuid.parse(form.get("draft_id"));
+  await conversationRpc(form, "lucia_discard_draft", () => ({ target_draft: draftId }), "Borrador descartado.");
+}
+
+export async function sendReplyAction(form: FormData) {
+  await conversationRpc(
+    form,
+    "lucia_send_reply",
+    (id) => ({ target_conversation: id, body: text(form, "content") }),
+    "Respuesta enviada.",
+  );
+}
+
+export async function takeControlAction(form: FormData) {
+  await conversationRpc(form, "lucia_take_control", (id) => ({ target_conversation: id }), "Tomaste el control: Lucía queda pausada en este chat.");
+}
+
+export async function releaseControlAction(form: FormData) {
+  await conversationRpc(form, "lucia_release_control", (id) => ({ target_conversation: id }), "Lucía vuelve a atender este chat.");
+}
+
+export async function markReviewedAction(form: FormData) {
+  await conversationRpc(form, "lucia_mark_reviewed", (id) => ({ target_conversation: id }), "Marcado como revisado.");
+}
+
+export async function closeConversationAction(form: FormData) {
+  await conversationRpc(form, "lucia_close_conversation", (id) => ({ target_conversation: id }), "Conversación cerrada.");
+}
+
+const prospectSchema = z.object({
+  prospect_status: z.enum(["new", "quoted", "pre_reserved", "confirmed", "lost"]),
+  business_unit_id: z.union([z.literal(""), z.string().uuid()]),
+  contact_name: z.string().max(160),
+  guest_name: z.string().max(160),
+  check_in: z.union([z.literal(""), z.string().date()]),
+  check_out: z.union([z.literal(""), z.string().date()]),
+  guests: z.union([z.literal(""), z.coerce.number().int().min(1).max(60)]),
+  room_type: z.string().max(120),
+  preferences: z.string().max(500),
+  quoted_amount: z.union([z.literal(""), z.coerce.number().min(0).max(999_999_999)]),
+});
+
+export async function updateProspectAction(form: FormData) {
+  const fields = Object.fromEntries(
+    Object.keys(prospectSchema.shape).map((key) => [key, text(form, key)]),
+  );
+  const parsed = prospectSchema.safeParse(fields);
+  const id = uuid.parse(form.get("conversation_id"));
+  if (!parsed.success) back(`${BASE}/${id}`, "error", parsed.error.issues[0]?.message ?? "Datos inválidos.");
+  if (parsed.data.check_in && parsed.data.check_out && parsed.data.check_out <= parsed.data.check_in)
+    back(`${BASE}/${id}`, "error", "La salida debe ser posterior a la llegada.");
+  await conversationRpc(
+    form,
+    "lucia_update_prospect",
+    () => ({ target_conversation: id, payload: { ...parsed.data, guests: String(parsed.data.guests), quoted_amount: String(parsed.data.quoted_amount) } }),
+    "Ficha actualizada.",
+  );
+}
+
+// ===== Simulador =====
+
+export async function startSimulationAction(form: FormData) {
+  await requirePermission("lucia.settings.manage");
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("lucia_simulator_start", {
+    contact: text(form, "contact_name"),
+  });
+  if (error) back(`${BASE}/simulador`, "error", friendly(error));
+  redirect(`${BASE}/${data}`);
+}
+
+export async function simulateCustomerMessageAction(form: FormData) {
+  await requirePermission("lucia.settings.manage");
+  const id = uuid.parse(form.get("conversation_id"));
+  const path = `${BASE}/${id}`;
+  const supabase = await createSupabaseServerClient();
+  // La función valida permiso, acceso y que sea una conversación de prueba.
+  const { error } = await supabase.rpc("lucia_simulator_customer_message", {
+    target_conversation: id,
+    body: text(form, "content"),
+  });
+  if (error) back(path, "error", friendly(error));
+  const result = await processLuciaConversation(createSupabaseAdminClient(), id);
+  revalidatePath(path);
+  if (result.status === "error") back(path, "error", `Lucía no pudo responder: ${result.message}`);
+  if (result.status === "skipped")
+    back(path, "success", "Mensaje registrado. Lucía no redactó respuesta (chat pausado o tomado).");
+  back(path, "success", "Lucía preparó un borrador.");
+}
+
+// ===== Configuración =====
+
+const SETTINGS_PATH = `${BASE}/configuracion`;
+
+const settingsSchema = z.object({
+  agent_name: z.string().trim().min(1, "Indica el nombre de la asistente.").max(60),
+  general_instructions: z.string().max(20000),
+  model: z.enum(supportedLuciaModels as [string, ...string[]]),
+  daily_budget_usd: z.coerce.number().min(0).max(1000),
+  max_messages_per_minute: z.coerce.number().int().min(1).max(30),
+  history_messages: z.coerce.number().int().min(1).max(50),
+});
+
+export async function saveSettingsAction(form: FormData) {
+  const { user } = await requirePermission("lucia.settings.manage");
+  const parsed = settingsSchema.safeParse({
+    agent_name: form.get("agent_name"),
+    general_instructions: form.get("general_instructions") ?? "",
+    model: form.get("model"),
+    daily_budget_usd: form.get("daily_budget_usd"),
+    max_messages_per_minute: form.get("max_messages_per_minute"),
+    history_messages: form.get("history_messages"),
+  });
+  if (!parsed.success) back(SETTINGS_PATH, "error", parsed.error.issues[0]?.message ?? "Datos inválidos.");
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("lucia_settings")
+    .update({ ...parsed.data, updated_at: new Date().toISOString(), updated_by: user.id })
+    .eq("id", uuid.parse(form.get("settings_id")))
+    .select("id");
+  if (error || !data?.length) back(SETTINGS_PATH, "error", friendly(error));
+  revalidatePath(SETTINGS_PATH);
+  back(SETTINGS_PATH, "success", "Configuración guardada.");
+}
+
+const hostelSchema = z.object({
+  display_name: z.string().trim().min(1).max(80),
+  manual: z.string().max(40000),
+  manager_name: z.string().trim().max(120),
+  manager_phone: z.string().trim().max(20),
+  mode: z.enum(["draft", "auto"]),
+});
+
+export async function saveHostelAction(form: FormData) {
+  const { user } = await requirePermission("lucia.settings.manage");
+  const unitId = uuid.parse(form.get("business_unit_id"));
+  const parsed = hostelSchema.safeParse({
+    display_name: form.get("display_name"),
+    manual: form.get("manual") ?? "",
+    manager_name: form.get("manager_name") ?? "",
+    manager_phone: form.get("manager_phone") ?? "",
+    mode: form.get("mode"),
+  });
+  if (!parsed.success) back(SETTINGS_PATH, "error", parsed.error.issues[0]?.message ?? "Datos inválidos.");
+  const phone = parsed.data.manager_phone ? normalizePhoneNumber(parsed.data.manager_phone) : null;
+  if (parsed.data.manager_phone && !phone)
+    back(SETTINGS_PATH, "error", "El WhatsApp del encargado no es válido (usa formato +56 9 ...).");
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("lucia_hostels")
+    .update({
+      ...parsed.data,
+      manager_name: parsed.data.manager_name || null,
+      manager_phone: phone,
+      enabled: form.get("enabled") === "on",
+      updated_at: new Date().toISOString(),
+      updated_by: user.id,
+    })
+    .eq("business_unit_id", unitId)
+    .select("business_unit_id");
+  if (error || !data?.length) back(SETTINGS_PATH, "error", friendly(error));
+  revalidatePath(SETTINGS_PATH);
+  back(SETTINGS_PATH, "success", `${parsed.data.display_name}: guardado.`);
+}
+
+const excludedSchema = z.object({
+  label: z.string().trim().min(1, "Indica a quién corresponde el número.").max(120),
+  category: z.enum(["familia", "equipo", "encargado", "otro"]),
+});
+
+export async function addExcludedContactAction(form: FormData) {
+  const { user } = await requirePermission("lucia.settings.manage");
+  const phone = normalizePhoneNumber(text(form, "phone"));
+  if (!phone) back(SETTINGS_PATH, "error", "Número inválido (usa formato +56 9 ...).");
+  const parsed = excludedSchema.safeParse({ label: form.get("label"), category: form.get("category") });
+  if (!parsed.success) back(SETTINGS_PATH, "error", parsed.error.issues[0]?.message ?? "Datos inválidos.");
+  const supabase = await createSupabaseServerClient();
+  const { data: settings } = await supabase
+    .from("lucia_settings")
+    .select("company_id,business_unit_id")
+    .single();
+  if (!settings) back(SETTINGS_PATH, "error", "Lucía no está configurada.");
+  const { error } = await supabase.from("lucia_excluded_contacts").insert({
+    company_id: settings.company_id,
+    business_unit_id: settings.business_unit_id,
+    phone_e164: phone,
+    ...parsed.data,
+    created_by: user.id,
+  });
+  if (error)
+    back(SETTINGS_PATH, "error", error.code === "23505" ? "Ese número ya está excluido." : friendly(error));
+  revalidatePath(SETTINGS_PATH);
+  back(SETTINGS_PATH, "success", "Contacto excluido: Lucía no le responderá.");
+}
+
+export async function removeExcludedContactAction(form: FormData) {
+  await requirePermission("lucia.settings.manage");
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("lucia_excluded_contacts")
+    .delete()
+    .eq("id", uuid.parse(form.get("id")))
+    .select("id");
+  if (error || !data?.length) back(SETTINGS_PATH, "error", friendly(error));
+  revalidatePath(SETTINGS_PATH);
+  back(SETTINGS_PATH, "success", "Contacto quitado de la lista de excluidos.");
+}

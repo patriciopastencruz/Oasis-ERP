@@ -252,4 +252,21 @@ begin
   on conflict do nothing;
 end $$;
 
+-- Lucía (asistente de WhatsApp): misma semilla que la migración
+-- 20261021141709, que en local corre antes de crear las unidades.
+insert into public.lucia_settings(company_id,business_unit_id,general_instructions)
+select bu.company_id,bu.id,
+ 'Eres Lucía, la asistente de reservas de nuestras tres hostales. Respondes en español, con tono cercano y breve, como una persona por WhatsApp.'
+from public.business_units bu where bu.code='HU' and bu.deleted_at is null
+on conflict(company_id) do nothing;
+insert into public.lucia_hostels(company_id,business_unit_id,display_name)
+select bu.company_id,bu.id,bu.name from public.business_units bu
+where bu.code in('HU','HOC','HOB') and bu.deleted_at is null
+on conflict(business_unit_id) do nothing;
+insert into public.role_permissions(role_id,permission_id)
+select r.id,p.id from public.roles r cross join public.permissions p
+where (r.key in('general_manager','area_manager') and p.key in('lucia.inbox.view','lucia.inbox.reply'))
+ or (r.key='general_manager' and p.key='lucia.settings.manage')
+on conflict do nothing;
+
 commit;
