@@ -60,7 +60,6 @@ export async function processLuciaConversation(
   const last = messages.at(-1);
   if (!last || last.sender_type !== "customer")
     return { status: "skipped", reason: "nothing_to_answer" };
-  if (last.message_type !== "text") return { status: "skipped", reason: "needs_review" };
 
   const turns = buildChatTurns(messages, settings.history_messages);
   const knowledge = buildKnowledgeBlock(

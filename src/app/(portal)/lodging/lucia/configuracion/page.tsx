@@ -84,7 +84,7 @@ export default async function LuciaSettingsPage({
               <label className="block">Modo
                 <select name="mode" defaultValue={h.mode} className={inputClass}>
                   <option value="draft">Borrador (una persona aprueba cada mensaje)</option>
-                  <option value="auto">Automático (Lucía responde sola, salvo casos para una persona)</option>
+                  <option value="auto">Automático (Lucía responde sola)</option>
                 </select>
               </label>
               <label className="flex items-center gap-2">
@@ -100,8 +100,9 @@ export default async function LuciaSettingsPage({
         ))}
       </div>
       <p className="mb-4 text-xs text-slate-500">
-        En modo automático Lucía envía sola sus respuestas. Quedan como borrador para una persona: reservas, reclamos, pedidos de hablar con alguien,
-        preguntas fuera del manual, audios e imágenes, chats tomados o pausados y todo lo que llegue después de superar el tope de gasto del día.
+        En modo automático Lucía envía sola sus respuestas. Cuando no tiene el dato (disponibilidad, reservas, reclamos, temas fuera del manual)
+        responde que el encargado confirmará y marca el chat para revisión. No responde sola en chats tomados, pausados (el equipo respondió desde
+        el teléfono o la bandeja en las últimas 12 h), audios e imágenes, ni después de superar el tope de gasto del día.
         Un chat sin hostal asignada se responde solo si todas las hostales habilitadas están en automático.
       </p>
 

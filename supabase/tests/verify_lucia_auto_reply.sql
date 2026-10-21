@@ -45,12 +45,15 @@ begin
   r:=public.lucia_ingest_message(jsonb_build_object('company_id',company,'jid','56944444444@s.whatsapp.net','phone','+56944444444','external_id','A2','content','Quiero reservar'));
   did:=public.lucia_record_draft(draft_args||jsonb_build_object('needs_human',true,'reason','Quiere reservar'));
   res:=public.lucia_auto_send_draft(did,(select id from public.lucia_messages where conversation_id=(select conversation_id from public.lucia_drafts where id=did) and direction='inbound' order by created_at desc, id limit 1));
-  if res->>'reason'<>'needs_human' then raise exception 'Una reserva debe quedar para una persona: %',res; end if;
-  -- La marca de revisión se mantiene: el siguiente mensaje tampoco sale solo.
+  -- Igual responde (avisa que el encargado confirma) y el chat queda marcado.
+  if not (res->>'sent')::boolean or not (res->>'needs_human')::boolean then raise exception 'Debe responder y marcar para revisión: %',res; end if;
+  if not (select needs_review from public.lucia_conversations where id=conv) then raise exception 'Falta la marca de revisión'; end if;
+  -- Tomar control detiene a Lucía.
+  update public.lucia_conversations set status='human' where id=conv;
   r:=public.lucia_ingest_message(jsonb_build_object('company_id',company,'jid','56944444444@s.whatsapp.net','phone','+56944444444','external_id','A3','content','¿y el wifi?'));
   did:=public.lucia_record_draft(draft_args);
-  res:=public.lucia_auto_send_draft(did,(select id from public.lucia_messages where conversation_id=(select conversation_id from public.lucia_drafts where id=did) and direction='inbound' order by created_at desc, id limit 1));
-  if (res->>'sent')::boolean then raise exception 'Con revisión pendiente no debe responder sola'; end if;
+  res:=public.lucia_auto_send_draft(did,(select id from public.lucia_messages where external_id='A3'));
+  if res->>'reason'<>'human_control' then raise exception 'Con control humano no responde: %',res; end if;
 
   -- Llegó otro mensaje después del borrador: no se envía uno desactualizado.
   r:=public.lucia_ingest_message(jsonb_build_object('company_id',company,'jid','56955555555@s.whatsapp.net','phone','+56955555555','external_id','B1','content','Hola'));
