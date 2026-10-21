@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import type { ChatTurn } from "@/modules/lucia/domain/history";
+import { clientSaidIt, type ChatTurn } from "@/modules/lucia/domain/history";
 import {
   luciaOutputSchema,
   luciaRespondToolSchema,
@@ -49,6 +49,8 @@ export async function generateLuciaReply(input: {
   todayIso: string;
   /** Estado de la conversación (p. ej. de la reserva), fuera del prefijo en caché. */
   stateNote?: string | null;
+  /** Lo que escribió el cliente en esta consulta: las fechas deben salir de ahí. */
+  customerText: string;
   checkAvailability: AvailabilityChecker;
 }): Promise<LuciaBrainResult> {
   if (input.turns.length === 0 || input.turns.at(-1)?.role !== "user") {
@@ -79,8 +81,13 @@ export async function generateLuciaReply(input: {
           check_in: { type: "string", description: "Fecha de llegada AAAA-MM-DD" },
           check_out: { type: "string", description: "Fecha de salida AAAA-MM-DD (el día que se va)" },
           guests: { type: "integer", description: "Cantidad total de personas" },
+          fechas_del_cliente: {
+            type: "string",
+            description:
+              "Copia textual de las palabras del cliente, en esta consulta, donde dice cuándo llega y se va o cuántas noches (por ejemplo «del 25 al 27 de noviembre»). Si el cliente no lo dijo, no uses esta herramienta: pregúntale.",
+          },
         },
-        required: ["check_in", "check_out", "guests"],
+        required: ["check_in", "check_out", "guests", "fechas_del_cliente"],
       },
     },
     {
@@ -145,6 +152,17 @@ export async function generateLuciaReply(input: {
       role: "user",
       content: await Promise.all(
         lookups.map(async (block): Promise<Anthropic.ToolResultBlockParam> => {
+          // Las fechas nunca se suponen (p. ej. «hoy» o las de una consulta
+          // anterior): deben estar escritas por el cliente en esta consulta.
+          if (!clientSaidIt((block.input as { fechas_del_cliente?: unknown }).fechas_del_cliente, input.customerText)) {
+            return {
+              type: "tool_result",
+              tool_use_id: block.id,
+              content:
+                "No consultado: el cliente no ha indicado sus fechas en esta consulta. No supongas fechas ni uses las de antes: pregúntale qué día llega y qué día se va. Si sí las escribió, copia sus palabras exactas en fechas_del_cliente.",
+              is_error: true,
+            };
+          }
           try {
             const result = await input.checkAvailability(block.input as { check_in: string; check_out: string; guests: number });
             return { type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) };

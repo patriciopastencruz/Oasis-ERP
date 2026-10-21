@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildChatTurns, type LuciaHistoryMessage } from "@/modules/lucia/domain/history";
+import { buildChatTurns, currentInquiryCustomerText, type LuciaHistoryMessage } from "@/modules/lucia/domain/history";
 import { usageCostUsd } from "@/modules/lucia/domain/pricing";
 import { describeBookingState } from "@/modules/lucia/domain/booking-context";
 import { buildKnowledgeBlock, type LuciaHostelKnowledge } from "@/modules/lucia/domain/prompt";
@@ -52,7 +52,7 @@ export async function processLuciaConversation(
       .single(),
     admin
       .from("lucia_messages")
-      .select("id,direction,sender_type,message_type,content,delivery_status")
+      .select("id,direction,sender_type,message_type,content,delivery_status,created_at")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: false })
       .limit(50),
@@ -79,6 +79,7 @@ export async function processLuciaConversation(
       today: todayInChile(),
       todayIso: santiagoToday(),
       stateNote: describeBookingState(conversation),
+      customerText: currentInquiryCustomerText(messages),
       checkAvailability: (query) => checkLuciaAvailability(admin, conversation.company_id, query),
     });
     const costUsd = usageCostUsd(settings.model, result.usage);

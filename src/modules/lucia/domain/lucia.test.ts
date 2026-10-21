@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildChatTurns, type LuciaHistoryMessage } from "./history";
+import { buildChatTurns, clientSaidIt, currentInquiryCustomerText, NEW_INQUIRY_NOTE, type LuciaHistoryMessage } from "./history";
 import { luciaOutputSchema } from "./output-schema";
 import { usageCostUsd } from "./pricing";
 import { buildKnowledgeBlock } from "./prompt";
@@ -54,6 +54,37 @@ describe("buildChatTurns", () => {
       15,
     );
     expect(turns).toEqual([{ role: "user", content: "hola" }]);
+  });
+});
+
+describe("consultas nuevas tras un silencio largo", () => {
+  const at = (iso: string) => ({ created_at: iso });
+  const history = [
+    msg("inbound", "Quiero el mini depto para hoy", at("2026-10-21T17:00:00Z")),
+    msg("outbound", "Listo, tengo tu reserva para hoy", at("2026-10-21T17:21:00Z")),
+    msg("inbound", "Holaa, tiene disponibilidad de habitación", at("2026-10-21T22:03:00Z")),
+    msg("outbound", "¿Para qué fechas?", at("2026-10-21T22:04:00Z")),
+    msg("inbound", "Es para dos personas, con baño privado", at("2026-10-21T22:04:30Z")),
+  ];
+
+  it("marca el mensaje que abre una consulta nueva", () => {
+    const turns = buildChatTurns(history, 15);
+    expect(turns[2].content.startsWith(NEW_INQUIRY_NOTE)).toBe(true);
+    expect(turns[0].content).toBe("Quiero el mini depto para hoy");
+  });
+
+  it("solo acepta fechas que el cliente escribió en la consulta actual", () => {
+    const text = currentInquiryCustomerText(history);
+    expect(text).not.toContain("hoy");
+    expect(clientSaidIt("para hoy", text)).toBe(false);
+    expect(clientSaidIt(undefined, text)).toBe(false);
+    const withDates = currentInquiryCustomerText([
+      ...history,
+      msg("inbound", "Llegamos el 25/11 y nos vamos el 27/11", at("2026-10-21T22:05:00Z")),
+    ]);
+    expect(clientSaidIt("el 25/11 y nos vamos el 27/11", withDates)).toBe(true);
+    expect(clientSaidIt("Llegamos el 25-11", withDates)).toBe(true);
+    expect(clientSaidIt("del 25 al 27 de noviembre", withDates)).toBe(false);
   });
 });
 
