@@ -55,15 +55,16 @@ export const luciaOutputSchema = z.object({
     .pipe(z.string().trim().min(1).max(3000)),
   intent: z.enum(luciaIntents).catch("other"),
   answered_from_manual: z.boolean().catch(false),
-  needs_human: z.boolean(),
+  needs_human: z.boolean().catch(false),
   booking_request: z.boolean().catch(false),
   photos: z
     .object({ hostel_code: z.enum(luciaHostelCodes), room_type: z.string().trim().min(1).max(160) })
     .nullish()
     .catch(null)
     .transform((v) => v ?? null),
-  reason: optionalText(300),
-  prospect: luciaProspectSchema,
+  reason: optionalText(300).catch(null),
+  // Si la ficha viene incompleta o mal formada, se ignora sin perder la respuesta.
+  prospect: luciaProspectSchema.catch(() => luciaProspectSchema.parse({})),
 });
 export type LuciaOutput = z.infer<typeof luciaOutputSchema>;
 
