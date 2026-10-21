@@ -139,7 +139,11 @@ export async function simulateCustomerMessageAction(form: FormData) {
   if (result.status === "error") back(path, "error", `Lucía no pudo responder: ${result.message}`);
   if (result.status === "skipped")
     back(path, "success", "Mensaje registrado. Lucía no redactó respuesta (chat pausado o tomado).");
-  back(path, "success", "Lucía preparó un borrador.");
+  back(
+    path,
+    "success",
+    result.autoSent ? "Lucía respondió automáticamente." : "Lucía preparó un borrador para revisar.",
+  );
 }
 
 // ===== Configuración =====

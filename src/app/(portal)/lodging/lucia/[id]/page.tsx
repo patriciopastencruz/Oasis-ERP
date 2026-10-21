@@ -271,7 +271,7 @@ export default async function LuciaConversationPage({
               <ul className="space-y-2 text-xs text-slate-600">
                 {drafts.filter((d) => d.status !== "pending").slice(0, 8).map((d) => (
                   <li key={d.id} className="border-t pt-2">
-                    <b>{{ sent: d.edited ? "Enviado con cambios" : "Enviado", discarded: "Descartado", superseded: "Reemplazado" }[d.status as string] ?? d.status}</b>
+                    <b>{{ sent: d.auto_sent ? "Enviado automáticamente" : d.edited ? "Enviado con cambios" : "Enviado", discarded: "Descartado", superseded: "Reemplazado" }[d.status as string] ?? d.status}</b>
                     {" · "}{formatDateTime(d.created_at)}
                     <p className="mt-0.5 line-clamp-3">{d.content}</p>
                   </li>

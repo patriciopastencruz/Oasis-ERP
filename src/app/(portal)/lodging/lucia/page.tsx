@@ -52,7 +52,7 @@ export default async function LuciaInboxPage({
       <PageHeader
         eyebrow="Hostales · Lucía"
         title="Prospectos de WhatsApp"
-        description={`Conversaciones del número central atendidas por ${settings.agent_name}. En esta etapa Lucía solo sugiere respuestas: nada se envía sin que alguien presione "Enviar".`}
+        description={`Conversaciones del número central atendidas por ${settings.agent_name}. En las hostales en modo automático responde sola; los casos que necesitan a una persona quedan como borrador con "Enviar", "Editar" y "Descartar".`}
       />
       <LuciaTabs active="" permissions={ctx.permissions} />
       <Notice success={q.success} error={q.error} />

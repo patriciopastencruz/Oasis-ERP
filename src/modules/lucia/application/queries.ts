@@ -133,7 +133,7 @@ export async function loadConversation(supabase: SupabaseClient, id: string) {
     supabase
       .from("lucia_drafts")
       .select(
-        "id,content,intent,needs_human,reason,extracted,status,edited,model,input_tokens,output_tokens,cache_read_tokens,cache_write_tokens,cost_usd,created_at",
+        "id,content,intent,needs_human,reason,extracted,status,edited,auto_sent,model,input_tokens,output_tokens,cache_read_tokens,cache_write_tokens,cost_usd,created_at",
       )
       .eq("conversation_id", id)
       .order("created_at", { ascending: false })
