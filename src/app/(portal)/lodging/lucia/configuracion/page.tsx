@@ -98,6 +98,14 @@ export default async function LuciaSettingsPage({
                   <input type="number" min={15} max={1440} name="hold_minutes" defaultValue={h.hold_minutes} className={inputClass} />
                 </label>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">Check-in desde
+                  <input type="time" name="checkin_time" defaultValue={h.checkin_time.slice(0, 5)} className={inputClass} />
+                </label>
+                <label className="block">Check-out hasta
+                  <input type="time" name="checkout_time" defaultValue={h.checkout_time.slice(0, 5)} className={inputClass} />
+                </label>
+              </div>
               <label className="block">Datos para transferencia
                 <textarea name="payment_instructions" rows={5} defaultValue={h.payment_instructions} className={inputClass}
                   placeholder="Banco, tipo y número de cuenta, RUT, nombre y correo. Lucía los envía al cliente solo cuando recepción confirma la disponibilidad." />

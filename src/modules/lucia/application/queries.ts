@@ -27,6 +27,8 @@ export type LuciaHostel = {
   payment_instructions: string;
   deposit_percent: number;
   hold_minutes: number;
+  checkin_time: string;
+  checkout_time: string;
   enabled: boolean;
   code: string;
 };
@@ -35,7 +37,7 @@ export async function loadHostels(supabase: SupabaseClient): Promise<LuciaHostel
   const { data } = await supabase
     .from("lucia_hostels")
     .select(
-      "business_unit_id,display_name,manual,manager_name,manager_phone,mode,enabled,payment_instructions,deposit_percent,hold_minutes,business_units(code)",
+      "business_unit_id,display_name,manual,manager_name,manager_phone,mode,enabled,payment_instructions,deposit_percent,hold_minutes,checkin_time,checkout_time,business_units(code)",
     )
     .order("display_name");
   return (data ?? []).map((row) => {

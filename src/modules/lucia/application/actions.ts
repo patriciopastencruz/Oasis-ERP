@@ -218,6 +218,8 @@ const hostelSchema = z.object({
   payment_instructions: z.string().trim().max(2000),
   deposit_percent: z.coerce.number().int().min(1).max(100),
   hold_minutes: z.coerce.number().int().min(15).max(1440),
+  checkin_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Hora de check-in inválida."),
+  checkout_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Hora de check-out inválida."),
 });
 
 export async function saveHostelAction(form: FormData) {
@@ -232,6 +234,8 @@ export async function saveHostelAction(form: FormData) {
     payment_instructions: form.get("payment_instructions") ?? "",
     deposit_percent: form.get("deposit_percent") ?? 50,
     hold_minutes: form.get("hold_minutes") ?? 60,
+    checkin_time: form.get("checkin_time") ?? "14:00",
+    checkout_time: form.get("checkout_time") ?? "12:00",
   });
   if (!parsed.success) back(SETTINGS_PATH, "error", parsed.error.issues[0]?.message ?? "Datos inválidos.");
   const phone = parsed.data.manager_phone ? normalizePhoneNumber(parsed.data.manager_phone) : null;

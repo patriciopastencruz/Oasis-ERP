@@ -46,7 +46,7 @@ begin
   if not (r->>'ok')::boolean then raise exception 'Debía crearse la solicitud: %',r; end if;
   code:=r->>'code';
   if not exists(select 1 from public.lucia_messages where conversation_id=conv and sender_type='lucia'
-    and content like '%Resumen de tu solicitud%' and content like '%Carla Soto%' and content like '%Valor estimado: $64.000%' and content like '%(2 noches)%') then
+    and content like '%Resumen de tu solicitud%' and content like '%Carla Soto%' and content like '%Valor estimado: $64.000%' and content like '%(2 noches)%' and content like '%desde las 14:00%' and content like '%hasta las 12:00%') then
     raise exception 'El cliente debe recibir el resumen de su solicitud con valor estimado';
   end if;
   if (select count(*) from public.lucia_staff_messages where conversation_id=conv and content like '%OK '||code||'%')<>1 then raise exception 'Debe avisarse al encargado con el código'; end if;
