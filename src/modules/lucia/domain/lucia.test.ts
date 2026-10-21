@@ -122,8 +122,26 @@ describe("luciaOutputSchema", () => {
       room_type: "Doble",
       preferences: null,
       hostel_code: null,
+      option_code: null,
       quoted_amount: null,
     });
+  });
+});
+
+describe("formato de la respuesta", () => {
+  it("convierte los \\n escritos como texto en saltos de línea reales", () => {
+    const parsed = luciaOutputSchema.parse({
+      reply: "Opciones:\\n\\n*Hostal Atacama Oasis* 🏨\\n• Pieza: $30.000",
+      intent: "availability",
+      answered_from_manual: false,
+      needs_human: false,
+      booking_request: false,
+      photos: null,
+      reason: null,
+      prospect: { option_code: "no-es-uuid" },
+    });
+    expect(parsed.reply).toBe("Opciones:\n\n*Hostal Atacama Oasis* 🏨\n• Pieza: $30.000");
+    expect(parsed.prospect.option_code).toBeNull();
   });
 });
 

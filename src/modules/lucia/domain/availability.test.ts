@@ -31,7 +31,7 @@ describe("searchAvailability", () => {
     expect(result.noches).toBe(2);
     expect(result.hostales.map((h) => h.hostal)).toEqual(["Hostal Uruguay", "Hostal Oasis Centro"]);
     expect(result.hostales[0].opciones).toEqual([
-      { habitacion: "Habitación: 1 cama matrimonial, baño privado", capacidad: 2, libres: 2, precio_noche: 30000, total_estadia: 60000 },
+      { codigo: "u1", habitacion: "Habitación: 1 cama matrimonial, baño privado", capacidad: 2, libres: 2, precio_noche: 30000, total_estadia: 60000 },
     ]);
     expect(result.hostales[1].opciones[0].total_estadia).toBe(64000);
     expect(result.sin_disponibilidad).toEqual(["Hostal Oasis Cobija"]);

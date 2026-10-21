@@ -38,6 +38,7 @@ export const luciaProspectSchema = z.object({
   preferences: optionalText(500),
   hostel_code: z.enum(luciaHostelCodes).nullish().catch(null).transform((v) => v ?? null),
   quoted_amount: z.number().min(0).nullish().catch(null).transform((v) => v ?? null),
+  option_code: z.string().uuid().nullish().catch(null).transform((v) => v ?? null),
 });
 export type LuciaProspect = z.infer<typeof luciaProspectSchema>;
 
@@ -46,7 +47,12 @@ export type LuciaProspect = z.infer<typeof luciaProspectSchema>;
  * la respuesta sugerida y la ficha del prospecto en JSON.
  */
 export const luciaOutputSchema = z.object({
-  reply: z.string().trim().min(1).max(3000),
+  // A veces el modelo escribe el salto de línea como texto ("\\n"): se convierte
+  // en un salto real para que WhatsApp lo muestre ordenado.
+  reply: z
+    .string()
+    .transform((v) => v.replace(/(?:\\r)?\\n/g, "\n").replace(/\\t/g, " "))
+    .pipe(z.string().trim().min(1).max(3000)),
   intent: z.enum(luciaIntents).catch("other"),
   answered_from_manual: z.boolean().catch(false),
   needs_human: z.boolean(),
@@ -117,6 +123,11 @@ export const luciaRespondToolSchema = {
           description:
             "Hostal elegida o la que mejor calza con lo pedido; null si aún no está claro.",
         },
+        option_code: {
+          type: ["string", "null"],
+          description:
+            "Código ('codigo') de la opción de consultar_disponibilidad que el cliente eligió explícitamente. null si aún no elige una opción concreta.",
+        },
         quoted_amount: {
           type: ["number", "null"],
           description:
@@ -131,6 +142,7 @@ export const luciaRespondToolSchema = {
         "room_type",
         "preferences",
         "hostel_code",
+        "option_code",
         "quoted_amount",
       ],
     },

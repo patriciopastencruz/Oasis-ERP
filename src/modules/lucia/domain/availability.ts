@@ -14,6 +14,8 @@ export type AvailabilityRoom = {
 export type AvailabilityHostel = { code: string; name: string };
 
 export type AvailabilityOption = {
+  /** Identifica la opción (id de una habitación del grupo) para reservar exactamente esa. */
+  codigo: string;
   habitacion: string;
   capacidad: number;
   libres: number;
@@ -82,6 +84,7 @@ export function searchAvailability(input: {
       if (free < 1) continue;
       const price = rateForGuests({ base_rate: rooms[0].baseRate, rates_by_guests: rooms[0].ratesByGuests ?? undefined }, guests);
       opciones.push({
+        codigo: rooms[0].id,
         habitacion: label(rooms[0]),
         capacidad: rooms[0].capacity,
         libres: free,

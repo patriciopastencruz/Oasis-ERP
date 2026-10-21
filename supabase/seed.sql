@@ -263,6 +263,8 @@ insert into public.lucia_hostels(company_id,business_unit_id,display_name)
 select bu.company_id,bu.id,bu.name from public.business_units bu
 where bu.code in('HU','HOC','HOB') and bu.deleted_at is null
 on conflict(business_unit_id) do nothing;
+update public.lucia_hostels h set full_payment_single_night=true
+from public.business_units bu where bu.id=h.business_unit_id and bu.code='HOB';
 insert into public.role_permissions(role_id,permission_id)
 select r.id,p.id from public.roles r cross join public.permissions p
 where (r.key in('general_manager','area_manager') and p.key in('lucia.inbox.view','lucia.inbox.reply'))
