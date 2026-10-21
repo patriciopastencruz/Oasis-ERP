@@ -86,7 +86,7 @@ export async function generateLuciaReply(input: {
           fechas_del_cliente: {
             type: "string",
             description:
-              "Copia textual de las palabras del cliente, en esta consulta, donde dice cuándo llega y se va o cuántas noches (por ejemplo «del 25 al 27 de noviembre»). Si el cliente no lo dijo, no uses esta herramienta: pregúntale.",
+              "Copia textual de las palabras, en esta consulta, donde el cliente dice cuándo llega y se va o cuántas noches (por ejemplo «del 25 al 27 de noviembre»). Si tú le propusiste las fechas y él respondió que sí, copia tus propias palabras con esas fechas (por ejemplo «llegas mañana 22 de octubre y te vas el 23 de octubre»). Si nadie las dijo, no uses esta herramienta: pregúntale.",
           },
           solo_bano_privado: {
             type: "boolean",
@@ -165,7 +165,7 @@ export async function generateLuciaReply(input: {
               type: "tool_result",
               tool_use_id: block.id,
               content:
-                "No consultado: el cliente no ha indicado sus fechas en esta consulta. No supongas fechas ni uses las de antes: pregúntale qué día llega y qué día se va. Si sí las escribió, copia sus palabras exactas en fechas_del_cliente.",
+                "No consultado: esas palabras no aparecen en lo que el cliente escribió o confirmó en esta consulta. Si el cliente escribió sus fechas, copia sus palabras exactas en fechas_del_cliente; si confirmó con un «sí» las fechas que tú le propusiste, copia exactamente tu frase con esas fechas. Si nadie las dijo, no supongas: pregúntale qué día llega y qué día se va.",
               is_error: true,
             };
           }

@@ -86,6 +86,25 @@ describe("consultas nuevas tras un silencio largo", () => {
     expect(clientSaidIt("Llegamos el 25-11", withDates)).toBe(true);
     expect(clientSaidIt("del 25 al 27 de noviembre", withDates)).toBe(false);
   });
+
+  it("acepta las fechas que propuso Lucía si el cliente respondió que sí", () => {
+    const proposal = "Perfecto, una noche para una persona. 📅 Solo para confirmar: ¿llegas mañana 22 de octubre y te vas el 23 de octubre?";
+    const confirmed = currentInquiryCustomerText([
+      msg("inbound", "Hola, necesito pieza para mañana una noche"),
+      msg("outbound", proposal),
+      msg("inbound", "si correctisimo estimadisima lucia"),
+      msg("outbound", "¡Perfecto! Te consulto la disponibilidad"),
+      msg("inbound", "porfavor, busco idealmente la mas central"),
+    ]);
+    expect(clientSaidIt("llegas mañana 22 de octubre y te vas el 23 de octubre", confirmed)).toBe(true);
+    // Sin un «sí» del cliente, la propuesta de Lucía no cuenta.
+    const notConfirmed = currentInquiryCustomerText([
+      msg("inbound", "Hola, tienen pieza?"),
+      msg("outbound", proposal),
+      msg("inbound", "no, en realidad es para diciembre"),
+    ]);
+    expect(clientSaidIt("llegas mañana 22 de octubre y te vas el 23 de octubre", notConfirmed)).toBe(false);
+  });
 });
 
 describe("repairLeakedParameters", () => {

@@ -62,18 +62,26 @@ export function buildChatTurns(
   return turns;
 }
 
+const AFFIRMATIVE =
+  /^(si|sip|sii+|correcto|correctisimo|exacto|exactamente|ok|okay|oka|dale|claro|perfecto|ya|asi es|eso|confirmo|confirmado|efectivamente|afirmativo)\b/;
+
 /**
- * Texto que escribió el cliente en la consulta actual (desde el último
- * silencio largo). Sirve para comprobar que las fechas las dijo él.
+ * Texto con las fechas que vale la pena creer en la consulta actual (desde
+ * el último silencio largo): lo que escribió el cliente, más los mensajes de
+ * Lucía o del equipo que el cliente confirmó enseguida con un «sí».
  */
 export function currentInquiryCustomerText(messages: LuciaHistoryMessage[]): string {
   let start = 0;
   messages.forEach((message, index) => {
     if (message.direction === "inbound" && startsNewInquiry(messages[index - 1], message)) start = index;
   });
-  return messages
-    .slice(start)
-    .filter((m) => m.direction === "inbound" && m.message_type === "text" && m.content)
+  const inquiry = messages.slice(start).filter((m) => m.message_type === "text" && m.content);
+  return inquiry
+    .filter((m, index) => {
+      if (m.direction === "inbound") return true;
+      const reply = inquiry[index + 1];
+      return reply?.direction === "inbound" && AFFIRMATIVE.test(normalize(reply.content!));
+    })
     .map((m) => m.content!.trim())
     .join("\n");
 }
@@ -86,7 +94,7 @@ const normalize = (text: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-/** La cita de fechas debe aparecer tal cual (sin tildes ni signos) en lo que escribió el cliente. */
+/** La cita de fechas debe aparecer tal cual (sin tildes ni signos) en lo que dijo o confirmó el cliente. */
 export function clientSaidIt(quote: unknown, customerText: string): boolean {
   if (typeof quote !== "string") return false;
   const q = normalize(quote);
