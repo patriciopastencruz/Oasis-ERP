@@ -125,7 +125,14 @@ export async function generateLuciaReply(input: {
     );
     if (respond) {
       const parsed = luciaOutputSchema.safeParse(respond.input);
-      if (!parsed.success) throw new LuciaBrainError("Claude no devolvió una respuesta válida.");
+      if (!parsed.success) {
+        // Solo campo y motivo: nunca el contenido de la conversación.
+        const detail = parsed.error.issues
+          .slice(0, 3)
+          .map((i) => `${i.path.join(".") || "(raíz)"}: ${i.message}`)
+          .join("; ");
+        throw new LuciaBrainError(`Claude no devolvió una respuesta válida (${detail}).`);
+      }
       return { output: parsed.data, usage, model };
     }
 
