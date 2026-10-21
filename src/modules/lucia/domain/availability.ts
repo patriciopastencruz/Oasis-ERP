@@ -92,6 +92,17 @@ export function searchAvailability(input: {
         total_estadia: price * nights,
       });
     }
+    // Para el cliente, misma descripción y mismo precio son una sola opción
+    // (pueden venir de grupos con distinta tarifa para otra cantidad de personas).
+    const merged = new Map<string, AvailabilityOption>();
+    for (const o of opciones) {
+      const key = `${o.habitacion}|${o.precio_noche}`;
+      const prev = merged.get(key);
+      if (prev) prev.libres += o.libres;
+      else merged.set(key, { ...o });
+    }
+    opciones.length = 0;
+    opciones.push(...merged.values());
     opciones.sort((a, b) => a.precio_noche - b.precio_noche || a.habitacion.localeCompare(b.habitacion));
     return { hostal: hostel.name, codigo: hostel.code, opciones };
   });

@@ -37,6 +37,16 @@ describe("searchAvailability", () => {
     expect(result.sin_disponibilidad).toEqual(["Hostal Oasis Cobija"]);
   });
 
+  it("une opciones con la misma descripción y el mismo precio para esas personas", () => {
+    const result = searchAvailability({
+      ...base,
+      rooms: [room("a", "HU", { ratesByGuests: { "1": 28000, "2": 30000 } }), room("b", "HU", { capacity: 3, ratesByGuests: { "1": 25000, "2": 30000, "3": 36000 } })],
+      bookings: [],
+    });
+    expect(result.ok && result.hostales[0].opciones).toHaveLength(1);
+    expect(result.ok && result.hostales[0].opciones[0].libres).toBe(2);
+  });
+
   it("no ofrece habitaciones que no admiten a todas las personas", () => {
     const result = searchAvailability({ ...base, guests: 3, rooms: [room("u1", "HU")], bookings: [] });
     expect(result.ok && result.hostales).toEqual([]);
