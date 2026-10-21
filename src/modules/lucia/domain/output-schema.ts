@@ -46,7 +46,7 @@ export type LuciaProspect = z.infer<typeof luciaProspectSchema>;
  * la respuesta sugerida y la ficha del prospecto en JSON.
  */
 export const luciaOutputSchema = z.object({
-  reply: z.string().trim().min(1).max(1500),
+  reply: z.string().trim().min(1).max(3000),
   intent: z.enum(luciaIntents).catch("other"),
   answered_from_manual: z.boolean().catch(false),
   needs_human: z.boolean(),

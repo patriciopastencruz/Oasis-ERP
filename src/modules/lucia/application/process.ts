@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildChatTurns, type LuciaHistoryMessage } from "@/modules/lucia/domain/history";
 import { usageCostUsd } from "@/modules/lucia/domain/pricing";
 import { buildKnowledgeBlock, type LuciaHostelKnowledge } from "@/modules/lucia/domain/prompt";
+import { santiagoToday } from "@/modules/lodging/domain/daily-closing";
+import { checkLuciaAvailability } from "./availability-tool";
 import { generateLuciaReply, LuciaBrainError } from "./brain";
 
 export type ProcessResult =
@@ -74,6 +76,8 @@ export async function processLuciaConversation(
       knowledge,
       turns,
       today: todayInChile(),
+      todayIso: santiagoToday(),
+      checkAvailability: (query) => checkLuciaAvailability(admin, conversation.company_id, query),
     });
     const costUsd = usageCostUsd(settings.model, result.usage);
     const tokens = {
