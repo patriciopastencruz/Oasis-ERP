@@ -361,10 +361,13 @@ export async function removeRoomPhotoAction(form: FormData) {
 
 // ===== Preguntas a recepción =====
 
-const QUESTIONS_PATH = `${BASE}/preguntas`;
+// Dentro del ERP o en la página aislada; solo esas dos rutas (sin redirecciones abiertas).
+const QUESTIONS_PATHS = [`${BASE}/preguntas`, "/preguntas-recepcion"] as const;
 
 export async function saveStaffAnswerAction(form: FormData) {
   await requirePermission("lucia.inbox.reply");
+  const returnTo = text(form, "return_to");
+  const QUESTIONS_PATH = QUESTIONS_PATHS.find((p) => p === returnTo) ?? QUESTIONS_PATHS[0];
   const hostel = text(form, "hostel_code").replace(/[^A-Z]/g, "");
   const code = text(form, "question_code").toUpperCase().replace(/[^A-Z0-9]/g, "");
   // «Correcto» confirma el dato del recuadro sin escribir nada.
