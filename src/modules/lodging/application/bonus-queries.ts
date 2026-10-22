@@ -130,7 +130,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
     pool: config.pool,
     weights: config.weights,
     occupancy: { value: cappedOccupancyPct(h.month.days, h.month.totalRooms), goal: h.goals.occupancyPct },
-    adr: { value: h.month.nightsSold ? h.month.adr : null, goal: h.goals.averageRate },
+    adr: { value: h.month.soldNights ? h.month.adr : null, goal: h.goals.averageRate },
     booking: {
       value: latestReview ? latestReview.score : null,
       goal: h.goals.bookingScore,

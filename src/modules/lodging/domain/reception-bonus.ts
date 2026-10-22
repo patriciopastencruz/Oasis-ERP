@@ -79,11 +79,15 @@ export type BonusRow = {
   criteria: BonusCriterion[];
 };
 
-/** Ocupación del mes (0-100) con cada día limitado a `cap`. */
-export function cappedOccupancyPct(days: { occupied: number }[], totalRooms: number, cap = OCCUPANCY_DAY_CAP) {
-  if (!days.length || totalRooms <= 0) return null;
-  const sum = days.reduce((s, d) => s + Math.min(d.occupied / totalRooms, cap), 0);
-  return (sum / days.length) * 100;
+/**
+ * Ocupación del mes (0-100) con cada día limitado a `cap`. Cada día se mide contra las habitaciones disponibles
+ * ese día (`capacity`); si no viene, contra `totalRooms`. Un día sin habitaciones disponibles no cuenta.
+ */
+export function cappedOccupancyPct(days: { occupied: number; capacity?: number }[], totalRooms: number, cap = OCCUPANCY_DAY_CAP) {
+  const counted = days.filter((d) => (d.capacity ?? totalRooms) > 0);
+  if (!counted.length) return null;
+  const sum = counted.reduce((s, d) => s + Math.min(d.occupied / (d.capacity ?? totalRooms), cap), 0);
+  return (sum / counted.length) * 100;
 }
 
 /** 1 si alcanza la meta, 0,5 si llega al 90% o más de ella, 0 si no. */

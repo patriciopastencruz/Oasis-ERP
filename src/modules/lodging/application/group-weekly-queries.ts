@@ -72,21 +72,21 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
   ]);
   for (const r of [closings, stays, reviews, goals]) if (r.error) throw r.error;
 
-  const month = rangeOperations(monthStart, reference, src.rooms, src.reservations, src.payments, today);
+  const month = rangeOperations(monthStart, reference, src.rooms, src.reservations, src.payments, today, src.gaps);
   // Variación de la venta promedio y el RevPAR contra el día anterior al corte.
   const yesterday = addDays(reference, -1);
-  const yesterdayOps = rangeOperations(yesterday, yesterday, src.rooms, src.reservations, src.payments, today);
+  const yesterdayOps = rangeOperations(yesterday, yesterday, src.rooms, src.reservations, src.payments, today, src.gaps);
   const cumulativeBefore =
     yesterday >= monthStart
-      ? rangeOperations(monthStart, yesterday, src.rooms, src.reservations, src.payments, today)
+      ? rangeOperations(monthStart, yesterday, src.rooms, src.reservations, src.payments, today, src.gaps)
       : null;
   const dayCompare = dayOverDay({
     today: month.days.at(-1),
     yesterday: yesterdayOps.days[0],
     totalRooms: month.totalRooms,
-    cumulativeNow: { adr: month.nightsSold ? month.adr : null, revpar: month.revpar },
+    cumulativeNow: { adr: month.soldNights ? month.adr : null, revpar: month.revpar },
     cumulativeBefore: cumulativeBefore
-      ? { adr: cumulativeBefore.nightsSold ? cumulativeBefore.adr : null, revpar: cumulativeBefore.revpar }
+      ? { adr: cumulativeBefore.soldNights ? cumulativeBefore.adr : null, revpar: cumulativeBefore.revpar }
       : null,
   });
   const reviewRows: ReviewScoreRow[] = (reviews.data ?? []).map((r) => ({

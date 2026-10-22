@@ -163,7 +163,7 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
       const x = colX(i), half = CW / 2;
       p.line(x + half, top + 10, x + half, top + 54);
       const tiles: [string, number, number | null, string, Color][] = [
-        ["Venta prom. habitación", h.month.adr, h.goals.averageRate, `${h.month.nightsSold} noches vendidas`, C.blue],
+        ["Venta prom. habitación", h.month.adr, h.goals.averageRate, `${h.month.soldNights} noches vendidas`, C.blue],
         ["RevPAR", h.month.revpar, revparGoal(h.goals), "Venta por habitación disponible", ORANGE],
       ];
       tiles.forEach(([label, value, goal, hint, color], k) => {
@@ -217,9 +217,9 @@ function drawOccupancy(p: P, h: HostelWeekly, x: number, top: number, ch: number
   const g = h.goals.occupancyPct;
   p.withGoal(x + 10, top + 9, pctTxt(m.occupancy), 20, g === null ? null : `${g.toLocaleString("es-CL")}%`, goalMet(Math.round(m.occupancy * 100), g), 11);
   p.text("ocupación del mes", x + 10, top + 31, 7, R, C.ink2);
-  p.textR(`${m.nightsSold} de ${m.totalRooms * m.elapsedDays} noches`, x + CW - 10, top + 10, 8, B, C.blue);
+  p.textR(`${m.nightsSold} de ${m.roomNights} noches`, x + CW - 10, top + 10, 8, B, C.blue);
   const last = m.days.at(-1);
-  if (last && m.totalRooms) p.textR(`Ocupadas el ${Number(last.date.slice(8))}: ${last.occupied} de ${m.totalRooms}`, x + CW - 10, top + 21, 6.8, R, C.ink2);
+  if (last && last.capacity) p.textR(`Ocupadas el ${Number(last.date.slice(8))}: ${last.occupied} de ${last.capacity}`, x + CW - 10, top + 21, 6.8, R, C.ink2);
 
   // Espacio sobre el 100% para la etiqueta de cada barra.
   const cx = x + 22, cw = CW - 32, base = top + ch - 20, plotH = ch - 78;
@@ -230,7 +230,7 @@ function drawOccupancy(p: P, h: HostelWeekly, x: number, top: number, ch: number
   p.text("50%", x + 7, base - plotH / 2 - 3, 5.5, R, C.muted);
   const n = Math.max(1, m.days.length), slot = cw / n, bw = Math.max(2, Math.min(14, slot - 2));
   m.days.forEach((d, k) => {
-    const occ = m.totalRooms ? d.occupied / m.totalRooms : 0;
+    const occ = d.capacity ? d.occupied / d.capacity : 0;
     const last = k === n - 1;
     const bx = cx + k * slot + (slot - bw) / 2;
     p.column(bx, base, bw, occ * plotH, C.blue);
@@ -345,13 +345,14 @@ function drawPending(p: P, h: HostelWeekly, x: number, top: number, ch: number, 
 /** Venta promedio y RevPAR acumulados al cierre de cada día del mes, con sus metas punteadas. */
 function drawSalesTrend(p: P, h: HostelWeekly, x: number, top: number, ch: number, R: PDFFont, B: PDFFont) {
   const m = h.month;
-  let rev = 0, nights = 0;
+  let rev = 0, nights = 0, roomNights = 0;
   const adr: (number | null)[] = [], revpar: number[] = [];
-  m.days.forEach((d, k) => {
-    rev += d.revenue;
-    nights += d.occupied;
+  m.days.forEach((d) => {
+    rev += d.soldRevenue;
+    nights += d.sold;
+    roomNights += d.capacity;
     adr.push(nights ? rev / nights : null);
-    revpar.push(m.totalRooms ? rev / (m.totalRooms * (k + 1)) : 0);
+    revpar.push(roomNights ? rev / roomNights : 0);
   });
   const goalAdr = h.goals.averageRate, goalRevpar = revparGoal(h.goals);
   const values = [...adr.filter((v): v is number => v !== null), ...revpar, ...(goalAdr !== null ? [goalAdr] : []), ...(goalRevpar !== null ? [goalRevpar] : [])];

@@ -496,7 +496,7 @@ function drawCalendar(p: Painter, top: number, half: number, h: number, ops: Mon
   const offset = (first + 6) % 7;
   ops.days.forEach((d, i) => {
     const pos = i + offset, col = pos % 7, row = Math.floor(pos / 7);
-    const occ = ops.totalRooms ? d.occupied / ops.totalRooms : 0, lvl = level(occ);
+    const occ = d.capacity ? d.occupied / d.capacity : 0, lvl = level(occ);
     const x = gx + col * cell + 1.5, y = gt + 14 + row * 27;
     p.round(x, y, cell - 3, 24, 4, ramp[lvl]);
     const ink = lvl >= 3 ? C.white : C.ink;

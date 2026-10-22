@@ -1,4 +1,5 @@
 import { addDays, clp, pct, santiagoToday } from "./daily-closing";
+import { isOutOfServiceOn, type ServiceGap } from "./room-service";
 
 export type FinanceSection = "income" | "fixed" | "variable" | "investment" | "withdrawal" | "other";
 
@@ -140,8 +141,9 @@ export function monthOperations(
   reservations: OpsReservation[],
   payments: OpsPayment[],
   today = santiagoToday(),
+  gaps: Record<string, ServiceGap[]> = {},
 ) {
-  return { ...rangeOperations(monthStart(month), monthEnd(month), rooms, reservations, payments, today), month };
+  return { ...rangeOperations(monthStart(month), monthEnd(month), rooms, reservations, payments, today, gaps), month };
 }
 
 /**
@@ -156,16 +158,19 @@ export function rangeOperations(
   reservations: OpsReservation[],
   payments: OpsPayment[],
   today = santiagoToday(),
+  gaps: Record<string, ServiceGap[]> = {},
 ) {
   const start = rangeStart;
   const end = rangeEnd < today ? rangeEnd : today;
   const roomIds = new Set(rooms.map((r) => r.id));
-  const stays = reservations
-    .filter((r) => roomIds.has(r.room_id))
-    .map((r) => {
-      const nights = Math.max(1, Math.round((Date.parse(`${r.check_out}T12:00:00Z`) - Date.parse(`${r.check_in}T12:00:00Z`)) / 86_400_000));
-      return { ...r, perNight: Number(r.total_value) / nights };
-    });
+  // Todas las noches vendidas del hostal, incluso las de una habitación que hoy está fuera de servicio:
+  // la venta promedio es lo vendido sobre las noches realmente vendidas. La ocupación y el RevPAR siguen
+  // midiendo solo las habitaciones disponibles (`rooms`).
+  const allStays = reservations.map((r) => {
+    const nights = Math.max(1, Math.round((Date.parse(`${r.check_out}T12:00:00Z`) - Date.parse(`${r.check_in}T12:00:00Z`)) / 86_400_000));
+    return { ...r, perNight: Number(r.total_value) / nights };
+  });
+  const stays = allStays.filter((r) => roomIds.has(r.room_id));
   const receivedByDay = new Map<string, number>();
   const byMethod: Record<string, number> = {};
   for (const p of payments) {
@@ -175,7 +180,7 @@ export function rangeOperations(
     byMethod[p.payment_method] = (byMethod[p.payment_method] ?? 0) + Number(p.amount);
   }
   const perRoom = new Map(rooms.map((r) => [r.id, { ...r, nights: 0, revenue: 0 }]));
-  const days: { date: string; occupied: number; revenue: number; received: number }[] = [];
+  const days: { date: string; occupied: number; revenue: number; received: number; sold: number; soldRevenue: number; capacity: number }[] = [];
   for (let day = start; day <= end; day = addDays(day, 1)) {
     const active = stays.filter((s) => s.check_in <= day && s.check_out > day);
     // Cada reserva activa es una ocupación: si una habitación se revendió porque
@@ -188,14 +193,32 @@ export function rangeOperations(
       room.revenue += s.perNight;
       room.nights += 1;
     }
-    days.push({ date: day, occupied: active.length, revenue, received: receivedByDay.get(day) ?? 0 });
+    const soldToday = allStays.filter((s) => s.check_in <= day && s.check_out > day);
+    // Habitaciones disponibles ese día: las que no estaban fuera de servicio; una habitación con noche vendida
+    // siempre cuenta, y una fuera de servicio solo deja de contar mientras lo estuvo.
+    const withStay = new Set(active.map((s) => s.room_id));
+    const capacity = rooms.filter((r) => !isOutOfServiceOn(gaps[r.id], day) || withStay.has(r.id)).length;
+    days.push({
+      date: day,
+      capacity,
+      occupied: active.length,
+      revenue,
+      received: receivedByDay.get(day) ?? 0,
+      sold: soldToday.length,
+      soldRevenue: soldToday.reduce((sum, s) => sum + s.perNight, 0),
+    });
   }
-  const totalRooms = rooms.length;
-  const roomNights = totalRooms * days.length;
+  // Habitaciones disponibles el último día del rango y noches-habitación disponibles de todo el rango.
+  const totalRooms = days.length ? days[days.length - 1].capacity : rooms.length;
+  const roomNights = days.reduce((s, d) => s + d.capacity, 0);
   const nightsSold = days.reduce((s, d) => s + d.occupied, 0);
   const revenue = days.reduce((s, d) => s + d.revenue, 0);
+  const soldNights = days.reduce((s, d) => s + d.sold, 0);
+  const soldRevenue = days.reduce((s, d) => s + d.soldRevenue, 0);
   const received = [...receivedByDay.values()].reduce((s, v) => s + v, 0);
   const rows = [...perRoom.values()]
+    // Una habitación fuera de servicio todo el rango y sin ventas no aparece en el detalle.
+    .filter((r) => r.nights > 0 || days.some((d) => !isOutOfServiceOn(gaps[r.id], d.date)))
     .map((r) => ({
       name: r.name,
       type: r.room_type,
@@ -221,21 +244,24 @@ export function rangeOperations(
   }));
   const weekdayOcc = [1, 2, 3, 4, 5, 6, 0].map((wd) => {
     const ds = days.filter((d) => weekday(d.date) === wd);
-    return { weekday: wd, occ: ds.length && totalRooms ? ds.reduce((s, d) => s + d.occupied, 0) / (ds.length * totalRooms) : null };
+    const cap = ds.reduce((s, d) => s + d.capacity, 0);
+    return { weekday: wd, occ: ds.length && cap ? ds.reduce((s, d) => s + d.occupied, 0) / cap : null };
   });
   const weeks: { start: string; end: string; days: number; received: number; occ: number; adr: number; revpar: number }[] = [];
   let chunk: typeof days = [];
   const flush = () => {
     if (!chunk.length) return;
     const n = chunk.reduce((s, d) => s + d.occupied, 0), rev = chunk.reduce((s, d) => s + d.revenue, 0);
+    const sold = chunk.reduce((s, d) => s + d.sold, 0), soldRev = chunk.reduce((s, d) => s + d.soldRevenue, 0);
+    const cap = chunk.reduce((s, d) => s + d.capacity, 0);
     weeks.push({
       start: chunk[0].date,
       end: chunk.at(-1)!.date,
       days: chunk.length,
       received: chunk.reduce((s, d) => s + d.received, 0),
-      occ: totalRooms ? n / (totalRooms * chunk.length) : 0,
-      adr: n ? rev / n : 0,
-      revpar: totalRooms ? rev / (totalRooms * chunk.length) : 0,
+      occ: cap ? n / cap : 0,
+      adr: sold ? soldRev / sold : 0,
+      revpar: cap ? rev / cap : 0,
     });
     chunk = [];
   };
@@ -250,10 +276,14 @@ export function rangeOperations(
     end,
     elapsedDays: days.length,
     totalRooms,
+    roomNights,
     nightsSold,
+    /** Noches vendidas y venta devengada de todas las habitaciones, incluso las hoy fuera de servicio (base de la venta promedio). */
+    soldNights,
+    soldRevenue,
     occupancy: roomNights ? nightsSold / roomNights : 0,
     revenue,
-    adr: nightsSold ? revenue / nightsSold : 0,
+    adr: soldNights ? soldRevenue / soldNights : 0,
     revpar: roomNights ? revenue / roomNights : 0,
     received,
     byMethod,
@@ -273,7 +303,7 @@ export function breakEven(summary: MonthlySummary, ops: MonthOperations) {
   const variableRate = income ? Number(summary.totals.variable) / income : 0;
   const contribution = ops.adr * (1 - variableRate);
   const nights = contribution > 0 ? Number(summary.totals.fixed) / contribution : null;
-  const capacity = ops.totalRooms * ops.elapsedDays;
+  const capacity = ops.roomNights;
   return { nights, occupancy: nights !== null && capacity ? nights / capacity : null };
 }
 

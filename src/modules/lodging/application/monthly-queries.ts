@@ -9,6 +9,7 @@ import {
   type MonthlyPreparation,
   type MonthlySummary,
 } from "../domain/monthly-closing";
+import { serviceGaps } from "../domain/room-service";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -31,12 +32,12 @@ async function summaryFor(supabase: Supabase, unitId: string, month: string) {
   return data as MonthlySummary;
 }
 
-/** Habitaciones vendibles, reservas y pagos de un rango [from, toExclusive). */
+/** Habitaciones activas (con sus períodos fuera de servicio), reservas y pagos de un rango [from, toExclusive). */
 export async function loadOperationsSource(supabase: Supabase, unitId: string, from: string, toExclusive: string) {
-  const [rooms, reservations, payments] = await Promise.all([
+  const [rooms, reservations, payments, statusEvents] = await Promise.all([
     supabase
       .from("lodging_rooms")
-      .select("id,name,room_type,display_order,status")
+      .select("id,name,room_type,display_order,status,updated_at")
       .eq("business_unit_id", unitId)
       .eq("active", true)
       .order("display_order"),
@@ -56,10 +57,22 @@ export async function loadOperationsSource(supabase: Supabase, unitId: string, f
       // Margen por la diferencia horaria; el filtro exacto es por fecha de Santiago.
       .gte("paid_at", `${from}T00:00:00-06:00`)
       .lt("paid_at", `${toExclusive}T06:00:00Z`),
+    // Historial de salidas y regresos a servicio: una habitación solo deja de contar mientras estuvo fuera de servicio.
+    supabase
+      .from("lodging_room_status_events")
+      .select("room_id,from_status,to_status,created_at")
+      .eq("business_unit_id", unitId)
+      .or("to_status.in.(out_of_service,maintenance),from_status.in.(out_of_service,maintenance)")
+      .order("created_at")
+      .limit(5000),
   ]);
   for (const r of [rooms, reservations, payments]) if (r.error) throw r.error;
+  // Si no se puede leer el historial (permisos), se usa la fecha de la última modificación de las que hoy están fuera de servicio.
+  const gaps = serviceGaps(rooms.data ?? [], statusEvents.error ? [] : (statusEvents.data ?? []));
   return {
-    rooms: (rooms.data ?? []).filter((r) => !["out_of_service", "maintenance"].includes(r.status)),
+    gaps,
+    // Todas las habitaciones activas; cuáles cuentan cada día lo decide `gaps`.
+    rooms: rooms.data ?? [],
     reservations: (reservations.data ?? []).map((r) => ({ ...r, total_value: Number(r.total_value) })),
     payments: (payments.data ?? []).map((p) => ({
       paid_at: p.paid_at,
@@ -73,8 +86,8 @@ async function operationsFor(supabase: Supabase, unitId: string, month: string) 
   const prev = previousMonth(month);
   const src = await loadOperationsSource(supabase, unitId, monthStart(prev), monthStart(nextMonth(month)));
   return {
-    current: monthOperations(month, src.rooms, src.reservations, src.payments),
-    previous: monthOperations(prev, src.rooms, src.reservations, src.payments, monthEnd(prev)),
+    current: monthOperations(month, src.rooms, src.reservations, src.payments, undefined, src.gaps),
+    previous: monthOperations(prev, src.rooms, src.reservations, src.payments, monthEnd(prev), src.gaps),
   };
 }
 

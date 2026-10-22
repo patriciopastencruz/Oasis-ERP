@@ -90,17 +90,17 @@ function Occupancy({ h }: { h: HostelWeekly }) {
         <GoalChip met={goalMet(Math.round(m.occupancy * 100), g)} text={`${g}%`} />
       </div>
       <p className="mt-1 text-xs text-slate-500">
-        {m.nightsSold} de {m.totalRooms * m.elapsedDays} noches
-        {last && m.totalRooms ? ` · ocupadas el ${Number(last.date.slice(8))}: ${last.occupied} de ${m.totalRooms}` : ""}
+        {m.nightsSold} de {m.roomNights} noches
+        {last && last.capacity ? ` · ocupadas el ${Number(last.date.slice(8))}: ${last.occupied} de ${last.capacity}` : ""}
       </p>
       <div className="mt-3 flex h-24 items-end gap-0.5" role="img" aria-label="Ocupación diaria del mes">
         {m.days.map((d, i) => {
-          const occ = m.totalRooms ? d.occupied / m.totalRooms : 0;
+          const occ = d.capacity ? d.occupied / d.capacity : 0;
           return (
             <div
               key={d.date}
               className="flex h-full flex-1 flex-col justify-end"
-              title={`${dm(d.date)}: ${pct(occ)} (${d.occupied} de ${m.totalRooms})`}
+              title={`${dm(d.date)}: ${pct(occ)} (${d.occupied} de ${d.capacity})`}
             >
               <div
                 className={`rounded-t ${i === m.days.length - 1 ? "bg-[#2a78d6]" : occ > 1 ? "bg-amber-400" : "bg-[#b9d4f4]"}`}
@@ -278,14 +278,16 @@ function Pending({ h }: { h: HostelWeekly }) {
 export function HostelDashboard({ report, live = true }: { report: GroupWeeklyReport; live?: boolean }) {
   const hostels = report.hostels;
   const nightsSold = hostels.reduce((s, h) => s + h.month.nightsSold, 0);
-  const roomNights = hostels.reduce((s, h) => s + h.month.totalRooms * h.month.elapsedDays, 0);
+  const roomNights = hostels.reduce((s, h) => s + h.month.roomNights, 0);
   const revenue = hostels.reduce((s, h) => s + h.month.revenue, 0);
+  const soldNights = hostels.reduce((s, h) => s + h.month.soldNights, 0);
+  const soldRevenue = hostels.reduce((s, h) => s + h.month.soldRevenue, 0);
   const received = hostels.reduce((s, h) => s + h.month.received, 0);
   const balances = hostels.reduce((s, h) => s + h.balances.total, 0);
   const pendingClosings = hostels.reduce((s, h) => s + h.pendingClosings.length, 0);
   const cards: [string, string, string][] = [
     ["Ocupación del grupo", roomNights ? pct(nightsSold / roomNights) : "—", `${nightsSold} de ${roomNights} noches`],
-    ["Venta promedio", nightsSold ? clp(revenue / nightsSold) : "—", "por habitación ocupada"],
+    ["Venta promedio", soldNights ? clp(soldRevenue / soldNights) : "—", "por noche vendida"],
     ["RevPAR", roomNights ? clp(revenue / roomNights) : "—", "venta por habitación disponible"],
     ["Venta del mes", clp(revenue), `recibido en caja ${clp(received)}`],
     ["Saldos por cobrar", clp(balances), "estadías del mes ya iniciadas"],

@@ -231,7 +231,7 @@ export default async function Page({
       `Precio promedio acumulado de ${monthLabel(selectedIso)}`,
       clp.format(Math.round(monthOps.adr)),
       Tag,
-      `Por noche vendida · ${monthOps.nightsSold} noches, todas las habitaciones`,
+      `Por noche vendida · ${monthOps.soldNights} noches, todas las habitaciones`,
     ],
     [
       `RevPAR acumulado de ${monthLabel(selectedIso)}`,

@@ -32,8 +32,8 @@ export async function loadPeriodReport(supabase: Supabase, unitId: string, kind:
         .is("deleted_at", null)
     : { data: [], error: null };
   if (error) throw error;
-  const ops = rangeOperations(range.start, range.end, src.rooms, src.reservations, src.payments);
-  const previousOps = rangeOperations(prevRange.start, prevRange.end, src.rooms, src.reservations, src.payments);
+  const ops = rangeOperations(range.start, range.end, src.rooms, src.reservations, src.payments, undefined, src.gaps);
+  const previousOps = rangeOperations(prevRange.start, prevRange.end, src.rooms, src.reservations, src.payments, undefined, src.gaps);
   return buildPeriodReport({
     kind,
     range,

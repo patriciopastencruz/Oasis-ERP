@@ -38,14 +38,15 @@ export function buildPeriodReport(input: {
   const days = ops.days.map((d) => ({
     ...d,
     label: periodDayLabel(d.date),
-    occupancy: ops.totalRooms ? d.occupied / ops.totalRooms : 0,
+    occupancy: d.capacity ? d.occupied / d.capacity : 0,
   }));
   const withIncome = days.filter((d) => d.received > 0);
   const best = withIncome.reduce<(typeof days)[number] | null>((a, d) => (!a || d.received > a.received ? d : a), null);
   const worst = withIncome.reduce<(typeof days)[number] | null>((a, d) => (!a || d.received < a.received ? d : a), null);
   const nightsOf = (filter: (d: (typeof days)[number]) => boolean) => {
     const ds = days.filter(filter);
-    return ds.length && ops.totalRooms ? ds.reduce((s, d) => s + d.occupied, 0) / (ds.length * ops.totalRooms) : null;
+    const cap = ds.reduce((s, d) => s + d.capacity, 0);
+    return ds.length && cap ? ds.reduce((s, d) => s + d.occupied, 0) / cap : null;
   };
   // Noches de viernes y sábado frente al resto.
   const weekendOcc = nightsOf((d) => [5, 6].includes(weekday(d.date)));

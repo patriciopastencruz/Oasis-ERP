@@ -166,6 +166,22 @@ describe("bono de recepción", () => {
   });
 });
 
+describe("ocupación con habitaciones disponibles distintas cada día", () => {
+  it("cada día se mide contra las habitaciones disponibles ese día", () => {
+    const days = [
+      { occupied: 3, capacity: 4 },
+      { occupied: 3, capacity: 3 },
+    ];
+    expect(cappedOccupancyPct(days, 3)).toBeCloseTo(((3 / 4 + 1) / 2) * 100, 5);
+  });
+  it("sin capacidad por día usa el total de habitaciones", () => {
+    expect(cappedOccupancyPct([{ occupied: 2 }, { occupied: 1 }], 4)).toBeCloseTo(((2 / 4 + 1 / 4) / 2) * 100, 5);
+  });
+  it("un día sin habitaciones disponibles no cuenta", () => {
+    expect(cappedOccupancyPct([{ occupied: 0, capacity: 0 }, { occupied: 2, capacity: 4 }], 4)).toBeCloseTo(50, 5);
+  });
+});
+
 describe("condición mínima: con 3 indicadores sin cumplir no hay bono", () => {
   const miss = (n: number): BonusInput => {
     const input: BonusInput = JSON.parse(JSON.stringify(base));

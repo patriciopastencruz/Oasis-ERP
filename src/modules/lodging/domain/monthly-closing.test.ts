@@ -83,6 +83,57 @@ describe("operación del mes", () => {
     expect(ops.weeks.reduce((s, w) => s + w.days, 0)).toBe(31);
   });
 
+  it("la venta promedio cuenta todas las noches vendidas, también las de una habitación hoy fuera de servicio", () => {
+    // La habitación "r3" ya no está entre las disponibles, pero vendió 2 noches a 50.000 en julio.
+    const withOutOfService = [
+      ...reservations,
+      { room_id: "r3", check_in: "2026-07-20", check_out: "2026-07-22", total_value: 100_000 },
+    ];
+    const o = monthOperations("2026-07", rooms, withOutOfService, payments, "2026-09-26");
+    expect(o.soldNights).toBe(6);
+    expect(o.soldRevenue).toBe(200_000);
+    expect(o.adr).toBeCloseTo(200_000 / 6, 5);
+    // La ocupación y el RevPAR siguen midiendo solo las habitaciones disponibles.
+    expect(o.nightsSold).toBe(4);
+    expect(o.occupancy).toBeCloseTo(4 / 62);
+    expect(o.revpar).toBeCloseTo(100_000 / 62);
+    // La venta promedio semanal también las incluye.
+    const week = o.weeks.find((w) => w.start <= "2026-07-20" && w.end >= "2026-07-20")!;
+    expect(week.adr).toBeCloseTo(50_000, 5);
+  });
+
+  it("una habitación fuera de servicio solo deja de contar mientras lo está", () => {
+    const three = [...rooms, { id: "r3", name: "Pieza 6", room_type: "Baño compartido", display_order: 3 }];
+    const sold = [
+      ...reservations,
+      { room_id: "r3", check_in: "2026-07-20", check_out: "2026-07-22", total_value: 100_000 },
+    ];
+    // r3 sale de servicio el 25 de julio y sigue fuera.
+    const gaps = { r3: [{ from: "2026-07-25", to: null }] };
+    const o = monthOperations("2026-07", three, sold, payments, "2026-09-26", gaps);
+    const day = (d: string) => o.days.find((x) => x.date === d)!;
+    expect(day("2026-07-20").capacity).toBe(3); // en servicio y con venta
+    expect(day("2026-07-23").capacity).toBe(3); // en servicio, aunque sin venta ese día
+    expect(day("2026-07-25").capacity).toBe(2); // fuera de servicio
+    expect(o.roomNights).toBe(24 * 3 + 7 * 2); // del 1 al 24: 3 habitaciones; del 25 al 31: 2
+    expect(o.occupancy).toBeCloseTo(6 / (24 * 3 + 7 * 2));
+    expect(o.nightsSold).toBe(6);
+    expect(o.adr).toBeCloseTo(200_000 / 6, 5);
+    expect(o.rooms.map((r) => r.name)).toContain("Pieza 6");
+  });
+
+  it("una habitación fuera de servicio todo el período y sin ventas no aparece ni suma capacidad", () => {
+    const three = [...rooms, { id: "r3", name: "Pieza 6", room_type: "Baño compartido", display_order: 3 }];
+    const o = monthOperations("2026-07", three, reservations, payments, "2026-09-26", { r3: [{ from: "0000-01-01", to: null }] });
+    expect(o.roomNights).toBe(62);
+    expect(o.rooms.map((r) => r.name)).not.toContain("Pieza 6");
+  });
+
+  it("sin habitaciones fuera de servicio, soldNights y nightsSold coinciden", () => {
+    expect(ops.soldNights).toBe(ops.nightsSold);
+    expect(ops.soldRevenue).toBe(ops.revenue);
+  });
+
   it("corta el mes en curso en el día de hoy", () => {
     expect(monthOperations("2026-09", rooms, [], [], "2026-09-10").elapsedDays).toBe(10);
     expect(previousMonth("2026-01")).toBe("2025-12");
