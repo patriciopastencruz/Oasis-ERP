@@ -154,7 +154,13 @@ export function formatAvailabilityForWhatsApp(result: AvailabilityResult): strin
     blocks.push(`${result.sin_bano_privado.join(" y ")} no ${result.sin_bano_privado.length === 1 ? "tiene" : "tienen"} habitaciones con baño privado libres para esas fechas.`);
   }
   if (result.sin_disponibilidad.length) {
-    blocks.push(`${result.sin_disponibilidad.join(" y ")} ${result.sin_disponibilidad.length === 1 ? "está completo" : "están completos"} para esas fechas.`);
+    // Sin lugar puede ser por ocupación o porque ninguna pieza admite a tantas personas.
+    const people = `${result.personas} persona${result.personas === 1 ? "" : "s"}`;
+    blocks.push(
+      result.hostales.length === 0
+        ? `😔 No tenemos habitaciones libres para ${people} en esas fechas en ninguna de nuestras hostales.`
+        : `${result.sin_disponibilidad.join(" y ")} no ${result.sin_disponibilidad.length === 1 ? "tiene" : "tienen"} habitaciones libres para ${people} en esas fechas.`,
+    );
   }
   return blocks.join("\n\n");
 }

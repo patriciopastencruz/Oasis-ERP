@@ -63,13 +63,16 @@ describe("searchAvailability", () => {
       ["Hostal Oasis Centro", ["c1", "c2"]],
     ]);
     expect(formatAvailabilityForWhatsApp(result)).toContain(
-      "Hostal Uruguay no tiene habitaciones con baño privado libres para esas fechas.\n\nHostal Oasis Cobija está completo para esas fechas.",
+      "Hostal Uruguay no tiene habitaciones con baño privado libres para esas fechas.\n\nHostal Oasis Cobija no tiene habitaciones libres para 2 personas en esas fechas.",
     );
   });
 
   it("no ofrece habitaciones que no admiten a todas las personas", () => {
     const result = searchAvailability({ ...base, guests: 3, rooms: [room("u1", "HU")], bookings: [] });
     expect(result.ok && result.hostales).toEqual([]);
+    expect(formatAvailabilityForWhatsApp(result)).toBe(
+      "😔 No tenemos habitaciones libres para 3 personas en esas fechas en ninguna de nuestras hostales.",
+    );
   });
 
   it("una reserva que termina el día de llegada no bloquea", () => {
@@ -104,7 +107,7 @@ describe("formatAvailabilityForWhatsApp", () => {
         "• Habitación: 2 camas, baño compartido: $28.000 por noche ($56.000 por 2 noches)",
         "• Habitación: 1 cama matrimonial, baño privado: $30.000 por noche ($60.000 por 2 noches)",
         "",
-        "Hostal Oasis Centro y Hostal Oasis Cobija están completos para esas fechas.",
+        "Hostal Oasis Centro y Hostal Oasis Cobija no tienen habitaciones libres para 2 personas en esas fechas.",
       ].join("\n"),
     );
   });
