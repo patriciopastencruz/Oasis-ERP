@@ -81,9 +81,9 @@ export default async function LuciaSettingsPage({
                   <input name="manager_phone" defaultValue={h.manager_phone ?? ""} placeholder="+56 9 ..." className={inputClass} />
                 </label>
               </div>
-              <label className="block">WhatsApp del administrador (opcional)
-                <input name="admin_phone" defaultValue={h.admin_phone ?? ""} placeholder="+56 9 ..." className={inputClass} />
-                <span className="text-xs text-slate-500">Recibe los mismos avisos que el encargado y también puede responder OK o NO, por ejemplo fuera del horario de recepción. Vale la primera respuesta.</span>
+              <label className="block">WhatsApp de los administradores (opcional)
+                <input name="admin_phones" defaultValue={(h.admin_phones ?? []).join(", ")} placeholder="+56 9 ..., +56 9 ..." className={inputClass} />
+                <span className="text-xs text-slate-500">Separados por coma (hasta 5). Reciben los mismos avisos que el encargado y también pueden responder OK o NO, por ejemplo fuera del horario de recepción. Vale la primera respuesta.</span>
               </label>
               <label className="block">Modo
                 <select name="mode" defaultValue={h.mode} className={inputClass}>

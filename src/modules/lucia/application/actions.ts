@@ -214,7 +214,7 @@ const hostelSchema = z.object({
   manual: z.string().max(40000),
   manager_name: z.string().trim().max(120),
   manager_phone: z.string().trim().max(20),
-  admin_phone: z.string().trim().max(20),
+  admin_phones: z.string().trim().max(120),
   mode: z.enum(["draft", "auto"]),
   payment_instructions: z.string().trim().max(2000),
   deposit_percent: z.coerce.number().int().min(1).max(100),
@@ -232,7 +232,7 @@ export async function saveHostelAction(form: FormData) {
     manual: form.get("manual") ?? "",
     manager_name: form.get("manager_name") ?? "",
     manager_phone: form.get("manager_phone") ?? "",
-    admin_phone: form.get("admin_phone") ?? "",
+    admin_phones: form.get("admin_phones") ?? "",
     mode: form.get("mode"),
     payment_instructions: form.get("payment_instructions") ?? "",
     deposit_percent: form.get("deposit_percent") ?? 50,
@@ -245,9 +245,12 @@ export async function saveHostelAction(form: FormData) {
   const phone = parsed.data.manager_phone ? normalizePhoneNumber(parsed.data.manager_phone) : null;
   if (parsed.data.manager_phone && !phone)
     back(SETTINGS_PATH, "error", "El WhatsApp del encargado no es válido (usa formato +56 9 ...).");
-  const adminPhone = parsed.data.admin_phone ? normalizePhoneNumber(parsed.data.admin_phone) : null;
-  if (parsed.data.admin_phone && !adminPhone)
-    back(SETTINGS_PATH, "error", "El WhatsApp del administrador no es válido (usa formato +56 9 ...).");
+  // Varios administradores, separados por coma o salto de línea.
+  const adminInputs = parsed.data.admin_phones.split(/[,;\n]+/).map((p) => p.trim()).filter(Boolean);
+  const adminPhones = [...new Set(adminInputs.map((p) => normalizePhoneNumber(p)))];
+  if (adminPhones.some((p) => !p))
+    back(SETTINGS_PATH, "error", "Algún WhatsApp de administrador no es válido (usa formato +56 9 ..., separados por coma).");
+  if (adminPhones.length > 5) back(SETTINGS_PATH, "error", "Máximo 5 administradores por hostal.");
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("lucia_hostels")
@@ -255,7 +258,7 @@ export async function saveHostelAction(form: FormData) {
       ...parsed.data,
       manager_name: parsed.data.manager_name || null,
       manager_phone: phone,
-      admin_phone: adminPhone,
+      admin_phones: adminPhones as string[],
       photos_url: parsed.data.photos_url || null,
       full_payment_single_night: form.get("full_payment_single_night") === "on",
       enabled: form.get("enabled") === "on",
