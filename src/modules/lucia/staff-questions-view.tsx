@@ -31,7 +31,10 @@ export async function StaffQuestionsView({
   const hostels = (await loadHostels(supabase)).filter((h) => myUnits.has(h.business_unit_id));
   const order = ["HOB", "HOC", "HU"];
   hostels.sort((a, b) => order.indexOf(a.code) - order.indexOf(b.code));
-  const current = hostels.find((h) => h.code === q.hostal) ?? hostels[0];
+  // Con más de una hostal no se elige por defecto: la persona indica para
+  // cuál responde (antes se abría la primera y se respondía en la equivocada).
+  const current = hostels.find((h) => h.code === q.hostal) ?? (hostels.length === 1 ? hostels[0] : undefined);
+  const mustChoose = !current && hostels.length > 1;
   const canReply = ctx.permissions.has("lucia.inbox.reply");
 
   const { data } = current
@@ -54,7 +57,23 @@ export async function StaffQuestionsView({
       />
       {!standalone && <LuciaTabs active="preguntas" permissions={ctx.permissions} />}
       <Notice success={q.success} error={q.error} />
-      {!current ? (
+      {mustChoose ? (
+        <Panel>
+          <h2 className="mb-1 text-lg font-semibold">¿Para qué hostal vas a responder?</h2>
+          <p className="mb-4 text-sm text-slate-600">Tienes más de una hostal asignada. Elige la tuya; puedes cambiar después con los botones de arriba.</p>
+          <div className="flex flex-wrap gap-2">
+            {hostels.map((h) => (
+              <Link
+                key={h.code}
+                href={`${basePath}?hostal=${h.code}`}
+                className="rounded-xl bg-[var(--oasis-primary)] px-4 py-3 text-sm font-semibold text-white"
+              >
+                {h.display_name}
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : !current ? (
         <Panel>
           <p className="text-sm text-slate-500">No tienes acceso a ninguna de las hostales de Lucía.</p>
         </Panel>
@@ -77,7 +96,7 @@ export async function StaffQuestionsView({
             </span>
           </div>
           <p className="text-sm text-slate-600">
-            Escribe tu respuesta y toca <b>Guardar</b>. Si lo que dice el recuadro gris está bien, toca <b>Correcto</b>. Puedes corregir tu respuesta cuando quieras.
+            Estás respondiendo por <b>{current.display_name}</b>. Escribe tu respuesta y toca <b>Guardar</b>. Si lo que dice el recuadro gris está bien, toca <b>Correcto</b>. Puedes corregir tu respuesta cuando quieras.
           </p>
           {questions.map((question) => {
             const list = answers.filter((a) => a.question_code === question.code);
@@ -107,7 +126,7 @@ export async function StaffQuestionsView({
                         <input type="hidden" name="hostel_code" value={current.code} />
                         <input type="hidden" name="business_unit_id" value={current.business_unit_id} />
                         <label htmlFor={`r-${question.code}`} className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Tu respuesta{mine ? ` · guardada ${when(mine.updated_at)}` : ""}
+                          Tu respuesta para {current.display_name}{mine ? ` · guardada ${when(mine.updated_at)}` : ""}
                         </label>
                         <textarea
                           id={`r-${question.code}`}
