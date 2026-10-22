@@ -5,9 +5,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
-import { EXPENSE_UNIT_CODES, expenseFormSchema, parseExpenseAmount } from "../domain/expenses";
+import { detectedMime } from "../domain/receipts";
+import { EXPENSE_RECEIPT_MAX_BYTES, EXPENSE_UNIT_CODES, expenseFormSchema, parseExpenseAmount } from "../domain/expenses";
 
 const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+const BUCKET = "lodging-expense-receipts";
+const EXTENSIONS: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
 function go(m: string | null, key: "success" | "error", message: string): never {
   const q = new URLSearchParams();
@@ -28,11 +31,14 @@ function allowedUnit(ctx: Awaited<ReturnType<typeof requirePermission>>, unitId:
 
 export async function recordExpenseAction(form: FormData) {
   const ctx = await requirePermission("lodging.expenses.record");
+  const canClassify = ctx.permissions.has("lodging.expenses.classify");
+  const rawCategory = String(form.get("category_id") ?? "");
   const parsed = expenseFormSchema.safeParse({
     unit_id: form.get("unit_id"),
     month: form.get("month"),
     expense_date: form.get("expense_date"),
-    category_id: form.get("category_id"),
+    // El tipo solo lo asigna administración: si llega de otra persona se ignora.
+    category_id: canClassify && rawCategory ? rawCategory : undefined,
     description: form.get("description"),
     supplier: form.get("supplier") ?? "",
     document_number: form.get("document_number") ?? "",
@@ -40,26 +46,59 @@ export async function recordExpenseAction(form: FormData) {
   });
   const back = month.safeParse(form.get("month")).data ?? null;
   if (!parsed.success) go(back, "error", parsed.error.issues[0]?.message ?? "Revisa los datos del gasto.");
-  if (!allowedUnit(ctx, parsed.data.unit_id)) go(back, "error", "Hostal no válido.");
+  const unit = allowedUnit(ctx, parsed.data.unit_id);
+  if (!unit) go(back, "error", "Hostal no válido.");
   const amount = parseExpenseAmount(String(form.get("amount") ?? ""));
   if (amount === null) go(back, "error", "Indica el monto en pesos, solo números (por ejemplo 45000).");
 
+  // Comprobante obligatorio.
+  const file = form.get("receipt");
+  if (!(file instanceof File) || file.size < 1) go(back, "error", "Adjunta el comprobante del gasto: es obligatorio.");
+  if (file.size > EXPENSE_RECEIPT_MAX_BYTES) go(back, "error", "El comprobante supera los 10 MB.");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const mime = detectedMime(bytes.subarray(0, 16));
+  if (!mime) go(back, "error", "Formato no permitido. Usa PDF, JPG, PNG o WEBP.");
+
   const supabase = await createSupabaseServerClient();
+  const path = `${unit.company_id}/${unit.id}/${crypto.randomUUID()}.${EXTENSIONS[mime]}`;
+  const upload = await supabase.storage.from(BUCKET).upload(path, bytes, { contentType: mime, upsert: false });
+  if (upload.error) go(back, "error", "No fue posible subir el comprobante. Inténtalo de nuevo.");
+
   const { error } = await supabase.rpc("lodging_record_expense", {
-    target_unit: parsed.data.unit_id,
+    target_unit: unit.id,
     payload: {
       expense_date: parsed.data.expense_date,
-      category_id: parsed.data.category_id,
+      category_id: parsed.data.category_id ?? null,
       description: parsed.data.description,
       supplier: parsed.data.supplier,
       document_number: parsed.data.document_number,
       amount,
       payment_method: parsed.data.payment_method,
+      receipt_path: path,
+      receipt_name: file.name.slice(0, 200) || `comprobante.${EXTENSIONS[mime]}`,
+      receipt_mime: mime,
+      receipt_size: file.size,
     },
   });
-  if (error) go(parsed.data.month, "error", friendly(error.message));
+  if (error) {
+    // El gasto no se guardó: se quita el archivo que quedó huérfano.
+    await supabase.storage.from(BUCKET).remove([path]);
+    go(parsed.data.month, "error", friendly(error.message));
+  }
   revalidatePath("/lodging/expenses");
-  go(parsed.data.expense_date.slice(0, 7), "success", "Gasto ingresado.");
+  go(parsed.data.expense_date.slice(0, 7), "success", "Gasto ingresado con su comprobante.");
+}
+
+/** Abre el comprobante de un gasto (enlace temporal de 5 minutos). */
+export async function openExpenseReceiptAction(form: FormData) {
+  await requirePermission("lodging.expenses.view");
+  const id = z.string().uuid().safeParse(form.get("expense_id"));
+  if (!id.success) redirect("/lodging/expenses");
+  const supabase = await createSupabaseServerClient();
+  const { data: expense } = await supabase.from("lodging_expenses").select("receipt_path").eq("id", id.data).maybeSingle();
+  if (!expense) redirect("/lodging/expenses");
+  const { data } = await supabase.storage.from(BUCKET).createSignedUrl(expense.receipt_path, 300);
+  redirect(data?.signedUrl ?? "/lodging/expenses");
 }
 
 export async function voidExpenseAction(form: FormData) {
@@ -76,8 +115,22 @@ export async function voidExpenseAction(form: FormData) {
   go(back, "success", "Gasto anulado.");
 }
 
+/** Asigna o cambia el tipo de un gasto: solo administrador y superadministrador. */
+export async function classifyExpenseAction(form: FormData) {
+  await requirePermission("lodging.expenses.classify");
+  const back = month.safeParse(form.get("month")).data ?? null;
+  const expenseId = z.string().uuid().safeParse(form.get("expense_id"));
+  const categoryId = z.string().uuid().safeParse(form.get("category_id"));
+  if (!expenseId.success || !categoryId.success) go(back, "error", "Elige el tipo de gasto.");
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("lodging_classify_expense", { target_expense: expenseId.data, target_category: categoryId.data });
+  if (error) go(back, "error", friendly(error.message));
+  revalidatePath("/lodging/expenses");
+  go(back, "success", "Tipo de gasto asignado.");
+}
+
 export async function addExpenseCategoryAction(form: FormData) {
-  const ctx = await requirePermission("lodging.expenses.manage");
+  const ctx = await requirePermission("lodging.expenses.classify");
   const back = month.safeParse(form.get("month")).data ?? null;
   const unitId = z.string().uuid().safeParse(form.get("unit_id"));
   if (!unitId.success || !allowedUnit(ctx, unitId.data)) go(back, "error", "Hostal no válido.");
@@ -92,7 +145,7 @@ export async function addExpenseCategoryAction(form: FormData) {
 }
 
 export async function removeExpenseCategoryAction(form: FormData) {
-  await requirePermission("lodging.expenses.manage");
+  await requirePermission("lodging.expenses.classify");
   const back = month.safeParse(form.get("month")).data ?? null;
   const id = z.string().uuid().safeParse(form.get("category_id"));
   if (!id.success) go(back, "error", "Tipo de gasto no válido.");

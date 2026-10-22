@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+/** Tamaño máximo del comprobante: 10 MB. */
+export const EXPENSE_RECEIPT_MAX_BYTES = 10_485_760;
+/** Etiqueta de los gastos a los que administración aún no les asigna tipo. */
+export const UNCLASSIFIED_LABEL = "Sin clasificar";
+
 /** Hostales que tienen el ingreso de gastos (por ahora solo Hostal Uruguay). */
 export const EXPENSE_UNIT_CODES = ["HU"];
 
@@ -32,7 +37,8 @@ export const expenseFormSchema = z.object({
   unit_id: z.string().uuid(),
   month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  category_id: z.string().uuid(),
+  /** Solo lo envía quien puede clasificar (administrador y superadministrador). */
+  category_id: z.string().uuid().optional(),
   description: z.string().trim().min(2, "Describe el gasto.").max(200, "La descripción es muy larga."),
   supplier: z.string().trim().max(120).default(""),
   document_number: z.string().trim().max(60).default(""),
@@ -42,9 +48,9 @@ export const expenseFormSchema = z.object({
 export type ExpenseRow = {
   id: string;
   expense_date: string;
-  category_id: string;
-  category: string;
-  section: string;
+  category_id: string | null;
+  category: string | null;
+  section: string | null;
   description: string;
   supplier: string | null;
   document_number: string | null;
@@ -52,6 +58,8 @@ export type ExpenseRow = {
   payment_method: string;
   created_at: string;
   created_by: string;
+  receipt_path: string;
+  receipt_name: string;
   voided_at: string | null;
   void_reason: string | null;
 };
@@ -60,12 +68,13 @@ export type ExpenseRow = {
 export function summarizeExpenses(rows: ExpenseRow[]) {
   const active = rows.filter((r) => !r.voided_at);
   const total = active.reduce((s, r) => s + r.amount, 0);
-  const byCategory = new Map<string, { category: string; section: string; count: number; total: number }>();
+  const byCategory = new Map<string, { category: string; section: string | null; count: number; total: number }>();
   for (const r of active) {
-    const c = byCategory.get(r.category_id) ?? { category: r.category, section: r.section, count: 0, total: 0 };
+    const key = r.category_id ?? "none";
+    const c = byCategory.get(key) ?? { category: r.category ?? UNCLASSIFIED_LABEL, section: r.section, count: 0, total: 0 };
     c.count += 1;
     c.total += r.amount;
-    byCategory.set(r.category_id, c);
+    byCategory.set(key, c);
   }
   const categories = [...byCategory.values()]
     .sort((a, b) => b.total - a.total || a.category.localeCompare(b.category, "es"))
@@ -75,6 +84,7 @@ export function summarizeExpenses(rows: ExpenseRow[]) {
   return {
     total,
     count: active.length,
+    unclassified: active.filter((r) => !r.category_id).length,
     voided: rows.length - active.length,
     categories,
     methods: [...byMethod.entries()].map(([method, amount]) => ({ method, amount })).sort((a, b) => b.amount - a.amount),

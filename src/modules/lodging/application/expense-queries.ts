@@ -25,7 +25,7 @@ export async function loadMonthExpenses(supabase: Supabase, unitId: string, mont
   const { start, next } = monthBounds(month);
   const { data, error } = await supabase
     .from("lodging_expenses")
-    .select("id,expense_date,category_id,description,supplier,document_number,amount,payment_method,created_at,created_by,voided_at,void_reason,lodging_finance_categories(name,section)")
+    .select("id,expense_date,category_id,description,supplier,document_number,amount,payment_method,created_at,created_by,receipt_path,receipt_name,voided_at,void_reason,lodging_finance_categories(name,section)")
     .eq("business_unit_id", unitId)
     .gte("expense_date", start)
     .lt("expense_date", next)
@@ -39,8 +39,8 @@ export async function loadMonthExpenses(supabase: Supabase, unitId: string, mont
       id: e.id,
       expense_date: e.expense_date,
       category_id: e.category_id,
-      category: cat?.name ?? "Sin tipo",
-      section: cat?.section ?? "variable",
+      category: cat?.name ?? null,
+      section: cat?.section ?? null,
       description: e.description,
       supplier: e.supplier,
       document_number: e.document_number,
@@ -48,6 +48,8 @@ export async function loadMonthExpenses(supabase: Supabase, unitId: string, mont
       payment_method: e.payment_method,
       created_at: e.created_at,
       created_by: e.created_by,
+      receipt_path: e.receipt_path,
+      receipt_name: e.receipt_name,
       voided_at: e.voided_at,
       void_reason: e.void_reason,
     };

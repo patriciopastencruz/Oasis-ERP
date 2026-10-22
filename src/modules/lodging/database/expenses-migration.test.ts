@@ -39,3 +39,31 @@ describe("migración de gastos del hostal", () => {
     for (const name of ["Aseo y limpieza", "Luz", "Agua", "Insumos de cocina", "Gas y combustible"]) expect(sql).toContain(name);
   });
 });
+
+const v2 = readFileSync("supabase/migrations/20261022180000_lodging_expenses_receipts_classification.sql", "utf8");
+
+describe("migración de tipo de gasto y comprobante obligatorio", () => {
+  it("el tipo lo asignan solo administrador y superadministrador", () => {
+    expect(v2).toContain("'lodging.expenses.classify'");
+    expect(v2).toMatch(/p\.key='lodging\.expenses\.classify' and r\.key in\('superadmin','administrator'\)/);
+    expect(v2).toContain("alter column category_id drop not null");
+    // Quien ingresa sin poder clasificar no puede mandar un tipo.
+    expect(v2).toContain("Sin autorizacion para asignar el tipo de gasto");
+    expect(v2).toMatch(/lodging_classify_expense[\s\S]*has_permission\('lodging\.expenses\.classify'\)/);
+    expect(v2.match(/has_permission\('lodging\.expenses\.classify'\)/g)?.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("el comprobante es obligatorio y se guarda en un bucket privado con acceso por hostal", () => {
+    expect(v2).toContain("alter column receipt_path set not null");
+    expect(v2).toContain("Adjunta el comprobante del gasto");
+    expect(v2).toContain("values('lodging-expense-receipts','lodging-expense-receipts',false,10485760");
+    expect(v2).toContain("create policy lodging_expense_receipt_objects_insert");
+    expect(v2).toContain("create policy lodging_expense_receipt_objects_read");
+    expect(v2).toContain("business_unit_id::text=(storage.foldername(name))[2]");
+    expect(v2).not.toContain("using(true)");
+  });
+
+  it("solo se borra un archivo que no quedó asociado a un gasto", () => {
+    expect(v2).toMatch(/lodging_expense_receipt_objects_delete[\s\S]*not exists\(select 1 from public\.lodging_expenses e where e\.receipt_path=name\)/);
+  });
+});

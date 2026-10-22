@@ -14,6 +14,8 @@ const row = (over: Partial<ExpenseRow>): ExpenseRow => ({
   payment_method: "transfer",
   created_at: "2026-10-05T15:00:00Z",
   created_by: "u1",
+  receipt_path: "c/u/x.jpg",
+  receipt_name: "boleta.jpg",
   voided_at: null,
   void_reason: null,
   ...over,
@@ -51,6 +53,32 @@ describe("gastos del hostal", () => {
       { method: "transfer", amount: 45_000 },
       { method: "cash", amount: 30_000 },
     ]);
+  });
+
+  it("los gastos sin tipo se agrupan como sin clasificar y se cuentan aparte", () => {
+    const s = summarizeExpenses([
+      row({ id: "1", amount: 45_000 }),
+      row({ id: "2", category_id: null, category: null, section: null, amount: 30_000 }),
+      row({ id: "3", category_id: null, category: null, section: null, amount: 10_000 }),
+      row({ id: "4", category_id: null, category: null, section: null, amount: 99_000, voided_at: "2026-10-06T10:00:00Z", void_reason: "x" }),
+    ]);
+    expect(s.unclassified).toBe(2);
+    expect(s.total).toBe(85_000);
+    expect(s.categories.map((c) => [c.category, c.total, c.count])).toEqual([
+      ["Luz", 45_000, 1],
+      ["Sin clasificar", 40_000, 2],
+    ]);
+  });
+
+  it("el tipo es opcional al ingresar (lo asigna administración)", () => {
+    const base = {
+      unit_id: "f32e6473-1a3e-4704-9581-b7dd436d846d",
+      month: "2026-10",
+      expense_date: "2026-10-05",
+      description: "Compra de insumos",
+      payment_method: "cash",
+    };
+    expect(expenseFormSchema.safeParse(base).success).toBe(true);
   });
 
   it("sin gastos todo queda en cero", () => {
