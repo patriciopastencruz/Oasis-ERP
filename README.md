@@ -1,5 +1,7 @@
 # OASIS ERP
 
+> **Para agentes y colaboradores nuevos:** leer primero `AGENTS.md` y `docs/estado-del-proyecto-para-agentes.md` (estado actual, cómo se despliega, trampas conocidas y decisiones recientes).
+
 Finanzas → Solicitud de Pagos incluye registro y edición de borradores, respaldos privados, envío a workflows configurables, listado filtrable y seguimiento detallado. Consulta `docs/stage-4a-payment-requests.md` y `docs/payment-request-user-guide.md`.
 
 La programación y ejecución financiera se documenta en `docs/stage-4c-payment-execution.md` y `docs/finance-payment-user-guide.md`.
