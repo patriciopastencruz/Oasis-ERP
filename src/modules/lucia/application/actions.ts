@@ -358,3 +358,25 @@ export async function removeRoomPhotoAction(form: FormData) {
   revalidatePath(PHOTOS_PATH);
   back(PHOTOS_PATH, "success", "Foto eliminada.");
 }
+
+// ===== Preguntas a recepción =====
+
+const QUESTIONS_PATH = `${BASE}/preguntas`;
+
+export async function saveStaffAnswerAction(form: FormData) {
+  await requirePermission("lucia.inbox.reply");
+  const hostel = text(form, "hostel_code").replace(/[^A-Z]/g, "");
+  const code = text(form, "question_code").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  // «Correcto» confirma el dato del recuadro sin escribir nada.
+  const answer = text(form, "quick") || text(form, "answer");
+  const path = (type: "success" | "error", message: string) =>
+    `${QUESTIONS_PATH}?hostal=${hostel}&${type}=${encodeURIComponent(message)}#${code}`;
+  if (!answer) redirect(path("error", `Escribe una respuesta para ${code} antes de guardar.`));
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("lucia_save_staff_answer", {
+    payload: { question_code: code, business_unit_id: uuid.parse(form.get("business_unit_id")), answer },
+  });
+  if (error) redirect(path("error", friendly(error)));
+  revalidatePath(QUESTIONS_PATH);
+  redirect(path("success", `Respuesta ${code} guardada.`));
+}

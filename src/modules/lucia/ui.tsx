@@ -4,6 +4,7 @@ export { Notice, inputClass } from "@/modules/whatsapp/ui";
 
 const TABS = [
   ["", "Prospectos", "lucia.inbox.view"],
+  ["preguntas", "Preguntas a recepción", "lucia.inbox.view"],
   ["simulador", "Simulador", "lucia.settings.manage"],
   ["fotos", "Fotos", "lucia.settings.manage"],
   ["conexion", "Conexión y consumo", "lucia.settings.manage"],

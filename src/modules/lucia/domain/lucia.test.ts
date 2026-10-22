@@ -3,6 +3,7 @@ import { buildChatTurns, clientSaidIt, currentInquiryCustomerText, NEW_INQUIRY_N
 import { luciaOutputSchema, repairLeakedParameters } from "./output-schema";
 import { usageCostUsd } from "./pricing";
 import { buildKnowledgeBlock } from "./prompt";
+import { STAFF_QUESTIONS, questionsForHostel } from "./staff-questions";
 
 const msg = (
   direction: "inbound" | "outbound",
@@ -123,6 +124,19 @@ describe("repairLeakedParameters", () => {
       reply: "Hola",
       intent: "greeting",
     });
+  });
+});
+
+describe("preguntas a recepción", () => {
+  it("tienen códigos únicos que calzan con su hostal", () => {
+    const codes = STAFF_QUESTIONS.map((q) => q.code);
+    expect(new Set(codes).size).toBe(codes.length);
+    const prefix = { HOB: "B", HOC: "C", HU: "A" } as const;
+    for (const q of STAFF_QUESTIONS) {
+      expect(q.code).toMatch(/^[GABC][0-9]{1,2}$/);
+      expect(q.code[0]).toBe(q.hostel ? prefix[q.hostel] : "G");
+    }
+    expect(questionsForHostel("HOB").map((q) => q.code)).toEqual(["G1", "G2", "G3", "G4", "G5", "G6", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"]);
   });
 });
 
