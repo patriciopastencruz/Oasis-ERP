@@ -1,4 +1,4 @@
-import { freeRoomsPerNight, normalizeDescription, type FeedBooking } from "@/modules/lodging/domain/availability-feed";
+import { normalizeDescription, type FeedBooking } from "@/modules/lodging/domain/availability-feed";
 import { rateForGuests } from "@/modules/lodging/domain/reservations";
 
 export type AvailabilityRoom = {
@@ -23,6 +23,18 @@ export type AvailabilityOption = {
   total_estadia: number;
 };
 
+export type AvailabilityCombination = {
+  habitaciones: {
+    codigo: string;
+    habitacion: string;
+    personas: number;
+    precio_noche: number;
+    total_estadia: number;
+  }[];
+  precio_noche: number;
+  total_estadia: number;
+};
+
 export type AvailabilityResult =
   | { ok: false; error: string }
   | {
@@ -31,7 +43,12 @@ export type AvailabilityResult =
       salida: string;
       noches: number;
       personas: number;
-      hostales: { hostal: string; codigo: string; opciones: AvailabilityOption[] }[];
+      hostales: {
+        hostal: string;
+        codigo: string;
+        opciones: AvailabilityOption[];
+        combinaciones: AvailabilityCombination[];
+      }[];
       sin_disponibilidad: string[];
       /** Hostales con lugar, pero sin habitaciones con baño privado libres (si se pidió). */
       sin_bano_privado?: string[];
@@ -54,6 +71,100 @@ function nightsBetween(checkIn: string, checkOut: string) {
 function label(room: AvailabilityRoom) {
   const description = room.description ? normalizeDescription(room.description) : "";
   return description ? `${room.roomType}: ${description.charAt(0).toLowerCase()}${description.slice(1)}` : room.roomType;
+}
+
+function isFreeForStay(roomId: string, bookings: FeedBooking[], checkIn: string, checkOut: string) {
+  return !bookings.some(
+    (booking) =>
+      booking.room_id === roomId && booking.check_in < checkOut && booking.check_out > checkIn,
+  );
+}
+
+function roomRate(room: AvailabilityRoom, guests: number) {
+  return rateForGuests(
+    { base_rate: room.baseRate, rates_by_guests: room.ratesByGuests ?? undefined },
+    guests,
+  );
+}
+
+function guestDistributions(rooms: AvailabilityRoom[], guests: number) {
+  const results: number[][] = [];
+  const visit = (index: number, remaining: number, assigned: number[]) => {
+    if (index === rooms.length) {
+      if (remaining === 0) results.push(assigned);
+      return;
+    }
+    const roomsLeft = rooms.length - index - 1;
+    const maxForThisRoom = Math.min(rooms[index].capacity, remaining - roomsLeft);
+    for (let people = 1; people <= maxForThisRoom; people++) {
+      visit(index + 1, remaining - people, [...assigned, people]);
+    }
+  };
+  visit(0, guests, []);
+  return results;
+}
+
+function roomSelections(rooms: AvailabilityRoom[], size: number) {
+  const results: AvailabilityRoom[][] = [];
+  const visit = (start: number, selected: AvailabilityRoom[]) => {
+    if (selected.length === size) {
+      results.push(selected);
+      return;
+    }
+    for (let index = start; index <= rooms.length - (size - selected.length); index++) {
+      visit(index + 1, [...selected, rooms[index]]);
+    }
+  };
+  visit(0, []);
+  return results;
+}
+
+/** Mejor combinación real de hasta cuatro habitaciones para alojar al grupo completo. */
+function bestRoomCombination(
+  rooms: AvailabilityRoom[],
+  guests: number,
+  nights: number,
+): AvailabilityCombination | null {
+  const maxRooms = Math.min(4, rooms.length, guests);
+  for (let size = 2; size <= maxRooms; size++) {
+    const candidates: (AvailabilityCombination & { unusedCapacity: number })[] = [];
+    for (const selected of roomSelections(rooms, size)) {
+      const capacity = selected.reduce((total, room) => total + room.capacity, 0);
+      if (capacity < guests) continue;
+      for (const distribution of guestDistributions(selected, guests)) {
+        const habitaciones = selected.map((room, index) => {
+          const people = distribution[index];
+          const price = roomRate(room, people);
+          return {
+            codigo: room.id,
+            habitacion: label(room),
+            personas: people,
+            precio_noche: price,
+            total_estadia: price * nights,
+          };
+        });
+        const price = habitaciones.reduce((total, room) => total + room.precio_noche, 0);
+        candidates.push({
+          habitaciones,
+          precio_noche: price,
+          total_estadia: price * nights,
+          unusedCapacity: capacity - guests,
+        });
+      }
+    }
+    candidates.sort(
+      (a, b) => a.unusedCapacity - b.unusedCapacity || a.precio_noche - b.precio_noche,
+    );
+    const best = candidates[0];
+    if (best) {
+      return {
+        habitaciones: best.habitaciones,
+        precio_noche: best.precio_noche,
+        total_estadia: best.total_estadia,
+      };
+    }
+  }
+  return null;
 }
 
 /**
@@ -82,19 +193,23 @@ export function searchAvailability(input: {
   if (!Number.isInteger(guests) || guests < 1 || guests > 20) return { ok: false, error: "Cantidad de personas inválida." };
 
   const hostales = input.hostels.map((hostel) => {
+    const freeRooms = input.rooms
+      .filter(
+        (room) =>
+          room.hostelCode === hostel.code &&
+          isFreeForStay(room.id, input.bookings, checkIn, checkOut),
+      )
+      .sort((a, b) => label(a).localeCompare(label(b)) || a.id.localeCompare(b.id));
     const groups = new Map<string, AvailabilityRoom[]>();
-    for (const room of input.rooms) {
-      if (room.hostelCode !== hostel.code || room.capacity < guests) continue;
+    for (const room of freeRooms) {
+      if (room.capacity < guests) continue;
       const key = [room.roomType, room.description ?? "", room.capacity, room.baseRate, JSON.stringify(room.ratesByGuests ?? {})].join("|");
       groups.set(key, [...(groups.get(key) ?? []), room]);
     }
     const opciones: AvailabilityOption[] = [];
     for (const rooms of groups.values()) {
-      const free = Math.min(
-        ...freeRoomsPerNight(rooms.map((r) => r.id), input.bookings, checkIn, nights).map((n) => n.free),
-      );
-      if (free < 1) continue;
-      const price = rateForGuests({ base_rate: rooms[0].baseRate, rates_by_guests: rooms[0].ratesByGuests ?? undefined }, guests);
+      const free = rooms.length;
+      const price = roomRate(rooms[0], guests);
       opciones.push({
         codigo: rooms[0].id,
         habitacion: label(rooms[0]),
@@ -117,7 +232,22 @@ export function searchAvailability(input: {
     opciones.push(...merged.values());
     opciones.sort((a, b) => a.precio_noche - b.precio_noche || a.habitacion.localeCompare(b.habitacion));
     const elegibles = input.privateBathOnly ? opciones.filter((o) => hasPrivateBath(o.habitacion)) : opciones;
-    return { hostal: hostel.name, codigo: hostel.code, opciones: elegibles, conLugar: opciones.length > 0 };
+    const roomsForCombination = input.privateBathOnly
+      ? freeRooms.filter((room) => hasPrivateBath(label(room)))
+      : freeRooms;
+    const combination = elegibles.length
+      ? null
+      : bestRoomCombination(roomsForCombination, guests, nights);
+    const anyCombination = opciones.length
+      ? null
+      : bestRoomCombination(freeRooms, guests, nights);
+    return {
+      hostal: hostel.name,
+      codigo: hostel.code,
+      opciones: elegibles,
+      combinaciones: combination ? [combination] : [],
+      conLugar: opciones.length > 0 || Boolean(anyCombination),
+    };
   });
 
   return {
@@ -126,10 +256,16 @@ export function searchAvailability(input: {
     salida: checkOut,
     noches: nights,
     personas: guests,
-    hostales: hostales.filter((h) => h.opciones.length > 0).map(({ hostal, codigo, opciones }) => ({ hostal, codigo, opciones })),
+    hostales: hostales
+      .filter((h) => h.opciones.length > 0 || h.combinaciones.length > 0)
+      .map(({ hostal, codigo, opciones, combinaciones }) => ({ hostal, codigo, opciones, combinaciones })),
     sin_disponibilidad: hostales.filter((h) => !h.conLugar).map((h) => h.hostal),
     ...(input.privateBathOnly
-      ? { sin_bano_privado: hostales.filter((h) => h.conLugar && h.opciones.length === 0).map((h) => h.hostal) }
+      ? {
+          sin_bano_privado: hostales
+            .filter((h) => h.conLugar && h.opciones.length === 0 && h.combinaciones.length === 0)
+            .map((h) => h.hostal),
+        }
       : {}),
   };
 }
@@ -148,6 +284,14 @@ export function formatAvailabilityForWhatsApp(result: AvailabilityResult): strin
     [
       `*${h.hostal}* 🏨`,
       ...h.opciones.map((o) => `• ${o.habitacion}: ${clp(o.precio_noche)} por noche (${clp(o.total_estadia)} por ${nights})`),
+      ...h.combinaciones.flatMap((combination) => [
+        `Opción para el grupo en ${combination.habitaciones.length} habitaciones:`,
+        ...combination.habitaciones.map(
+          (room) =>
+            `• ${room.habitacion} para ${room.personas} persona${room.personas === 1 ? "" : "s"}: ${clp(room.precio_noche)} por noche`,
+        ),
+        `Total: ${clp(combination.precio_noche)} por noche (${clp(combination.total_estadia)} por ${nights})`,
+      ]),
     ].join("\n"),
   );
   if (result.sin_bano_privado?.length) {

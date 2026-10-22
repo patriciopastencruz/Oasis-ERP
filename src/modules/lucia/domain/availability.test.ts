@@ -75,6 +75,54 @@ describe("searchAvailability", () => {
     );
   });
 
+  it("ofrece una combinación disponible de tres y dos personas para un grupo de cinco", () => {
+    const result = searchAvailability({
+      ...base,
+      guests: 5,
+      rooms: [
+        room("u3", "HU", {
+          roomType: "Mini depto",
+          description: "1 cama matrimonial y futón, baño privado",
+          capacity: 3,
+          ratesByGuests: { "1": 27000, "2": 32000, "3": 36000 },
+        }),
+        room("u2", "HU", {
+          roomType: "Simple matrimonial",
+          capacity: 2,
+          ratesByGuests: { "1": 24000, "2": 29000 },
+        }),
+      ],
+      bookings: [],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.hostales[0].opciones).toEqual([]);
+    expect(result.hostales[0].combinaciones[0]).toMatchObject({
+      habitaciones: [
+        { codigo: "u3", personas: 3, precio_noche: 36000 },
+        { codigo: "u2", personas: 2, precio_noche: 29000 },
+      ],
+      precio_noche: 65000,
+      total_estadia: 130000,
+    });
+    expect(formatAvailabilityForWhatsApp(result)).toContain(
+      "Opción para el grupo en 2 habitaciones:\n• Mini depto: 1 cama matrimonial y futón, baño privado para 3 personas: $36.000 por noche\n• Simple matrimonial: 1 cama matrimonial, baño privado para 2 personas: $29.000 por noche\nTotal: $65.000 por noche ($130.000 por 2 noches)",
+    );
+  });
+
+  it("no combina una habitación ocupada durante parte de la estadía", () => {
+    const result = searchAvailability({
+      ...base,
+      guests: 5,
+      rooms: [
+        room("u3", "HU", { capacity: 3, ratesByGuests: { "3": 36000 } }),
+        room("u2", "HU"),
+      ],
+      bookings: [{ room_id: "u3", check_in: "2026-10-25", check_out: "2026-10-26" }],
+    });
+    expect(result.ok && result.hostales).toEqual([]);
+  });
+
   it("una reserva que termina el día de llegada no bloquea", () => {
     const result = searchAvailability({
       ...base,
