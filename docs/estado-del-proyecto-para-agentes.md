@@ -79,7 +79,7 @@ Detalle operativo en `docs/hostal-uruguay-reservas.md`. Lo que más confunde a q
 
 ## 6. Lucía (asistente de WhatsApp de las hostales)
 
-Nació el 2026-10-21 y es la parte más activa del repositorio. Código en `src/modules/lucia/`, pantallas en `/lodging/lucia`, migraciones `*_lucia_*.sql`. Un **worker en Railway** (`worker/lucia/`, Baileys) mantiene vinculado el número central de las hostales y conversa con el ERP (`/api/lucia/process`); la clave de Claude vive solo en el ERP. Funciones: borrador y respuesta automática con derivación a una persona, consulta de disponibilidad con fechas dichas por el cliente (sin suponer fechas), fotos de habitaciones, horarios de check-in/out por hostal, recontacto a los 20 minutos, preguntas del equipo a recepción, aviso por WhatsApp a uno o varios administradores que pueden responder OK/NO. Variable propia: `LUCIA_WORKER_SECRET`. Hay otro agente distinto, el **agente comercial de WhatsApp de Oasis Modulares** (Twilio/Meta, `docs/whatsapp-agent.md`).
+Nació el 2026-10-21 y es la parte más activa del repositorio. Código en `src/modules/lucia/`, pantallas en `/lodging/lucia`, migraciones `*_lucia_*.sql`. Un **background worker en Render** (`worker/lucia/`, Baileys) mantiene vinculado el número central de las hostales y conversa con el ERP (`/api/lucia/process`); la clave de Claude vive solo en el ERP. Funciones: borrador y respuesta automática con derivación a una persona, consulta de disponibilidad con fechas dichas por el cliente (sin suponer fechas), fotos de habitaciones, horarios de check-in/out por hostal, recontacto a los 20 minutos, preguntas del equipo a recepción, aviso por WhatsApp a uno o varios administradores que pueden responder OK/NO y alertas reales cuando un cliente va en camino o espera en la entrada. Variable propia: `LUCIA_WORKER_SECRET`. Hay otro agente distinto, el **agente comercial de WhatsApp de Oasis Modulares** (Twilio/Meta, `docs/whatsapp-agent.md`).
 
 ## 7. Oasis Modulares: Proyectos
 
@@ -89,7 +89,7 @@ Módulo "Proyectos" (convertir una cotización aprobada en proyecto, gastos con 
 
 - El historial de conversaciones entre el dueño y los agentes; las decisiones de negocio recientes están aquí y en los mensajes de commit.
 - Memorias locales de Claude Code (no viajan con el repo); lo relevante de ellas ya está resumido en las secciones 2, 3 y 5.
-- Variables de entorno de Vercel y secretos de Supabase/Railway/Twilio/Resend/Anthropic.
+- Variables de entorno de Vercel y secretos de Supabase/Render/Twilio/Resend/Anthropic.
 - Correcciones puntuales hechas directamente sobre la base de producción (p. ej. cancelar una reserva duplicada a mano). Las reparaciones sistemáticas sí quedaron como migración (`20260914120000_lodging_restore_wrongly_cancelled_reservations.sql`).
 
 ## 9. Primeros pasos recomendados para un agente nuevo

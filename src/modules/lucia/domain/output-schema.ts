@@ -62,6 +62,11 @@ export const luciaOutputSchema = z.object({
     .nullish()
     .catch(null)
     .transform((v) => v ?? null),
+  walk_in_alert: z
+    .object({ status: z.enum(["on_the_way", "at_entrance"]) })
+    .nullish()
+    .catch(null)
+    .transform((v) => v ?? null),
   reason: optionalText(300).catch(null),
   // Si la ficha viene incompleta o mal formada, se ignora sin perder la respuesta.
   prospect: luciaProspectSchema.catch(() => luciaProspectSchema.parse({})),
@@ -102,6 +107,15 @@ export const luciaRespondToolSchema = {
         room_type: { type: "string" },
       },
       required: ["hostel_code", "room_type"],
+    },
+    walk_in_alert: {
+      type: ["object", "null"],
+      description:
+        "Alerta real a recepción y administración. Usa on_the_way si el cliente dice que va ahora directamente a una hostal, y at_entrance si ya llegó, está afuera o nadie le abre. Úsala solo cuando la hostal esté identificada; null para visitas vagas o futuras.",
+      properties: {
+        status: { type: "string", enum: ["on_the_way", "at_entrance"] },
+      },
+      required: ["status"],
     },
     reason: {
       type: ["string", "null"],
@@ -155,6 +169,7 @@ export const luciaRespondToolSchema = {
     "needs_human",
     "booking_request",
     "photos",
+    "walk_in_alert",
     "reason",
     "prospect",
   ],

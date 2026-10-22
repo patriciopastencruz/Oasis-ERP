@@ -5,7 +5,7 @@ Servicio Node.js que mantiene vinculado el **número central** de las hostales
 necesita estar encendido todo el día.
 
 ```
-WhatsApp ⇄ worker (Railway) ⇄ Supabase (mensajes, cola, sesión)
+WhatsApp ⇄ worker (Render) ⇄ Supabase (mensajes, cola, sesión)
                     │
                     └─► ERP /api/lucia/process  → Claude genera el borrador
 ```
@@ -22,13 +22,12 @@ WhatsApp ⇄ worker (Railway) ⇄ Supabase (mensajes, cola, sesión)
 - La sesión de WhatsApp se guarda en `lucia_wa_auth`: un reinicio no pide otro
   QR. Si se cae, se reconecta sola.
 
-## Puesta en marcha en Railway
+## Puesta en marcha en Render
 
-1. En railway.com: plan **Hobby**, luego **New Project → Deploy from GitHub
-   repo** → este repositorio.
-2. En el servicio, **Settings → Root Directory**: `worker/lucia`. Railway
-   detecta Node y ejecuta `npm start`.
-3. **Settings → Deploy**: deja **1 réplica**. Dos instancias con la misma
+1. En Render crea un **Background Worker** desde este repositorio.
+2. Configura **Root Directory** como `worker/lucia`, **Build Command** como
+   `npm ci` y **Start Command** como `npm start`.
+3. Deja **1 instancia**. Dos instancias con la misma
    sesión se desconectan entre sí.
 4. **Variables**:
 

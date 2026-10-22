@@ -9,6 +9,7 @@ import {
 } from "@/modules/lucia/domain/output-schema";
 import { LUCIA_BASE_RULES } from "@/modules/lucia/domain/prompt";
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
+import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
 import type { AvailabilityQuery } from "./availability-tool";
 
@@ -62,6 +63,8 @@ export async function generateLuciaReply(input: {
   stateNote?: string | null;
   /** Lo que escribió el cliente en esta consulta: las fechas deben salir de ahí. */
   customerText: string;
+  /** Ya existe una hostal asignada aunque el modelo no repita su código. */
+  hostelAssigned?: boolean;
   checkAvailability: AvailabilityChecker;
 }): Promise<LuciaBrainResult> {
   if (input.turns.length === 0 || input.turns.at(-1)?.role !== "user") {
@@ -179,6 +182,26 @@ export async function generateLuciaReply(input: {
         continue;
       }
       const latestCustomerMessage = input.turns.at(-1)?.content ?? "";
+      const detectedWalkIn = detectWalkInStatus(latestCustomerMessage);
+      const walkInStatus = detectedWalkIn ?? output.walk_in_alert?.status ?? null;
+      if (walkInStatus && (input.hostelAssigned || output.prospect.hostel_code)) {
+        const atEntrance = walkInStatus === "at_entrance";
+        return {
+          output: {
+            ...output,
+            reply: atEntrance
+              ? "Ya avisé a recepción y administración que estás en la entrada para que puedan atenderte lo antes posible. 🙏"
+              : "Perfecto, ya avisé a recepción y administración que vas en camino para que puedan recibirte. 📍",
+            needs_human: atEntrance || output.needs_human,
+            reason: atEntrance
+              ? "Cliente esperando en la entrada: atención inmediata"
+              : output.reason,
+            walk_in_alert: { status: walkInStatus },
+          },
+          usage,
+          model,
+        };
+      }
       if (COMPLAINT.test(plain(latestCustomerMessage))) {
         const reply = HUMAN_HANDOFF.test(plain(output.reply))
           ? output.reply

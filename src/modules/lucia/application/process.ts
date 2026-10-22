@@ -36,7 +36,7 @@ export async function processLuciaConversation(
 ): Promise<ProcessResult> {
   const { data: conversation } = await admin
     .from("lucia_conversations")
-    .select("id,company_id,status,paused_until,booking_status,booking_total,booking_deposit,hold_expires_at")
+    .select("id,company_id,status,paused_until,hostel_assigned,booking_status,booking_total,booking_deposit,hold_expires_at")
     .eq("id", conversationId)
     .maybeSingle();
   if (!conversation) return { status: "skipped", reason: "not_found" };
@@ -80,6 +80,7 @@ export async function processLuciaConversation(
       todayIso: santiagoToday(),
       stateNote: describeBookingState(conversation),
       customerText: currentInquiryCustomerText(messages),
+      hostelAssigned: conversation.hostel_assigned,
       checkAvailability: (query) => checkLuciaAvailability(admin, conversation.company_id, query),
     });
     const costUsd = usageCostUsd(settings.model, result.usage);
@@ -110,6 +111,18 @@ export async function processLuciaConversation(
       },
     });
     if (error) throw new Error(error.message);
+    // Cuando el cliente va directamente o ya espera en la entrada, el aviso
+    // real al equipo se encola antes de decirle que fue enviado.
+    if (result.output.walk_in_alert) {
+      const { error: alertError } = await admin.rpc("lucia_alert_walk_in", {
+        payload: {
+          conversation_id: conversationId,
+          status: result.output.walk_in_alert.status,
+          app_url: process.env.NEXT_PUBLIC_APP_URL ?? "",
+        },
+      });
+      if (alertError) throw new Error(alertError.message);
+    }
     // El cliente eligió y quiere reservar: se pide confirmación a recepción.
     // Si la solicitud se crea, el cliente recibe solo el mensaje fijo del
     // sistema (saludo + resumen) y el texto libre de Lucía no se envía, para

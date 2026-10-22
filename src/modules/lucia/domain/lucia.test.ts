@@ -5,6 +5,7 @@ import { usageCostUsd } from "./pricing";
 import { buildKnowledgeBlock } from "./prompt";
 import { STAFF_QUESTIONS, questionsForHostel } from "./staff-questions";
 import { validateStayAgainstCustomerText } from "./stay-validation";
+import { detectWalkInStatus } from "./walk-in";
 
 const msg = (
   direction: "inbound" | "outbound",
@@ -285,5 +286,34 @@ describe("fotos", () => {
       room_type: "Mini depto",
     });
     expect(luciaOutputSchema.parse({ ...base, photos: { hostel_code: "XX", room_type: "" } }).photos).toBeNull();
+  });
+});
+
+describe("visitas directas al hostal", () => {
+  it("distingue a quien va en camino de quien ya espera afuera", () => {
+    expect(detectWalkInStatus("Ah ya perfecto pasaré a verlo altiro")).toBe("on_the_way");
+    expect(detectWalkInStatus("Estoy afuera")).toBe("at_entrance");
+    expect(detectWalkInStatus("Ya consulta puede avisar pare entrar a ver")).toBe("at_entrance");
+    expect(detectWalkInStatus("Todavía nadie viene abrir")).toBe("at_entrance");
+  });
+
+  it("no alerta por una visita vaga o una consulta de ubicación", () => {
+    expect(detectWalkInStatus("Tal vez vaya mañana")).toBeNull();
+    expect(detectWalkInStatus("¿Dónde queda el hostal?")).toBeNull();
+  });
+
+  it("acepta la instrucción estructurada de aviso", () => {
+    const parsed = luciaOutputSchema.parse({
+      reply: "Ya avisé al equipo.",
+      intent: "faq",
+      answered_from_manual: false,
+      needs_human: true,
+      booking_request: false,
+      photos: null,
+      walk_in_alert: { status: "at_entrance" },
+      reason: "Cliente afuera",
+      prospect: { hostel_code: "HOC" },
+    });
+    expect(parsed.walk_in_alert).toEqual({ status: "at_entrance" });
   });
 });
