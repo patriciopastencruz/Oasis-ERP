@@ -37,8 +37,8 @@ export const expenseFormSchema = z.object({
   unit_id: z.string().uuid(),
   month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  /** Solo lo envía quien puede clasificar (administrador y superadministrador). */
-  category_id: z.string().uuid().optional(),
+  /** Tipo de gasto: lo elige quien ingresa el gasto entre los ya configurados. */
+  category_id: z.string().uuid("Elige el tipo de gasto."),
   description: z.string().trim().min(2, "Describe el gasto.").max(200, "La descripción es muy larga."),
   supplier: z.string().trim().max(120).default(""),
   document_number: z.string().trim().max(60).default(""),

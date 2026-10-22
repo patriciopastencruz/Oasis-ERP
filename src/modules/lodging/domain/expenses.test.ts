@@ -70,7 +70,7 @@ describe("gastos del hostal", () => {
     ]);
   });
 
-  it("el tipo es opcional al ingresar (lo asigna administración)", () => {
+  it("el tipo de gasto es obligatorio al ingresar", () => {
     const base = {
       unit_id: "f32e6473-1a3e-4704-9581-b7dd436d846d",
       month: "2026-10",
@@ -78,7 +78,9 @@ describe("gastos del hostal", () => {
       description: "Compra de insumos",
       payment_method: "cash",
     };
-    expect(expenseFormSchema.safeParse(base).success).toBe(true);
+    const r = expenseFormSchema.safeParse(base);
+    expect(r.success).toBe(false);
+    expect(expenseFormSchema.safeParse({ ...base, category_id: "0ac96abe-b70c-482b-a14e-d55d661d2b32" }).success).toBe(true);
   });
 
   it("sin gastos todo queda en cero", () => {

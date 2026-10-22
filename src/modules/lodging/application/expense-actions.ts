@@ -31,14 +31,11 @@ function allowedUnit(ctx: Awaited<ReturnType<typeof requirePermission>>, unitId:
 
 export async function recordExpenseAction(form: FormData) {
   const ctx = await requirePermission("lodging.expenses.record");
-  const canClassify = ctx.permissions.has("lodging.expenses.classify");
-  const rawCategory = String(form.get("category_id") ?? "");
   const parsed = expenseFormSchema.safeParse({
     unit_id: form.get("unit_id"),
     month: form.get("month"),
     expense_date: form.get("expense_date"),
-    // El tipo solo lo asigna administración: si llega de otra persona se ignora.
-    category_id: canClassify && rawCategory ? rawCategory : undefined,
+    category_id: String(form.get("category_id") ?? ""),
     description: form.get("description"),
     supplier: form.get("supplier") ?? "",
     document_number: form.get("document_number") ?? "",
@@ -68,7 +65,7 @@ export async function recordExpenseAction(form: FormData) {
     target_unit: unit.id,
     payload: {
       expense_date: parsed.data.expense_date,
-      category_id: parsed.data.category_id ?? null,
+      category_id: parsed.data.category_id,
       description: parsed.data.description,
       supplier: parsed.data.supplier,
       document_number: parsed.data.document_number,
@@ -115,7 +112,7 @@ export async function voidExpenseAction(form: FormData) {
   go(back, "success", "Gasto anulado.");
 }
 
-/** Asigna o cambia el tipo de un gasto: solo administrador y superadministrador. */
+/** Cambia el tipo de un gasto ya ingresado: solo administrador y superadministrador. */
 export async function classifyExpenseAction(form: FormData) {
   await requirePermission("lodging.expenses.classify");
   const back = month.safeParse(form.get("month")).data ?? null;

@@ -67,3 +67,15 @@ describe("migración de tipo de gasto y comprobante obligatorio", () => {
     expect(v2).toMatch(/lodging_expense_receipt_objects_delete[\s\S]*not exists\(select 1 from public\.lodging_expenses e where e\.receipt_path=name\)/);
   });
 });
+
+const v3 = readFileSync("supabase/migrations/20261022190000_lodging_expenses_everyone_picks_type.sql", "utf8");
+
+describe("migración: quien ingresa el gasto elige el tipo", () => {
+  it("el tipo es obligatorio para todos y ya no pide permiso de clasificar al ingresar", () => {
+    expect(v3).toContain("Elige el tipo de gasto");
+    expect(v3).toContain("Tipo de gasto no valido");
+    expect(v3).toContain("has_permission('lodging.expenses.record')");
+    expect(v3).not.toContain("lodging.expenses.classify");
+    expect(v3).toContain("Adjunta el comprobante del gasto");
+  });
+});
