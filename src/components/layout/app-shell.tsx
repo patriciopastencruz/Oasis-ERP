@@ -391,6 +391,13 @@ const lodgingNav = [
     permission: "lodging.closings.create",
   },
   {
+    href: "/lodging/expenses",
+    label: "Gastos",
+    icon: ReceiptText,
+    permission: "lodging.expenses.view",
+    unitCodes: ["HU"],
+  },
+  {
     href: "/lodging/monthly",
     label: "Cierre mensual",
     icon: Landmark,
@@ -499,8 +506,12 @@ export async function AppShell({
   const visibleOperationNav = operationNav.filter((item) =>
     canView(item, ctx.permissions),
   );
-  const visibleLodgingNav = lodgingNav.filter((item) =>
-    canView(item, ctx.permissions),
+  // Algunos ítems existen solo en ciertos hostales (`unitCodes`).
+  const visibleLodgingNav = lodgingNav.filter(
+    (item) =>
+      canView(item, ctx.permissions) &&
+      (!("unitCodes" in item) ||
+        (item.unitCodes as readonly string[]).includes(unit?.code ?? "")),
   );
   return (
     <ShellRoot theme={unitTheme}>
