@@ -234,10 +234,34 @@ async function drainOutbox(companyId: string) {
         await sock.sendPresenceUpdate("composing", job.jid);
         const isImage = job.message_type === "image" && Boolean(job.media_path);
         const typingMs = isImage
-          ? 1_500 + Math.floor(Math.random() * 1_500)
-          : Math.min(12_000, 1_500 + job.content.length * 45) + Math.floor(Math.random() * 1_500);
+          ? 1_000 + Math.floor(Math.random() * 1_000)
+          : Math.min(6_000, 900 + job.content.length * 25) + Math.floor(Math.random() * 800);
         await delay(typingMs);
         await sock.sendPresenceUpdate("paused", job.jid);
+        if (job.kind === "customer") {
+          const { data: queued } = await admin
+            .from("lucia_messages")
+            .select("conversation_id,created_at,sender_type,message_type")
+            .eq("id", job.id)
+            .maybeSingle();
+          if (queued?.sender_type === "lucia" && queued.message_type === "text") {
+            const { data: newerInbound } = await admin
+              .from("lucia_messages")
+              .select("id")
+              .eq("conversation_id", queued.conversation_id)
+              .eq("direction", "inbound")
+              .gt("created_at", queued.created_at)
+              .limit(1);
+            if (newerInbound?.length) {
+              const { error: omitError } = await admin
+                .from("lucia_messages")
+                .update({ delivery_status: "failed", error_message: "Respuesta omitida: llegó un mensaje más reciente del cliente." })
+                .eq("id", job.id)
+                .eq("delivery_status", "sending");
+              if (!omitError) continue;
+            }
+          }
+        }
         if (isImage) {
           // Fotos de habitaciones: bucket privado del ERP, se leen con la clave de servicio.
           const { data: file, error: downloadError } = await admin.storage.from("lucia-photos").download(job.media_path!);
@@ -253,7 +277,7 @@ async function drainOutbox(companyId: string) {
       }
       if (ownMessageIds.size > 5_000) ownMessageIds.clear();
       // Pausa entre mensajes para no enviar ráfagas.
-      await delay(2_000 + Math.floor(Math.random() * 2_000));
+      await delay(1_000 + Math.floor(Math.random() * 1_000));
     }
   } catch (error) {
     logger.error({ error: String(error) }, "error en la cola de envío");

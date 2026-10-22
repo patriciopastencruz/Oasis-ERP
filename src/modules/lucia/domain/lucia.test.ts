@@ -4,6 +4,7 @@ import { luciaOutputSchema, repairLeakedParameters } from "./output-schema";
 import { usageCostUsd } from "./pricing";
 import { buildKnowledgeBlock } from "./prompt";
 import { STAFF_QUESTIONS, questionsForHostel } from "./staff-questions";
+import { validateStayAgainstCustomerText } from "./stay-validation";
 
 const msg = (
   direction: "inbound" | "outbound",
@@ -105,6 +106,38 @@ describe("consultas nuevas tras un silencio largo", () => {
       msg("inbound", "no, en realidad es para diciembre"),
     ]);
     expect(clientSaidIt("llegas mañana 22 de octubre y te vas el 23 de octubre", notConfirmed)).toBe(false);
+  });
+});
+
+describe("validación de fechas de estadía", () => {
+  it("rechaza la cotización de una noche si el cliente pidió dos", () => {
+    expect(
+      validateStayAgainstCustomerText(
+        { check_in: "2026-10-22", check_out: "2026-10-23" },
+        "si por 2 noches\nllego hoy 22 de octubre\nhasta el dia sabado",
+        "2026-10-22",
+      ),
+    ).toContain("cliente indicó 2");
+  });
+
+  it("acepta jueves a sábado como dos noches", () => {
+    expect(
+      validateStayAgainstCustomerText(
+        { check_in: "2026-10-22", check_out: "2026-10-24" },
+        "si por 2 noches\nllego hoy 22 de octubre\nhasta el dia sabado",
+        "2026-10-22",
+      ),
+    ).toBeNull();
+  });
+
+  it("detecta un día de salida que no coincide con lo escrito", () => {
+    expect(
+      validateStayAgainstCustomerText(
+        { check_in: "2026-10-22", check_out: "2026-10-23" },
+        "llego el jueves y me voy el sábado",
+        "2026-10-22",
+      ),
+    ).toContain("salida el sabado");
   });
 });
 

@@ -8,6 +8,7 @@ import {
   type LuciaOutput,
 } from "@/modules/lucia/domain/output-schema";
 import { LUCIA_BASE_RULES } from "@/modules/lucia/domain/prompt";
+import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
 import type { AvailabilityQuery } from "./availability-tool";
 
@@ -31,7 +32,15 @@ function anthropic() {
 }
 
 const AVAILABILITY_TOOL = "consultar_disponibilidad";
-const MAX_CALLS = 3;
+const MAX_CALLS = 4;
+const FUTURE_AVAILABILITY_PROMISE =
+  /\b(?:dejame|permiteme|voy a|vamos a|puedo)\s+(?:revisar|consultar|confirmar|verificar)|\b(?:consultare|revisare|confirmare|verificare)\b/;
+const COMPLAINT =
+  /\b(?:gracias por nada|reclamo|pesim[oa]|mal servicio|mala atencion|molest[oa]|enojad[oa]|quiero hablar con (?:alguien|una persona|un encargado)|no me ayudaste|perdida de tiempo)\b/;
+const HUMAN_HANDOFF = /\b(?:persona|equipo|encargad[oa]|recepcion|revisar(?:a|an)?|contactar(?:a|an)?)\b/;
+
+const plain = (text: string) =>
+  text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export type AvailabilityChecker = (query: AvailabilityQuery) => Promise<unknown>;
 
@@ -104,6 +113,8 @@ export async function generateLuciaReply(input: {
   ];
   const usage: ClaudeUsage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
   let model = input.model;
+  let availabilityWasChecked = false;
+  let availabilityWasAttempted = false;
 
   for (let call = 0; call < MAX_CALLS; call++) {
     let response: Anthropic.Message;
@@ -146,7 +157,45 @@ export async function generateLuciaReply(input: {
           .join("; ");
         throw new LuciaBrainError(`Claude no devolvió una respuesta válida (${detail}).`);
       }
-      return { output: parsed.data, usage, model };
+      const output = parsed.data;
+      const hasStay = Boolean(output.prospect.check_in && output.prospect.check_out && output.prospect.guests);
+      const postponedAvailability =
+        (output.intent === "availability" || output.intent === "price") &&
+        hasStay &&
+        ((!availabilityWasChecked && !availabilityWasAttempted) ||
+          FUTURE_AVAILABILITY_PROMISE.test(plain(output.reply)));
+      if (postponedAvailability && call < MAX_CALLS - 1) {
+        messages.push({ role: "assistant", content: response.content });
+        messages.push({
+          role: "user",
+          content: [{
+            type: "tool_result",
+            tool_use_id: respond.id,
+            content:
+              "Respuesta rechazada: ya tienes llegada, salida y personas. No prometas consultar después ni afirmes disponibilidad sin comprobarla. Usa consultar_disponibilidad ahora y responde con su resultado en este mismo mensaje.",
+            is_error: true,
+          }],
+        });
+        continue;
+      }
+      const latestCustomerMessage = input.turns.at(-1)?.content ?? "";
+      if (COMPLAINT.test(plain(latestCustomerMessage))) {
+        const reply = HUMAN_HANDOFF.test(plain(output.reply))
+          ? output.reply
+          : "Entiendo tu molestia y lamento la confusión con la información entregada. Voy a dejar este caso para que una persona del equipo lo revise.";
+        return {
+          output: {
+            ...output,
+            reply,
+            intent: "complaint",
+            needs_human: true,
+            reason: output.reason ?? "Cliente molesto: requiere revisión humana",
+          },
+          usage,
+          model,
+        };
+      }
+      return { output, usage, model };
     }
 
     const lookups = response.content.filter(
@@ -170,7 +219,14 @@ export async function generateLuciaReply(input: {
             };
           }
           try {
-            const result = await input.checkAvailability(block.input as AvailabilityQuery);
+            const query = block.input as AvailabilityQuery;
+            availabilityWasAttempted = true;
+            const inconsistency = validateStayAgainstCustomerText(query, input.customerText, input.todayIso);
+            if (inconsistency) {
+              return { type: "tool_result", tool_use_id: block.id, content: `No consultado: ${inconsistency}`, is_error: true };
+            }
+            const result = await input.checkAvailability(query);
+            availabilityWasChecked = true;
             return { type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) };
           } catch {
             return { type: "tool_result", tool_use_id: block.id, content: "No se pudo consultar la disponibilidad.", is_error: true };
