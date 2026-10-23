@@ -15,6 +15,10 @@ const db = createClient(required("SUPABASE_URL"), required("SUPABASE_SECRET_KEY"
 const erpUrl = required("ERP_URL").replace(/\/$/, "");
 const workerSecret = required("LUCIA_WORKER_SECRET");
 const runId = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+const casesArgument = process.argv.find((argument) => argument.startsWith("--cases="));
+const selectedCases = casesArgument
+  ? new Set(casesArgument.slice("--cases=".length).split(",").map((value) => Number(value.trim())))
+  : null;
 
 const scenarios = [
   ["pareja baño privado", ["Hola, somos 2 y necesitamos una habitación con baño privado para mañana, una noche", "Sí, llegamos el 23 de octubre y salimos el 24", "La opción de Hostal Oasis Centro con baño privado me interesa. Soy Daniela Rojas, ¿cómo reservo?"]],
@@ -81,6 +85,7 @@ async function sendCustomerMessage(conversationId, content) {
 
 console.log(`QA_RUN=${runId}`);
 for (let index = 0; index < scenarios.length; index += 1) {
+  if (selectedCases && !selectedCases.has(index + 1)) continue;
   const [label, messages] = scenarios[index];
   const number = String(index + 1).padStart(2, "0");
   const { data: conversation, error } = await db
@@ -105,6 +110,6 @@ for (let index = 0; index < scenarios.length; index += 1) {
       break;
     }
   }
-  console.log(`${number}/20 ${label}: ${failure ? `ERROR ${failure}` : "OK"}`);
+  console.log(`${number}/${selectedCases ? selectedCases.size : scenarios.length} ${label}: ${failure ? `ERROR ${failure}` : "OK"}`);
 }
 console.log(`QA_COMPLETE=${runId}`);

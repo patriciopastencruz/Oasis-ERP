@@ -5,7 +5,8 @@ const plain = (text: string) =>
 
 const AT_ENTRANCE = [
   /\bestoy\s+(?:aqui\s+)?afuera\b/,
-  /\b(?:ya\s+)?(?:llegue|llegamos)\b/,
+  /\b(?:ya|recien)\s+(?:llegue|llegamos)\b/,
+  /^(?:hola[, ]+)?(?:llegue|llegamos)\b/,
   /\bestoy\s+en\s+(?:la\s+)?(?:entrada|puerta)\b/,
   /\b(?:nadie|aun no|todavia no)\s+(?:me\s+)?(?:abre|abrio|viene|sale|atiende)\b/,
   /\b(?:puede|puedes|podria)\s+avisar\b[^.\n]{0,45}\b(?:entrar|abran|abrir)\b/,

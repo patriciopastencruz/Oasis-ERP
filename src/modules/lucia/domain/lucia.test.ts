@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildChatTurns, clientSaidIt, currentInquiryCustomerText, NEW_INQUIRY_NOTE, type LuciaHistoryMessage } from "./history";
-import { luciaOutputSchema, repairLeakedParameters } from "./output-schema";
+import { luciaOutputSchema, repairLeakedParameters, repairUnsupportedPhotoPromise } from "./output-schema";
 import { usageCostUsd } from "./pricing";
 import { buildKnowledgeBlock } from "./prompt";
 import { STAFF_QUESTIONS, questionsForHostel } from "./staff-questions";
@@ -140,6 +140,16 @@ describe("validación de fechas de estadía", () => {
       ),
     ).toContain("salida el sabado");
   });
+
+  it("detecta contradicción en un rango 'viernes al sábado' con dos noches", () => {
+    expect(
+      validateStayAgainstCustomerText(
+        { check_in: "2026-10-23", check_out: "2026-10-25" },
+        "Quiero reservar del viernes 23 al sábado 24 por dos noches",
+        "2026-10-22",
+      ),
+    ).toContain("salida el sabado");
+  });
 });
 
 describe("repairLeakedParameters", () => {
@@ -260,6 +270,14 @@ describe("formato de la respuesta", () => {
     expect(parsed.reply).toBe("Opciones:\n\n*Hostal Atacama Oasis* 🏨\n• Pieza: $30.000");
     expect(parsed.prospect.option_code).toBeNull();
   });
+
+  it("quita una comilla suelta al final del mensaje", () => {
+    const parsed = luciaOutputSchema.parse({
+      reply: "¿Cuál opción les acomoda? 😊\"",
+      prospect: {},
+    });
+    expect(parsed.reply).toBe("¿Cuál opción les acomoda? 😊");
+  });
 });
 
 describe("fotos", () => {
@@ -287,6 +305,16 @@ describe("fotos", () => {
     });
     expect(luciaOutputSchema.parse({ ...base, photos: { hostel_code: "XX", room_type: "" } }).photos).toBeNull();
   });
+
+  it("no promete fotos si todavía falta elegir el tipo de habitación", () => {
+    const output = luciaOutputSchema.parse({
+      reply: "¡Claro! Te envío fotos de nuestras habitaciones 📸",
+      prospect: { hostel_code: "HOB" },
+    });
+    expect(repairUnsupportedPhotoPromise(output).reply).toContain("¿De qué tipo de habitación");
+    const ready = { ...output, photos: { hostel_code: "HOB" as const, room_type: "Mini depto" } };
+    expect(repairUnsupportedPhotoPromise(ready).reply).toBe(output.reply);
+  });
 });
 
 describe("visitas directas al hostal", () => {
@@ -300,6 +328,7 @@ describe("visitas directas al hostal", () => {
   it("no alerta por una visita vaga o una consulta de ubicación", () => {
     expect(detectWalkInStatus("Tal vez vaya mañana")).toBeNull();
     expect(detectWalkInStatus("¿Dónde queda el hostal?")).toBeNull();
+    expect(detectWalkInStatus("¿Puedo pagar cuando llegue sin hacer abono?")).toBeNull();
   });
 
   it("acepta la instrucción estructurada de aviso", () => {

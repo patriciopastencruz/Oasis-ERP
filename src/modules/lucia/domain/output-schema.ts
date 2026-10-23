@@ -51,7 +51,12 @@ export const luciaOutputSchema = z.object({
   // en un salto real para que WhatsApp lo muestre ordenado.
   reply: z
     .string()
-    .transform((v) => v.replace(/(?:\\r)?\\n/g, "\n").replace(/\\t/g, " "))
+    .transform((v) => {
+      const normalized = v.replace(/(?:\\r)?\\n/g, "\n").replace(/\\t/g, " ");
+      return normalized.endsWith('"') && (normalized.match(/"/g)?.length ?? 0) === 1
+        ? normalized.slice(0, -1).trimEnd()
+        : normalized;
+    })
     .pipe(z.string().trim().min(1).max(3000)),
   intent: z.enum(luciaIntents).catch("other"),
   answered_from_manual: z.boolean().catch(false),
@@ -72,6 +77,20 @@ export const luciaOutputSchema = z.object({
   prospect: luciaProspectSchema.catch(() => luciaProspectSchema.parse({})),
 });
 export type LuciaOutput = z.infer<typeof luciaOutputSchema>;
+
+const PHOTO_PROMISE =
+  /\b(?:te\s+)?(?:envio|mando|muestro|comparto)\b[^.\n]{0,35}\bfotos?\b/;
+
+/** No promete un envío de fotos cuando el modelo no identificó qué álbum usar. */
+export function repairUnsupportedPhotoPromise(output: LuciaOutput): LuciaOutput {
+  if (output.photos || !PHOTO_PROMISE.test(output.reply.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())) {
+    return output;
+  }
+  return {
+    ...output,
+    reply: "¡Claro! 📸 ¿De qué tipo de habitación te gustaría ver fotos?",
+  };
+}
 
 /** Esquema JSON de la herramienta "responder" que se envía a Claude. */
 export const luciaRespondToolSchema = {

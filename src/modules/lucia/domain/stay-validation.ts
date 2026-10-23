@@ -50,7 +50,7 @@ function lastExplicitNightCount(text: string) {
 
 function lastDepartureWeekday(text: string) {
   const matches = [
-    ...text.matchAll(/(?:hasta|salida|salgo|salimos|me voy|nos vamos|se va|se van)\s+(?:el\s+|el dia\s+)?(domingo|lunes|martes|miercoles|jueves|viernes|sabado)\b/g),
+    ...text.matchAll(/(?:hasta|salida|salgo|salimos|me voy|nos vamos|se va|se van|al)\s+(?:el\s+|el dia\s+)?(domingo|lunes|martes|miercoles|jueves|viernes|sabado)\b/g),
   ];
   return matches.at(-1)?.[1] ?? null;
 }

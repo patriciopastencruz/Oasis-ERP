@@ -6,7 +6,7 @@ import { processLuciaConversation } from "@/modules/lucia/application/process";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Lo llama solo el worker de WhatsApp (Railway) con LUCIA_WORKER_SECRET.
+// Lo llama solo el worker de WhatsApp (Render) con LUCIA_WORKER_SECRET.
 function authorized(request: Request) {
   const expected = process.env.LUCIA_WORKER_SECRET;
   const header = request.headers.get("authorization") ?? "";

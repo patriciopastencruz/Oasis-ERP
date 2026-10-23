@@ -5,6 +5,7 @@ import {
   luciaOutputSchema,
   luciaRespondToolSchema,
   repairLeakedParameters,
+  repairUnsupportedPhotoPromise,
   type LuciaOutput,
 } from "@/modules/lucia/domain/output-schema";
 import { LUCIA_BASE_RULES } from "@/modules/lucia/domain/prompt";
@@ -36,6 +37,7 @@ const AVAILABILITY_TOOL = "consultar_disponibilidad";
 const MAX_CALLS = 4;
 const FUTURE_AVAILABILITY_PROMISE =
   /\b(?:dejame|permiteme|voy a|vamos a|puedo)\s+(?:revisar|consultar|confirmar|verificar)|\b(?:consultare|revisare|confirmare|verificare)\b/;
+const PRIVATE_BATH_PREFERENCE = /\b(?:bano|baño)\s+privado\b/;
 const COMPLAINT =
   /\b(?:gracias por nada|reclamo|pesim[oa]|mal servicio|mala atencion|molest[oa]|enojad[oa]|quiero hablar con (?:alguien|una persona|un encargado)|no me ayudaste|perdida de tiempo)\b/;
 const HUMAN_HANDOFF = /\b(?:persona|equipo|encargad[oa]|recepcion|revisar(?:a|an)?|contactar(?:a|an)?)\b/;
@@ -118,6 +120,8 @@ export async function generateLuciaReply(input: {
   let model = input.model;
   let availabilityWasChecked = false;
   let availabilityWasAttempted = false;
+  let availabilitySummary: string | null = null;
+  let availabilityHasOptions = false;
 
   for (let call = 0; call < MAX_CALLS; call++) {
     let response: Anthropic.Message;
@@ -160,10 +164,13 @@ export async function generateLuciaReply(input: {
           .join("; ");
         throw new LuciaBrainError(`Claude no devolvió una respuesta válida (${detail}).`);
       }
-      const output = parsed.data;
+      let output = repairUnsupportedPhotoPromise(parsed.data);
       const hasStay = Boolean(output.prospect.check_in && output.prospect.check_out && output.prospect.guests);
+      const latestCustomerMessage = input.turns.at(-1)?.content ?? "";
+      const changedAvailabilityPreference =
+        hasStay && PRIVATE_BATH_PREFERENCE.test(latestCustomerMessage.toLowerCase());
       const postponedAvailability =
-        (output.intent === "availability" || output.intent === "price") &&
+        (output.intent === "availability" || output.intent === "price" || changedAvailabilityPreference) &&
         hasStay &&
         ((!availabilityWasChecked && !availabilityWasAttempted) ||
           FUTURE_AVAILABILITY_PROMISE.test(plain(output.reply)));
@@ -181,9 +188,29 @@ export async function generateLuciaReply(input: {
         });
         continue;
       }
-      const latestCustomerMessage = input.turns.at(-1)?.content ?? "";
+      // Claude recibe el resumen exacto desde la herramienta, pero a veces lo
+      // abrevia, omite líneas o incluso altera un total al redactarlo. Cuando
+      // hubo una consulta real, el sistema arma el mensaje final y conserva el
+      // resumen literalmente para que precios y disponibilidad sean fiables.
+      const shouldUseExactAvailabilitySummary =
+        !availabilityHasOptions ||
+        output.intent === "availability" ||
+        output.intent === "price" ||
+        changedAvailabilityPreference;
+      if (availabilityWasChecked && availabilitySummary && shouldUseExactAvailabilitySummary) {
+        output = {
+          ...output,
+          reply: availabilityHasOptions
+            ? `Estas son las opciones que encontré para tu estadía 😊\n\n${availabilitySummary}\n\n¿Cuál opción te acomoda?`
+            : `${availabilitySummary}\n\nSi quieres, puedo revisar otras fechas.`,
+        };
+      }
       const detectedWalkIn = detectWalkInStatus(latestCustomerMessage);
-      const walkInStatus = detectedWalkIn ?? output.walk_in_alert?.status ?? null;
+      // Una alerta operacional nunca se basa solo en la interpretación del
+      // modelo: frases como «pagar cuando llegue» pueden parecer una llegada
+      // actual aunque hablen de una fecha futura. Solo alertamos cuando el
+      // mensaje más reciente contiene una señal inmediata verificable.
+      const walkInStatus = detectedWalkIn;
       if (walkInStatus && (input.hostelAssigned || output.prospect.hostel_code)) {
         const atEntrance = walkInStatus === "at_entrance";
         return {
@@ -250,6 +277,17 @@ export async function generateLuciaReply(input: {
             }
             const result = await input.checkAvailability(query);
             availabilityWasChecked = true;
+            if (result && typeof result === "object") {
+              const record = result as {
+                ok?: unknown;
+                resumen_whatsapp?: unknown;
+                hostales?: unknown;
+              };
+              if (record.ok === true && typeof record.resumen_whatsapp === "string") {
+                availabilitySummary = record.resumen_whatsapp;
+                availabilityHasOptions = Array.isArray(record.hostales) && record.hostales.length > 0;
+              }
+            }
             return { type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) };
           } catch {
             return { type: "tool_result", tool_use_id: block.id, content: "No se pudo consultar la disponibilidad.", is_error: true };
