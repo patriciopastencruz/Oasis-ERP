@@ -38,6 +38,8 @@ const MAX_CALLS = 4;
 const FUTURE_AVAILABILITY_PROMISE =
   /\b(?:dejame|permiteme|voy a|vamos a|puedo)\s+(?:revisar|consultar|confirmar|verificar)|\b(?:consultare|revisare|confirmare|verificare)\b/;
 const PRIVATE_BATH_PREFERENCE = /\b(?:bano|baño)\s+privado\b/;
+const CONVERSATIONAL_FOLLOW_UP =
+  /\b(?:pagar|pago|abono|transferencia|descuento|mas barata|más barata|me interesa|elijo|elegir|reservar|reserva)\b/;
 const COMPLAINT =
   /\b(?:gracias por nada|reclamo|pesim[oa]|mal servicio|mala atencion|molest[oa]|enojad[oa]|quiero hablar con (?:alguien|una persona|un encargado)|no me ayudaste|perdida de tiempo)\b/;
 const HUMAN_HANDOFF = /\b(?:persona|equipo|encargad[oa]|recepcion|revisar(?:a|an)?|contactar(?:a|an)?)\b/;
@@ -194,9 +196,10 @@ export async function generateLuciaReply(input: {
       // resumen literalmente para que precios y disponibilidad sean fiables.
       const shouldUseExactAvailabilitySummary =
         !availabilityHasOptions ||
-        output.intent === "availability" ||
-        output.intent === "price" ||
-        changedAvailabilityPreference;
+        (!CONVERSATIONAL_FOLLOW_UP.test(latestCustomerMessage.toLowerCase()) &&
+          (output.intent === "availability" ||
+            output.intent === "price" ||
+            changedAvailabilityPreference));
       if (availabilityWasChecked && availabilitySummary && shouldUseExactAvailabilitySummary) {
         output = {
           ...output,
