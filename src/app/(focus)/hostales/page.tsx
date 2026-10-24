@@ -66,34 +66,34 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
       </header>
 
       <section className="overflow-x-auto rounded-2xl border bg-white">
-        <table className="w-full min-w-[22rem] text-sm tabular-nums">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+        <table className="w-full text-[13px] tabular-nums">
+          <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-3 py-2">Hostal</th>
-              <th className="px-3 py-2 text-right">Ocupación</th>
-              <th className="px-3 py-2 text-right">Tarifa prom.</th>
-              <th className="px-3 py-2 text-right">RevPAR</th>
+              <th className="px-2 py-2">Hostal</th>
+              <th className="px-2 py-2 text-right">Ocupación</th>
+              <th className="px-2 py-2 text-right">Tarifa</th>
+              <th className="px-2 py-2 text-right">RevPAR</th>
             </tr>
           </thead>
           <tbody>
             {rows.map(({ unit, m, goals }) => (
               <tr key={unit.id} className="border-t">
-                <td className="px-3 py-2 font-semibold">{unit.name.replace(/^Hostal\s+/i, "")}</td>
+                <td className="px-2 py-2 font-semibold">{unit.name.replace(/^Hostal\s+/i, "")}</td>
                 <Metric value={pct(m.occupancy)} goal={goals.occupancyPct !== null ? `${Math.round(goals.occupancyPct)}%` : null} ok={goals.occupancyPct === null || m.occupancy * 100 >= goals.occupancyPct} />
                 <Metric value={clp.format(m.adr)} goal={goals.averageRate !== null ? clp.format(goals.averageRate) : null} ok={goals.averageRate === null || m.adr >= goals.averageRate} />
                 <Metric value={clp.format(m.revpar)} goal={revparGoal(goals) !== null ? clp.format(revparGoal(goals)!) : null} ok={revparGoal(goals) === null || m.revpar >= revparGoal(goals)!} />
               </tr>
             ))}
             <tr className="border-t bg-slate-50 font-bold">
-              <td className="px-3 py-2">Total</td>
-              <td className="px-3 py-2 text-right">{pct(total.occupancy)}</td>
-              <td className="px-3 py-2 text-right">{clp.format(total.adr)}</td>
-              <td className="px-3 py-2 text-right">{clp.format(total.revpar)}</td>
+              <td className="px-2 py-2">Total</td>
+              <td className="px-2 py-2 text-right">{pct(total.occupancy)}</td>
+              <td className="px-2 py-2 text-right">{clp.format(total.adr)}</td>
+              <td className="px-2 py-2 text-right">{clp.format(total.revpar)}</td>
             </tr>
           </tbody>
         </table>
         <p className="border-t px-3 py-2 text-xs text-slate-500">
-          Venta del mes: <b className="text-slate-700">{clp.format(total.revenue)}</b>. Bajo cada valor, la meta del hostal si está definida.
+          Venta del mes: <b className="text-slate-700">{clp.format(total.revenue)}</b>. Tarifa = promedio por noche vendida; RevPAR = venta por habitación disponible. Bajo cada valor, la meta del hostal (en rojo si va por debajo).
         </p>
       </section>
 
@@ -125,7 +125,7 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
 
 function Metric({ value, goal, ok }: { value: string; goal: string | null; ok: boolean }) {
   return (
-    <td className="px-3 py-2 text-right">
+    <td className="px-2 py-2 text-right">
       <span className={ok ? "" : "text-red-700"}>{value}</span>
       {goal && <span className="block text-[11px] font-normal text-slate-400">meta {goal}</span>}
     </td>
