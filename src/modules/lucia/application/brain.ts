@@ -8,6 +8,7 @@ import {
   repairUnsupportedPhotoPromise,
   type LuciaOutput,
 } from "@/modules/lucia/domain/output-schema";
+import { choiceIsAmbiguous } from "@/modules/lucia/domain/option-choice";
 import { LUCIA_BASE_RULES } from "@/modules/lucia/domain/prompt";
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
 import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
@@ -206,6 +207,31 @@ export async function generateLuciaReply(input: {
           }],
         });
         continue;
+      }
+      // Nunca elegir por el cliente: si Lucía acaba de mostrar varias opciones
+      // y el cliente no dijo cuál («la quiero», «esa»), se le pregunta.
+      const previousTurn = input.turns.at(-2);
+      const lastAssistantMessage = previousTurn?.role === "assistant" ? previousTurn.content : "";
+      if (output.booking_request && choiceIsAmbiguous(lastAssistantMessage, latestCustomerMessage)) {
+        if (call < MAX_CALLS - 1) {
+          messages.push({ role: "assistant", content: response.content });
+          messages.push({
+            role: "user",
+            content: [{
+              type: "tool_result",
+              tool_use_id: respond.id,
+              content:
+                "Respuesta rechazada: el cliente no dijo cuál de las opciones que le mostraste quiere. No elijas por él ni envíes la solicitud: deja booking_request en false y pregúntale cuál prefiere, nombrando las opciones en una frase breve.",
+              is_error: true,
+            }],
+          });
+          continue;
+        }
+        output = {
+          ...output,
+          booking_request: false,
+          reply: "¡Genial! 😊 ¿Cuál de las opciones que te mostré prefieres? Así dejo lista tu solicitud.",
+        };
       }
       // Claude recibe el resumen exacto desde la herramienta, pero a veces lo
       // abrevia, omite líneas o incluso altera un total al redactarlo. Cuando
