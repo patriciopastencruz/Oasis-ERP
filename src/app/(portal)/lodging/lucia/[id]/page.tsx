@@ -188,7 +188,8 @@ export default async function LuciaConversationPage({
 
           {canReply && !closed && (
             <Panel>
-              <form action={sendReplyAction} className="space-y-2">
+              {/* Destino del link que reciben los encargados en el aviso de derivación. */}
+              <form id="responder" action={sendReplyAction} className="scroll-mt-24 space-y-2">
                 <input type="hidden" name="conversation_id" value={c.id} />
                 <label className="text-sm font-semibold">Responder como equipo{isSimulator ? "" : " (por el número central)"}</label>
                 <textarea name="content" rows={3} required className={inputClass} placeholder="Escribe tu respuesta…" />

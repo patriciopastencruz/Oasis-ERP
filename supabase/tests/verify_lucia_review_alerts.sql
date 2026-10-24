@@ -35,6 +35,9 @@ begin
   if (select count(*) from public.lucia_staff_messages where conversation_id=a and content like '🔔 Lucía necesita ayuda%Consulta por una reserva existente%') <> 2 then
     raise exception 'Debe avisar al encargado y al administrador de Modulares';
   end if;
+  if not exists(select 1 from public.lucia_staff_messages where conversation_id=a and content like '%https://www.oasis-erp.cl/lodging/lucia/'||a||'#responder%') then
+    raise exception 'El aviso debe llevar el link directo para responder';
+  end if;
   if not exists(select 1 from public.notifications where entity_id=a and event_key='lucia.needs_review') then
     raise exception 'Debe quedar el aviso en el ERP';
   end if;
