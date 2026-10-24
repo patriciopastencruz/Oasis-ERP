@@ -174,6 +174,26 @@ export async function simulateCustomerMessageAction(form: FormData) {
   );
 }
 
+/** Vuelve a pedirle a Lucía la respuesta de un mensaje que quedó sin contestar. */
+export async function retryLuciaReplyAction(form: FormData) {
+  await requirePermission("lucia.inbox.reply");
+  const id = uuid.parse(form.get("conversation_id"));
+  const path = `${BASE}/${id}`;
+  // La sesión del usuario (con RLS) confirma que puede ver esta conversación.
+  const supabase = await createSupabaseServerClient();
+  const { data: visible } = await supabase.from("lucia_conversations").select("id").eq("id", id).maybeSingle();
+  if (!visible) back(path, "error", "No tienes autorización para esta acción.");
+  const result = await processLuciaConversation(createSupabaseAdminClient(), id);
+  revalidatePath(path);
+  if (result.status === "error") back(path, "error", `Lucía no pudo responder: ${result.message}`);
+  if (result.status === "skipped") back(path, "success", "No había un mensaje del cliente pendiente de respuesta.");
+  back(
+    path,
+    "success",
+    result.autoSent ? "Lucía respondió. El mensaje sale por WhatsApp en unos segundos." : "Lucía preparó un borrador para revisar.",
+  );
+}
+
 // ===== Configuración =====
 
 const SETTINGS_PATH = `${BASE}/configuracion`;

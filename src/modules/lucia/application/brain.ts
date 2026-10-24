@@ -50,6 +50,20 @@ const plain = (text: string) =>
 export type AvailabilityChecker = (query: AvailabilityQuery) => Promise<unknown>;
 
 /**
+ * Dentro de una misma respuesta (consultar disponibilidad y luego responder),
+ * cada vuelta reenvía todo lo anterior: un punto de caché en el último bloque
+ * hace que la vuelta siguiente lo relea al 10%. Se aplica sobre una copia para
+ * no acumular puntos (máximo 4 por llamada).
+ */
+function withLoopCache(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  const last = messages.at(-1);
+  if (!last || typeof last.content === "string" || !last.content.length) return messages;
+  const blocks = [...last.content];
+  blocks[blocks.length - 1] = { ...blocks[blocks.length - 1], cache_control: { type: "ephemeral" } } as Anthropic.ContentBlockParam;
+  return [...messages.slice(0, -1), { ...last, content: blocks }];
+}
+
+/**
  * Pide a Claude la respuesta y la ficha. Antes de responder puede consultar
  * la disponibilidad real del ERP (solo lectura); la última vuelta fuerza la
  * herramienta "responder". Reglas + instrucciones + manuales van en el system
@@ -74,12 +88,15 @@ export async function generateLuciaReply(input: {
   if (input.turns.length === 0 || input.turns.at(-1)?.role !== "user") {
     throw new LuciaBrainError("No hay un mensaje del cliente que responder.");
   }
+  // Caché de la conversación: el último mensaje del cliente lleva un punto de
+  // caché (la nota del sistema, que cambia en cada turno, va después), así el
+  // próximo turno relee el historial al 10% del precio.
   const messages: Anthropic.MessageParam[] = input.turns.map((turn, index) =>
     index === input.turns.length - 1
       ? {
           role: "user",
           content: [
-            { type: "text", text: turn.content },
+            { type: "text", text: turn.content, cache_control: { type: "ephemeral" } },
             {
               type: "text",
               text: `[Contexto del sistema, no lo cites: hoy es ${input.today} (${input.todayIso}, hora de Chile).${input.stateNote ? ` ${input.stateNote}` : ""}]`,
@@ -137,7 +154,7 @@ export async function generateLuciaReply(input: {
         ],
         tools,
         tool_choice: call === MAX_CALLS - 1 ? { type: "tool", name: RESPOND_TOOL } : { type: "any" },
-        messages,
+        messages: call === 0 ? messages : withLoopCache(messages),
       });
     } catch (error) {
       if (error instanceof Anthropic.APIError) {

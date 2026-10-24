@@ -19,6 +19,7 @@ import {
   discardDraftAction,
   markReviewedAction,
   releaseControlAction,
+  retryLuciaReplyAction,
   sendDraftAction,
   sendReplyAction,
   simulateCustomerMessageAction,
@@ -75,6 +76,13 @@ export default async function LuciaConversationPage({
   const pending = drafts.find((d) => d.status === "pending");
   const paused = c.paused_until && new Date(c.paused_until) > new Date();
   const hostelName = hostels.find((h) => h.business_unit_id === c.business_unit_id)?.display_name;
+  // El último mensaje es del cliente y Lucía no respondió (p. ej. un error de
+  // Claude o falta de saldo): se ofrece volver a pedirle la respuesta.
+  const lastMessage = messages.at(-1);
+  const unanswered =
+    !isSimulator && !closed && !pending && !paused && c.status === "lucia" &&
+    lastMessage?.direction === "inbound" && lastMessage.sender_type === "customer" &&
+    new Date().getTime() - new Date(lastMessage.created_at).getTime() > 2 * 60 * 1000;
   const title = c.guest_name || c.contact_name || c.contact_phone || "Conversación";
   const freeRooms =
     c.booking_status === "awaiting_reception" && c.check_in && c.check_out && c.guests
@@ -135,6 +143,20 @@ export default async function LuciaConversationPage({
               })}
             </div>
           </Panel>
+
+          {unanswered && canReply && (
+            <Panel className="border-amber-200">
+              <form action={retryLuciaReplyAction} className="flex flex-wrap items-center gap-3 text-sm">
+                <input type="hidden" name="conversation_id" value={c.id} />
+                <span className="min-w-0 flex-1">
+                  {settings.agent_name} no respondió el último mensaje del cliente (por ejemplo, por un error de Claude o falta de saldo).
+                </span>
+                <button className="rounded-xl bg-[var(--oasis-primary)] px-4 py-2 text-sm font-semibold text-white">
+                  Pedir respuesta a {settings.agent_name}
+                </button>
+              </form>
+            </Panel>
+          )}
 
           {pending && canReply && !closed && (
             <Panel className="border-indigo-200">
