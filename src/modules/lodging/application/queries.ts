@@ -32,6 +32,17 @@ export async function lodgingContext(
 export async function calendarData(from: string, to: string) {
   const { ctx, unit, supabase } = await lodgingContext();
   const canManage = ctx.permissions.has("lodging.reservations.manage");
+  return { unit, canManage, ...(await unitCalendarData(supabase, unit.id, from, to)) };
+}
+
+/** Habitaciones y reservas de un hostal para el calendario (RLS limita el acceso). */
+export async function unitCalendarData(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  unitId: string,
+  from: string,
+  to: string,
+) {
+  const unit = { id: unitId };
   const [{ data: rooms }, { data: reservations }, { data: housekeepingEnabled }] =
     await Promise.all([
       supabase
@@ -54,11 +65,9 @@ export async function calendarData(from: string, to: string) {
       supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id }),
     ]);
   return {
-    unit,
     housekeepingEnabled: housekeepingEnabled !== false,
     rooms: rooms ?? [],
     reservations: reservations ?? [],
-    canManage,
   };
 }
 
