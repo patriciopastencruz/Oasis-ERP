@@ -25,7 +25,12 @@ const settingsSchema = z.object({
   max_order_total: z.coerce.number().int().min(0),
   acting_user_id: z.union([z.literal(""), z.string().uuid()]),
   notify_phones: z.string().max(400),
+  ignored_phones: z.string().max(4000),
+  pause_minutes: z.coerce.number().int().min(5).max(1440),
+  max_messages_per_minute: z.coerce.number().int().min(1).max(30),
 });
+
+const splitPhones = (text: string) => text.split(/[\n,;]+/).map((p) => p.trim().replace(/[\s()-]/g, "")).filter(Boolean);
 
 /** Guarda los ajustes del asistente: la base valida permiso, unidad, usuario firmante y números. */
 export async function saveDistSettingsAction(form: FormData) {
@@ -42,6 +47,9 @@ export async function saveDistSettingsAction(form: FormData) {
     max_order_total: String(form.get("max_order_total") ?? "").replace(/\./g, ""),
     acting_user_id: form.get("acting_user_id") ?? "",
     notify_phones: form.get("notify_phones") ?? "",
+    ignored_phones: form.get("ignored_phones") ?? "",
+    pause_minutes: form.get("pause_minutes"),
+    max_messages_per_minute: form.get("max_messages_per_minute"),
   });
   if (!parsed.success) back("error", parsed.error.issues[0]?.message ?? "Revisa los datos.");
   const weekdays = form.getAll("delivery_weekdays").map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 7);
@@ -60,7 +68,10 @@ export async function saveDistSettingsAction(form: FormData) {
       max_quantity_per_line: parsed.data.max_quantity_per_line,
       max_order_total: parsed.data.max_order_total,
       acting_user_id: parsed.data.acting_user_id || null,
-      notify_phones: parsed.data.notify_phones.split(/[\n,;]+/).map((p) => p.trim().replace(/[\s()-]/g, "")).filter(Boolean),
+      notify_phones: splitPhones(parsed.data.notify_phones),
+      ignored_phones: splitPhones(parsed.data.ignored_phones),
+      pause_minutes: parsed.data.pause_minutes,
+      max_messages_per_minute: parsed.data.max_messages_per_minute,
     },
   });
   if (error) back("error", /autoriz/i.test(error.message) ? "No tienes autorización para esta acción." : error.message);

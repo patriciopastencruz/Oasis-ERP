@@ -1,0 +1,338 @@
+import { createClient } from "@supabase/supabase-js";
+import type { Boom } from "@hapi/boom";
+import makeWASocket, {
+  Browsers,
+  DisconnectReason,
+  delay,
+  fetchLatestBaileysVersion,
+  generateMessageIDV2,
+  getContentType,
+  isJidBot,
+  isJidBroadcast,
+  isJidGroup,
+  isJidMetaAI,
+  isJidNewsletter,
+  isJidStatusBroadcast,
+  isLidUser,
+  isPnUser,
+  jidDecode,
+  jidNormalizedUser,
+  makeCacheableSignalKeyStore,
+  normalizeMessageContent,
+  type WAMessage,
+  type WASocket,
+} from "baileys";
+import { pino } from "pino";
+import { loadSupabaseAuthState } from "./auth-state.js";
+
+/**
+ * Worker del asistente de pedidos de Distribuidora Altiplánica: mantiene vinculado su WhatsApp (Baileys),
+ * guarda cada mensaje en el ERP, pide al ERP la respuesta del asistente y envía lo que queda en cola, con
+ * pausa "escribiendo…" y límite por minuto. No conoce la clave de Claude: la IA corre en el ERP
+ * (/api/dist-assistant/process). Es independiente del worker de Lucía: otra sesión, otro número.
+ */
+
+function env(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`Falta la variable de entorno ${name}`);
+  return value;
+}
+
+const SUPABASE_URL = env("SUPABASE_URL");
+const SUPABASE_SECRET_KEY = env("SUPABASE_SECRET_KEY");
+const ERP_URL = env("ERP_URL").replace(/\/$/, "");
+const WORKER_SECRET = env("DIST_WORKER_SECRET");
+// Espera tras el último mensaje del cliente antes de pedir respuesta: la gente escribe en varias burbujas.
+const DEBOUNCE_MS = Number(process.env.DIST_DEBOUNCE_MS ?? 8000);
+
+const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
+const admin = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+let sock: WASocket | null = null;
+let connected = false;
+let reconnectAttempts = 0;
+let sending = false;
+// Ids de los mensajes que envía este worker: su eco "fromMe" no es del equipo.
+const ownMessageIds = new Set<string>();
+const pendingProcess = new Map<string, NodeJS.Timeout>();
+
+type Unit = { business_unit_id: string; company_id: string };
+
+async function rpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await admin.rpc(fn, args);
+  if (error) throw new Error(`${fn}: ${error.message}`);
+  return data as T;
+}
+
+async function logEvent(unit: Unit, severity: "info" | "warning" | "error", eventType: string, message: string, context: Record<string, unknown> = {}) {
+  logger[severity === "error" ? "error" : severity === "warning" ? "warn" : "info"]({ eventType, ...context }, message);
+  const { error } = await admin
+    .from("dist_wa_events")
+    .insert({ company_id: unit.company_id, business_unit_id: unit.business_unit_id, severity, event_type: eventType, message: message.slice(0, 2000), context });
+  if (error) logger.error({ error }, "no se pudo registrar el evento");
+}
+
+async function setStatus(unit: Unit, payload: Record<string, unknown>) {
+  await rpc("dist_wa_worker_status", { payload: { business_unit_id: unit.business_unit_id, ...payload } }).catch((error) =>
+    logger.error({ error: String(error) }, "no se pudo actualizar el estado"),
+  );
+}
+
+function ignoredChat(jid: string) {
+  return Boolean(isJidGroup(jid) || isJidStatusBroadcast(jid) || isJidBroadcast(jid) || isJidNewsletter(jid) || isJidBot(jid) || isJidMetaAI(jid));
+}
+
+type Extracted = { type: string; text: string | null } | null;
+
+/** Tipo y texto del mensaje; null para mensajes técnicos (reacciones, protocolo…). */
+function extractContent(message: WAMessage): Extracted {
+  const content = normalizeMessageContent(message.message);
+  const kind = getContentType(content);
+  if (!content || !kind) return null;
+  switch (kind) {
+    case "conversation":
+      return { type: "text", text: content.conversation ?? null };
+    case "extendedTextMessage":
+      return { type: "text", text: content.extendedTextMessage?.text ?? null };
+    case "imageMessage":
+      return { type: "image", text: content.imageMessage?.caption ?? null };
+    case "videoMessage":
+    case "ptvMessage":
+      return { type: "video", text: content.videoMessage?.caption ?? null };
+    case "audioMessage":
+      return { type: "audio", text: null };
+    case "documentMessage":
+      return { type: "document", text: content.documentMessage?.fileName ?? null };
+    case "stickerMessage":
+      return { type: "sticker", text: null };
+    case "locationMessage":
+    case "liveLocationMessage":
+      return { type: "location", text: null };
+    case "contactMessage":
+    case "contactsArrayMessage":
+      return { type: "contact", text: null };
+    case "protocolMessage":
+    case "reactionMessage":
+    case "senderKeyDistributionMessage":
+    case "pollUpdateMessage":
+    case "messageContextInfo":
+    case "keepInChatMessage":
+    case "pinInChatMessage":
+    case "editedMessage":
+      return null;
+    default:
+      return { type: "other", text: null };
+  }
+}
+
+/**
+ * Identidad del chat. WhatsApp puede entregar un LID (id anónimo) en vez del número; si Baileys trae el
+ * número alternativo se usa ese, para que el reconocimiento del cliente y los contactos ignorados tengan teléfono.
+ */
+function chatIdentity(message: WAMessage) {
+  const remote = jidNormalizedUser(message.key.remoteJid ?? "");
+  const alt = message.key.remoteJidAlt ? jidNormalizedUser(message.key.remoteJidAlt) : undefined;
+  const pnJid = isPnUser(remote) ? remote : alt && isPnUser(alt) ? alt : undefined;
+  const jid = pnJid ?? remote;
+  const user = pnJid ? jidDecode(pnJid)?.user : undefined;
+  return { jid, phone: user ? `+${user}` : null, isLid: !pnJid && Boolean(isLidUser(remote)) };
+}
+
+function scheduleProcessing(unit: Unit, conversationId: string) {
+  clearTimeout(pendingProcess.get(conversationId));
+  pendingProcess.set(
+    conversationId,
+    setTimeout(async () => {
+      pendingProcess.delete(conversationId);
+      try {
+        const response = await fetch(`${ERP_URL}/api/dist-assistant/process`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${WORKER_SECRET}` },
+          body: JSON.stringify({ conversation_id: conversationId }),
+          signal: AbortSignal.timeout(90_000),
+        });
+        if (!response.ok) {
+          await logEvent(unit, "error", "process_failed", `El ERP respondió ${response.status} al pedir la respuesta.`, {
+            conversation_id: conversationId,
+            body: (await response.text()).slice(0, 500),
+          });
+        }
+      } catch (error) {
+        await logEvent(unit, "error", "process_failed", `No se pudo contactar al ERP: ${String(error)}`, { conversation_id: conversationId });
+      }
+    }, DEBOUNCE_MS),
+  );
+}
+
+async function handleIncoming(unit: Unit, message: WAMessage) {
+  const remote = message.key.remoteJid;
+  if (!remote || ignoredChat(remote) || !message.message) return;
+  const id = message.key.id ?? undefined;
+  if (message.key.fromMe && id && ownMessageIds.has(id)) return;
+  const content = extractContent(message);
+  if (!content) return;
+  const { jid, phone, isLid } = chatIdentity(message);
+  const result = await rpc<{ status: string; conversation_id?: string; process?: boolean }>("dist_wa_ingest_message", {
+    payload: {
+      business_unit_id: unit.business_unit_id,
+      jid,
+      phone,
+      external_id: id,
+      message_type: content.type,
+      content: content.text,
+      push_name: message.key.fromMe ? null : message.pushName,
+      from_me: Boolean(message.key.fromMe),
+    },
+  });
+  if (isLid && result.status === "ok") {
+    logger.warn({ jid }, "chat sin número visible (LID): no se puede reconocer al cliente por teléfono");
+  }
+  if (result.process && result.conversation_id) scheduleProcessing(unit, result.conversation_id);
+}
+
+/** Envía de a un mensaje en cola, simulando que alguien escribe. */
+async function drainOutbox(unit: Unit) {
+  if (!sock || !connected || sending) return;
+  sending = true;
+  try {
+    for (;;) {
+      const job = await rpc<{ id: string; conversation_id: string; jid: string; content: string } | null>("dist_wa_claim_outbound", {
+        target_unit: unit.business_unit_id,
+      });
+      if (!job) break;
+      const messageId = generateMessageIDV2(sock.user?.id);
+      ownMessageIds.add(messageId);
+      try {
+        await sock.presenceSubscribe(job.jid).catch(() => undefined);
+        await sock.sendPresenceUpdate("composing", job.jid);
+        await delay(Math.min(6_000, 900 + job.content.length * 25) + Math.floor(Math.random() * 800));
+        await sock.sendPresenceUpdate("paused", job.jid);
+        // Si mientras tanto el cliente escribió otra cosa o alguien del equipo tomó el chat, esta respuesta ya no corresponde.
+        const { data: queued } = await admin.from("dist_wa_messages").select("conversation_id,created_at").eq("id", job.id).maybeSingle();
+        if (queued) {
+          const [{ data: newerInbound }, { data: conversation }] = await Promise.all([
+            admin.from("dist_wa_messages").select("id").eq("conversation_id", queued.conversation_id).eq("direction", "inbound").gt("created_at", queued.created_at).limit(1),
+            admin.from("dist_wa_conversations").select("status,paused_until").eq("id", queued.conversation_id).maybeSingle(),
+          ]);
+          const paused = conversation?.paused_until ? new Date(conversation.paused_until) > new Date() : false;
+          if (newerInbound?.length || paused || (conversation && conversation.status !== "assistant")) {
+            const { error: omitError } = await admin
+              .from("dist_wa_messages")
+              .update({ delivery_status: "failed", error_message: "Respuesta omitida: el chat cambió antes de enviarla." })
+              .eq("id", job.id)
+              .eq("delivery_status", "sending");
+            if (!omitError) continue;
+          }
+        }
+        await sock.sendMessage(job.jid, { text: job.content }, { messageId });
+        await rpc("dist_wa_mark_outbound", { payload: { id: job.id, ok: true, external_id: messageId } });
+      } catch (error) {
+        ownMessageIds.delete(messageId);
+        await rpc("dist_wa_mark_outbound", { payload: { id: job.id, ok: false, error: String(error) } });
+      }
+      if (ownMessageIds.size > 5_000) ownMessageIds.clear();
+      // Pausa entre mensajes para no enviar ráfagas.
+      await delay(1_000 + Math.floor(Math.random() * 1_000));
+    }
+  } catch (error) {
+    logger.error({ error: String(error) }, "error en la cola de envío");
+  } finally {
+    sending = false;
+  }
+}
+
+async function connect(unit: Unit) {
+  const auth = await loadSupabaseAuthState(admin, unit.business_unit_id);
+  const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
+  sock = makeWASocket({
+    ...(version ? { version } : {}),
+    logger: logger.child({ module: "baileys" }, { level: "warn" }),
+    auth: { creds: auth.state.creds, keys: makeCacheableSignalKeyStore(auth.state.keys, logger) },
+    browser: Browsers.macOS("Desktop"),
+    markOnlineOnConnect: false,
+    syncFullHistory: false,
+  });
+
+  sock.ev.on("creds.update", () => {
+    auth.saveCreds().catch((error) => logger.error({ error: String(error) }, "no se pudo guardar la sesión"));
+  });
+
+  sock.ev.on("connection.update", async (update) => {
+    if (update.qr) await setStatus(unit, { status: "qr_pending", qr: update.qr });
+    if (update.connection === "connecting") await setStatus(unit, { status: "connecting" });
+    if (update.connection === "open") {
+      connected = true;
+      reconnectAttempts = 0;
+      const phone = sock?.user?.id ? `+${jidDecode(sock.user.id)?.user ?? ""}` : null;
+      await setStatus(unit, { status: "connected", phone });
+      await logEvent(unit, "info", "connected", `WhatsApp conectado${phone ? ` (${phone})` : ""}.`);
+    }
+    if (update.connection === "close") {
+      connected = false;
+      const code = (update.lastDisconnect?.error as Boom | undefined)?.output?.statusCode;
+      if (code === DisconnectReason.loggedOut) {
+        await logEvent(unit, "warning", "logged_out", "Se cerró la sesión desde el teléfono. Hay que escanear un QR nuevo.");
+        await auth.clear();
+        await setStatus(unit, { status: "disconnected" });
+        setTimeout(() => void connect(unit), 3_000);
+        return;
+      }
+      if (code === DisconnectReason.connectionReplaced) {
+        // Otra instancia tomó la sesión (por ejemplo, un redeploy): esta se retira.
+        await logEvent(unit, "warning", "connection_replaced", "Otra instancia del worker tomó la conexión; esta se detiene.");
+        process.exit(0);
+      }
+      reconnectAttempts += 1;
+      const wait = Math.min(60_000, 2_000 * 2 ** Math.min(reconnectAttempts, 5));
+      await setStatus(unit, { status: "error", error: `Conexión cerrada (código ${code ?? "?"}); reintento en ${wait / 1000} s` });
+      setTimeout(() => void connect(unit), wait);
+    }
+  });
+
+  sock.ev.on("messages.upsert", async ({ messages, type }) => {
+    for (const message of messages) {
+      // "append" también trae mensajes recientes escritos desde el teléfono; se ignora lo antiguo para no reprocesar historial.
+      const sentAt = Number(message.messageTimestamp ?? 0) * 1000;
+      if (type !== "notify" && Date.now() - sentAt > 5 * 60_000) continue;
+      try {
+        await handleIncoming(unit, message);
+      } catch (error) {
+        await logEvent(unit, "error", "ingest_failed", `No se pudo registrar un mensaje: ${String(error)}`);
+      }
+    }
+  });
+}
+
+async function main() {
+  const { data: rows, error } = await admin.from("dist_wa_settings").select("business_unit_id,company_id").limit(2);
+  if (error) throw new Error(`No se pudo leer dist_wa_settings: ${error.message}`);
+  if (!rows?.length) throw new Error("No hay configuración del asistente de la distribuidora (dist_wa_settings).");
+  if (rows.length > 1) throw new Error("Hay más de una unidad con asistente de pedidos: este worker atiende solo una.");
+  const unit = rows[0] as Unit;
+
+  await connect(unit);
+  setInterval(() => void drainOutbox(unit), 4_000);
+  setInterval(() => void setStatus(unit, {}), 60_000);
+  // Cada minuto: chats cuya pausa terminó con un mensaje del cliente sin responder, el asistente retoma.
+  setInterval(() => {
+    rpc<string[] | null>("dist_wa_resume_after_pause", { target_unit: unit.business_unit_id })
+      .then((ids) => (ids ?? []).forEach((id) => scheduleProcessing(unit, id)))
+      .catch((error) => logger.error({ error: String(error) }, "no se pudieron retomar los chats en pausa"));
+  }, 60_000);
+
+  const shutdown = async () => {
+    logger.info("deteniendo worker");
+    await setStatus(unit, { status: "connecting" });
+    sock?.end(undefined);
+    process.exit(0);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
+}
+
+main().catch((error) => {
+  logger.fatal({ error: String(error) }, "el worker no pudo iniciar");
+  process.exit(1);
+});

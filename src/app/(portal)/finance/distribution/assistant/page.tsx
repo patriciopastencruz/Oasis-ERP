@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ConfirmButton } from "@/components/sales/confirm-button";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { santiagoToday } from "@/modules/lodging/domain/daily-closing";
@@ -8,6 +9,7 @@ import {
   loadActingCandidates,
   loadAssistantEvents,
   loadAssistantOrders,
+  loadDistConnection,
   loadDistSettings,
   loadSimulation,
   loadUsageToday,
@@ -46,14 +48,16 @@ export default async function DistAssistantPage({ searchParams }: { searchParams
   const { ctx, unit, supabase } = await distAssistantContext("distribution.assistant.view");
   const canSettings = ctx.permissions.has("distribution.assistant.settings");
   const today = santiagoToday();
-  const [{ settings, configured }, orders, events, usage, candidates, simulation] = await Promise.all([
+  const [{ settings, configured }, orders, events, usage, candidates, simulation, connection] = await Promise.all([
     loadDistSettings(supabase, unit.id),
     loadAssistantOrders(supabase, unit.id),
     loadAssistantEvents(supabase, unit.id),
     loadUsageToday(supabase, unit.id, today),
     canSettings ? loadActingCandidates(unit.id) : Promise.resolve([]),
     canSettings ? loadSimulation(supabase, unit.id, ctx.user.id) : Promise.resolve({ conversation: null, messages: [] }),
+    loadDistConnection(supabase, unit.id),
   ]);
+  const connected = connection.status === "connected";
   const name = settings.agent_name || "El asistente";
 
   return (
@@ -70,7 +74,27 @@ export default async function DistAssistantPage({ searchParams }: { searchParams
           <p className="text-xs uppercase tracking-wide text-slate-500">Estado</p>
           <p className={`mt-1 text-xl font-bold ${settings.enabled ? "text-emerald-700" : "text-amber-700"}`}>{settings.enabled ? "Activado" : "Desactivado"}</p>
           <p className="mt-1 text-xs text-slate-500">
-            {configured ? "Todavía sin WhatsApp conectado: solo funciona el simulador." : "Configúralo abajo para empezar."}
+            {!configured ? (
+              "Configúralo abajo para empezar."
+            ) : connected ? (
+              <>
+                WhatsApp conectado ({connection.phone ?? "sin número"}).{" "}
+                {canSettings && (
+                  <Link href="/finance/distribution/assistant/conexion" className="font-semibold underline">
+                    Ver conexión
+                  </Link>
+                )}
+              </>
+            ) : (
+              <>
+                Sin WhatsApp conectado: solo funciona el simulador.{" "}
+                {canSettings && (
+                  <Link href="/finance/distribution/assistant/conexion" className="font-semibold underline">
+                    Conectar
+                  </Link>
+                )}
+              </>
+            )}
           </p>
         </Panel>
         <Panel>
@@ -228,6 +252,22 @@ export default async function DistAssistantPage({ searchParams }: { searchParams
               <textarea name="notify_phones" rows={2} defaultValue={settings.notify_phones.join("\n")} className={inputClass} />
               <span className="mt-1 block text-xs text-slate-500">Recibirán el aviso de cada pedido por WhatsApp cuando se conecte el número (próxima etapa). Hoy el aviso llega dentro del ERP.</span>
             </label>
+            <label className="block text-sm">
+              Números que el asistente nunca atiende (uno por línea, formato +569XXXXXXXX)
+              <textarea name="ignored_phones" rows={2} defaultValue={settings.ignored_phones.join("\n")} className={inputClass} />
+              <span className="mt-1 block text-xs text-slate-500">Equipo, proveedores, familia u otros contactos del WhatsApp de la distribuidora: sus mensajes no se guardan ni se responden.</span>
+            </label>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="block text-sm">
+                Pausa cuando el equipo escribe desde el teléfono (minutos)
+                <input name="pause_minutes" inputMode="numeric" required defaultValue={settings.pause_minutes} className={inputClass} />
+                <span className="mt-1 block text-xs text-slate-500">Si alguien del equipo contesta a un cliente, el asistente se calla en ese chat este tiempo.</span>
+              </label>
+              <label className="block text-sm">
+                Máx. mensajes por minuto
+                <input name="max_messages_per_minute" inputMode="numeric" required defaultValue={settings.max_messages_per_minute} className={inputClass} />
+              </label>
+            </div>
             <label className="block text-sm">
               Instrucciones adicionales (opcional)
               <textarea name="general_instructions" rows={4} defaultValue={settings.general_instructions} placeholder="Cosas del negocio que el asistente debe saber: zonas, horarios, trato con los clientes…" className={inputClass} />

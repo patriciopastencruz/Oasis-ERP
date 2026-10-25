@@ -25,6 +25,17 @@ export type DistAssistantSettings = {
   max_order_total: number;
   acting_user_id: string | null;
   notify_phones: string[];
+  ignored_phones: string[];
+  pause_minutes: number;
+  max_messages_per_minute: number;
+};
+
+export type DistConnection = {
+  status: string;
+  phone: string | null;
+  heartbeatAt: string | null;
+  qrUpdatedAt: string | null;
+  lastError: string | null;
 };
 
 export const DEFAULT_DIST_SETTINGS: DistAssistantSettings = {
@@ -40,6 +51,9 @@ export const DEFAULT_DIST_SETTINGS: DistAssistantSettings = {
   max_order_total: 1_500_000,
   acting_user_id: null,
   notify_phones: [],
+  ignored_phones: [],
+  pause_minutes: 180,
+  max_messages_per_minute: 6,
 };
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -47,7 +61,7 @@ type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 export async function loadDistSettings(supabase: Supabase, unitId: string): Promise<{ settings: DistAssistantSettings; configured: boolean }> {
   const { data } = await supabase
     .from("dist_wa_settings")
-    .select("enabled,agent_name,general_instructions,model,daily_budget_usd,history_messages,same_day_cutoff,delivery_weekdays,max_quantity_per_line,max_order_total,acting_user_id,notify_phones")
+    .select("enabled,agent_name,general_instructions,model,daily_budget_usd,history_messages,same_day_cutoff,delivery_weekdays,max_quantity_per_line,max_order_total,acting_user_id,notify_phones,ignored_phones,pause_minutes,max_messages_per_minute")
     .eq("business_unit_id", unitId)
     .maybeSingle();
   if (!data) return { settings: DEFAULT_DIST_SETTINGS, configured: false };
@@ -60,7 +74,24 @@ export async function loadDistSettings(supabase: Supabase, unitId: string): Prom
       same_day_cutoff: String(data.same_day_cutoff).slice(0, 5),
       delivery_weekdays: (data.delivery_weekdays ?? []) as number[],
       notify_phones: (data.notify_phones ?? []) as string[],
+      ignored_phones: (data.ignored_phones ?? []) as string[],
     },
+  };
+}
+
+/** Estado de la conexión de WhatsApp (solo lo escribe el worker). */
+export async function loadDistConnection(supabase: Supabase, unitId: string): Promise<DistConnection> {
+  const { data } = await supabase
+    .from("dist_wa_settings")
+    .select("connection_status,connected_phone,worker_heartbeat_at,qr_updated_at,last_connection_error")
+    .eq("business_unit_id", unitId)
+    .maybeSingle();
+  return {
+    status: data?.connection_status ?? "disconnected",
+    phone: data?.connected_phone ?? null,
+    heartbeatAt: data?.worker_heartbeat_at ?? null,
+    qrUpdatedAt: data?.qr_updated_at ?? null,
+    lastError: data?.last_connection_error ?? null,
   };
 }
 
