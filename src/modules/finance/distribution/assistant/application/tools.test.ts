@@ -56,6 +56,12 @@ describe("herramientas del asistente de pedidos", () => {
     expect(state.quote?.summary).toContain("efectivo");
   });
 
+  it("no cotiza sin la forma de pago ni con crédito que no tiene", async () => {
+    const { ctx, state } = context();
+    expect((await runCotizar(ctx, state, { ...order, payment_method: undefined })).content).toMatch(/forma de pago/);
+    expect((await runCotizar(ctx, state, { ...order, payment_method: "credit" })).content).toMatch(/crédito/);
+  });
+
   it("no cotiza ni crea para un número no registrado", async () => {
     const { ctx, state } = context({ customers: [] });
     expect((await runCotizar(ctx, state, order)).isError).toBe(true);

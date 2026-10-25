@@ -98,6 +98,8 @@ function summaryText(input: OrderInput, customer: ToolCustomer, q: { lines: { na
 export async function runCotizar(ctx: DistToolContext, state: DistToolState, input: OrderInput): Promise<ToolResult> {
   const checked = validateOrder(ctx, input);
   if ("error" in checked) return checked.error;
+  if (!PAYMENT_LABEL[input.payment_method ?? ""]) return fail("Falta la forma de pago: pregúntale al cliente si pagará en efectivo, transferencia o (si tiene) crédito.");
+  if (input.payment_method === "credit" && !(checked.customer.hasCredit && checked.customer.creditAvailable)) return fail("Este cliente no tiene crédito disponible: ofrécele efectivo o transferencia.");
   const result = await quote(ctx, checked.customer, input, checked.lines);
   if ("error" in result) return result.error;
   const summary = summaryText(input, checked.customer, result.quote);

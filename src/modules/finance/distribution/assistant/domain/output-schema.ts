@@ -56,9 +56,11 @@ export const distToolSchemas = {
       delivery_date: orderProperties.delivery_date,
       fecha_dicha_por_el_cliente: orderProperties.fecha_dicha_por_el_cliente,
       customer_id: orderProperties.customer_id,
+      payment_method: orderProperties.payment_method,
+      delivery_address: orderProperties.delivery_address,
       lines: orderProperties.lines,
     },
-    required: ["delivery_date", "fecha_dicha_por_el_cliente", "customer_id", "lines"],
+    required: ["delivery_date", "fecha_dicha_por_el_cliente", "customer_id", "payment_method", "lines"],
   },
   crear: {
     type: "object" as const,
