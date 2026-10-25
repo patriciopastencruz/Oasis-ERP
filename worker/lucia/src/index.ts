@@ -286,6 +286,37 @@ async function drainOutbox(companyId: string) {
   }
 }
 
+/**
+ * Guarda los grupos de WhatsApp en los que está el número de Lucía, para que
+ * en Configuración se elija el grupo del equipo (avisos de chats sin respuesta).
+ */
+async function syncGroups(companyId: string) {
+  try {
+    if (!sock) return;
+    const groups = Object.values(await sock.groupFetchAllParticipating());
+    const { data: settings } = await admin.from("lucia_settings").select("business_unit_id").eq("company_id", companyId).single();
+    if (!settings) return;
+    const rows = groups.map((g) => ({
+      company_id: companyId,
+      business_unit_id: settings.business_unit_id,
+      jid: g.id,
+      subject: (g.subject ?? "").slice(0, 200),
+      updated_at: new Date().toISOString(),
+    }));
+    if (rows.length) {
+      const { error } = await admin.from("lucia_wa_groups").upsert(rows, { onConflict: "company_id,jid" });
+      if (error) throw new Error(error.message);
+    }
+    const ids = rows.map((r) => r.jid);
+    // Los grupos de los que el número salió dejan de ofrecerse.
+    let stale = admin.from("lucia_wa_groups").delete().eq("company_id", companyId);
+    if (ids.length) stale = stale.not("jid", "in", `(${ids.map((id) => `"${id}"`).join(",")})`);
+    await stale;
+  } catch (error) {
+    logger.warn({ error: String(error) }, "no se pudieron leer los grupos de WhatsApp");
+  }
+}
+
 async function connect(companyId: string) {
   const auth = await loadSupabaseAuthState(admin, companyId);
   const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
@@ -311,6 +342,7 @@ async function connect(companyId: string) {
       const phone = sock?.user?.id ? `+${jidDecode(sock.user.id)?.user ?? ""}` : null;
       await setStatus(companyId, { status: "connected", phone });
       await logEvent(companyId, "info", "connected", `WhatsApp conectado${phone ? ` (${phone})` : ""}.`);
+      void syncGroups(companyId);
     }
     if (update.connection === "close") {
       connected = false;
@@ -369,7 +401,17 @@ async function main() {
     rpc<number>("lucia_send_followups", { target_company: companyId }).catch((error) =>
       logger.error({ error: String(error) }, "no se pudieron enviar los recontactos"),
     );
+    // Chats cuya pausa terminó con un mensaje del cliente sin responder: Lucía retoma.
+    rpc<string[] | null>("lucia_resume_after_pause", { target_company: companyId })
+      .then((ids) => (ids ?? []).forEach((id) => scheduleProcessing(companyId, id)))
+      .catch((error) => logger.error({ error: String(error) }, "no se pudieron retomar los chats en pausa"));
+    // Casos sin respuesta del equipo hace 30 minutos: aviso al grupo del equipo.
+    rpc<number>("lucia_escalate_unanswered", { target_company: companyId }).catch((error) =>
+      logger.error({ error: String(error) }, "no se pudieron avisar los chats sin respuesta"),
+    );
   }, 60_000);
+  // Los grupos cambian poco: se vuelven a leer cada 6 horas.
+  setInterval(() => void syncGroups(companyId), 6 * 60 * 60_000);
 
   const shutdown = async () => {
     logger.info("deteniendo worker");

@@ -10,7 +10,7 @@ export async function luciaContext(permission: string) {
   const { data: settings } = await supabase
     .from("lucia_settings")
     .select(
-      "id,company_id,business_unit_id,agent_name,general_instructions,model,daily_budget_usd,max_messages_per_minute,history_messages,budget_exceeded_on,connection_status,qr_updated_at,connected_phone,worker_heartbeat_at,last_connection_error",
+      "id,company_id,business_unit_id,agent_name,general_instructions,model,daily_budget_usd,max_messages_per_minute,history_messages,staff_group_jid,budget_exceeded_on,connection_status,qr_updated_at,connected_phone,worker_heartbeat_at,last_connection_error",
     )
     .maybeSingle();
   if (!settings) redirect("/no-access");

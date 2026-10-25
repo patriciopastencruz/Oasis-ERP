@@ -210,6 +210,7 @@ const settingsSchema = z.object({
   daily_budget_usd: z.coerce.number().min(0).max(1000),
   max_messages_per_minute: z.coerce.number().int().min(1).max(30),
   history_messages: z.coerce.number().int().min(1).max(50),
+  staff_group_jid: z.union([z.literal(""), z.string().regex(/^[0-9-]+@g\.us$/, "Grupo de WhatsApp inválido.")]),
 });
 
 export async function saveSettingsAction(form: FormData) {
@@ -221,12 +222,13 @@ export async function saveSettingsAction(form: FormData) {
     daily_budget_usd: form.get("daily_budget_usd"),
     max_messages_per_minute: form.get("max_messages_per_minute"),
     history_messages: form.get("history_messages"),
+    staff_group_jid: String(form.get("staff_group_jid") ?? ""),
   });
   if (!parsed.success) back(SETTINGS_PATH, "error", parsed.error.issues[0]?.message ?? "Datos inválidos.");
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("lucia_settings")
-    .update({ ...parsed.data, updated_at: new Date().toISOString(), updated_by: user.id })
+    .update({ ...parsed.data, staff_group_jid: parsed.data.staff_group_jid || null, updated_at: new Date().toISOString(), updated_by: user.id })
     .eq("id", uuid.parse(form.get("settings_id")))
     .select("id");
   if (error || !data?.length) back(SETTINGS_PATH, "error", friendly(error));

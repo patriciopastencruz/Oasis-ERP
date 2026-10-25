@@ -18,9 +18,10 @@ export default async function LuciaSettingsPage({
 }) {
   const q = await searchParams;
   const { ctx, supabase, settings } = await luciaContext("lucia.settings.manage");
-  const [hostels, { data: excluded }] = await Promise.all([
+  const [hostels, { data: excluded }, { data: groups }] = await Promise.all([
     loadHostels(supabase),
     supabase.from("lucia_excluded_contacts").select("id,phone_e164,label,category").order("label"),
+    supabase.from("lucia_wa_groups").select("jid,subject").order("subject"),
   ]);
 
   return (
@@ -53,6 +54,17 @@ export default async function LuciaSettingsPage({
           </label>
           <label className="text-sm">Mensajes de contexto por conversación
             <input type="number" min={1} max={50} name="history_messages" defaultValue={settings.history_messages} className={inputClass} />
+          </label>
+          <label className="text-sm md:col-span-3">Grupo del equipo para avisos (chats sin respuesta hace 30 minutos)
+            <select name="staff_group_jid" defaultValue={settings.staff_group_jid ?? ""} className={inputClass}>
+              <option value="">Sin grupo: avisar a los administradores de cada hostal</option>
+              {(groups ?? []).map((g) => (
+                <option key={g.jid} value={g.jid}>{g.subject || g.jid}</option>
+              ))}
+            </select>
+            <span className="text-xs text-slate-500">
+              Aparecen los grupos de WhatsApp en los que está el número de Lucía. Si falta el grupo, agrega el número de Lucía al grupo y espera unos minutos (la lista se actualiza al reconectar y cada 6 horas).
+            </span>
           </label>
           <label className="text-sm md:col-span-3">Instrucciones generales de Lucía
             <textarea name="general_instructions" rows={8} defaultValue={settings.general_instructions} className={inputClass}
