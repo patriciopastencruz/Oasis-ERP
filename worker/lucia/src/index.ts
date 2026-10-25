@@ -366,6 +366,10 @@ async function connect(companyId: string) {
     }
   });
 
+  // Cuando agregan al número de Lucía a un grupo (o le cambian el nombre), se actualiza la lista.
+  sock.ev.on("groups.upsert", () => void syncGroups(companyId));
+  sock.ev.on("groups.update", () => void syncGroups(companyId));
+
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
     for (const message of messages) {
       // "append" también trae mensajes recientes escritos desde el teléfono;
