@@ -35,10 +35,15 @@ async function conversationRpc(
   const id = uuid.parse(form.get("conversation_id"));
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc(fn, args(id));
-  const path = `${BASE}/${id}`;
+  const path = conversationPath(form, id);
   if (error) back(path, "error", friendly(error));
   revalidatePath(path);
   back(path, "success", success);
+}
+
+/** Vuelve a la ficha del ERP o, si se respondió desde la app de chats, al chat. */
+function conversationPath(form: FormData, id: string) {
+  return text(form, "return_to") === `/chats/${id}` ? `/chats/${id}` : `${BASE}/${id}`;
 }
 
 export async function sendDraftAction(form: FormData) {
