@@ -55,7 +55,9 @@ export default async function ChatPage({
   // Las burbujas van de abajo hacia arriba (flex-col-reverse): el chat abre en el último mensaje.
   const items: { key: string; node: React.ReactNode }[] = [];
   let lastDay = "";
-  for (const m of messages) {
+  // Las respuestas que Lucía descartó porque el cliente escribió otra vez
+  // nunca le llegaron: no se muestran para no confundir al equipo.
+  for (const m of messages.filter((m) => !(m.delivery_status === "failed" && m.error_message?.startsWith("Respuesta omitida")))) {
     const day = daySeparator(m.created_at);
     if (day !== lastDay) {
       items.push({
@@ -103,7 +105,10 @@ export default async function ChatPage({
             {[c.contact_phone, hostel ?? "Sin hostal asignada"].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <LiveRefresh generatedAt={new Date().toISOString()} intervalSeconds={20} />
+        {/* Actualiza el chat cada 20 s; oculto para no tapar el nombre en el celular. */}
+        <div className="hidden">
+          <LiveRefresh generatedAt={new Date().toISOString()} intervalSeconds={20} />
+        </div>
       </header>
 
       {(q.success || q.error) && (
