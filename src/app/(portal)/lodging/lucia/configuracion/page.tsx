@@ -113,6 +113,17 @@ export default async function LuciaSettingsPage({
                   <input type="time" name="checkout_time" defaultValue={h.checkout_time.slice(0, 5)} className={inputClass} />
                 </label>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">Recepción cierra (lun. a vie.)
+                  <input type="time" name="reception_close_time" defaultValue={h.reception_close_time.slice(0, 5)} required className={inputClass} />
+                </label>
+                <label className="block">Recepción cierra (sáb. y dom.)
+                  <input type="time" name="reception_close_time_weekend" defaultValue={h.reception_close_time_weekend?.slice(0, 5) ?? ""} className={inputClass} />
+                </label>
+              </div>
+              <p className="text-xs text-slate-500">
+                Cuando el equipo responde un chat, Lucía se pausa hasta esa hora y después retoma sola. Si responden con la recepción cerrada, la pausa es de 1 hora. Fin de semana vacío = mismo horario.
+              </p>
               <label className="block">Link del álbum de fotos (se envía al confirmar la reserva)
                 <input type="url" name="photos_url" defaultValue={h.photos_url ?? ""} placeholder="https://…" className={inputClass} />
               </label>
@@ -132,7 +143,7 @@ export default async function LuciaSettingsPage({
       <p className="mb-4 text-xs text-slate-500">
         En modo automático Lucía envía sola sus respuestas. Cuando no tiene el dato (disponibilidad, reservas, reclamos, temas fuera del manual)
         responde que el encargado confirmará y marca el chat para revisión. No responde sola en chats tomados, pausados (el equipo respondió desde
-        el teléfono o la bandeja en las últimas 12 h), audios e imágenes, ni después de superar el tope de gasto del día.
+        el teléfono, la bandeja o la app de chats: hasta el cierre de recepción), audios e imágenes, ni después de superar el tope de gasto del día.
         Un chat sin hostal asignada se responde solo si todas las hostales habilitadas están en automático.
       </p>
 

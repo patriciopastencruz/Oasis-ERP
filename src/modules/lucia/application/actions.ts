@@ -246,6 +246,8 @@ const hostelSchema = z.object({
   hold_minutes: z.coerce.number().int().min(15).max(1440),
   checkin_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Hora de check-in inválida."),
   checkout_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Hora de check-out inválida."),
+  reception_close_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Hora de cierre de recepción inválida."),
+  reception_close_time_weekend: z.union([z.literal(""), z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Hora de cierre de fin de semana inválida.")]),
   photos_url: z.union([z.literal(""), z.string().trim().url("El link de fotos no es válido.").max(500)]),
 });
 
@@ -264,6 +266,8 @@ export async function saveHostelAction(form: FormData) {
     hold_minutes: form.get("hold_minutes") ?? 60,
     checkin_time: form.get("checkin_time") ?? "14:00",
     checkout_time: form.get("checkout_time") ?? "12:00",
+    reception_close_time: form.get("reception_close_time") ?? "19:00",
+    reception_close_time_weekend: String(form.get("reception_close_time_weekend") ?? ""),
     photos_url: String(form.get("photos_url") ?? "").trim(),
   });
   if (!parsed.success) back(SETTINGS_PATH, "error", parsed.error.issues[0]?.message ?? "Datos inválidos.");
@@ -284,6 +288,7 @@ export async function saveHostelAction(form: FormData) {
       manager_name: parsed.data.manager_name || null,
       manager_phone: phone,
       admin_phones: adminPhones as string[],
+      reception_close_time_weekend: parsed.data.reception_close_time_weekend || null,
       photos_url: parsed.data.photos_url || null,
       full_payment_single_night: form.get("full_payment_single_night") === "on",
       enabled: form.get("enabled") === "on",

@@ -42,7 +42,13 @@ export default async function ChatPage({
   if (!c || c.channel === "simulator") notFound();
   const canReply = ctx.permissions.has("lucia.inbox.reply");
   const name = c.guest_name || c.contact_name || c.contact_phone || "Cliente";
-  const hostel = c.hostel_assigned ? hostels.find((h) => h.business_unit_id === c.business_unit_id)?.display_name : null;
+  const hostelRow = hostels.find((h) => h.business_unit_id === c.business_unit_id);
+  const hostel = c.hostel_assigned ? hostelRow?.display_name : null;
+  // Hora de cierre de recepción de hoy (la que usa la pausa al responder).
+  const weekend = ["sáb", "dom"].some((d) =>
+    new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", weekday: "short" }).format(new Date()).startsWith(d),
+  );
+  const closesAt = (weekend ? hostelRow?.reception_close_time_weekend ?? hostelRow?.reception_close_time : hostelRow?.reception_close_time)?.slice(0, 5);
   const paused = c.status === "human" || (c.paused_until && new Date(c.paused_until) > new Date());
   const self = `/chats/${c.id}`;
   const hidden = (
@@ -164,12 +170,20 @@ export default async function ChatPage({
 
       {canReply && c.status !== "closed" ? (
         <footer className="bg-[#f0f2f5] px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2">
-          {paused && (
-            <form action={releaseControlAction} className="mb-2 flex items-center gap-2 text-xs text-slate-600">
+          {paused ? (
+            <form action={releaseControlAction} className="mb-2 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
               {hidden}
-              <span className="min-w-0 flex-1">{settings.agent_name} está en pausa en este chat: responde el equipo.</span>
-              <button className="rounded-lg border bg-white px-2 py-1 font-semibold">Devolver a {settings.agent_name}</button>
+              <span className="min-w-0 flex-1">
+                ⏸️ {settings.agent_name} está en pausa: responde el equipo.
+                {c.status !== "human" && c.paused_until ? ` Vuelve sola a las ${bubbleTime(c.paused_until)}.` : ""}
+              </span>
+              <button className="shrink-0 rounded-lg bg-[#00a884] px-3 py-1.5 font-semibold text-white">Devolver a {settings.agent_name}</button>
             </form>
+          ) : (
+            <p className="mb-2 rounded-xl bg-white/70 px-3 py-2 text-xs text-slate-600">
+              🤖 {settings.agent_name} atiende este chat. Si respondes, se pausa
+              {closesAt ? ` hasta el cierre de recepción (${closesAt})` : " hasta el cierre de recepción"} y luego retoma sola.
+            </p>
           )}
           <form action={sendReplyAction} className="flex items-end gap-2">
             {hidden}
@@ -186,11 +200,6 @@ export default async function ChatPage({
               <Send size={18} />
             </button>
           </form>
-          {!paused && (
-            <p className="mt-1 px-2 text-[11px] text-slate-500">
-              Al responder, {settings.agent_name} se pausa 12 horas en este chat para no contestar encima tuyo.
-            </p>
-          )}
         </footer>
       ) : (
         <footer className="bg-[#f0f2f5] px-4 py-3 text-center text-xs text-slate-500">

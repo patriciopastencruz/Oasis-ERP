@@ -2,7 +2,7 @@
 begin;
 
 -- Verifica el flujo de Lucía (etapa 1): filtro de contactos excluidos,
--- idempotencia, pausa de 12 h cuando el equipo escribe desde el teléfono,
+-- idempotencia, pausa (hasta el cierre de recepción) cuando el equipo escribe desde el teléfono,
 -- audios a revisión humana, borradores con ficha y hostal, visibilidad por
 -- hostal, envío solo con aprobación, tope de gasto y límite por minuto.
 
@@ -69,8 +69,9 @@ begin
   r:=public.lucia_ingest_message(jsonb_build_object('company_id',company,'jid','56933333333@s.whatsapp.net','phone','+56933333333','external_id','T1','push_name','Equipo','from_me',true,'content','Te escribo yo'));
   if r->>'status'<>'team_message' then raise exception 'Un mensaje desde el teléfono debe tratarse como del equipo'; end if;
   r:=public.lucia_ingest_message(jsonb_build_object('company_id',company,'jid','56933333333@s.whatsapp.net','phone','+56933333333','external_id','T2','content','Gracias'));
-  if (r->>'process')::boolean then raise exception 'Lucía debía quedar pausada 12 h en ese chat'; end if;
-  if (select paused_until from public.lucia_conversations where id=(r->>'conversation_id')::uuid)<now()+interval '11 hours' then raise exception 'La pausa debe durar 12 h'; end if;
+  if (r->>'process')::boolean then raise exception 'Lucía debía quedar pausada en ese chat'; end if;
+  -- La pausa dura hasta el cierre de recepción (o 1 hora si ya cerró): ver verify_lucia_staff_pause.sql.
+  if (select paused_until from public.lucia_conversations where id=(r->>'conversation_id')::uuid)<now()+interval '55 minutes' then raise exception 'La pausa debe durar al menos 1 hora'; end if;
 end $$;
 
 -- Visibilidad por hostal
