@@ -191,6 +191,12 @@ const distributionNav = [
     permission: "finance.distribution.reports.view",
   },
   {
+    href: "/finance/distribution/assistant",
+    label: "Asistente de pedidos",
+    icon: MessageCircle,
+    permission: "distribution.assistant.view",
+  },
+  {
     href: "/finance/distribution/requests",
     label: "Solicitudes",
     icon: ClipboardCheck,
