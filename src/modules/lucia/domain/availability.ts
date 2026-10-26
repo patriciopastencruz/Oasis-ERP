@@ -270,6 +270,15 @@ export function searchAvailability(input: {
   };
 }
 
+/** Ubicación que se muestra entre paréntesis junto al nombre de cada hostal. */
+export const HOSTEL_LOCATIONS: Record<string, string> = {
+  HU: "Uruguay, sector 23 de marzo",
+  HOC: "Centro de Calama",
+  HOB: "Cobija, parcela número 10, cercano a Pedro de Valdivia",
+};
+
+const hostelTitle = (name: string, code: string) => (HOSTEL_LOCATIONS[code] ? `${name} (${HOSTEL_LOCATIONS[code]})` : name);
+
 const clp = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
 
 /**
@@ -282,7 +291,7 @@ export function formatAvailabilityForWhatsApp(result: AvailabilityResult): strin
   const nights = `${result.noches} noche${result.noches === 1 ? "" : "s"}`;
   const blocks = result.hostales.map((h) =>
     [
-      `*${h.hostal}* 🏨`,
+      `*${hostelTitle(h.hostal, h.codigo)}* 🏨`,
       ...h.opciones.map((o) => `• ${o.habitacion}: ${clp(o.precio_noche)} por noche (${clp(o.total_estadia)} por ${nights})`),
       ...h.combinaciones.flatMap((combination) => [
         `Opción para el grupo en ${combination.habitaciones.length} habitaciones:`,

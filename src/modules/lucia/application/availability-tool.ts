@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { santiagoToday } from "@/modules/lodging/domain/daily-closing";
+import { accessSentence } from "@/modules/lucia/domain/stay-hours";
 import {
   formatAvailabilityForWhatsApp,
   searchAvailability,
@@ -19,16 +20,22 @@ export async function checkLuciaAvailability(
   admin: SupabaseClient,
   companyId: string,
   query: AvailabilityQuery,
-): Promise<AvailabilityResult & { resumen_whatsapp?: string }> {
+): Promise<AvailabilityResult & { resumen_whatsapp?: string; acceso_whatsapp?: string | null }> {
   const { data: hostelRows, error: hostelsError } = await admin
     .from("lucia_hostels")
-    .select("business_unit_id,display_name,business_units(code)")
+    .select("business_unit_id,display_name,checkin_time,checkout_time,business_units(code)")
     .eq("company_id", companyId)
     .eq("enabled", true);
   if (hostelsError) return { ok: false, error: "No se pudo leer la disponibilidad." };
   const hostels = (hostelRows ?? []).map((h) => {
     const unit = Array.isArray(h.business_units) ? h.business_units[0] : h.business_units;
-    return { unitId: h.business_unit_id as string, code: (unit as { code?: string } | null)?.code ?? "", name: h.display_name as string };
+    return {
+      unitId: h.business_unit_id as string,
+      code: (unit as { code?: string } | null)?.code ?? "",
+      name: h.display_name as string,
+      checkin_time: h.checkin_time as string | null,
+      checkout_time: h.checkout_time as string | null,
+    };
   });
   const order = ["HU", "HOC", "HOB"];
   hostels.sort((a, b) => order.indexOf(a.code) - order.indexOf(b.code));
@@ -72,5 +79,7 @@ export async function checkLuciaAvailability(
     today: santiagoToday(),
     privateBathOnly: query.solo_bano_privado === true,
   });
-  return result.ok ? { ...result, resumen_whatsapp: formatAvailabilityForWhatsApp(result) } : result;
+  return result.ok
+    ? { ...result, resumen_whatsapp: formatAvailabilityForWhatsApp(result), acceso_whatsapp: accessSentence(hostels) }
+    : result;
 }

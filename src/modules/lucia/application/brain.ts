@@ -10,6 +10,7 @@ import {
 } from "@/modules/lucia/domain/output-schema";
 import { choiceIsAmbiguous } from "@/modules/lucia/domain/option-choice";
 import { LUCIA_BASE_RULES } from "@/modules/lucia/domain/prompt";
+import { mentionsShortStay, nightlyChargeNote } from "@/modules/lucia/domain/stay-hours";
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
 import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
@@ -142,6 +143,7 @@ export async function generateLuciaReply(input: {
   let availabilityWasAttempted = false;
   let availabilitySummary: string | null = null;
   let availabilityHasOptions = false;
+  let accessNote: string | null = null;
 
   for (let call = 0; call < MAX_CALLS; call++) {
     let response: Anthropic.Message;
@@ -247,7 +249,17 @@ export async function generateLuciaReply(input: {
         output = {
           ...output,
           reply: availabilityHasOptions
-            ? `Estas son las opciones que encontré para tu estadía 😊\n\n${availabilitySummary}\n\n¿Cuál opción te acomoda?`
+            ? [
+                // Antes de las opciones: horarios de acceso y, si el cliente dice que se queda solo hasta cierta hora, el cobro por noche.
+                mentionsShortStay(latestCustomerMessage)
+                  ? nightlyChargeNote(accessNote)
+                  : accessNote
+                    ? `Antes de las opciones, un dato importante: ${accessNote}.`
+                    : null,
+                `Estas son las opciones que encontré para tu estadía 😊\n\n${availabilitySummary}\n\n¿Cuál opción te acomoda?`,
+              ]
+                .filter(Boolean)
+                .join("\n\n")
             : `${availabilitySummary}\n\nSi quieres, puedo revisar otras fechas.`,
         };
       }
@@ -327,11 +339,13 @@ export async function generateLuciaReply(input: {
               const record = result as {
                 ok?: unknown;
                 resumen_whatsapp?: unknown;
+                acceso_whatsapp?: unknown;
                 hostales?: unknown;
               };
               if (record.ok === true && typeof record.resumen_whatsapp === "string") {
                 availabilitySummary = record.resumen_whatsapp;
                 availabilityHasOptions = Array.isArray(record.hostales) && record.hostales.length > 0;
+                accessNote = typeof record.acceso_whatsapp === "string" ? record.acceso_whatsapp : null;
               }
             }
             return { type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) };

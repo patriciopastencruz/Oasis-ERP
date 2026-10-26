@@ -151,7 +151,7 @@ describe("formatAvailabilityForWhatsApp", () => {
     });
     expect(formatAvailabilityForWhatsApp(result)).toBe(
       [
-        "*Hostal Uruguay* 🏨",
+        "*Hostal Uruguay (Uruguay, sector 23 de marzo)* 🏨",
         "• Habitación: 2 camas, baño compartido: $28.000 por noche ($56.000 por 2 noches)",
         "• Habitación: 1 cama matrimonial, baño privado: $30.000 por noche ($60.000 por 2 noches)",
         "",
