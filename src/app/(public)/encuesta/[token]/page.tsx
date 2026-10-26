@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { submitSurveyAction } from "@/modules/lodging/application/survey-actions";
 import { SurveySubmit } from "@/components/lodging/survey-submit";
-import { SURVEY_CATEGORIES, receptionistsLabel, surveyQuestion } from "@/modules/lodging/domain/survey";
+import { SURVEY_CATEGORIES, receptionistOptions, receptionistsLabel, surveyQuestion } from "@/modules/lodging/domain/survey";
 
 export const metadata = {
   title: "Tu opinión | Hostal Oasis",
@@ -63,6 +63,7 @@ export default async function SurveyPage({
     : room.business_units;
 
   const receptionists = receptionistsLabel(unit?.code);
+  const attendedBy = receptionistOptions(unit?.code);
 
   if (q.gracias)
     return (
@@ -118,7 +119,23 @@ export default async function SurveyPage({
         </div>
 
         {SURVEY_CATEGORIES.map((category) => (
-          <fieldset key={category.key}>
+          <div key={category.key} className="space-y-8">
+            {category.key === "staff" && attendedBy.length > 0 && (
+              <fieldset>
+                <legend className="text-sm font-semibold text-[#241c16]">¿Quién te atendió en recepción?</legend>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {attendedBy.map((name, index) => (
+                    <label key={name} className="cursor-pointer">
+                      <input type="radio" name="receptionist" value={name} required={index === 0} className="peer sr-only" />
+                      <span className="grid h-11 place-items-center rounded-xl border border-[#e4d9c8] bg-white px-4 text-sm font-semibold text-[#3a2f26] peer-checked:border-[#c1652f] peer-checked:bg-[#c1652f] peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-[#c1652f]/40">
+                        {name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+          <fieldset>
             <legend className="text-sm font-semibold text-[#241c16]">
               {surveyQuestion(category, unit?.code)}
             </legend>
@@ -139,6 +156,7 @@ export default async function SurveyPage({
               <span>{SCORE_LABELS[4]}</span>
             </div>
           </fieldset>
+          </div>
         ))}
 
         <fieldset>

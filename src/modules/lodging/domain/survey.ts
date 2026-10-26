@@ -30,6 +30,17 @@ export const SURVEY_RECEPTIONISTS: Record<string, string[]> = {
   HOC: ["Kathya", "Alicia"],
 };
 
+/** Opción para quien no recuerda o no sabe el nombre de quien lo atendió. */
+export const SURVEY_RECEPTIONIST_UNKNOWN = "No lo recuerdo";
+
+/** Nombres que el huésped puede elegir como quien lo atendió (vacío si el hostal no nombra recepcionista). */
+export function receptionistOptions(unitCode: string | null | undefined) {
+  const names = unitCode ? SURVEY_RECEPTIONISTS[unitCode] : undefined;
+  return names?.length ? [...names, SURVEY_RECEPTIONIST_UNKNOWN] : [];
+}
+
+const ALL_RECEPTIONIST_OPTIONS = new Set([...Object.values(SURVEY_RECEPTIONISTS).flat(), SURVEY_RECEPTIONIST_UNKNOWN]);
+
 /** "Kathya o Alicia" (null si el hostal no nombra a su recepcionista). */
 export function receptionistsLabel(unitCode: string | null | undefined) {
   const names = unitCode ? SURVEY_RECEPTIONISTS[unitCode] : undefined;
@@ -53,6 +64,12 @@ export const surveySubmissionSchema = z.object({
   value_for_money: score,
   recommend: score,
   comment: z.string().trim().max(1000).default(""),
+  // Quién lo atendió en recepción (solo hostales que nombran recepcionista); cualquier otro valor se descarta.
+  receptionist: z
+    .string()
+    .trim()
+    .default("")
+    .transform((v) => (ALL_RECEPTIONIST_OPTIONS.has(v) ? v : "")),
   guest_name: z.string().trim().max(120).default(""),
   contact: z.string().trim().max(160).default(""),
   // Honeypot: un visitante real nunca completa este campo oculto.
@@ -112,4 +129,21 @@ export function surveyAverage(row: SurveyRow) {
 export function surveyMessage(unit: string, url: string, guestName?: string | null) {
   const hello = guestName && !/^reserva /i.test(guestName) ? `Hola ${guestName.split(" ")[0]}` : "Hola";
   return `${hello}, gracias por alojarte en ${unit}. Nos ayudaría mucho saber cómo fue tu estadía; responde esta breve encuesta (1 minuto): ${url}`;
+}
+
+/** Respuestas y promedio de atención por recepcionista (null = no indicó quién lo atendió). */
+export function summarizeByReceptionist(rows: (SurveyRow & { receptionist: string | null })[]) {
+  const groups = new Map<string, (SurveyRow & { receptionist: string | null })[]>();
+  for (const row of rows) {
+    const key = row.receptionist ?? "";
+    groups.set(key, [...(groups.get(key) ?? []), row]);
+  }
+  return [...groups.entries()]
+    .map(([name, list]) => ({
+      name: name || "Sin indicar",
+      count: list.length,
+      staffAverage: round1(list.reduce((sum, r) => sum + Number(r.staff), 0) / list.length),
+      overall: summarizeSurveys(list).overall ?? 0,
+    }))
+    .sort((a, b) => b.count - a.count);
 }

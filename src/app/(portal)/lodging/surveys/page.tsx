@@ -13,6 +13,8 @@ import {
   shiftMonth,
 } from "@/modules/lodging/domain/history-report";
 import {
+  receptionistOptions,
+  summarizeByReceptionist,
   summarizeSurveys,
   surveyAverage,
   type SurveyRow,
@@ -60,7 +62,7 @@ export default async function SurveysPage({
       let query = supabase
         .from("lodging_satisfaction_surveys")
         .select(
-          "id,created_at,cleanliness,comfort,staff,value_for_money,recommend,comment,guest_name,contact,room_id,lodging_rooms(name)",
+          "id,created_at,cleanliness,comfort,staff,value_for_money,recommend,comment,guest_name,contact,receptionist,room_id,lodging_rooms(name)",
         )
         .eq("business_unit_id", unit.id)
         .gte("created_at", from)
@@ -80,6 +82,10 @@ export default async function SurveysPage({
   }));
   const rows = surveys as unknown as SurveyRow[];
   const summary = summarizeSurveys(rows);
+  const namesReceptionist = receptionistOptions(unit.code).length > 0;
+  const receptionistStats = namesReceptionist
+    ? summarizeByReceptionist(surveys as unknown as (SurveyRow & { receptionist: string | null })[])
+    : [];
 
   const byRoom = new Map<string, { name: string; rows: SurveyRow[] }>();
   for (const s of surveys) {
@@ -237,6 +243,35 @@ export default async function SurveysPage({
               </div>
             </Panel>
 
+            {namesReceptionist && (
+              <Panel>
+                <h2 className="font-semibold">Atención por recepcionista</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Según quién indicó el huésped que lo atendió. Las respuestas anteriores a esta pregunta quedan “Sin indicar”.
+                </p>
+                <table className="mt-3 w-full text-sm">
+                  <thead className="text-left text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="py-1.5">Recepcionista</th>
+                      <th className="text-right">Respuestas</th>
+                      <th className="text-right">Atención</th>
+                      <th className="text-right">General</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {receptionistStats.map((r) => (
+                      <tr key={r.name}>
+                        <td className="py-2 font-medium">{r.name}</td>
+                        <td className="text-right text-slate-500">{r.count}</td>
+                        <td className="text-right font-bold">{r.staffAverage} / 5</td>
+                        <td className="text-right text-slate-600">{r.overall} / 5</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Panel>
+            )}
+
             <Panel>
               <h2 className="font-semibold">Puntaje por habitación</h2>
               <p className="mt-1 text-xs text-slate-500">
@@ -278,6 +313,7 @@ export default async function SurveysPage({
                         {surveyAverage(s as unknown as SurveyRow)} / 5
                       </span>
                       <span>Recomendaría: {s.recommend}/5</span>
+                      {namesReceptionist && <span>Atendió: <b className="text-slate-700">{s.receptionist ?? "Sin indicar"}</b></span>}
                     </div>
                     <p className="mt-1.5 whitespace-pre-wrap text-slate-800">
                       {s.comment}

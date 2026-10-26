@@ -6,6 +6,8 @@ import {
   surveyQuestion,
   surveyAverage,
   surveySubmissionSchema,
+  receptionistOptions,
+  summarizeByReceptionist,
   type SurveyRow,
   surveyMessage,
 } from "./survey";
@@ -96,5 +98,41 @@ describe("surveyMessage", () => {
   it("sin nombre real (reserva importada) saluda sin nombre", () => {
     expect(surveyMessage("Hostal Uruguay", "https://x/e/1", "Reserva Airbnb")).toMatch(/^Hola, gracias/);
     expect(surveyMessage("Hostal Uruguay", "https://x/e/1")).toMatch(/^Hola, gracias/);
+  });
+});
+
+describe("quién atendió al huésped", () => {
+  const base = {
+    token: "a".repeat(32),
+    cleanliness: "5",
+    comfort: "5",
+    staff: "5",
+    value_for_money: "5",
+    recommend: "5",
+  };
+
+  it("Centro ofrece a Kathya, Alicia y no recuerdo; los demás hostales no preguntan", () => {
+    expect(receptionistOptions("HOC")).toEqual(["Kathya", "Alicia", "No lo recuerdo"]);
+    expect(receptionistOptions("HOB")).toEqual([]);
+    expect(receptionistOptions(undefined)).toEqual([]);
+  });
+
+  it("solo acepta nombres de la lista", () => {
+    expect(surveySubmissionSchema.parse({ ...base, receptionist: "Alicia" }).receptionist).toBe("Alicia");
+    expect(surveySubmissionSchema.parse({ ...base, receptionist: "Cualquiera" }).receptionist).toBe("");
+    expect(surveySubmissionSchema.parse(base).receptionist).toBe("");
+  });
+
+  it("separa las respuestas por recepcionista y agrupa las sin indicar", () => {
+    const rows = [
+      { ...row({ staff: 5 }), receptionist: "Kathya" },
+      { ...row({ staff: 3 }), receptionist: "Kathya" },
+      { ...row({ staff: 4 }), receptionist: "Alicia" },
+      { ...row({ staff: 2 }), receptionist: null },
+    ];
+    const stats = summarizeByReceptionist(rows);
+    expect(stats.find((r) => r.name === "Kathya")).toMatchObject({ count: 2, staffAverage: 4 });
+    expect(stats.find((r) => r.name === "Alicia")).toMatchObject({ count: 1, staffAverage: 4 });
+    expect(stats.find((r) => r.name === "Sin indicar")).toMatchObject({ count: 1, staffAverage: 2 });
   });
 });
