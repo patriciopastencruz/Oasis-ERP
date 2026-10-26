@@ -401,7 +401,7 @@ const lodgingNav = [
     label: "Gastos",
     icon: ReceiptText,
     permission: "lodging.expenses.view",
-    unitCodes: ["HU"],
+    unitCodes: ["HU", "HOC", "HOB"],
   },
   {
     href: "/lodging/monthly",

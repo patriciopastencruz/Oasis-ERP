@@ -5,8 +5,8 @@ export const EXPENSE_RECEIPT_MAX_BYTES = 10_485_760;
 /** Etiqueta de los gastos a los que administración aún no les asigna tipo. */
 export const UNCLASSIFIED_LABEL = "Sin clasificar";
 
-/** Hostales que tienen el ingreso de gastos (por ahora solo Hostal Uruguay). */
-export const EXPENSE_UNIT_CODES = ["HU"];
+/** Hostales que tienen el ingreso de gastos. */
+export const EXPENSE_UNIT_CODES = ["HU", "HOC", "HOB"];
 
 export const expensePaymentLabels = {
   cash: "Efectivo",
