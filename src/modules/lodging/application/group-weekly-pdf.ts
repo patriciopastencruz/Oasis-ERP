@@ -116,7 +116,7 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
     p.textR(`Corte al ${dmy(report.reference)}`, W - M, bandH > 44 ? 18 : 12, 9, B, C.white);
     if (bandH > 44) p.textR("Ocupación, venta y RevPAR desde reservas · saldos con pagos confirmados", W - M, 33, 7, R, hex("#c8d6ea"));
     p.text("Acumulado del mes, del 1 a la fecha de corte. Metas en verde: círculo verde = cumplida, rojo = no cumplida. Líneas punteadas = metas. RevPAR meta: la del hostal o venta prom. meta x ocupación meta.", M, H - 16, 6.5, R, C.muted);
-    p.textR(`Generado ${generated} · OASIS ERP · Página ${n} de 2`, W - M, H - 16, 6.5, B, C.muted);
+    p.textR(`Generado ${generated} · OASIS ERP · Página ${n} de 3`, W - M, H - 16, 6.5, B, C.muted);
     return p;
   };
   const hostelRow = (p: P, top: number) => {
@@ -209,6 +209,20 @@ export async function buildGroupWeeklyPdf(report: GroupWeeklyReport) {
     });
   }
 
+  // ======================= Página 3 =======================
+  {
+    const p = newPage(3, 34);
+    let top = hostelRow(p, 42) + 8;
+
+    // 6. Evaluación de huéspedes por QR
+    top = section(p, top, 6, "Evaluación por QR", `encuesta de los huéspedes de ${monthName} hasta el corte · escala de 1 a 5`);
+    const sh = 150;
+    hostels.forEach((h, i) => {
+      card(p, i, top, sh);
+      drawSurvey(p, h, colX(i), top, sh, R, B);
+    });
+  }
+
   return pdf.save();
 }
 
@@ -281,6 +295,30 @@ function drawReviews(p: P, h: HostelWeekly, x: number, top: number, ch: number, 
   });
   if (s.weakest) p.text("En rojo: el área más baja", lx, top + ch - 11, 5.8, R, C.muted);
 
+}
+
+function drawSurvey(p: P, h: HostelWeekly, x: number, top: number, ch: number, R: PDFFont, B: PDFFont) {
+  const s = h.survey;
+  if (!s.count || s.overall === null) {
+    p.text("Sin respuestas de la encuesta QR en el período.", x + 10, top + 12, 8, R, C.muted);
+    p.text("Los huéspedes responden al escanear el QR de su habitación.", x + 10, top + 24, 7, R, C.muted);
+    return;
+  }
+  const sg = h.survey.goal;
+  const after = x + 16 + p.withGoal(x + 10, top + 9, score(s.overall), 22, sg === null ? null : score(sg), sg === null ? null : s.overall >= sg, 11);
+  p.text(`${s.count} ${s.count === 1 ? "respuesta" : "respuestas"} · ${pctTxt(s.recommenders / s.count)} recomienda`, after, top + 12, 7, R, C.ink2);
+  p.text(`Recomendación promedio ${score(s.recommendAverage ?? 0)} de 5`, after, top + 23, 7, R, C.muted);
+  // Detalle por categoría con barra de 1 a 5.
+  const lx = x + 10, lw = CW - 20, at = top + 46, rowH = Math.min(24, (ch - 54) / s.categories.length);
+  s.categories.forEach((c, k) => {
+    const ry = at + k * rowH;
+    const weakest = s.weakest?.key === c.key;
+    p.text(p.fit(c.label, lw - 44, 6.8, weakest ? B : R), lx, ry, 6.8, weakest ? B : R, weakest ? C.critical : C.ink);
+    p.textR(score(c.average), lx + lw, ry, 7.2, B);
+    const bw = lw, by = ry + 10;
+    p.round(lx, by, bw, 4, 2, C.track);
+    p.round(lx, by, Math.max(4, (bw * (c.average - 1)) / 4), 4, 2, weakest ? C.critical : C.blue);
+  });
 }
 
 function drawPending(p: P, h: HostelWeekly, x: number, top: number, ch: number, R: PDFFont, B: PDFFont) {

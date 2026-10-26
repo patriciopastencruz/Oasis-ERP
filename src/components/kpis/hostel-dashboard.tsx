@@ -274,6 +274,47 @@ function Pending({ h }: { h: HostelWeekly }) {
   );
 }
 
+function Survey({ h }: { h: HostelWeekly }) {
+  const s = h.survey;
+  if (!s.count || s.overall === null)
+    return (
+      <Panel>
+        <HostelName h={h} />
+        <p className="text-sm text-slate-500">Sin respuestas de la encuesta QR en el período.</p>
+      </Panel>
+    );
+  const g = s.goal;
+  return (
+    <Panel>
+      <HostelName h={h} />
+      <div className="flex flex-wrap items-center gap-2">
+        <b className="text-4xl leading-none">{score(s.overall)}</b>
+        <span className="text-xs text-slate-500">de 5</span>
+        <GoalChip met={g === null ? null : s.overall >= g} text={g === null ? "" : score(g)} />
+      </div>
+      <p className="mt-1 text-xs text-slate-500">
+        {s.count} {s.count === 1 ? "respuesta" : "respuestas"} · {pct(s.recommenders / s.count)} recomienda
+      </p>
+      <div className="mt-3 space-y-1.5">
+        {s.categories.map((c) => {
+          const weakest = s.weakest?.key === c.key;
+          return (
+            <div key={c.key}>
+              <div className="flex items-center justify-between text-xs">
+                <span className={weakest ? "font-semibold text-red-700" : ""}>{c.label}</span>
+                <span className="font-semibold">{score(c.average)}</span>
+              </div>
+              <div className="mt-0.5 h-1.5 rounded-full bg-slate-100">
+                <div className={`h-1.5 rounded-full ${weakest ? "bg-red-500" : "bg-[#2a78d6]"}`} style={{ width: `${((c.average - 1) / 4) * 100}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
 /** Tablero de los hostales: una columna por hostal y una fila por indicador (como el PDF). */
 export function HostelDashboard({ report, live = true }: { report: GroupWeeklyReport; live?: boolean }) {
   const hostels = report.hostels;
@@ -319,6 +360,9 @@ export function HostelDashboard({ report, live = true }: { report: GroupWeeklyRe
       </Section>
       <Section n={5} title="Cierres pendientes y montos por cobrar" note={`cierres de ${month} hasta ayer`}>
         {hostels.map((h) => <Pending key={h.unit.id} h={h} />)}
+      </Section>
+      <Section n={6} title="Evaluación por QR" note={`encuesta de los huéspedes de ${month} hasta el corte · escala de 1 a 5`}>
+        {hostels.map((h) => <Survey key={h.unit.id} h={h} />)}
       </Section>
       <p className="mt-6 text-[11px] text-slate-400">
         Del {dmy(report.monthStart)} al {dmy(report.reference)}. La ocupación y la venta de hoy se actualizan con las reservas y pagos que se vayan registrando.

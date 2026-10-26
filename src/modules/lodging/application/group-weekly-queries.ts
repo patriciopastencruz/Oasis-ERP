@@ -6,6 +6,7 @@ import { rangeOperations } from "../domain/monthly-closing";
 import { dayOverDay } from "../domain/day-over-day";
 import { pendingBalances, pendingClosingDates } from "../domain/group-weekly-report";
 import type { ReviewScoreRow } from "../domain/review-scores";
+import { summarizeSurveys, type SurveyRow } from "../domain/survey";
 import { goalsFromRow } from "../domain/report-goals";
 import type { OpsKpis } from "../domain/ops-kpis";
 
@@ -28,7 +29,7 @@ export async function loadGroupWeeklyReport(supabase: Supabase, units: Unit[], r
 async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, reference: string, today: string, workingDay: string) {
   const from = monthStart;
   const dayAfter = addDays(reference, 1);
-  const [src, closings, stays, reviews, goals, kpis, housekeeping, pendingRooms] = await Promise.all([
+  const [src, closings, stays, reviews, goals, kpis, housekeeping, pendingRooms, surveysRes, surveyConfig] = await Promise.all([
     // Un día antes del 1 para poder comparar el primer día del mes con ayer.
     loadOperationsSource(supabase, unit.id, addDays(from, -1), dayAfter),
     supabase
@@ -70,8 +71,16 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
       .eq("business_unit_id", unit.id)
       .eq("active", true)
       .eq("operational_status", "pending_inspection"),
+    // Encuesta por QR del mes (solo la ve quien tiene permiso de encuestas) y su meta de bono.
+    supabase
+      .from("lodging_satisfaction_surveys")
+      .select("created_at,cleanliness,comfort,staff,value_for_money,recommend")
+      .eq("business_unit_id", unit.id)
+      .gte("created_at", `${monthStart}T00:00:00-06:00`)
+      .lt("created_at", `${dayAfter}T06:00:00Z`),
+    supabase.from("lodging_bonus_config").select("survey_goal").eq("business_unit_id", unit.id).maybeSingle(),
   ]);
-  for (const r of [closings, stays, reviews, goals]) if (r.error) throw r.error;
+  for (const r of [closings, stays, reviews, goals, surveysRes, surveyConfig]) if (r.error) throw r.error;
 
   const month = rangeOperations(monthStart, reference, src.rooms, src.reservations, src.payments, today, src.gaps);
   // Variación de la venta promedio y el RevPAR contra el día anterior al corte.
@@ -97,11 +106,26 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
     categories: (r.categories ?? {}) as ReviewScoreRow["categories"],
   }));
 
+  const santiagoDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date(iso));
+  const surveyRows: SurveyRow[] = (surveysRes.data ?? [])
+    .filter((r) => {
+      const day = santiagoDay(r.created_at);
+      return day >= monthStart && day <= reference;
+    })
+    .map((r) => ({
+      cleanliness: r.cleanliness,
+      comfort: r.comfort,
+      staff: r.staff,
+      value_for_money: r.value_for_money,
+      recommend: r.recommend,
+    }));
+
   return {
     unit,
     month,
     dayCompare,
     reviews: reviewRows,
+    survey: { ...summarizeSurveys(surveyRows), goal: surveyConfig.data ? Number(surveyConfig.data.survey_goal) : null },
     goals: goalsFromRow(goals.data),
     inspections: inspectionSummary(kpis.error ? null : (kpis.data as OpsKpis | null), housekeeping.data !== false, pendingRooms.count ?? 0),
     pendingClosings: pendingClosingDates(
