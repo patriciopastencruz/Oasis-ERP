@@ -47,12 +47,13 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
       .neq("origin", "maintenance")
       .lte("check_in", reference)
       .gt("check_out", monthStart),
+    // El puntaje de Booking es una lectura del momento: un reporte al día usa el último registrado, no el del corte.
     supabase
       .from("lodging_review_scores")
       .select("recorded_on,score,review_count,categories")
       .eq("business_unit_id", unit.id)
       .eq("source", "booking")
-      .lte("recorded_on", reference)
+      .lte("recorded_on", reference >= addDays(workingDay, -1) ? today : reference)
       .order("recorded_on", { ascending: false })
       .limit(8),
     supabase
