@@ -4,6 +4,7 @@ import makeWASocket, {
   Browsers,
   DisconnectReason,
   delay,
+  downloadMediaMessage,
   fetchLatestBaileysVersion,
   generateMessageIDV2,
   getContentType,
@@ -140,6 +141,45 @@ function extractContent(message: WAMessage): Extracted {
   }
 }
 
+// Comprobantes y archivos de clientes: bucket privado, solo la clave de servicio lee.
+const MEDIA_BUCKET = "lucia-media";
+const MEDIA_MAX_BYTES = 10 * 1024 * 1024;
+const MEDIA_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "application/pdf": "pdf",
+};
+
+/**
+ * Guarda la imagen o PDF que mandó un cliente, para adjuntarla al aviso del
+ * comprobante. Si falla, el mensaje igual se registra (el aviso va sin archivo).
+ */
+async function saveCustomerMedia(companyId: string, message: WAMessage) {
+  const content = normalizeMessageContent(message.message);
+  const media = content?.imageMessage ?? content?.documentMessage;
+  const mime = media?.mimetype?.split(";")[0].trim() ?? "";
+  const extension = MEDIA_EXTENSIONS[mime];
+  if (!media || !extension || Number(media.fileLength ?? 0) > MEDIA_MAX_BYTES) return null;
+  try {
+    const buffer = await downloadMediaMessage(
+      message,
+      "buffer",
+      {},
+      { logger, reuploadRequest: (m) => sock!.updateMediaMessage(m) },
+    );
+    if (buffer.length > MEDIA_MAX_BYTES) return null;
+    const month = new Date().toISOString().slice(0, 7);
+    const path = `${companyId}/${month}/${message.key.id ?? generateMessageIDV2()}.${extension}`;
+    const { error } = await admin.storage.from(MEDIA_BUCKET).upload(path, buffer, { contentType: mime, upsert: true });
+    if (error) throw new Error(error.message);
+    return { path, name: content?.documentMessage?.fileName ?? null };
+  } catch (error) {
+    logger.warn({ error: String(error) }, "no se pudo guardar el archivo del cliente");
+    return null;
+  }
+}
+
 /**
  * Identidad del chat. WhatsApp puede entregar un LID (id anónimo) en vez del
  * número; si Baileys trae el número alternativo se usa ese, para que el
@@ -190,6 +230,10 @@ async function handleIncoming(companyId: string, message: WAMessage) {
   const content = extractContent(message);
   if (!content) return;
   const { jid, phone, isLid } = chatIdentity(message);
+  const media =
+    !message.key.fromMe && (content.type === "image" || content.type === "document")
+      ? await saveCustomerMedia(companyId, message)
+      : null;
   const result = await rpc<{ status: string; conversation_id?: string; process?: boolean }>("lucia_ingest_message", {
     payload: {
       company_id: companyId,
@@ -201,6 +245,8 @@ async function handleIncoming(companyId: string, message: WAMessage) {
       push_name: message.key.fromMe ? null : message.pushName,
       from_me: Boolean(message.key.fromMe),
       app_url: ERP_URL,
+      media_path: media?.path ?? null,
+      media_name: media?.name ?? null,
     },
   });
   if (isLid && result.status === "ok") {
@@ -223,6 +269,7 @@ async function drainOutbox(companyId: string) {
         content: string;
         message_type?: string;
         media_path?: string | null;
+        media_name?: string | null;
       } | null>("lucia_claim_outbound", {
         target_company: companyId,
       });
@@ -233,7 +280,8 @@ async function drainOutbox(companyId: string) {
         await sock.presenceSubscribe(job.jid).catch(() => undefined);
         await sock.sendPresenceUpdate("composing", job.jid);
         const isImage = job.message_type === "image" && Boolean(job.media_path);
-        const typingMs = isImage
+        const isDocument = job.message_type === "document" && Boolean(job.media_path);
+        const typingMs = isImage || isDocument
           ? 1_000 + Math.floor(Math.random() * 1_000)
           : Math.min(6_000, 900 + job.content.length * 25) + Math.floor(Math.random() * 800);
         await delay(typingMs);
@@ -262,11 +310,27 @@ async function drainOutbox(companyId: string) {
             }
           }
         }
-        if (isImage) {
-          // Fotos de habitaciones: bucket privado del ERP, se leen con la clave de servicio.
-          const { data: file, error: downloadError } = await admin.storage.from("lucia-photos").download(job.media_path!);
-          if (downloadError || !file) throw new Error(`No se pudo leer la foto: ${downloadError?.message ?? "sin archivo"}`);
-          await sock.sendMessage(job.jid, { image: Buffer.from(await file.arrayBuffer()), caption: job.content }, { messageId });
+        if (isImage || isDocument) {
+          // Fotos de habitaciones (a clientes) o comprobantes (avisos al equipo):
+          // buckets privados del ERP, se leen con la clave de servicio.
+          const bucket = job.kind === "staff" ? MEDIA_BUCKET : "lucia-photos";
+          const { data: file, error: downloadError } = await admin.storage.from(bucket).download(job.media_path!);
+          if (downloadError || !file) throw new Error(`No se pudo leer el archivo: ${downloadError?.message ?? "sin archivo"}`);
+          const buffer = Buffer.from(await file.arrayBuffer());
+          if (isImage) {
+            await sock.sendMessage(job.jid, { image: buffer, caption: job.content }, { messageId });
+          } else {
+            await sock.sendMessage(
+              job.jid,
+              {
+                document: buffer,
+                mimetype: file.type || "application/pdf",
+                fileName: job.media_name ?? "comprobante.pdf",
+                caption: job.content,
+              },
+              { messageId },
+            );
+          }
         } else {
           await sock.sendMessage(job.jid, { text: job.content }, { messageId });
         }
