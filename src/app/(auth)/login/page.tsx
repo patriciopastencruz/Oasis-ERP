@@ -1,6 +1,26 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthCard, Field, Submit } from "@/components/ui/auth-card";
 import { loginAction } from "@/modules/platform/auth/application/actions";
+/**
+ * Quien abre /hostales sin sesión llega aquí con ?next=/hostales. Si en ese momento agrega la página a la
+ * pantalla de inicio, debe quedar la app «Oasis Hostales» y no la de operaciones (manifiesto de todo el sitio).
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}): Promise<Metadata> {
+  const { next } = await searchParams;
+  if (typeof next === "string" && /^\/hostales(?:[/?#]|$)/.test(next))
+    return {
+      title: "Oasis Hostales",
+      manifest: "/hostales.webmanifest",
+      appleWebApp: { capable: true, title: "Oasis Hostales", statusBarStyle: "default" },
+    };
+  return {};
+}
+
 export default async function Login({
   searchParams,
 }: {
