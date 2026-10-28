@@ -14,7 +14,7 @@ export async function GET(
   const [{ data: quotation }, { data: lines }, { data: photos }] = await Promise.all([
     supabase
       .from("lodging_quotations")
-      .select("quotation_number,issued_on,status,client_company,client_rut,client_contact,hostel_address,service_detail,check_in,check_out,total")
+      .select("quotation_number,issued_on,status,client_company,client_rut,client_contact,hostel_address,service_detail,check_in,check_out,net,iva,total")
       .eq("id", idResult.data)
       .maybeSingle(),
     supabase
@@ -58,6 +58,8 @@ export async function GET(
       iva: Number(l.iva),
       total: Number(l.total),
     })),
+    net: Number(quotation.net),
+    iva: Number(quotation.iva),
     total: Number(quotation.total),
     photos: files.filter((f): f is NonNullable<typeof f> => f !== null),
   });

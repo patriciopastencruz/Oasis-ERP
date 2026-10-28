@@ -12,7 +12,7 @@ export default async function Page({
   const { unit, supabase } = await lodgingContext("lodging.quotations.manage");
   const { data: quotations } = await supabase
     .from("lodging_quotations")
-    .select("id,quotation_number,issued_on,client_company,total,status")
+    .select("id,quotation_number,issued_on,client_company,net,total,status")
     .eq("business_unit_id", unit.id)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -34,13 +34,14 @@ export default async function Page({
       {q.success && <p className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{q.success}</p>}
       {q.error && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{q.error}</p>}
       <Panel className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-sm">
+        <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b text-left text-xs uppercase text-slate-500">
               <th className="py-2 pr-2">N°</th>
               <th className="px-2">Fecha</th>
               <th className="px-2">Empresa</th>
-              <th className="px-2 text-right">Total</th>
+              <th className="px-2 text-right">Neto</th>
+              <th className="px-2 text-right">Total (con IVA)</th>
               <th className="px-2">Estado</th>
               <th className="pl-2" />
             </tr>
@@ -55,6 +56,7 @@ export default async function Page({
                 </td>
                 <td className="px-2">{formatDate(r.issued_on)}</td>
                 <td className="px-2">{r.client_company}</td>
+                <td className="px-2 text-right">{clp.format(Number(r.net))}</td>
                 <td className="px-2 text-right font-semibold">{clp.format(Number(r.total))}</td>
                 <td className="px-2">
                   {r.status === "voided" ? (

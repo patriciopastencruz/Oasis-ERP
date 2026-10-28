@@ -88,7 +88,11 @@ export default async function Page({
             ))}
           </tbody>
         </table>
-        <p className="mt-4 text-right text-base font-bold">Total {clp.format(Number(quotation.total))}</p>
+        <dl className="ml-auto mt-4 w-full max-w-xs space-y-1 text-sm">
+          <div className="flex justify-between"><dt className="text-slate-500">Subtotal neto</dt><dd>{clp.format(Number(quotation.net))}</dd></div>
+          <div className="flex justify-between"><dt className="text-slate-500">IVA (19%)</dt><dd>{clp.format(Number(quotation.iva))}</dd></div>
+          <div className="flex justify-between border-t pt-1 text-base font-bold"><dt>Total (IVA incluido)</dt><dd>{clp.format(Number(quotation.total))}</dd></div>
+        </dl>
         {thumbs.some(Boolean) && (
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {thumbs.filter((u): u is string => Boolean(u)).map((src) => (

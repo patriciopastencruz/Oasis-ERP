@@ -13,6 +13,8 @@ export type LodgingQuotationPdfInput = {
   checkIn: string | null;
   checkOut: string | null;
   lines: { description: string; quantity: number; unitNet: number; nights: number; subtotal: number; iva: number; total: number }[];
+  net: number;
+  iva: number;
   total: number;
   photos: { bytes: Uint8Array; mime: string }[];
 };
@@ -139,13 +141,25 @@ export async function buildLodgingQuotationPdf(input: LodgingQuotationPdfInput) 
     });
     y -= h;
   }
-  // Fila TOTAL
+  // Subtotal neto, IVA y TOTAL (con IVA incluido)
   const lastW = cols[6].w;
-  cell(left, y, tableW - lastW, 28);
-  cell(xs[6], y, lastW, 28);
-  page.drawText("TOTAL", { x: left + tableW - lastW - 8 - bold.widthOfTextAtSize("TOTAL", 10.5), y: y - 18, size: 10.5, font: bold, color: ink });
-  page.drawText(money(input.total), { x: xs[6] + 5, y: y - 18, size: 10.5, font: bold, color: ink });
-  y -= 28 + 22;
+  const summary = [
+    { label: "SUBTOTAL NETO", value: input.net, font: regular, size: 10 },
+    { label: "IVA (19%)", value: input.iva, font: regular, size: 10 },
+    { label: "TOTAL (IVA INCLUIDO)", value: input.total, font: bold, size: 10.5 },
+  ];
+  if (y - 28 * summary.length < 60) {
+    page = pdf.addPage([W, H]);
+    y = H - 40;
+  }
+  for (const row of summary) {
+    cell(left, y, tableW - lastW, 28);
+    cell(xs[6], y, lastW, 28);
+    page.drawText(row.label, { x: left + tableW - lastW - 8 - row.font.widthOfTextAtSize(row.label, row.size), y: y - 18, size: row.size, font: row.font, color: ink });
+    page.drawText(money(row.value), { x: xs[6] + 5, y: y - 18, size: row.size, font: row.font, color: ink });
+    y -= 28;
+  }
+  y -= 22;
 
   // ---------- Fotos ----------
   const images: PDFImage[] = [];
