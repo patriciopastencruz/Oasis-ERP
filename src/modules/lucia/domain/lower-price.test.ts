@@ -12,6 +12,9 @@ describe("pedido de un precio menor", () => {
       "tienes algo de 20 mil?",
       "algo por $15.000",
       "no tienen una tarifa más baja?",
+      "No tiene algo de 20?",
+      "En marketplace decía 20",
+      "salía 25 en facebook",
     ])
       expect(asksForLowerPrice(text), text).toBe(true);
   });
@@ -23,6 +26,12 @@ describe("pedido de un precio menor", () => {
       "del 25 al 27 de noviembre, tienes algo más barato?",
       "¿a qué hora es el check-in?",
       "quiero pagar por transferencia",
+      "somos 20 personas",
+      "llego a las 20:00",
+      "para el 20 de noviembre",
+      "por 15 noches",
+      "tengo 25 años",
+      "Muchas gracias de todas formas",
     ])
       expect(asksForLowerPrice(text), text).toBe(false);
   });

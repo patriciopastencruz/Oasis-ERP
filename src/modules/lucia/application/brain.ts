@@ -12,6 +12,7 @@ import { choiceIsAmbiguous } from "@/modules/lucia/domain/option-choice";
 import { LUCIA_BASE_RULES } from "@/modules/lucia/domain/prompt";
 import { mentionsShortStay, nightlyChargeNote } from "@/modules/lucia/domain/stay-hours";
 import { LOWER_PRICE_REPLY, asksForLowerPrice, pricesWereQuoted } from "@/modules/lucia/domain/lower-price";
+import { ALREADY_SENT_REPLY, repeatsSummary, summaryAlreadySent } from "@/modules/lucia/domain/no-repeat";
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
 import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
@@ -246,7 +247,13 @@ export async function generateLuciaReply(input: {
           (output.intent === "availability" ||
             output.intent === "price" ||
             changedAvailabilityPreference));
-      if (availabilityWasChecked && availabilitySummary && shouldUseExactAvailabilitySummary) {
+      // Las mismas opciones con los mismos precios no se envían dos veces: si ya están en la conversación, no se rearma el mensaje
+      // ni se deja pasar una copia de Claude (por ejemplo, cuando el cliente agradece o se despide).
+      const optionsAlreadySent = summaryAlreadySent(input.turns.slice(0, -1), availabilitySummary);
+      if (optionsAlreadySent && repeatsSummary(output.reply, availabilitySummary)) {
+        output = { ...output, reply: ALREADY_SENT_REPLY };
+      }
+      if (availabilityWasChecked && availabilitySummary && shouldUseExactAvailabilitySummary && !optionsAlreadySent) {
         output = {
           ...output,
           reply: availabilityHasOptions
