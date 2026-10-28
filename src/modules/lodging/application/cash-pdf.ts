@@ -17,7 +17,7 @@ const dayTitle = (iso: string) => {
 const originLabel: Record<string, string> = { airbnb: "Airbnb", booking: "Booking", direct: "Directa", whatsapp: "WhatsApp", company: "Empresa", public_web: "Sitio web", other: "Otro" };
 
 // Columnas de la tabla de detalle (x de inicio, salvo el monto que se alinea a la derecha).
-const COL = { time: M + 8, room: M + 46, guest: M + 80, origin: M + 218, type: M + 272, by: M + 352, amount: W - M - 8 };
+const COL = { time: M + 8, room: M + 42, guest: M + 130, origin: M + 244, type: M + 298, by: M + 372, amount: W - M - 8 };
 
 /** Detalle del efectivo cobrado en el mes, una sección por hostal. */
 export async function buildCashPdf(sections: CashPdfSection[]) {
@@ -93,11 +93,11 @@ export async function buildCashPdf(sections: CashPdfSection[]) {
       for (const e of day.entries) {
         ensure(ROW);
         p.text(e.time, COL.time, top, 7.5, R, C.ink2);
-        p.text(p.fit(e.room ?? "-", 40, 7.5), COL.room, top, 7.5);
-        p.text(p.fit(e.guest ?? "Sin nombre", 132, 7.5), COL.guest, top, 7.5);
+        p.text(p.fit(e.room ?? "-", 84, 7.5), COL.room, top, 7.5);
+        p.text(p.fit(e.guest ?? "Sin nombre", 110, 7.5), COL.guest, top, 7.5);
         p.text(p.fit(e.origin ? (originLabel[e.origin] ?? e.origin) : "-", 50, 7.5), COL.origin, top, 7.5, R, C.ink2);
-        p.text(p.fit(CASH_TYPE_LABELS[e.type] ?? e.type, 76, 7.5), COL.type, top, 7.5);
-        p.text(p.fit(e.registeredBy ?? "-", 100, 7.5), COL.by, top, 7.5, R, C.ink2);
+        p.text(p.fit(CASH_TYPE_LABELS[e.type] ?? e.type, 70, 7.5), COL.type, top, 7.5);
+        p.text(p.fit(e.registeredBy ?? "-", 90, 7.5), COL.by, top, 7.5, R, C.ink2);
         p.textR(clp(e.amount), COL.amount, top, 7.5, e.amount < 0 ? B : R, e.amount < 0 ? C.critical : C.ink);
         p.page.drawLine({ start: { x: M + 8, y: p.Y(top + 11) }, end: { x: W - M - 8, y: p.Y(top + 11) }, thickness: 0.4, color: C.line });
         top += ROW;
