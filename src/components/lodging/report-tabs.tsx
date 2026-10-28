@@ -5,7 +5,7 @@ export function LodgingReportTabs({
   active,
   permissions,
 }: {
-  active: "reservations" | "balances" | "history" | "closings";
+  active: "reservations" | "balances" | "history" | "cash" | "closings";
   permissions: Set<string>;
 }) {
   const tabs = [
@@ -17,6 +17,9 @@ export function LodgingReportTabs({
       : []),
     ...(permissions.has("lodging.reservations.view")
       ? [["history", "/lodging/reports/history", "Historial de reservas"] as const]
+      : []),
+    ...(permissions.has("lodging.closings.reports")
+      ? [["cash", "/lodging/reports/cash", "Efectivo"] as const]
       : []),
     ...(permissions.has("lodging.closings.reports")
       ? [["closings", "/lodging/closing/reports", "Cierres diarios"] as const]
