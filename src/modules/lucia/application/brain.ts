@@ -11,6 +11,7 @@ import {
 import { choiceIsAmbiguous } from "@/modules/lucia/domain/option-choice";
 import { LUCIA_BASE_RULES } from "@/modules/lucia/domain/prompt";
 import { mentionsShortStay, nightlyChargeNote } from "@/modules/lucia/domain/stay-hours";
+import { LOWER_PRICE_REPLY, asksForLowerPrice, pricesWereQuoted } from "@/modules/lucia/domain/lower-price";
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
 import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
@@ -262,6 +263,10 @@ export async function generateLuciaReply(input: {
                 .join("\n\n")
             : `${availabilitySummary}\n\nSi quieres, puedo revisar otras fechas.`,
         };
+      }
+      // Si ya recibió precios y pide algo más barato, los enviados son los únicos vigentes: no hay una tarifa menor.
+      if (asksForLowerPrice(latestCustomerMessage) && pricesWereQuoted(input.turns.slice(0, -1))) {
+        output = { ...output, reply: LOWER_PRICE_REPLY, booking_request: false };
       }
       const detectedWalkIn = detectWalkInStatus(latestCustomerMessage);
       // Una alerta operacional nunca se basa solo en la interpretación del
