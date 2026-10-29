@@ -10,12 +10,16 @@ export type ManualBlock =
   | { kind: "bullets"; items: string[] }
   | { kind: "table"; head: string[]; rows: string[][] }
   | { kind: "tip"; text: string }
-  | { kind: "warning"; text: string };
+  | { kind: "warning"; text: string }
+  /** Pantalla de referencia (datos ficticios) en /public/manual, con sus números explicados. */
+  | { kind: "image"; src: string; alt: string; notes?: string[] };
 
 export type ManualSection = { id: string; title: string; emoji: string; blocks: ManualBlock[] };
 
 export const MANUAL_TITLE = "Manual de Lucía para recepción";
 export const MANUAL_UPDATED = "29 de octubre de 2026";
+/** Las pantallas del manual usan datos ficticios (María Pérez, Juan Rojas). */
+export const MANUAL_IMAGES_NOTE = "Las imágenes son de referencia, con clientes ficticios.";
 
 export const MANUAL_SECTIONS: ManualSection[] = [
   {
@@ -88,6 +92,16 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     blocks: [
       { kind: "p", text: "Se ve como WhatsApp: nombre del cliente, último mensaje, hora y hostal. Un punto verde marca los chats que esperan a alguien del equipo." },
       {
+        kind: "image",
+        src: "/manual/lista.png",
+        alt: "Lista de chats de Oasis Chats",
+        notes: [
+          "**Pestañas:** «Por atender» (con la cantidad pendiente) y «Todos».",
+          "**?** abre este manual; el otro botón cierra la sesión.",
+          "**Punto verde:** el chat espera a alguien del equipo. Debajo del nombre se ve la hostal y el motivo.",
+        ],
+      },
+      {
         kind: "table",
         head: ["Pestaña", "Qué muestra"],
         rows: [
@@ -112,6 +126,16 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     blocks: [
       { kind: "p", text: "Burbujas blancas: el cliente. Burbujas verdes: Lucía o el equipo (con el nombre de quien escribió). **✓✓** = entregado." },
       { kind: "p", text: "**Para responder:** escriban abajo en «Escribe un mensaje» y toquen enviar. Sale por el WhatsApp de Lucía en segundos." },
+      {
+        kind: "image",
+        src: "/manual/chat-ayuda.png",
+        alt: "Chat con un aviso de Lucía pidiendo ayuda",
+        notes: [
+          "**Aviso amarillo 🔔:** Lucía pidió ayuda y dice por qué. Cuando terminen, toquen **Resuelto**.",
+          "**Estado de Lucía:** indica si Lucía atiende el chat o si está en pausa.",
+          "**Escribir y enviar:** el mensaje le llega al cliente por el WhatsApp de Lucía.",
+        ],
+      },
       { kind: "p", text: "**Avisos arriba del chat:**" },
       {
         kind: "table",
@@ -140,6 +164,33 @@ export const MANUAL_SECTIONS: ManualSection[] = [
           "**Llega el comprobante:** ustedes reciben un WhatsApp «💸 El cliente envió el comprobante» **con la foto o PDF del comprobante adjunto**.",
           "**Revisen en el banco** que el dinero llegó.",
           "Toquen **Verificar el pago en el ERP** → escriban el monto recibido → **Pago verificado: confirmar reserva**. Lucía le confirma la reserva al cliente.",
+        ],
+      },
+      {
+        kind: "image",
+        src: "/manual/chat-reserva.png",
+        alt: "Chat con una solicitud de reserva por confirmar",
+        notes: ["Paso 3: con el calendario revisado, toquen **Sí hay disponibilidad** o **No hay disponibilidad**."],
+      },
+      {
+        kind: "image",
+        src: "/manual/aviso-solicitud.png",
+        alt: "Aviso de nueva solicitud de reserva por WhatsApp",
+        notes: ["También pueden responder el WhatsApp del aviso con **OK** y el código (o **NO** y el código). Vale la primera respuesta."],
+      },
+      {
+        kind: "image",
+        src: "/manual/aviso-comprobante.png",
+        alt: "Aviso de comprobante recibido con la imagen adjunta",
+        notes: ["Paso 6: el aviso trae **la imagen del comprobante**. Con ella revisen en el banco que llegó el monto."],
+      },
+      {
+        kind: "image",
+        src: "/manual/pago-verificado.png",
+        alt: "Formulario Pago verificado en el ERP",
+        notes: [
+          "Paso 8: escriban el **monto recibido** (y si quieren el N° de operación).",
+          "Toquen **Pago verificado: confirmar reserva**. Lucía le confirma la reserva al cliente.",
         ],
       },
       {
@@ -172,6 +223,12 @@ export const MANUAL_SECTIONS: ManualSection[] = [
       {
         kind: "p",
         text: "Cuando una de ustedes responde un chat (desde la app o desde el teléfono de Lucía), **Lucía deja de contestar en ese chat hasta el cierre de recepción** y después retoma sola. En los demás chats sigue atendiendo.",
+      },
+      {
+        kind: "image",
+        src: "/manual/chat-pausa.png",
+        alt: "Chat con Lucía en pausa y el botón Devolver a Lucía",
+        notes: ["Cuando el equipo respondió, abajo aparece la pausa y la hora en que Lucía vuelve. **Devolver a Lucía** la reactiva de inmediato."],
       },
       {
         kind: "table",

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { MANUAL_SECTIONS, MANUAL_TITLE, MANUAL_UPDATED, type ManualBlock } from "@/modules/lucia/manual";
+import { MANUAL_IMAGES_NOTE, MANUAL_SECTIONS, MANUAL_TITLE, MANUAL_UPDATED, type ManualBlock } from "@/modules/lucia/manual";
 
 export const metadata = { title: "Manual de Lucía" };
 
@@ -54,6 +54,23 @@ function Block({ block }: { block: ManualBlock }) {
       return <p className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-900">💡 <Rich text={block.text} /></p>;
     case "warning":
       return <p className="rounded-xl bg-amber-50 px-3 py-2 text-amber-900">⚠️ <Rich text={block.text} /></p>;
+    case "image":
+      return (
+        <figure className="space-y-2">
+          {/* eslint-disable-next-line @next/next/no-img-element -- imagen estática del manual, también para el PDF */}
+          <img src={block.src} alt={block.alt} loading="lazy" className="mx-auto w-full max-w-[340px] rounded-xl" />
+          {block.notes && (
+            <ol className="space-y-1.5">
+              {block.notes.map((note, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="grid size-5 shrink-0 place-items-center rounded-full bg-red-600 text-[11px] font-bold text-white">{i + 1}</span>
+                  <span><Rich text={note} /></span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </figure>
+      );
   }
 }
 
@@ -73,7 +90,8 @@ export default function ChatsManualPage() {
 
       <main className="flex-1 space-y-3 px-3 py-3">
         <nav className="rounded-2xl bg-white p-3 text-sm shadow-sm" aria-label="Contenido">
-          <p className="mb-2 font-semibold">Contenido</p>
+          <p className="mb-1 font-semibold">Contenido</p>
+          <p className="mb-2 text-xs text-slate-500">{MANUAL_IMAGES_NOTE}</p>
           <ol className="grid gap-1">
             {MANUAL_SECTIONS.map((s) => (
               <li key={s.id}>
