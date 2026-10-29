@@ -53,6 +53,31 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
     revpar: roomNights ? sum((m) => m.revenue) / roomNights : 0,
     revenue: sum((m) => m.revenue),
   };
+  // Hoy: noches ocupadas, venta de la noche, lo cobrado hoy y el saldo de quienes alojan hoy.
+  const daily = report.hostels.map((h) => {
+    const d = h.month.days.at(-1);
+    const day = d?.date === today ? d : null;
+    const pending = h.balances.rows
+      .filter((r) => r.check_in <= today && r.check_out > today)
+      .reduce((s, r) => s + r.balance, 0);
+    return {
+      unit: h.unit,
+      goals: h.goals,
+      occupied: day?.occupied ?? 0,
+      capacity: day?.capacity ?? 0,
+      revenue: day?.revenue ?? 0,
+      received: day?.received ?? 0,
+      pending,
+    };
+  });
+  const dayTotal = {
+    occupied: daily.reduce((s, d) => s + d.occupied, 0),
+    capacity: daily.reduce((s, d) => s + d.capacity, 0),
+    revenue: daily.reduce((s, d) => s + d.revenue, 0),
+    received: daily.reduce((s, d) => s + d.received, 0),
+    pending: daily.reduce((s, d) => s + d.pending, 0),
+  };
+  const dayLabel = new Intl.DateTimeFormat("es-CL", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Santiago" }).format(new Date(`${today}T12:00:00Z`));
   const monthLabel = new Intl.DateTimeFormat("es-CL", { month: "long", timeZone: "America/Santiago" }).format(new Date(`${today}T12:00:00Z`));
 
   return (
@@ -60,10 +85,63 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
       <header>
         <p className="text-xs font-semibold uppercase tracking-wider text-[var(--oasis-primary)]">Hostales Oasis</p>
         <h1 className="text-2xl font-bold">Ocupación y calendario</h1>
-        <p className="text-sm text-slate-500">
-          Acumulado de {monthLabel}, del 1 al {Number(today.slice(8))}. Para actualizar, vuelve a abrir la página.
-        </p>
+        <p className="text-sm text-slate-500">Para actualizar, vuelve a abrir la página.</p>
       </header>
+
+      <section className="overflow-x-auto rounded-2xl border bg-white">
+        <h2 className="px-3 pt-3 text-sm font-bold">Hoy, {dayLabel}</h2>
+        <table className="mt-2 w-full text-[13px] tabular-nums">
+          <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-2 py-2">Hostal</th>
+              <th className="px-2 py-2 text-right">Ocupación</th>
+              <th className="px-2 py-2 text-right">RevPAR</th>
+              <th className="px-2 py-2 text-right">Ingresado</th>
+              <th className="px-2 py-2 text-right">Pendiente</th>
+            </tr>
+          </thead>
+          <tbody>
+            {daily.map((d) => {
+              const occupancy = d.capacity ? d.occupied / d.capacity : 0;
+              const revpar = d.capacity ? d.revenue / d.capacity : 0;
+              const goal = revparGoal(d.goals);
+              return (
+                <tr key={d.unit.id} className="border-t">
+                  <td className="px-2 py-2 font-semibold">{d.unit.name.replace(/^Hostal\s+/i, "")}</td>
+                  <td className="px-2 py-2 text-right">
+                    <span className={d.goals.occupancyPct === null || occupancy * 100 >= d.goals.occupancyPct ? "" : "text-red-700"}>{pct(occupancy)}</span>
+                    <span className="block text-[11px] font-normal text-slate-400">{d.occupied} de {d.capacity}</span>
+                  </td>
+                  <td className="px-2 py-2 text-right">
+                    <span className={goal === null || revpar >= goal ? "" : "text-red-700"}>{clp.format(revpar)}</span>
+                    {goal !== null && <span className="block text-[11px] font-normal text-slate-400">meta {clp.format(goal)}</span>}
+                  </td>
+                  <td className="px-2 py-2 text-right">{clp.format(d.received)}</td>
+                  <td className={`px-2 py-2 text-right ${d.pending > 0 ? "text-amber-700" : ""}`}>{clp.format(d.pending)}</td>
+                </tr>
+              );
+            })}
+            <tr className="border-t bg-slate-50 font-bold">
+              <td className="px-2 py-2">Total</td>
+              <td className="px-2 py-2 text-right">
+                {pct(dayTotal.capacity ? dayTotal.occupied / dayTotal.capacity : 0)}
+                <span className="block text-[11px] font-normal text-slate-500">{dayTotal.occupied} de {dayTotal.capacity}</span>
+              </td>
+              <td className="px-2 py-2 text-right">{clp.format(dayTotal.capacity ? dayTotal.revenue / dayTotal.capacity : 0)}</td>
+              <td className="px-2 py-2 text-right">{clp.format(dayTotal.received)}</td>
+              <td className="px-2 py-2 text-right">{clp.format(dayTotal.pending)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="border-t px-3 py-2 text-xs text-slate-500">
+          Venta de la noche: <b className="text-slate-700">{clp.format(dayTotal.revenue)}</b>. Ingresado = pagos registrados hoy (cualquier reserva).
+          Pendiente = saldo por cobrar de quienes alojan esta noche. Ocupación = habitaciones ocupadas sobre disponibles.
+        </p>
+      </section>
+
+      <h2 className="-mb-3 text-sm font-bold">
+        Acumulado de {monthLabel}, del 1 al {Number(today.slice(8))}
+      </h2>
 
       <section className="overflow-x-auto rounded-2xl border bg-white">
         <table className="w-full text-[13px] tabular-nums">
