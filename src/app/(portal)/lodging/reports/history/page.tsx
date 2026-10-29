@@ -32,7 +32,7 @@ import {
   receiptReviewLabels,
   shiftMonth,
 } from "@/modules/lodging/domain/history-report";
-import { reviewPendingPaymentReceipts } from "@/modules/lodging/application/receipt-ai-review";
+import { backfillReceiptTimes, reviewPendingPaymentReceipts } from "@/modules/lodging/application/receipt-ai-review";
 import {
   type ReceiptPaymentRow,
   type ReservationReceiptStatus,
@@ -178,6 +178,8 @@ export default async function ReservationHistoryPage({
         concurrency: 5,
       }),
     );
+  // Completa en segundo plano la hora de los comprobantes leídos antes de guardar ese dato (se detiene sola al terminar).
+  if (canSeeAi) after(() => backfillReceiptTimes({ businessUnitId: unit.id, limit: 30, concurrency: 5 }));
   const hasPendingReview =
     canSeeAi &&
     reservations.some(

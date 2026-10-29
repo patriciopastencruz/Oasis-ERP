@@ -12,11 +12,13 @@ export type DuplicateMatch = {
 };
 
 export type DuplicateHit = {
-  kind: "op" | "file";
+  kind: "receipt" | "file";
   /** Lo que suman los pagos que citan el mismo comprobante. */
   groupTotal: number;
   /** Monto que leyó la IA en el comprobante; null si no se pudo leer. */
   receiptAmount: number | null;
+  /** Los pagos que comparten el comprobante son de reservas con fechas de llegada distintas. */
+  datesDiffer: boolean;
   matches: DuplicateMatch[];
 };
 
@@ -26,11 +28,12 @@ export type DuplicateRow = {
   kind: string;
   group_total: number | string | null;
   receipt_amount: number | string | null;
+  dates_differ?: boolean | null;
   matches: unknown;
 };
 
 export const DUPLICATE_KIND_LABELS = {
-  op: "Mismo número de operación",
+  receipt: "Mismo comprobante (monto, fecha y hora)",
   file: "Mismo archivo",
 } as const;
 
@@ -38,13 +41,14 @@ export const DUPLICATE_KIND_LABELS = {
 export function groupDuplicatesByReservation(rows: DuplicateRow[] | null | undefined) {
   const byReservation = new Map<string, DuplicateHit[]>();
   for (const row of rows ?? []) {
-    if (row.kind !== "op" && row.kind !== "file") continue;
+    if (row.kind !== "receipt" && row.kind !== "file") continue;
     const matches = ((row.matches ?? []) as DuplicateMatch[]).map((m) => ({ ...m, amount: Number(m.amount) }));
     if (!matches.length) continue;
     const hit: DuplicateHit = {
       kind: row.kind,
       groupTotal: Number(row.group_total ?? 0),
       receiptAmount: row.receipt_amount === null || row.receipt_amount === undefined ? null : Number(row.receipt_amount),
+      datesDiffer: Boolean(row.dates_differ),
       matches,
     };
     byReservation.set(row.reservation_id, [...(byReservation.get(row.reservation_id) ?? []), hit]);
@@ -61,5 +65,5 @@ export function describeDuplicate(hit: DuplicateHit) {
   });
   const unique = [...new Set(others)];
   const shown = unique.slice(0, 3).join("; ") + (unique.length > 3 ? ` y ${unique.length - 3} más` : "");
-  return `${DUPLICATE_KIND_LABELS[hit.kind]} que ${shown}`;
+  return `${DUPLICATE_KIND_LABELS[hit.kind]} que ${shown}${hit.datesDiffer ? ", pero de una reserva con otras fechas" : ""}`;
 }

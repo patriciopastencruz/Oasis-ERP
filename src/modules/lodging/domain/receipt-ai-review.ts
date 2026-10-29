@@ -8,6 +8,8 @@ export type ReceiptAiReview = {
   status: ReceiptAiStatus;
   detectedAmount: number | null;
   detectedDate: string | null;
+  /** HH:MM que muestra el comprobante; "" si no muestra hora; null si no se pudo leer. */
+  detectedTime: string | null;
   operationNumber: string | null;
   confidence: number | null;
   notes: string;

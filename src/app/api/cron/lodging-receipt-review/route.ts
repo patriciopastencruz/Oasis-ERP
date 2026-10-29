@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { reviewPendingPaymentReceipts } from "@/modules/lodging/application/receipt-ai-review";
+import { backfillReceiptTimes, reviewPendingPaymentReceipts } from "@/modules/lodging/application/receipt-ai-review";
 
 export const maxDuration = 60;
 
@@ -23,5 +23,7 @@ export async function GET(request: Request) {
     limit: 40,
     concurrency: 5,
   });
-  return Response.json({ ok: true, ...result });
+  // Además, completa la hora de los comprobantes leídos antes de guardar ese dato (para comparar comprobantes repetidos).
+  const times = await backfillReceiptTimes({ limit: 40, concurrency: 5 });
+  return Response.json({ ok: true, ...result, timesFilled: times.filled });
 }

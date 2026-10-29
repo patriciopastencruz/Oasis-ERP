@@ -18,6 +18,7 @@ export async function analyzePaymentReceipt(input: {
       status: "error",
       detectedAmount: null,
       detectedDate: null,
+      detectedTime: null,
       operationNumber: null,
       confidence: null,
       notes: "El servicio de revisión automática no está configurado.",
@@ -39,6 +40,7 @@ export async function analyzePaymentReceipt(input: {
       }),
       detectedAmount: parsed.amount,
       detectedDate: parsed.date,
+      detectedTime: parsed.time ?? "",
       operationNumber: parsed.operationNumber,
       confidence: parsed.confidence,
       notes: parsed.notes,
@@ -56,6 +58,7 @@ export async function analyzePaymentReceipt(input: {
       status: "error",
       detectedAmount: null,
       detectedDate: null,
+      detectedTime: null,
       operationNumber: null,
       confidence: null,
       notes: "No fue posible completar la revisión automática.",
@@ -184,6 +187,7 @@ export async function reviewAndSavePaymentReceipt(input: {
       ai_review_status: review.status,
       ai_detected_amount: review.detectedAmount,
       ai_detected_date: review.detectedDate,
+      ai_detected_time: review.detectedTime,
       ai_operation_number: review.operationNumber,
       ai_confidence: review.confidence,
       ai_notes: review.notes,
@@ -206,4 +210,56 @@ export async function reviewAndSavePaymentReceipt(input: {
       receiptId: input.receiptId,
       code: duplicateError.code,
     });
+}
+
+/**
+ * Completa la hora de los comprobantes que ya se habían leído antes de guardar ese dato: sin tocar su estado ni su monto.
+ * Es lo que permite comparar «mismo monto, fecha y hora» entre comprobantes de pagos distintos.
+ */
+export async function backfillReceiptTimes(input: { receiptIds?: string[]; businessUnitId?: string; limit?: number; concurrency?: number }) {
+  const db = createSupabaseAdminClient();
+  let query = db
+    .from("lodging_payment_receipts")
+    .select("id,private_path,mime_type")
+    .is("deleted_at", null)
+    .is("ai_detected_time", null)
+    .not("ai_detected_date", "is", null)
+    .not("ai_detected_amount", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(Math.min(Math.max(input.limit ?? 30, 1), 100));
+  if (input.receiptIds) {
+    if (!input.receiptIds.length) return { filled: 0 };
+    query = query.in("id", input.receiptIds);
+  }
+  if (input.businessUnitId) query = query.eq("business_unit_id", input.businessUnitId);
+  const { data, error } = await query;
+  if (error) {
+    console.error("[lodging-receipt-ai] No fue posible listar comprobantes sin hora", { code: error.code });
+    return { filled: 0 };
+  }
+  const queue = [...(data ?? [])];
+  let filled = 0;
+  async function worker() {
+    for (let row = queue.shift(); row; row = queue.shift()) {
+      if (!ALLOWED_MIMES.has(row.mime_type)) continue;
+      const { data: file, error: downloadError } = await db.storage.from("lodging-payment-receipts").download(row.private_path);
+      if (downloadError || !file) continue;
+      try {
+        const reading = await readPaymentReceipt({
+          bytes: new Uint8Array(await file.arrayBuffer()),
+          mimeType: row.mime_type as "application/pdf" | "image/jpeg" | "image/png" | "image/webp",
+        });
+        const { error: updateError } = await db
+          .from("lodging_payment_receipts")
+          .update({ ai_detected_time: reading.time ?? "" })
+          .eq("id", row.id)
+          .is("ai_detected_time", null);
+        if (!updateError) filled++;
+      } catch (e) {
+        console.error("[lodging-receipt-ai] No fue posible leer la hora del comprobante", { receiptId: row.id, message: e instanceof Error ? e.message : "desconocido" });
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(input.concurrency ?? 4, queue.length) }, worker));
+  return { filled };
 }
