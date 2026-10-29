@@ -12,6 +12,7 @@ import {
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
 import { ReceiptReviewRefresh } from "@/components/lodging/receipt-review-refresh";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { ScrollX } from "@/components/ui/scroll-x";
 import { ReceiptReviewForm } from "@/components/lodging/receipt-review-form";
 import { REVIEW_OUTCOME_LABELS, type ManualReviewState } from "@/modules/lodging/domain/receipt-manual-review";
 import { uiLabel } from "@/lib/ui-labels";
@@ -330,7 +331,7 @@ export default async function ReservationHistoryPage({
         </div>
 
         {visible.length ? (
-          <div className="mt-4 overflow-x-auto">
+          <ScrollX className="mt-4">
             <table className="w-full min-w-[1850px] text-left text-sm">
               <thead className="border-y bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
@@ -507,7 +508,7 @@ export default async function ReservationHistoryPage({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollX>
         ) : (
           <div className="mt-4 rounded-xl bg-slate-50 p-5 text-sm text-slate-600">
             No hay reservas para este mes y filtro.

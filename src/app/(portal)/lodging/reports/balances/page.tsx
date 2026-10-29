@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, BedDouble, CalendarClock, Wallet } from "lucide-react";
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { ScrollX } from "@/components/ui/scroll-x";
 import {
   clp,
   formatDate,
@@ -162,7 +163,7 @@ export default async function OutstandingBalancesPage({
         </div>
 
         {visible.length ? (
-          <div className="mt-4 overflow-x-auto">
+          <ScrollX className="mt-4">
             <table className="w-full min-w-[1050px] text-left text-sm">
               <thead className="border-y bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
@@ -239,7 +240,7 @@ export default async function OutstandingBalancesPage({
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollX>
         ) : (
           <div className="mt-4 rounded-xl bg-emerald-50 p-5 text-sm text-emerald-800">
             No hay saldos pendientes en esta categoría.
