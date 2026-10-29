@@ -16,7 +16,7 @@ import {
 
 /** Consulta compartida por el informe en pantalla y su descarga en Excel. */
 export const HISTORY_RESERVATION_SELECT =
-  "id,status,origin,created_at,check_in,check_out,nights,guest_count,nightly_rate,discount,surcharge,total_value,commission,company_name,information_complete,lodging_rooms(name),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status,updated_at,lodging_payment_receipts(id,created_at,deleted_at,ai_review_status,ai_detected_amount,ai_confidence,ai_notes,ai_reviewed_at)),lodging_receipt_reviews(id,outcome,comment,reviewed_at,reviewer:profiles!lodging_receipt_reviews_reviewed_by_fkey(first_name,last_name))";
+  "id,status,origin,created_at,check_in,check_out,nights,guest_count,nightly_rate,discount,surcharge,total_value,commission,company_name,information_complete,lodging_rooms(name),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status,updated_at,lodging_payment_receipts(id,created_at,deleted_at,ai_review_status,ai_detected_amount,ai_confidence,ai_notes)),lodging_receipt_reviews(id,outcome,comment,reviewed_at,reviewer:profiles!lodging_receipt_reviews_reviewed_by_fkey(first_name,last_name))";
 
 export const auditLabels: Record<PriceAuditStatus, string> = {
   ok: "Precio correcto",

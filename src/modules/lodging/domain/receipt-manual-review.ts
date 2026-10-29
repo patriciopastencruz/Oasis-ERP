@@ -59,11 +59,12 @@ export function mapManualReviews(raw: unknown): ManualReview[] {
 }
 
 type ChangeRow = { updated_at?: string | null; lodging_payment_receipts?: Relation<ReceiptChange> | ReceiptChange[] };
-type ReceiptChange = { created_at?: string | null; ai_reviewed_at?: string | null; deleted_at?: string | null };
+type ReceiptChange = { created_at?: string | null; deleted_at?: string | null };
 
 /**
- * Último momento en que cambió algo que se revisa: un pago, un comprobante subido o eliminado, o su lectura automática.
- * Una revisión hecha antes de ese momento ya no cubre lo que se ve hoy.
+ * Último momento en que cambió algo que se revisa: un pago o un comprobante subido o eliminado.
+ * Una revisión hecha antes de ese momento ya no cubre lo que se ve hoy. No cuenta la lectura automática: la IA reintenta
+ * los errores cada 30 minutos y eso anulaba revisiones ya hechas aunque el archivo y el pago siguieran igual.
  */
 export function latestReceiptChange(payments: ChangeRow[]): string | null {
   let latest: string | null = null;
@@ -79,7 +80,6 @@ export function latestReceiptChange(payments: ChangeRow[]): string | null {
         : [];
     for (const receipt of receipts as ReceiptChange[]) {
       consider(receipt.created_at);
-      consider(receipt.ai_reviewed_at);
       consider(receipt.deleted_at);
     }
   }

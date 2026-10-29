@@ -17,10 +17,10 @@ describe("revisión manual de comprobantes", () => {
     expect(list[0].reviewer).toBe("Ana Rojas");
   });
 
-  it("toma como último cambio el pago, el comprobante o su lectura automática", () => {
+  it("toma como último cambio el pago o el comprobante subido o eliminado, no la lectura automática", () => {
     expect(
       latestReceiptChange([
-        { updated_at: "2026-10-01T10:00:00Z", lodging_payment_receipts: [{ created_at: "2026-10-01T10:05:00Z", ai_reviewed_at: "2026-10-01T10:06:00Z" }] },
+        { updated_at: "2026-10-01T10:00:00Z", lodging_payment_receipts: [{ created_at: "2026-10-01T10:05:00Z", ai_reviewed_at: "2026-10-09T10:06:00Z" } as never] },
         { updated_at: "2026-10-03T08:00:00Z", lodging_payment_receipts: { created_at: "2026-10-02T00:00:00Z", deleted_at: null } },
       ]),
     ).toBe("2026-10-03T08:00:00Z");
