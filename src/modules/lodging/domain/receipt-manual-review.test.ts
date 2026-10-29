@@ -52,6 +52,8 @@ describe("revisión manual de comprobantes", () => {
     expect(needsManualReview("mismatch", done)).toBe(false);
     expect(needsManualReview("matched", none)).toBe(false);
     expect(needsManualReview("missing", none)).toBe(false);
+    expect(needsManualReview("matched", none, true)).toBe(true);
+    expect(needsManualReview("matched", done, true)).toBe(false);
   });
 
   it("exige un comentario y un resultado válido", () => {

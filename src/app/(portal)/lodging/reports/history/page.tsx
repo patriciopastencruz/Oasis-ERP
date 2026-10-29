@@ -14,7 +14,8 @@ import { ReceiptReviewRefresh } from "@/components/lodging/receipt-review-refres
 import { PageHeader, Panel } from "@/components/ui/page";
 import { ScrollX } from "@/components/ui/scroll-x";
 import { ReceiptReviewForm } from "@/components/lodging/receipt-review-form";
-import { REVIEW_OUTCOME_LABELS, type ManualReviewState } from "@/modules/lodging/domain/receipt-manual-review";
+import { REVIEW_OUTCOME_LABELS, needsManualReview, type ManualReviewState } from "@/modules/lodging/domain/receipt-manual-review";
+import { describeDuplicate, groupDuplicatesByReservation } from "@/modules/lodging/domain/receipt-duplicates";
 import { uiLabel } from "@/lib/ui-labels";
 import {
   clp,
@@ -79,7 +80,7 @@ export default async function ReservationHistoryPage({
   // acceden a los reportes de cierre, no la recepción.
   const canReview = ctx.permissions.has("lodging.receipts.review");
   const canSeeAi = ctx.permissions.has("lodging.closings.reports") || canReview;
-  const receiptsFilter = canSeeAi && (q.receipts === "review" || q.receipts === "open") ? q.receipts : null;
+  const receiptsFilter = canSeeAi && (q.receipts === "review" || q.receipts === "open" || q.receipts === "duplicates") ? q.receipts : null;
   const monthStart = `${month}-01`;
   const nextMonth = shiftMonth(month, 1);
 
@@ -130,7 +131,21 @@ export default async function ReservationHistoryPage({
     );
   }
 
-  const reservations = mapHistoryReservations(data ?? []);
+  // Comprobantes que repiten número de operación o archivo con otro pago (solo para quien revisa comprobantes).
+  const duplicateRows = canSeeAi
+    ? await supabase.rpc("lodging_receipt_duplicates", { target_unit: unit.id, from_date: monthStart, to_date: `${nextMonth}-01` })
+    : null;
+  if (duplicateRows?.error)
+    console.error("No fue posible buscar comprobantes repetidos", { code: duplicateRows.error.code, unit: unit.code, month });
+  const duplicatesByReservation = groupDuplicatesByReservation(duplicateRows?.data);
+  const reservations = mapHistoryReservations(data ?? []).map((reservation) => {
+    const duplicates = duplicatesByReservation.get(reservation.id) ?? [];
+    return {
+      ...reservation,
+      duplicates,
+      needsManualReview: needsManualReview(reservation.receiptReview.status, reservation.manualReview, duplicates.length > 0),
+    };
+  });
 
   // La revisión con IA corre sola: los comprobantes del mes que aún no
   // tienen resultado se leen en segundo plano al abrir el informe y la
@@ -175,7 +190,10 @@ export default async function ReservationHistoryPage({
       ? reservations.filter((reservation) => reservation.needsManualReview)
       : receiptsFilter === "open"
         ? reservations.filter((reservation) => reservation.manualReview.open)
-        : reservations;
+        : receiptsFilter === "duplicates"
+          ? reservations.filter((reservation) => reservation.duplicates.length > 0)
+          : reservations;
+  const duplicateCount = reservations.filter((reservation) => reservation.duplicates.length > 0).length;
   const toReview = reservations.filter((reservation) => reservation.needsManualReview).length;
   const reviewedByHand = reservations.filter((reservation) => reservation.manualReview.state === "reviewed").length;
   const openReviews = reservations.filter((reservation) => reservation.manualReview.open).length;
@@ -311,6 +329,16 @@ export default async function ReservationHistoryPage({
               }`}
             >
               Revisadas con pendiente · {openReviews}
+            </Link>
+            <Link
+              href={makeHref(month, false, "duplicates")}
+              className={`rounded-full border px-3 py-1.5 font-medium ${
+                receiptsFilter === "duplicates"
+                  ? "border-red-700 bg-red-700 text-white"
+                  : "bg-white hover:border-red-400"
+              }`}
+            >
+              Posibles duplicados · {duplicateCount}
             </Link>
           </>
         )}
@@ -483,6 +511,22 @@ export default async function ReservationHistoryPage({
                                   )}
                             </span>
                           )}
+                        {reservation.duplicates.map((duplicate) => (
+                          <div key={duplicate.kind} className="mt-2 max-w-[260px] rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+                            <b className="block">Posible comprobante repetido</b>
+                            <span className="block">{describeDuplicate(duplicate)}.</span>
+                            <span className="block text-red-700/80">
+                              Pagos que lo usan: {clp.format(duplicate.groupTotal)}
+                              {duplicate.receiptAmount !== null ? ` · el comprobante cubre ${clp.format(duplicate.receiptAmount)}` : " · no se leyó el monto del comprobante"}
+                            </span>
+                            {duplicate.matches.slice(0, 3).map((m) => (
+                              <Link key={m.payment_id} href={`/lodging/reservations/${m.reservation_id}`} className="mt-0.5 block font-semibold underline">
+                                Ver {m.guest ?? "reserva"}
+                                {m.unit_code ? ` · ${m.unit_code}` : ""}
+                              </Link>
+                            ))}
+                          </div>
+                        ))}
                       </td>
                     )}
                     {canSeeAi && (

@@ -105,9 +105,9 @@ export function manualReviewState(reviews: ManualReview[], changedAt: string | n
   };
 }
 
-/** Marcada por la revisión automática y sin una revisión manual vigente que la cubra. */
-export function needsManualReview(aiStatus: string, review: ManualReviewState) {
-  return FLAGGED_AI_STATUSES.includes(aiStatus as ReceiptAiStatus) && review.state !== "reviewed";
+/** Marcada por la revisión automática o por un posible comprobante repetido, y sin una revisión manual vigente que la cubra. */
+export function needsManualReview(aiStatus: string, review: ManualReviewState, hasDuplicate = false) {
+  return (FLAGGED_AI_STATUSES.includes(aiStatus as ReceiptAiStatus) || hasDuplicate) && review.state !== "reviewed";
 }
 
 /** Rutas a las que el formulario puede volver después de guardar (nunca una dirección externa). */

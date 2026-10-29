@@ -4,6 +4,7 @@ import { PageHeader, Panel } from "@/components/ui/page";
 import { ReceiptReviewForm } from "@/components/lodging/receipt-review-form";
 import { REVIEW_OUTCOME_LABELS, mapManualReviews } from "@/modules/lodging/domain/receipt-manual-review";
 import { receiptReviewLabels } from "@/modules/lodging/domain/history-report";
+import { describeDuplicate, groupDuplicatesByReservation } from "@/modules/lodging/domain/receipt-duplicates";
 import { summarizeReceiptReviews, type ReceiptPaymentRow } from "@/modules/lodging/domain/receipt-ai-review";
 import { uiLabel } from "@/lib/ui-labels";
 import {
@@ -89,6 +90,15 @@ export default async function Page({
   const canReviewReceipts = ctx.permissions.has("lodging.receipts.review");
   const canSeeReceiptReview = canReviewReceipts || ctx.permissions.has("lodging.closings.reports");
   const reviews = mapManualReviews(manualReviews);
+  const duplicateResult = canSeeReceiptReview
+    ? await supabase.rpc("lodging_receipt_duplicates", {
+        target_unit: r.business_unit_id,
+        from_date: r.check_in,
+        to_date: r.check_out,
+        target_reservation: id,
+      })
+    : null;
+  const duplicates = groupDuplicatesByReservation(duplicateResult?.data).get(id) ?? [];
   const aiReview = summarizeReceiptReviews((payments ?? []) as unknown as ReceiptPaymentRow[]);
   // Sin circuito de aseo e inspección en el hostal, el check-in no espera la inspección.
   const needsInspection = housekeepingEnabled !== false;
@@ -798,6 +808,22 @@ export default async function Page({
               Revisión automática: {receiptReviewLabels[aiReview.status]}
             </span>
           </div>
+          {duplicates.map((duplicate) => (
+            <div key={duplicate.kind} className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              <b>Posible comprobante repetido</b>
+              <span className="block">{describeDuplicate(duplicate)}.</span>
+              <span className="block text-xs text-red-700/80">
+                Los pagos que lo usan suman {clp.format(duplicate.groupTotal)}
+                {duplicate.receiptAmount !== null ? ` y el comprobante cubre ${clp.format(duplicate.receiptAmount)}.` : "; no se leyó el monto del comprobante."}
+              </span>
+              {duplicate.matches.map((m) => (
+                <Link key={m.payment_id} href={`/lodging/reservations/${m.reservation_id}`} className="mt-1 block text-xs font-semibold underline">
+                  Ver la reserva de {m.guest ?? "otro huésped"}
+                  {m.unit_code ? ` · ${m.unit_code}` : ""} ({clp.format(m.amount)})
+                </Link>
+              ))}
+            </div>
+          ))}
           {reviews.length ? (
             <ul className="mt-3 space-y-2">
               {reviews.map((review) => (

@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { readPaymentReceipt, receiptReaderModel } from "@/lib/ai/receipt-reader";
 import {
@@ -178,6 +179,8 @@ export async function reviewAndSavePaymentReceipt(input: {
   const { error } = await db
     .from("lodging_payment_receipts")
     .update({
+      // Huella del archivo: sirve para detectar el mismo comprobante usado en dos pagos.
+      file_sha256: createHash("sha256").update(input.bytes).digest("hex"),
       ai_review_status: review.status,
       ai_detected_amount: review.detectedAmount,
       ai_detected_date: review.detectedDate,
@@ -189,9 +192,18 @@ export async function reviewAndSavePaymentReceipt(input: {
     })
     .eq("id", input.receiptId)
     .is("deleted_at", null);
-  if (error)
+  if (error) {
     console.error("[lodging-receipt-ai] No fue posible guardar la revisión", {
       receiptId: input.receiptId,
       code: error.code,
+    });
+    return;
+  }
+  // Si el comprobante repite un número de operación o un archivo ya usado en otro pago, se avisa a quienes lo revisan.
+  const { error: duplicateError } = await db.rpc("lodging_notify_receipt_duplicate", { target_receipt: input.receiptId });
+  if (duplicateError)
+    console.error("[lodging-receipt-ai] No fue posible comprobar si el comprobante está repetido", {
+      receiptId: input.receiptId,
+      code: duplicateError.code,
     });
 }
