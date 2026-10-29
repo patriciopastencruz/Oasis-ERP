@@ -14,7 +14,7 @@ import { mentionsShortStay, nightlyChargeNote } from "@/modules/lucia/domain/sta
 import { LOWER_PRICE_REPLY, asksForLowerPrice, pricesWereQuoted } from "@/modules/lucia/domain/lower-price";
 import { ALREADY_SENT_REPLY, repeatsSummary, summaryAlreadySent } from "@/modules/lucia/domain/no-repeat";
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
-import { focusOnChosenHostel } from "@/modules/lucia/domain/chosen-hostel";
+import { focusOnChosenHostel, wantsApartment } from "@/modules/lucia/domain/chosen-hostel";
 import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
 import type { AvailabilityQuery } from "./availability-tool";
@@ -156,6 +156,14 @@ export async function generateLuciaReply(input: {
   let availabilityHasOptions = false;
   let accessNote: string | null = null;
   let insistedOnRequest = false;
+  // Lo que escribió el cliente en esta consulta (sin los mensajes de Lucía).
+  const customerMessages: string[] = [];
+  for (const turn of [...input.turns].reverse()) {
+    if (turn.role !== "user") continue;
+    customerMessages.unshift(...turn.content.split("\n"));
+    if (turn.content.includes(NEW_INQUIRY_NOTE)) break;
+  }
+  const apartment = wantsApartment(customerMessages);
   const issues: string[] = [];
 
   for (let call = 0; call < MAX_CALLS; call++) {
@@ -288,12 +296,6 @@ export async function generateLuciaReply(input: {
       // ni se deja pasar una copia de Claude (por ejemplo, cuando el cliente agradece o se despide).
       // Si el cliente ya eligió una hostal u opción, se muestran solo las de esa hostal.
       if (availabilitySummary && availabilityHasOptions) {
-        const customerMessages: string[] = [];
-        for (const turn of [...input.turns].reverse()) {
-          if (turn.role !== "user") continue;
-          customerMessages.unshift(...turn.content.split("\n"));
-          if (turn.content.includes(NEW_INQUIRY_NOTE)) break;
-        }
         availabilitySummary = focusOnChosenHostel(availabilitySummary, customerMessages) ?? availabilitySummary;
       }
       const optionsAlreadySent = summaryAlreadySent(input.turns.slice(0, -1), availabilitySummary);
@@ -389,7 +391,8 @@ export async function generateLuciaReply(input: {
             };
           }
           try {
-            const query = block.input as AvailabilityQuery;
+            // Pidió departamento: se ofrecen solo opciones con todo privado (lo fija el sistema).
+            const query = { ...(block.input as AvailabilityQuery), ...(apartment ? { solo_privado: true } : {}) };
             availabilityWasAttempted = true;
             const inconsistency = validateStayAgainstCustomerText(query, input.customerText, input.todayIso);
             if (inconsistency) {

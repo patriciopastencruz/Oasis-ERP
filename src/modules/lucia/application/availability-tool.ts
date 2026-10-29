@@ -8,7 +8,14 @@ import {
   type AvailabilityResult,
 } from "@/modules/lucia/domain/availability";
 
-export type AvailabilityQuery = { check_in: string; check_out: string; guests: number; solo_bano_privado?: boolean };
+export type AvailabilityQuery = {
+  check_in: string;
+  check_out: string;
+  guests: number;
+  solo_bano_privado?: boolean;
+  /** El cliente pidió un departamento: nada compartido. Lo fija el sistema, no Claude. */
+  solo_privado?: boolean;
+};
 
 /**
  * Disponibilidad real de las hostales habilitadas en Lucía, leída del ERP con
@@ -78,6 +85,7 @@ export async function checkLuciaAvailability(
     guests: Number(query.guests),
     today: santiagoToday(),
     privateBathOnly: query.solo_bano_privado === true,
+    privateOnly: query.solo_privado === true,
   });
   return result.ok
     ? { ...result, resumen_whatsapp: formatAvailabilityForWhatsApp(result), acceso_whatsapp: accessSentence(hostels) }

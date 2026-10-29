@@ -139,6 +139,29 @@ describe("searchAvailability", () => {
   });
 });
 
+describe("departamento pedido (todo privado)", () => {
+  it("quita las opciones con baño o cocina compartidos y avisa la hostal que no tiene", () => {
+    const result = searchAvailability({
+      ...base,
+      privateOnly: true,
+      rooms: [
+        room("u1", "HU", { description: "1 cama matrimonial, baño privado y cocina compartida" }),
+        room("u2", "HU", { description: "2 camas, baño compartido y cocina compartida" }),
+        room("c1", "HOC", { roomType: "Habitación baño compartido", description: "1 cama de 2 plazas" }),
+        room("c2", "HOC", { roomType: "Modulares", description: "Modular matrimonial con baño privado y frigobar" }),
+        room("b1", "HOB", { roomType: "Mini depto", description: "1 cama matrimonial, TV, cocina, frigobar y baño privado" }),
+      ],
+      bookings: [],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.hostales.flatMap((h) => h.opciones.map((o) => o.codigo))).toEqual(["c2", "b1"]);
+    expect(formatAvailabilityForWhatsApp(result)).toContain(
+      "Hostal Uruguay no tiene opciones con baño y cocina privados (sin nada compartido) libres para esas fechas.",
+    );
+  });
+});
+
 describe("formatAvailabilityForWhatsApp", () => {
   it("lista todas las opciones por hostal, una por línea, y avisa las completas", () => {
     const result = searchAvailability({

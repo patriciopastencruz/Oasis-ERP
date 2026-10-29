@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { focusOnChosenHostel } from "./chosen-hostel";
+import { focusOnChosenHostel, wantsApartment } from "./chosen-hostel";
 
 const summary = [
   "*Hostal Atacama Oasis (Uruguay, sector 23 de marzo)* 🏨\n• Habitación: 1 cama matrimonial, baño compartido y cocina compartida: $29.000 por noche",
@@ -23,5 +23,14 @@ describe("focusOnChosenHostel", () => {
     expect(focusOnChosenHostel(summary, ["Hola, tiene habitación para 2?"])).toBeNull();
     expect(focusOnChosenHostel(summary, ["el mini depto o el de atacama"])).toBeNull();
     expect(focusOnChosenHostel(summary.split("\n\n")[2], ["mini depto"])).toBeNull();
+  });
+});
+
+describe("wantsApartment", () => {
+  it("reconoce cuando el cliente pide departamento", () => {
+    expect(wantsApartment(["Hola, tienen departamento para 2?"])).toBe(true);
+    expect(wantsApartment(["busco un mini depto"])).toBe(true);
+    expect(wantsApartment(["Dpto para mañana"])).toBe(true);
+    expect(wantsApartment(["Hola, tienen habitación para 2?", "con baño privado"])).toBe(false);
   });
 });

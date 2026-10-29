@@ -48,3 +48,12 @@ export function focusOnChosenHostel(summary: string, customerMessages: string[])
   }
   return null;
 }
+
+/** «Departamento», «depto», «mini depto», «apartamento»: el cliente busca algo con todo privado. */
+export function wantsApartment(customerMessages: string[]) {
+  return customerMessages.some((m) =>
+    /\b(?:mini\s*)?(?:d(?:e)?pto|deptos?|departamentos?|apartamentos?|minidepto)s?\b/.test(
+      m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(),
+    ),
+  );
+}
