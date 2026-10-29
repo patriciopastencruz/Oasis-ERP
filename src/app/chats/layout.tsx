@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title: "Oasis Chats",
   manifest: "/chats.webmanifest",
   appleWebApp: { capable: true, title: "Oasis Chats", statusBarStyle: "default" },
-  icons: { icon: "/ops-icon-192.png", apple: "/ops-icon-180.png" },
+  icons: { icon: "/chats-lucia-icon-192.png", apple: "/chats-lucia-icon-180.png" },
 };
 export const viewport: Viewport = { themeColor: "#075e54", width: "device-width", initialScale: 1 };
 
