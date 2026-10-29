@@ -36,7 +36,7 @@ export async function processLuciaConversation(
 ): Promise<ProcessResult> {
   const { data: conversation } = await admin
     .from("lucia_conversations")
-    .select("id,company_id,status,paused_until,hostel_assigned,booking_status,booking_total,booking_deposit,hold_expires_at")
+    .select("id,company_id,status,paused_until,hostel_assigned,guest_name,booking_status,booking_total,booking_deposit,hold_expires_at")
     .eq("id", conversationId)
     .maybeSingle();
   if (!conversation) return { status: "skipped", reason: "not_found" };
@@ -78,11 +78,33 @@ export async function processLuciaConversation(
       turns,
       today: todayInChile(),
       todayIso: santiagoToday(),
-      stateNote: describeBookingState(conversation),
+      // El nombre ya dado no se vuelve a pedir aunque haya quedado fuera del historial reciente.
+      stateNote:
+        [
+          describeBookingState(conversation),
+          conversation.guest_name ? `El cliente ya dio su nombre: ${conversation.guest_name}. No se lo vuelvas a pedir.` : null,
+        ]
+          .filter(Boolean)
+          .join(" ") || null,
+      bookingInProgress: ["awaiting_reception", "awaiting_payment", "proof_received", "confirmed"].includes(
+        conversation.booking_status,
+      ),
       customerText: currentInquiryCustomerText(messages),
       hostelAssigned: conversation.hostel_assigned,
       checkAvailability: (query) => checkLuciaAvailability(admin, conversation.company_id, query),
     });
+    // Consultas rechazadas o fallidas: quedan en la bitácora para diagnosticar.
+    if (result.issues.length) {
+      await admin.rpc("lucia_record_event", {
+        payload: {
+          company_id: conversation.company_id,
+          conversation_id: conversationId,
+          severity: "warning",
+          event_type: "availability_issue",
+          message: result.issues.join(" · ").slice(0, 1900),
+        },
+      });
+    }
     const costUsd = usageCostUsd(settings.model, result.usage);
     const tokens = {
       input_tokens: result.usage.input_tokens,

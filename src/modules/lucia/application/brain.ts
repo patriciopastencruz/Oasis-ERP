@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { clientSaidIt, type ChatTurn } from "@/modules/lucia/domain/history";
+import { NEW_INQUIRY_NOTE, clientSaidIt, type ChatTurn } from "@/modules/lucia/domain/history";
 import {
   luciaOutputSchema,
   luciaRespondToolSchema,
@@ -14,6 +14,7 @@ import { mentionsShortStay, nightlyChargeNote } from "@/modules/lucia/domain/sta
 import { LOWER_PRICE_REPLY, asksForLowerPrice, pricesWereQuoted } from "@/modules/lucia/domain/lower-price";
 import { ALREADY_SENT_REPLY, repeatsSummary, summaryAlreadySent } from "@/modules/lucia/domain/no-repeat";
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
+import { focusOnChosenHostel } from "@/modules/lucia/domain/chosen-hostel";
 import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
 import type { AvailabilityQuery } from "./availability-tool";
@@ -26,6 +27,8 @@ export type LuciaBrainResult = {
   output: LuciaOutput;
   usage: ClaudeUsage;
   model: string;
+  /** Consultas de disponibilidad rechazadas o fallidas, para diagnosticar. */
+  issues: string[];
 };
 
 let client: Anthropic | null = null;
@@ -40,7 +43,11 @@ function anthropic() {
 const AVAILABILITY_TOOL = "consultar_disponibilidad";
 const MAX_CALLS = 4;
 const FUTURE_AVAILABILITY_PROMISE =
-  /\b(?:dejame|permiteme|voy a|vamos a|puedo)\s+(?:revisar|consultar|confirmar|verificar)|\b(?:consultare|revisare|confirmare|verificare)\b/;
+  /\b(?:dejame|permiteme|voy a|vamos a|puedo)\s+(?:revisar|consultar|confirmar|verificar)|\b(?:consultare|revisare|confirmare|verificare)\b|\bestoy (?:volviendo a )?(?:revisando|consultando|verificando)\b|\bte (?:aviso|escribo|respondo|confirmo) (?:enseguida|en seguida|altiro|al tiro|en breve|en un momento)\b/;
+// Lucía ofreció dejar la solicitud y el cliente acepta: corresponde enviarla, no volver a preguntar.
+const offersRequest = (message: string) =>
+  plain(message).split("?").slice(0, -1).some((question) => /\bsolicitud\b|\ba tu nombre\b/.test(question.split(/[.!\n]/).at(-1) ?? ""));
+const ACCEPTS = /^(?:si|sip|sii+|ok|okay|dale|claro|perfecto|ya|bueno|confirmo|reservar?|reservala|por favor|porfa)\b|\breserv/;
 const PRIVATE_BATH_PREFERENCE = /\b(?:bano|baño)\s+privado\b/;
 const CONVERSATIONAL_FOLLOW_UP =
   /\b(?:pagar|pago|abono|transferencia|descuento|mas barata|más barata|me interesa|elijo|elegir|reservar|reserva)\b/;
@@ -87,6 +94,8 @@ export async function generateLuciaReply(input: {
   customerText: string;
   /** Ya existe una hostal asignada aunque el modelo no repita su código. */
   hostelAssigned?: boolean;
+  /** Hay una solicitud o reserva en curso: no se fuerza una nueva. */
+  bookingInProgress?: boolean;
   checkAvailability: AvailabilityChecker;
 }): Promise<LuciaBrainResult> {
   if (input.turns.length === 0 || input.turns.at(-1)?.role !== "user") {
@@ -146,6 +155,8 @@ export async function generateLuciaReply(input: {
   let availabilitySummary: string | null = null;
   let availabilityHasOptions = false;
   let accessNote: string | null = null;
+  let insistedOnRequest = false;
+  const issues: string[] = [];
 
   for (let call = 0; call < MAX_CALLS; call++) {
     let response: Anthropic.Message;
@@ -237,6 +248,32 @@ export async function generateLuciaReply(input: {
           reply: "¡Genial! 😊 ¿Cuál de las opciones que te mostré prefieres? Así dejo lista tu solicitud.",
         };
       }
+      // Lucía ofreció dejar la solicitud y el cliente dijo que sí: se envía, no
+      // se le vuelve a preguntar (antes daba vueltas pidiendo confirmación).
+      if (
+        !output.booking_request &&
+        !insistedOnRequest &&
+        call < MAX_CALLS - 2 &&
+        !input.bookingInProgress &&
+        offersRequest(lastAssistantMessage) &&
+        ACCEPTS.test(plain(latestCustomerMessage).trim()) &&
+        hasStay &&
+        (input.hostelAssigned || output.prospect.hostel_code)
+      ) {
+        insistedOnRequest = true;
+        messages.push({ role: "assistant", content: response.content });
+        messages.push({
+          role: "user",
+          content: [{
+            type: "tool_result",
+            tool_use_id: respond.id,
+            content:
+              "Respuesta rechazada: el cliente ya aceptó dejar la solicitud; no le vuelvas a preguntar. Usa consultar_disponibilidad ahora con las fechas confirmadas (en fechas_del_cliente copia exactamente la frase con las fechas que el cliente escribió o que confirmó con un «sí»), copia el option_code de la opción que eligió y marca booking_request en true. Si su nombre ya aparece en la conversación, úsalo sin pedirlo.",
+            is_error: true,
+          }],
+        });
+        continue;
+      }
       // Claude recibe el resumen exacto desde la herramienta, pero a veces lo
       // abrevia, omite líneas o incluso altera un total al redactarlo. Cuando
       // hubo una consulta real, el sistema arma el mensaje final y conserva el
@@ -249,6 +286,16 @@ export async function generateLuciaReply(input: {
             changedAvailabilityPreference));
       // Las mismas opciones con los mismos precios no se envían dos veces: si ya están en la conversación, no se rearma el mensaje
       // ni se deja pasar una copia de Claude (por ejemplo, cuando el cliente agradece o se despide).
+      // Si el cliente ya eligió una hostal u opción, se muestran solo las de esa hostal.
+      if (availabilitySummary && availabilityHasOptions) {
+        const customerMessages: string[] = [];
+        for (const turn of [...input.turns].reverse()) {
+          if (turn.role !== "user") continue;
+          customerMessages.unshift(...turn.content.split("\n"));
+          if (turn.content.includes(NEW_INQUIRY_NOTE)) break;
+        }
+        availabilitySummary = focusOnChosenHostel(availabilitySummary, customerMessages) ?? availabilitySummary;
+      }
       const optionsAlreadySent = summaryAlreadySent(input.turns.slice(0, -1), availabilitySummary);
       if (optionsAlreadySent && repeatsSummary(output.reply, availabilitySummary)) {
         output = { ...output, reply: ALREADY_SENT_REPLY };
@@ -297,6 +344,7 @@ export async function generateLuciaReply(input: {
           },
           usage,
           model,
+          issues,
         };
       }
       if (COMPLAINT.test(plain(latestCustomerMessage))) {
@@ -313,9 +361,10 @@ export async function generateLuciaReply(input: {
           },
           usage,
           model,
+          issues,
         };
       }
-      return { output, usage, model };
+      return { output, usage, model, issues };
     }
 
     const lookups = response.content.filter(
@@ -330,6 +379,7 @@ export async function generateLuciaReply(input: {
           // Las fechas nunca se suponen (p. ej. «hoy» o las de una consulta
           // anterior): deben estar escritas por el cliente en esta consulta.
           if (!clientSaidIt((block.input as { fechas_del_cliente?: unknown }).fechas_del_cliente, input.customerText)) {
+            issues.push(`Fechas no citadas por el cliente: «${String((block.input as { fechas_del_cliente?: unknown }).fechas_del_cliente ?? "").slice(0, 120)}»`);
             return {
               type: "tool_result",
               tool_use_id: block.id,
@@ -343,6 +393,7 @@ export async function generateLuciaReply(input: {
             availabilityWasAttempted = true;
             const inconsistency = validateStayAgainstCustomerText(query, input.customerText, input.todayIso);
             if (inconsistency) {
+              issues.push(`Fechas inconsistentes (${query.check_in} a ${query.check_out}): ${inconsistency.slice(0, 160)}`);
               return { type: "tool_result", tool_use_id: block.id, content: `No consultado: ${inconsistency}`, is_error: true };
             }
             const result = await input.checkAvailability(query);
@@ -354,6 +405,7 @@ export async function generateLuciaReply(input: {
                 acceso_whatsapp?: unknown;
                 hostales?: unknown;
               };
+              if (record.ok !== true) issues.push(`La consulta respondió error: ${JSON.stringify(result).slice(0, 160)}`);
               if (record.ok === true && typeof record.resumen_whatsapp === "string") {
                 availabilitySummary = record.resumen_whatsapp;
                 availabilityHasOptions = Array.isArray(record.hostales) && record.hostales.length > 0;
@@ -361,7 +413,8 @@ export async function generateLuciaReply(input: {
               }
             }
             return { type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) };
-          } catch {
+          } catch (error) {
+            issues.push(`La consulta falló: ${error instanceof Error ? error.message.slice(0, 160) : "error desconocido"}`);
             return { type: "tool_result", tool_use_id: block.id, content: "No se pudo consultar la disponibilidad.", is_error: true };
           }
         }),

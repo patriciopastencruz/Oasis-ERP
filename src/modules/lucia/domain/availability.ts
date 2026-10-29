@@ -69,7 +69,12 @@ function nightsBetween(checkIn: string, checkOut: string) {
 }
 
 function label(room: AvailabilityRoom) {
-  const description = room.description ? normalizeDescription(room.description) : "";
+  let description = room.description ? normalizeDescription(room.description) : "";
+  // «Mini depto: mini deptos 1 cama…»: no repetir el tipo al inicio de la descripción.
+  const type = plain(room.roomType).trim();
+  if (type && /^s?(?:[\s,:-]|$)/.test(plain(description).slice(type.length)) && plain(description).startsWith(type)) {
+    description = description.slice(type.length).replace(/^s?[\s,:-]*/, "");
+  }
   return description ? `${room.roomType}: ${description.charAt(0).toLowerCase()}${description.slice(1)}` : room.roomType;
 }
 
@@ -286,20 +291,34 @@ const clp = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
  * agrupadas por hostal. La arma el sistema para que no se agrupen rangos ni
  * se omitan opciones.
  */
+const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+/** «del miércoles 28 al jueves 29 de octubre»: las fechas consultadas, para que el cliente note si se entendió mal. */
+export function stayRangeEs(checkIn: string, checkOut: string) {
+  const a = new Date(`${checkIn}T12:00:00Z`);
+  const b = new Date(`${checkOut}T12:00:00Z`);
+  const day = (d: Date) => `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()}`;
+  const firstMonth = a.getUTCMonth() === b.getUTCMonth() ? "" : ` de ${MONTHS[a.getUTCMonth()]}`;
+  return `del ${day(a)}${firstMonth} al ${day(b)} de ${MONTHS[b.getUTCMonth()]}`;
+}
+
 export function formatAvailabilityForWhatsApp(result: AvailabilityResult): string {
   if (!result.ok) return "";
   const nights = `${result.noches} noche${result.noches === 1 ? "" : "s"}`;
+  // Con una sola noche el total es igual al precio por noche: no se repite.
+  const stayTotal = (total: number) => (result.noches === 1 ? "" : ` (${clp(total)} por ${nights})`);
   const blocks = result.hostales.map((h) =>
     [
       `*${hostelTitle(h.hostal, h.codigo)}* 🏨`,
-      ...h.opciones.map((o) => `• ${o.habitacion}: ${clp(o.precio_noche)} por noche (${clp(o.total_estadia)} por ${nights})`),
+      ...h.opciones.map((o) => `• ${o.habitacion}: ${clp(o.precio_noche)} por noche${stayTotal(o.total_estadia)}`),
       ...h.combinaciones.flatMap((combination) => [
         `Opción para el grupo en ${combination.habitaciones.length} habitaciones:`,
         ...combination.habitaciones.map(
           (room) =>
             `• ${room.habitacion} para ${room.personas} persona${room.personas === 1 ? "" : "s"}: ${clp(room.precio_noche)} por noche`,
         ),
-        `Total: ${clp(combination.precio_noche)} por noche (${clp(combination.total_estadia)} por ${nights})`,
+        `Total: ${clp(combination.precio_noche)} por noche${stayTotal(combination.total_estadia)}`,
       ]),
     ].join("\n"),
   );
@@ -309,10 +328,11 @@ export function formatAvailabilityForWhatsApp(result: AvailabilityResult): strin
   if (result.sin_disponibilidad.length) {
     // Sin lugar puede ser por ocupación o porque ninguna pieza admite a tantas personas.
     const people = `${result.personas} persona${result.personas === 1 ? "" : "s"}`;
+    const dates = stayRangeEs(result.llegada, result.salida);
     blocks.push(
       result.hostales.length === 0
-        ? `😔 No tenemos habitaciones libres para ${people} en esas fechas en ninguna de nuestras hostales.`
-        : `${result.sin_disponibilidad.join(" y ")} no ${result.sin_disponibilidad.length === 1 ? "tiene" : "tienen"} habitaciones libres para ${people} en esas fechas.`,
+        ? `😔 No tenemos habitaciones libres para ${people} ${dates} en ninguna de nuestras hostales.`
+        : `${result.sin_disponibilidad.join(" y ")} no ${result.sin_disponibilidad.length === 1 ? "tiene" : "tienen"} habitaciones libres para ${people} ${dates}.`,
     );
   }
   return blocks.join("\n\n");

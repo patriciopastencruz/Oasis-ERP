@@ -47,10 +47,13 @@ export function buildChatTurns(
   const turns: ChatTurn[] = [];
   recent.forEach((message, index) => {
     const role = message.direction === "inbound" ? "user" : "assistant";
+    // Las fotos que envía Lucía llevan su descripción («📸 Mini depto · …»), no la etiqueta del cliente.
     const body =
       message.message_type === "text"
         ? (message.content ?? "").trim()
-        : NON_TEXT_LABEL[message.message_type] ?? NON_TEXT_LABEL.other;
+        : role === "assistant"
+          ? (message.content ?? "").trim() || "[Se enviaron fotos]"
+          : NON_TEXT_LABEL[message.message_type] ?? NON_TEXT_LABEL.other;
     if (!body) return;
     const text =
       role === "user" && startsNewInquiry(recent[index - 1], message) ? `${NEW_INQUIRY_NOTE}\n${body}` : body;

@@ -29,7 +29,7 @@ export function describeBookingState(state: BookingState): string | null {
     case "confirmed":
       return "Estado de la reserva: la reserva está confirmada y pagada (abono o total). Responde sus dudas sobre la estadía.";
     case "expired":
-      return "Estado de la reserva: venció el plazo para el abono y se liberó la habitación. Si el cliente aún quiere reservar, vuelve a consultar disponibilidad.";
+      return "Estado de la reserva: venció el plazo para el abono y se liberó la habitación. Si el cliente dice que ya transfirió o pagó, no le pidas reservar ni pagar de nuevo: agradécele, pídele que envíe la foto del comprobante por este chat si aún no lo hizo, dile que el equipo revisará el pago y le confirmará, y marca needs_human en true. Si solo quiere volver a reservar, vuelve a consultar disponibilidad.";
     case "rejected":
       return "Estado de la reserva: recepción indicó que esa opción no estaba disponible. Ofrece revisar otra habitación, hostal o fechas.";
     default:

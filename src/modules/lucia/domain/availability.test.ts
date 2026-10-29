@@ -63,7 +63,7 @@ describe("searchAvailability", () => {
       ["Hostal Oasis Centro", ["c1", "c2"]],
     ]);
     expect(formatAvailabilityForWhatsApp(result)).toContain(
-      "Hostal Uruguay no tiene habitaciones con baño privado libres para esas fechas.\n\nHostal Oasis Cobija no tiene habitaciones libres para 2 personas en esas fechas.",
+      "Hostal Uruguay no tiene habitaciones con baño privado libres para esas fechas.\n\nHostal Oasis Cobija no tiene habitaciones libres para 2 personas del sábado 24 al lunes 26 de octubre.",
     );
   });
 
@@ -71,7 +71,7 @@ describe("searchAvailability", () => {
     const result = searchAvailability({ ...base, guests: 3, rooms: [room("u1", "HU")], bookings: [] });
     expect(result.ok && result.hostales).toEqual([]);
     expect(formatAvailabilityForWhatsApp(result)).toBe(
-      "😔 No tenemos habitaciones libres para 3 personas en esas fechas en ninguna de nuestras hostales.",
+      "😔 No tenemos habitaciones libres para 3 personas del sábado 24 al lunes 26 de octubre en ninguna de nuestras hostales.",
     );
   });
 
@@ -155,8 +155,19 @@ describe("formatAvailabilityForWhatsApp", () => {
         "• Habitación: 2 camas, baño compartido: $28.000 por noche ($56.000 por 2 noches)",
         "• Habitación: 1 cama matrimonial, baño privado: $30.000 por noche ($60.000 por 2 noches)",
         "",
-        "Hostal Oasis Centro y Hostal Oasis Cobija no tienen habitaciones libres para 2 personas en esas fechas.",
+        "Hostal Oasis Centro y Hostal Oasis Cobija no tienen habitaciones libres para 2 personas del sábado 24 al lunes 26 de octubre.",
       ].join("\n"),
     );
+  });
+
+  it("con una noche no repite el total y no duplica el tipo de habitación en la descripción", () => {
+    const result = searchAvailability({
+      ...base,
+      checkOut: "2026-10-25",
+      rooms: [room("b1", "HOB", { roomType: "Mini depto", description: "MINI DEPTOS 1C MATRIMONIAL + FUTÓN, TV Y BAÑO PRIVADO" })],
+      bookings: [],
+    });
+    expect(formatAvailabilityForWhatsApp(result).split("\n")[1]).toMatch(/^• Mini depto: 1/);
+    expect(formatAvailabilityForWhatsApp(result)).not.toMatch(/por 1 noche/);
   });
 });

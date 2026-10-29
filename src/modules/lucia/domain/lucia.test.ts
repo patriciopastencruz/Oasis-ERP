@@ -37,6 +37,18 @@ describe("buildChatTurns", () => {
     ]);
   });
 
+  it("las fotos que envía Lucía no aparecen como imágenes del cliente", () => {
+    const turns = buildChatTurns(
+      [
+        msg("inbound", "¿Tienes fotos del mini depto?"),
+        msg("outbound", "📸 Mini depto · Hospedaje Oasis Cobija", { message_type: "image" }),
+        msg("outbound", "", { message_type: "image", content: null }),
+      ],
+      15,
+    );
+    expect(turns[1]).toEqual({ role: "assistant", content: "📸 Mini depto · Hospedaje Oasis Cobija\n[Se enviaron fotos]" });
+  });
+
   it("usa solo los últimos N mensajes y describe audios sin inventar su contenido", () => {
     const turns = buildChatTurns(
       [
