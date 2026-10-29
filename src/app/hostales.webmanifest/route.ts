@@ -17,8 +17,8 @@ export function GET() {
       theme_color: "#0b4f9c",
       lang: "es-CL",
       icons: [
-        { src: "/ops-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-        { src: "/ops-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+        { src: "/hostales-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: "/hostales-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       ],
     },
     { headers: { "Content-Type": "application/manifest+json" } },

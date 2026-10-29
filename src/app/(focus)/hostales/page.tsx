@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "Oasis Hostales",
   manifest: "/hostales.webmanifest",
   appleWebApp: { capable: true, title: "Oasis Hostales", statusBarStyle: "default" },
-  icons: { icon: "/ops-icon-192.png", apple: "/ops-icon-180.png" },
+  icons: { icon: "/hostales-icon-192.png", apple: "/hostales-icon-180.png" },
 };
 export const viewport: Viewport = { themeColor: "#0b4f9c", width: "device-width", initialScale: 1 };
 
