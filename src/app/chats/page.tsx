@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { CircleHelp, LogOut } from "lucide-react";
 import { LiveRefresh } from "@/components/kpis/live-refresh";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
 import { loadHostels, loadInbox, luciaContext } from "@/modules/lucia/application/queries";
@@ -36,6 +36,9 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
             <h1 className="text-lg font-bold">Chats de {settings.agent_name}</h1>
             <p className="text-xs text-emerald-100">Conversaciones del WhatsApp de las hostales</p>
           </div>
+          <Link href="/chats/manual" aria-label="Manual de uso" className="grid size-9 place-items-center rounded-full bg-white/10">
+            <CircleHelp size={18} />
+          </Link>
           <form action={logoutAction}>
             <button aria-label="Cerrar sesión" className="grid size-9 place-items-center rounded-full bg-white/10">
               <LogOut size={16} />
