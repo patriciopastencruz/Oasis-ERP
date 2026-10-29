@@ -24,6 +24,6 @@ export async function GET(request: Request) {
     concurrency: 5,
   });
   // Además, completa la hora de los comprobantes leídos antes de guardar ese dato (para comparar comprobantes repetidos).
-  const times = await backfillReceiptTimes({ limit: 40, concurrency: 5 });
+  const times = await backfillReceiptTimes({ limit: 80, concurrency: 8 });
   return Response.json({ ok: true, ...result, timesFilled: times.filled });
 }
