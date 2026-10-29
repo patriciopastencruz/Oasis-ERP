@@ -95,6 +95,7 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
             <tr>
               <th className="px-2 py-2">Hostal</th>
               <th className="px-2 py-2 text-right">Ocupación</th>
+              <th className="px-2 py-2 text-right">Tarifa</th>
               <th className="px-2 py-2 text-right">RevPAR</th>
               <th className="px-2 py-2 text-right">Ingresado</th>
               <th className="px-2 py-2 text-right">Pendiente</th>
@@ -103,6 +104,7 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
           <tbody>
             {daily.map((d) => {
               const occupancy = d.capacity ? d.occupied / d.capacity : 0;
+              const adr = d.occupied ? d.revenue / d.occupied : 0;
               const revpar = d.capacity ? d.revenue / d.capacity : 0;
               const goal = revparGoal(d.goals);
               return (
@@ -112,6 +114,11 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
                     <span className={d.goals.occupancyPct === null || occupancy * 100 >= d.goals.occupancyPct ? "" : "text-red-700"}>{pct(occupancy)}</span>
                     <span className="block text-[11px] font-normal text-slate-400">{d.occupied} de {d.capacity}</span>
                   </td>
+                  <Metric
+                    value={clp.format(adr)}
+                    goal={d.goals.averageRate !== null ? clp.format(d.goals.averageRate) : null}
+                    ok={d.goals.averageRate === null || !d.occupied || adr >= d.goals.averageRate}
+                  />
                   <td className="px-2 py-2 text-right">
                     <span className={goal === null || revpar >= goal ? "" : "text-red-700"}>{clp.format(revpar)}</span>
                     {goal !== null && <span className="block text-[11px] font-normal text-slate-400">meta {clp.format(goal)}</span>}
@@ -127,6 +134,7 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
                 {pct(dayTotal.capacity ? dayTotal.occupied / dayTotal.capacity : 0)}
                 <span className="block text-[11px] font-normal text-slate-500">{dayTotal.occupied} de {dayTotal.capacity}</span>
               </td>
+              <td className="px-2 py-2 text-right">{clp.format(dayTotal.occupied ? dayTotal.revenue / dayTotal.occupied : 0)}</td>
               <td className="px-2 py-2 text-right">{clp.format(dayTotal.capacity ? dayTotal.revenue / dayTotal.capacity : 0)}</td>
               <td className="px-2 py-2 text-right">{clp.format(dayTotal.received)}</td>
               <td className="px-2 py-2 text-right">{clp.format(dayTotal.pending)}</td>
@@ -135,16 +143,15 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
         </table>
         <p className="border-t px-3 py-2 text-xs text-slate-500">
           Venta de la noche: <b className="text-slate-700">{clp.format(dayTotal.revenue)}</b>. Ingresado = pagos registrados hoy (cualquier reserva).
-          Pendiente = saldo por cobrar de quienes alojan esta noche. Ocupación = habitaciones ocupadas sobre disponibles.
+          Pendiente = saldo por cobrar de quienes alojan esta noche. Ocupación = habitaciones ocupadas sobre disponibles; Tarifa = venta de la noche por habitación ocupada.
         </p>
       </section>
 
-      <h2 className="-mb-3 text-sm font-bold">
-        Acumulado de {monthLabel}, del 1 al {Number(today.slice(8))}
-      </h2>
-
       <section className="overflow-x-auto rounded-2xl border bg-white">
-        <table className="w-full text-[13px] tabular-nums">
+        <h2 className="px-3 pt-3 text-sm font-bold">
+          Acumulado de {monthLabel}, del 1 al {Number(today.slice(8))}
+        </h2>
+        <table className="mt-2 w-full text-[13px] tabular-nums">
           <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-2 py-2">Hostal</th>
