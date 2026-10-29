@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { ReceiptReviewForm } from "@/components/lodging/receipt-review-form";
+import { REVIEW_OUTCOME_LABELS, mapManualReviews } from "@/modules/lodging/domain/receipt-manual-review";
+import { receiptReviewLabels } from "@/modules/lodging/domain/history-report";
+import { summarizeReceiptReviews, type ReceiptPaymentRow } from "@/modules/lodging/domain/receipt-ai-review";
 import { uiLabel } from "@/lib/ui-labels";
 import {
   lodgingContext,
@@ -57,6 +61,7 @@ export default async function Page({
     { data: summary },
     { data: cancellations },
     { data: housekeepingEnabled },
+    { data: manualReviews },
   ] = await Promise.all([
     supabase
       .from("lodging_reservation_payments")
@@ -75,7 +80,16 @@ export default async function Page({
     supabase.rpc("lodging_ops_housekeeping_enabled", {
       target_unit: r.business_unit_id,
     }),
+    supabase
+      .from("lodging_receipt_reviews")
+      .select("id,outcome,comment,reviewed_at,reviewer:profiles!lodging_receipt_reviews_reviewed_by_fkey(first_name,last_name)")
+      .eq("reservation_id", id)
+      .order("reviewed_at", { ascending: false }),
   ]);
+  const canReviewReceipts = ctx.permissions.has("lodging.receipts.review");
+  const canSeeReceiptReview = canReviewReceipts || ctx.permissions.has("lodging.closings.reports");
+  const reviews = mapManualReviews(manualReviews);
+  const aiReview = summarizeReceiptReviews((payments ?? []) as unknown as ReceiptPaymentRow[]);
   // Sin circuito de aseo e inspección en el hostal, el check-in no espera la inspección.
   const needsInspection = housekeepingEnabled !== false;
   type Person =
@@ -776,6 +790,40 @@ export default async function Page({
           ))}
         </div>
       </Panel>
+      {canSeeReceiptReview && (
+        <Panel className="mt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">Revisión de comprobantes</h2>
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+              Revisión automática: {receiptReviewLabels[aiReview.status]}
+            </span>
+          </div>
+          {reviews.length ? (
+            <ul className="mt-3 space-y-2">
+              {reviews.map((review) => (
+                <li key={review.id} className="rounded-xl border p-3 text-sm">
+                  <b>{REVIEW_OUTCOME_LABELS[review.outcome]}</b>
+                  <span className="ml-2 text-xs text-slate-500">
+                    {review.reviewer ?? "Sin nombre"} ·{" "}
+                    {new Intl.DateTimeFormat("es-CL", {
+                      timeZone: "America/Santiago",
+                      dateStyle: "short",
+                      timeStyle: "short",
+                      hour12: false,
+                    }).format(new Date(review.reviewed_at))}
+                  </span>
+                  <span className="mt-1 block whitespace-pre-line text-slate-600">{review.comment}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">Aún nadie ha dejado constancia de revisar los comprobantes de esta reserva.</p>
+          )}
+          {canReviewReceipts && (
+            <ReceiptReviewForm reservationId={id} back={`/lodging/reservations/${id}`} open />
+          )}
+        </Panel>
+      )}
     </>
   );
 }

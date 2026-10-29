@@ -3,6 +3,12 @@ import {
   type PriceAuditStatus,
 } from "./reservation-price-audit";
 import {
+  latestReceiptChange,
+  manualReviewState,
+  mapManualReviews,
+  needsManualReview,
+} from "./receipt-manual-review";
+import {
   summarizeReceiptReviews,
   type ReceiptPaymentRow,
   type ReservationReceiptStatus,
@@ -10,7 +16,7 @@ import {
 
 /** Consulta compartida por el informe en pantalla y su descarga en Excel. */
 export const HISTORY_RESERVATION_SELECT =
-  "id,status,origin,created_at,check_in,check_out,nights,guest_count,nightly_rate,discount,surcharge,total_value,commission,company_name,information_complete,lodging_rooms(name),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status,lodging_payment_receipts(id,deleted_at,ai_review_status,ai_detected_amount,ai_confidence,ai_notes))";
+  "id,status,origin,created_at,check_in,check_out,nights,guest_count,nightly_rate,discount,surcharge,total_value,commission,company_name,information_complete,lodging_rooms(name),lodging_guests(full_name,phone),lodging_reservation_payments(amount,type,status,updated_at,lodging_payment_receipts(id,created_at,deleted_at,ai_review_status,ai_detected_amount,ai_confidence,ai_notes,ai_reviewed_at)),lodging_receipt_reviews(id,outcome,comment,reviewed_at,reviewer:profiles!lodging_receipt_reviews_reviewed_by_fkey(first_name,last_name))";
 
 export const auditLabels: Record<PriceAuditStatus, string> = {
   ok: "Precio correcto",
@@ -72,6 +78,7 @@ type HistoryReservationRow = {
   surcharge: number | string;
   total_value: number | string;
   lodging_reservation_payments?: unknown;
+  lodging_receipt_reviews?: unknown;
   lodging_guests?: Relation<{ full_name: string; phone: string | null }>;
   lodging_rooms?: Relation<{ name: string }>;
 };
@@ -90,11 +97,18 @@ export function mapHistoryReservations<T extends HistoryReservationRow>(
       totalValue: reservation.total_value,
       payments,
     });
+    const receiptReview = summarizeReceiptReviews(payments);
+    const manualReview = manualReviewState(
+      mapManualReviews(reservation.lodging_receipt_reviews),
+      latestReceiptChange(payments),
+    );
     return {
       ...reservation,
       ...priceAudit,
       auditStatus,
-      receiptReview: summarizeReceiptReviews(payments),
+      receiptReview,
+      manualReview,
+      needsManualReview: needsManualReview(receiptReview.status, manualReview),
       guest: first(reservation.lodging_guests),
       room: first(reservation.lodging_rooms),
     };

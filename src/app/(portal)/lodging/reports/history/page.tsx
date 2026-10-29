@@ -12,6 +12,8 @@ import {
 import { LodgingReportTabs } from "@/components/lodging/report-tabs";
 import { ReceiptReviewRefresh } from "@/components/lodging/receipt-review-refresh";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { ReceiptReviewForm } from "@/components/lodging/receipt-review-form";
+import { REVIEW_OUTCOME_LABELS, type ManualReviewState } from "@/modules/lodging/domain/receipt-manual-review";
 import { uiLabel } from "@/lib/ui-labels";
 import {
   clp,
@@ -64,7 +66,7 @@ function monthLabel(month: string) {
 export default async function ReservationHistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; review?: string }>;
+  searchParams: Promise<{ month?: string; review?: string; receipts?: string; success?: string; error?: string }>;
 }) {
   const q = await searchParams;
   const { ctx, unit, supabase } = await lodgingContext(
@@ -74,7 +76,9 @@ export default async function ReservationHistoryPage({
   const reviewOnly = q.review === "issues";
   // La revisión con IA de comprobantes es de control: solo la ven quienes
   // acceden a los reportes de cierre, no la recepción.
-  const canSeeAi = ctx.permissions.has("lodging.closings.reports");
+  const canReview = ctx.permissions.has("lodging.receipts.review");
+  const canSeeAi = ctx.permissions.has("lodging.closings.reports") || canReview;
+  const receiptsFilter = canSeeAi && (q.receipts === "review" || q.receipts === "open") ? q.receipts : null;
   const monthStart = `${month}-01`;
   const nextMonth = shiftMonth(month, 1);
 
@@ -166,7 +170,14 @@ export default async function ReservationHistoryPage({
 
   const visible = reviewOnly
     ? reservations.filter((reservation) => reservation.auditStatus !== "ok")
-    : reservations;
+    : receiptsFilter === "review"
+      ? reservations.filter((reservation) => reservation.needsManualReview)
+      : receiptsFilter === "open"
+        ? reservations.filter((reservation) => reservation.manualReview.open)
+        : reservations;
+  const toReview = reservations.filter((reservation) => reservation.needsManualReview).length;
+  const reviewedByHand = reservations.filter((reservation) => reservation.manualReview.state === "reviewed").length;
+  const openReviews = reservations.filter((reservation) => reservation.manualReview.open).length;
   const activeReservations = reservations.filter(
     (reservation) => !["cancelled", "conflict"].includes(reservation.status),
   );
@@ -187,8 +198,8 @@ export default async function ReservationHistoryPage({
     ["Pagos confirmados", clp.format(paidTotal), CircleDollarSign],
     ["Precios por revisar", String(issues.length), AlertTriangle],
   ] as const;
-  const makeHref = (targetMonth: string, issuesOnly = reviewOnly) =>
-    `/lodging/reports/history?month=${targetMonth}${issuesOnly ? "&review=issues" : ""}`;
+  const makeHref = (targetMonth: string, issuesOnly = reviewOnly, receipts: string | null = receiptsFilter) =>
+    `/lodging/reports/history?month=${targetMonth}${issuesOnly ? "&review=issues" : ""}${receipts ? `&receipts=${receipts}` : ""}`;
 
   return (
     <>
@@ -238,6 +249,8 @@ export default async function ReservationHistoryPage({
         </div>
       </div>
 
+      {q.success && <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{q.success}</p>}
+      {q.error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{q.error}</p>}
       <div className="mb-5 mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(([label, value, Icon]) => (
           <div
@@ -257,9 +270,9 @@ export default async function ReservationHistoryPage({
 
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <Link
-          href={makeHref(month, false)}
+          href={makeHref(month, false, null)}
           className={`rounded-full border px-3 py-1.5 font-medium ${
-            !reviewOnly
+            !reviewOnly && !receiptsFilter
               ? "border-[#0b4f9c] bg-[#0b4f9c] text-white"
               : "bg-white"
           }`}
@@ -267,7 +280,7 @@ export default async function ReservationHistoryPage({
           Todas
         </Link>
         <Link
-          href={makeHref(month, true)}
+          href={makeHref(month, true, null)}
           className={`rounded-full border px-3 py-1.5 font-medium ${
             reviewOnly
               ? "border-red-600 bg-red-600 text-white"
@@ -276,8 +289,33 @@ export default async function ReservationHistoryPage({
         >
           Solo precios por revisar
         </Link>
+        {canSeeAi && (
+          <>
+            <Link
+              href={makeHref(month, false, "review")}
+              className={`rounded-full border px-3 py-1.5 font-medium ${
+                receiptsFilter === "review"
+                  ? "border-red-600 bg-red-600 text-white"
+                  : "bg-white hover:border-red-400"
+              }`}
+            >
+              Comprobantes por revisar · {toReview}
+            </Link>
+            <Link
+              href={makeHref(month, false, "open")}
+              className={`rounded-full border px-3 py-1.5 font-medium ${
+                receiptsFilter === "open"
+                  ? "border-amber-600 bg-amber-600 text-white"
+                  : "bg-white hover:border-amber-400"
+              }`}
+            >
+              Revisadas con pendiente · {openReviews}
+            </Link>
+          </>
+        )}
         <span className="ml-auto text-sm font-semibold text-slate-700">
           {monthLabel(month)} · {visible.length} registros
+          {canSeeAi && ` · ${reviewedByHand} revisadas a mano`}
         </span>
       </div>
 
@@ -293,7 +331,7 @@ export default async function ReservationHistoryPage({
 
         {visible.length ? (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[1600px] text-left text-sm">
+            <table className="w-full min-w-[1850px] text-left text-sm">
               <thead className="border-y bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-2">Control</th>
@@ -307,6 +345,7 @@ export default async function ReservationHistoryPage({
                   <th className="px-3 py-2 text-right">Pagado</th>
                   <th className="px-3 py-2">Comprobante</th>
                   {canSeeAi && <th className="px-3 py-2">Revisión IA</th>}
+                  {canSeeAi && <th className="px-3 py-2">Revisión manual</th>}
                   <th className="px-3 py-2 text-right">Detalle</th>
                 </tr>
               </thead>
@@ -445,6 +484,17 @@ export default async function ReservationHistoryPage({
                           )}
                       </td>
                     )}
+                    {canSeeAi && (
+                      <td className="px-3 py-3 align-top">
+                        <ManualReviewCell
+                          reservationId={reservation.id}
+                          review={reservation.manualReview}
+                          needs={reservation.needsManualReview}
+                          canReview={canReview}
+                          back={makeHref(month)}
+                        />
+                      </td>
+                    )}
                     <td className="px-3 py-3 text-right align-top">
                       <Link
                         href={`/lodging/reservations/${reservation.id}`}
@@ -465,5 +515,60 @@ export default async function ReservationHistoryPage({
         )}
       </Panel>
     </>
+  );
+}
+
+function ManualReviewCell({
+  reservationId,
+  review,
+  needs,
+  canReview,
+  back,
+}: {
+  reservationId: string;
+  review: ManualReviewState;
+  needs: boolean;
+  canReview: boolean;
+  back: string;
+}) {
+  const latest = review.latest;
+  const when = latest
+    ? new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short", hour12: false }).format(new Date(latest.reviewed_at))
+    : "";
+  return (
+    <div className="max-w-[260px] text-xs">
+      {review.state === "reviewed" && latest ? (
+        <>
+          <span
+            className={`inline-flex rounded-full px-2 py-1 font-semibold ${review.open ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}
+          >
+            {review.open ? "Revisada · con pendiente" : "Revisada"}
+          </span>
+          <span className="mt-1 block font-medium text-slate-700">{REVIEW_OUTCOME_LABELS[latest.outcome]}</span>
+          <span className="block text-slate-500">
+            {latest.reviewer ?? "Sin nombre"} · {when}
+          </span>
+          <span className="mt-0.5 block whitespace-pre-line text-slate-600">{latest.comment}</span>
+        </>
+      ) : review.state === "stale" && latest ? (
+        <>
+          <span className="inline-flex rounded-full bg-amber-50 px-2 py-1 font-semibold text-amber-800">Cambió desde la revisión</span>
+          <span className="mt-1 block text-slate-500">
+            Última: {latest.reviewer ?? "Sin nombre"} · {when}
+          </span>
+        </>
+      ) : needs ? (
+        <span className="inline-flex rounded-full bg-red-50 px-2 py-1 font-semibold text-red-700">Por revisar</span>
+      ) : (
+        <span className="text-slate-400">Sin revisión manual</span>
+      )}
+      {canReview && (
+        <ReceiptReviewForm
+          reservationId={reservationId}
+          back={back}
+          label={review.state === "reviewed" ? "Registrar otra revisión" : "Registrar revisión"}
+        />
+      )}
+    </div>
   );
 }
