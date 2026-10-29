@@ -29,6 +29,12 @@ export type LuciaBrainResult = {
   model: string;
   /** Consultas de disponibilidad rechazadas o fallidas, para diagnosticar. */
   issues: string[];
+  /**
+   * Desde cuánto parten las opciones con baño compartido que no se mostraron
+   * (pidió departamento); null si se consultó sin ocultar nada; undefined si
+   * no hubo consulta.
+   */
+  cheaperSharedFrom?: number | null;
 };
 
 let client: Anthropic | null = null;
@@ -96,6 +102,8 @@ export async function generateLuciaReply(input: {
   hostelAssigned?: boolean;
   /** Hay una solicitud o reserva en curso: no se fuerza una nueva. */
   bookingInProgress?: boolean;
+  /** Ya se le ocultaron opciones con baño compartido desde este precio. */
+  cheaperSharedFrom?: number | null;
   checkAvailability: AvailabilityChecker;
 }): Promise<LuciaBrainResult> {
   if (input.turns.length === 0 || input.turns.at(-1)?.role !== "user") {
@@ -163,7 +171,14 @@ export async function generateLuciaReply(input: {
     customerMessages.unshift(...turn.content.split("\n"));
     if (turn.content.includes(NEW_INQUIRY_NOTE)) break;
   }
-  const apartment = wantsApartment(customerMessages);
+  // Pidió departamento: primero solo baño privado. Las de baño compartido se
+  // muestran recién si pide algo más barato o acepta verlas.
+  const lastLuciaMessage = input.turns.at(-2)?.role === "assistant" ? input.turns.at(-2)!.content : "";
+  const sharedAccepted =
+    customerMessages.some((m) => /compartid/.test(plain(m)) || asksForLowerPrice(m)) ||
+    (/bano compartido/.test(plain(lastLuciaMessage)) && ACCEPTS.test(plain(input.turns.at(-1)!.content).trim()));
+  const apartment = wantsApartment(customerMessages) && !sharedAccepted;
+  let cheaperSharedFrom: number | null | undefined;
   const issues: string[] = [];
 
   for (let call = 0; call < MAX_CALLS; call++) {
@@ -321,7 +336,13 @@ export async function generateLuciaReply(input: {
         };
       }
       // Si ya recibió precios y pide algo más barato, los enviados son los únicos vigentes: no hay una tarifa menor.
-      if (asksForLowerPrice(latestCustomerMessage) && pricesWereQuoted(input.turns.slice(0, -1))) {
+      // Salvo que haya opciones con baño compartido que aún no se le mostraron.
+      if (
+        asksForLowerPrice(latestCustomerMessage) &&
+        pricesWereQuoted(input.turns.slice(0, -1)) &&
+        !input.cheaperSharedFrom &&
+        !cheaperSharedFrom
+      ) {
         output = { ...output, reply: LOWER_PRICE_REPLY, booking_request: false };
       }
       const detectedWalkIn = detectWalkInStatus(latestCustomerMessage);
@@ -347,6 +368,7 @@ export async function generateLuciaReply(input: {
           usage,
           model,
           issues,
+          cheaperSharedFrom,
         };
       }
       if (COMPLAINT.test(plain(latestCustomerMessage))) {
@@ -364,9 +386,10 @@ export async function generateLuciaReply(input: {
           usage,
           model,
           issues,
+          cheaperSharedFrom,
         };
       }
-      return { output, usage, model, issues };
+      return { output, usage, model, issues, cheaperSharedFrom };
     }
 
     const lookups = response.content.filter(
@@ -392,7 +415,11 @@ export async function generateLuciaReply(input: {
           }
           try {
             // Pidió departamento: se ofrecen solo opciones con todo privado (lo fija el sistema).
-            const query = { ...(block.input as AvailabilityQuery), ...(apartment ? { solo_privado: true } : {}) };
+            const query: AvailabilityQuery = {
+              ...(block.input as AvailabilityQuery),
+              ...(apartment ? { solo_bano_privado: true } : {}),
+              ...(sharedAccepted && input.cheaperSharedFrom ? { solo_bano_privado: false } : {}),
+            };
             availabilityWasAttempted = true;
             const inconsistency = validateStayAgainstCustomerText(query, input.customerText, input.todayIso);
             if (inconsistency) {
@@ -409,6 +436,10 @@ export async function generateLuciaReply(input: {
                 hostales?: unknown;
               };
               if (record.ok !== true) issues.push(`La consulta respondió error: ${JSON.stringify(result).slice(0, 160)}`);
+              if (record.ok === true) {
+                const from = (result as { compartidas_desde?: unknown }).compartidas_desde;
+                cheaperSharedFrom = query.solo_bano_privado && typeof from === "number" ? from : null;
+              }
               if (record.ok === true && typeof record.resumen_whatsapp === "string") {
                 availabilitySummary = record.resumen_whatsapp;
                 availabilityHasOptions = Array.isArray(record.hostales) && record.hostales.length > 0;

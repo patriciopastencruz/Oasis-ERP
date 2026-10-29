@@ -39,6 +39,13 @@ begin
     update public.lucia_messages set delivery_status='sent',sent_at=now() where conversation_id=a and delivery_status='queued';
     update public.lucia_conversations set followup_sent_at=now()-interval '40 minutes',last_inbound_at=now()-interval '24 minutes',last_outbound_at=now()-interval '21 minutes' where id=a;
     if public.lucia_send_followups(company)<>1 then raise exception 'Tras una nueva respuesta del cliente corresponde otro recontacto'; end if;
+    -- Pidió departamento y quedaron opciones con baño compartido sin mostrar: el recontacto las ofrece.
+    update public.lucia_messages set delivery_status='sent',sent_at=now() where conversation_id=a and delivery_status='queued';
+    update public.lucia_conversations set cheaper_shared_from=24000,followup_sent_at=now()-interval '40 minutes',last_inbound_at=now()-interval '24 minutes',last_outbound_at=now()-interval '21 minutes' where id=a;
+    if public.lucia_send_followups(company)<>1 then raise exception 'Debía recontactar'; end if;
+    if not exists(select 1 from public.lucia_messages where conversation_id=a and content like '%algo más económico%baño compartido desde $24.000 por noche%¿Quieres que te las muestre?%') then
+      raise exception 'El recontacto debe ofrecer las opciones con baño compartido';
+    end if;
   elsif n<>0 then
     raise exception 'Fuera de horario no se recontacta';
   end if;

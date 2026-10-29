@@ -36,7 +36,7 @@ export async function processLuciaConversation(
 ): Promise<ProcessResult> {
   const { data: conversation } = await admin
     .from("lucia_conversations")
-    .select("id,company_id,status,paused_until,hostel_assigned,guest_name,booking_status,booking_total,booking_deposit,hold_expires_at")
+    .select("id,company_id,status,paused_until,hostel_assigned,guest_name,booking_status,booking_total,booking_deposit,hold_expires_at,cheaper_shared_from")
     .eq("id", conversationId)
     .maybeSingle();
   if (!conversation) return { status: "skipped", reason: "not_found" };
@@ -83,9 +83,13 @@ export async function processLuciaConversation(
         [
           describeBookingState(conversation),
           conversation.guest_name ? `El cliente ya dio su nombre: ${conversation.guest_name}. No se lo vuelvas a pedir.` : null,
+          conversation.cheaper_shared_from
+            ? `Como pidió departamento, se le mostraron solo opciones con baño privado; también hay opciones con baño compartido desde $${Math.round(Number(conversation.cheaper_shared_from)).toLocaleString("es-CL")} por noche. No se las ofrezcas por tu cuenta; si pide algo más barato o acepta verlas, usa consultar_disponibilidad y muéstralas.`
+            : null,
         ]
           .filter(Boolean)
           .join(" ") || null,
+      cheaperSharedFrom: conversation.cheaper_shared_from === null ? null : Number(conversation.cheaper_shared_from),
       bookingInProgress: ["awaiting_reception", "awaiting_payment", "proof_received", "confirmed"].includes(
         conversation.booking_status,
       ),
@@ -104,6 +108,10 @@ export async function processLuciaConversation(
           message: result.issues.join(" · ").slice(0, 1900),
         },
       });
+    }
+    // Recuerda si quedaron opciones más baratas sin mostrar (las ofrece el recontacto).
+    if (result.cheaperSharedFrom !== undefined) {
+      await admin.from("lucia_conversations").update({ cheaper_shared_from: result.cheaperSharedFrom }).eq("id", conversationId);
     }
     const costUsd = usageCostUsd(settings.model, result.usage);
     const tokens = {

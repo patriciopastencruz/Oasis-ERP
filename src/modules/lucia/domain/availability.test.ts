@@ -139,26 +139,23 @@ describe("searchAvailability", () => {
   });
 });
 
-describe("departamento pedido (todo privado)", () => {
-  it("quita las opciones con baño o cocina compartidos y avisa la hostal que no tiene", () => {
+describe("baño privado pedido", () => {
+  it("informa desde cuánto parten las opciones con baño compartido que se ocultaron", () => {
     const result = searchAvailability({
       ...base,
-      privateOnly: true,
+      privateBathOnly: true,
       rooms: [
         room("u1", "HU", { description: "1 cama matrimonial, baño privado y cocina compartida" }),
-        room("u2", "HU", { description: "2 camas, baño compartido y cocina compartida" }),
-        room("c1", "HOC", { roomType: "Habitación baño compartido", description: "1 cama de 2 plazas" }),
-        room("c2", "HOC", { roomType: "Modulares", description: "Modular matrimonial con baño privado y frigobar" }),
+        room("u2", "HU", { description: "2 camas, baño compartido y cocina compartida", ratesByGuests: { "1": 23000, "2": 29000 } }),
+        room("c1", "HOC", { roomType: "Habitación baño compartido", description: "1 cama de 2 plazas", ratesByGuests: { "1": 24000, "2": 28000 } }),
         room("b1", "HOB", { roomType: "Mini depto", description: "1 cama matrimonial, TV, cocina, frigobar y baño privado" }),
       ],
       bookings: [],
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.hostales.flatMap((h) => h.opciones.map((o) => o.codigo))).toEqual(["c2", "b1"]);
-    expect(formatAvailabilityForWhatsApp(result)).toContain(
-      "Hostal Uruguay no tiene opciones con baño y cocina privados (sin nada compartido) libres para esas fechas.",
-    );
+    expect(result.hostales.flatMap((h) => h.opciones.map((o) => o.codigo))).toEqual(["u1", "b1"]);
+    expect(result.compartidas_desde).toBe(28000);
   });
 });
 

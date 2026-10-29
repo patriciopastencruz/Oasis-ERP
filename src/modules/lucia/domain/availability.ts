@@ -52,8 +52,8 @@ export type AvailabilityResult =
       sin_disponibilidad: string[];
       /** Hostales con lugar, pero sin habitaciones con baño privado libres (si se pidió). */
       sin_bano_privado?: string[];
-      /** Se pidió un departamento: solo opciones sin baño ni cocina compartidos. */
-      solo_privado?: boolean;
+      /** Precio por noche más bajo de las opciones con baño compartido que se ocultaron. */
+      compartidas_desde?: number;
     };
 
 const plain = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -63,9 +63,6 @@ const hasPrivateBath = (label: string) => {
   const text = plain(label);
   return /bano privado|bano propio|con bano\b/.test(text) || !/bano compartido/.test(text);
 };
-
-// Departamento o mini depto: todo privado, nada compartido (ni baño ni cocina).
-const isFullyPrivate = (label: string) => !/compartid/.test(plain(label));
 
 export const MAX_NIGHTS = 30;
 
@@ -192,10 +189,7 @@ export function searchAvailability(input: {
   today: string;
   /** Solo opciones con baño privado, cuando el cliente lo pide. */
   privateBathOnly?: boolean;
-  /** Pidió un departamento: solo opciones sin nada compartido. */
-  privateOnly?: boolean;
 }): AvailabilityResult {
-  const keep = input.privateOnly ? isFullyPrivate : input.privateBathOnly ? hasPrivateBath : null;
   const { checkIn, checkOut, guests, today } = input;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(checkIn) || !/^\d{4}-\d{2}-\d{2}$/.test(checkOut))
     return { ok: false, error: "Fechas inválidas: usa AAAA-MM-DD." };
@@ -244,9 +238,10 @@ export function searchAvailability(input: {
     opciones.length = 0;
     opciones.push(...merged.values());
     opciones.sort((a, b) => a.precio_noche - b.precio_noche || a.habitacion.localeCompare(b.habitacion));
-    const elegibles = keep ? opciones.filter((o) => keep(o.habitacion)) : opciones;
-    const roomsForCombination = keep
-      ? freeRooms.filter((room) => keep(label(room)))
+    const elegibles = input.privateBathOnly ? opciones.filter((o) => hasPrivateBath(o.habitacion)) : opciones;
+    const ocultas = opciones.filter((o) => !elegibles.includes(o));
+    const roomsForCombination = input.privateBathOnly
+      ? freeRooms.filter((room) => hasPrivateBath(label(room)))
       : freeRooms;
     const combination = elegibles.length
       ? null
@@ -260,6 +255,7 @@ export function searchAvailability(input: {
       opciones: elegibles,
       combinaciones: combination ? [combination] : [],
       conLugar: opciones.length > 0 || Boolean(anyCombination),
+      ocultas,
     };
   });
 
@@ -273,12 +269,14 @@ export function searchAvailability(input: {
       .filter((h) => h.opciones.length > 0 || h.combinaciones.length > 0)
       .map(({ hostal, codigo, opciones, combinaciones }) => ({ hostal, codigo, opciones, combinaciones })),
     sin_disponibilidad: hostales.filter((h) => !h.conLugar).map((h) => h.hostal),
-    ...(input.privateOnly ? { solo_privado: true } : {}),
-    ...(keep
+    ...(input.privateBathOnly
       ? {
           sin_bano_privado: hostales
             .filter((h) => h.conLugar && h.opciones.length === 0 && h.combinaciones.length === 0)
             .map((h) => h.hostal),
+          ...(hostales.some((h) => h.ocultas.length)
+            ? { compartidas_desde: Math.min(...hostales.flatMap((h) => h.ocultas.map((o) => o.precio_noche))) }
+            : {}),
         }
       : {}),
   };
@@ -332,8 +330,7 @@ export function formatAvailabilityForWhatsApp(result: AvailabilityResult): strin
     ].join("\n"),
   );
   if (result.sin_bano_privado?.length) {
-    const kind = result.solo_privado ? "opciones con baño y cocina privados (sin nada compartido)" : "habitaciones con baño privado";
-    blocks.push(`${result.sin_bano_privado.join(" y ")} no ${result.sin_bano_privado.length === 1 ? "tiene" : "tienen"} ${kind} libres para esas fechas.`);
+    blocks.push(`${result.sin_bano_privado.join(" y ")} no ${result.sin_bano_privado.length === 1 ? "tiene" : "tienen"} habitaciones con baño privado libres para esas fechas.`);
   }
   if (result.sin_disponibilidad.length) {
     // Sin lugar puede ser por ocupación o porque ninguna pieza admite a tantas personas.
