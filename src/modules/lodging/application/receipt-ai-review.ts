@@ -226,18 +226,24 @@ export async function backfillReceiptTimes(input: { receiptIds?: string[]; busin
     .not("ai_detected_date", "is", null)
     .not("ai_detected_amount", "is", null)
     .order("created_at", { ascending: false })
-    .limit(Math.min(Math.max(input.limit ?? 30, 1), 100));
+    .limit(400);
   if (input.receiptIds) {
     if (!input.receiptIds.length) return { filled: 0 };
     query = query.in("id", input.receiptIds);
   }
   if (input.businessUnitId) query = query.eq("business_unit_id", input.businessUnitId);
-  const { data, error } = await query;
+  const { data: candidates, error } = await query;
+  // Varias aperturas seguidas del historial no deben leer los mismos comprobantes: cada una toma un subconjunto al azar.
+  const data = (candidates ?? [])
+    .map((row) => ({ row, order: Math.random() }))
+    .sort((x, y) => x.order - y.order)
+    .slice(0, Math.min(Math.max(input.limit ?? 30, 1), 100))
+    .map(({ row }) => row);
   if (error) {
     console.error("[lodging-receipt-ai] No fue posible listar comprobantes sin hora", { code: error.code });
     return { filled: 0 };
   }
-  const queue = [...(data ?? [])];
+  const queue = [...data];
   let filled = 0;
   async function worker() {
     for (let row = queue.shift(); row; row = queue.shift()) {
