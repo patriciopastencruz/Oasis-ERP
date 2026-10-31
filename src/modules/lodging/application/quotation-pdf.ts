@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { PDFDocument, PDFFont, PDFImage, StandardFonts, rgb } from "pdf-lib";
-import { QUOTATION_MAX_PHOTOS, serviceBullets } from "../domain/quotations";
+import { QUOTATION_MAX_PHOTOS, photoGrid, serviceBullets, splitPhotosForPdf } from "../domain/quotations";
 import { loadLogo } from "./closing-pdf";
 
 export type LodgingQuotationPdfInput = {
@@ -177,24 +177,44 @@ export async function buildLodgingQuotationPdf(input: LodgingQuotationPdfInput) 
     }
   }
   if (images.length) {
-    // Cuadrícula de 4 por fila: con hasta 15 fotos pasan a más filas (y a otra página si no caben).
-    const perRow = 4;
-    const gap = 6;
-    const cols = Math.min(perRow, images.length);
-    const boxW = (tableW - gap * (cols - 1)) / cols;
-    const boxH = 170;
-    for (let start = 0; start < images.length; start += perRow) {
-      if (y - boxH < 40) {
-        page = pdf.addPage([W, H]);
-        y = H - 40;
+    const gap = 8;
+    // Dibuja cada foto centrada y completa dentro de su celda.
+    const drawCell = (img: PDFImage, x: number, top: number, w: number, h: number) => {
+      const scale = Math.min(w / img.width, h / img.height);
+      const iw = img.width * scale;
+      const ih = img.height * scale;
+      page.drawImage(img, { x: x + (w - iw) / 2, y: top - h + (h - ih) / 2, width: iw, height: ih });
+    };
+    const split = splitPhotosForPdf(images.length);
+    let next = 0;
+
+    // Primera hoja: una fila con hasta 4 fotos bajo la tabla (si no caben, pasan a la hoja siguiente).
+    const rowH = 190;
+    const firstRow = y - rowH >= 40 ? split.first : 0;
+    if (firstRow > 0) {
+      const w = (tableW - gap * (firstRow - 1)) / firstRow;
+      for (let i = 0; i < firstRow; i++) drawCell(images[next++], left + i * (w + gap), y, w, rowH);
+    }
+
+    // Hojas siguientes: cuadrícula pareja que llena la página y mantiene el tamaño de celda.
+    const rest = images.length - next;
+    const pages = firstRow > 0 ? split.extraPages : splitPhotosForPdf(images.length, 0).extraPages;
+    for (const count of rest > 0 ? pages : []) {
+      page = pdf.addPage([W, H]);
+      const top = H - 40;
+      const { cols, rows } = photoGrid(count);
+      const cellW = (tableW - gap * (cols - 1)) / cols;
+      const cellH = Math.min(300, (H - 80 - gap * (rows - 1)) / rows);
+      const used = rows * cellH + (rows - 1) * gap;
+      const offsetY = (H - 80 - used) / 2; // centra el bloque en vertical
+      for (let r = 0; r < rows; r++) {
+        const inRow = Math.min(cols, count - r * cols);
+        // La última fila, si queda incompleta, se centra.
+        const rowX = left + ((cols - inRow) * (cellW + gap)) / 2;
+        for (let c = 0; c < inRow; c++) {
+          drawCell(images[next++], rowX + c * (cellW + gap), top - offsetY - r * (cellH + gap), cellW, cellH);
+        }
       }
-      images.slice(start, start + perRow).forEach((img, i) => {
-        const scale = Math.min(boxW / img.width, boxH / img.height);
-        const w = img.width * scale;
-        const h = img.height * scale;
-        page.drawImage(img, { x: left + i * (boxW + gap) + (boxW - w) / 2, y: y - h, width: w, height: h });
-      });
-      y -= boxH + gap;
     }
   }
 

@@ -84,3 +84,30 @@ export function serviceBullets(detail: string | null | undefined) {
     .map((s) => s.replace(/^[-•\s]+/, "").trim())
     .filter(Boolean);
 }
+
+/** Fotos en la primera hoja del PDF: una sola fila bajo la tabla. */
+export const QUOTATION_PDF_FIRST_PAGE_PHOTOS = 4;
+const PHOTOS_PER_EXTRA_PAGE = 9;
+
+/** Columnas y filas de la cuadrícula para `n` fotos en una página adicional. */
+export function photoGrid(n: number) {
+  if (n <= 1) return { cols: 1, rows: 1 };
+  if (n === 2) return { cols: 2, rows: 1 };
+  if (n === 3) return { cols: 3, rows: 1 };
+  if (n === 4) return { cols: 2, rows: 2 };
+  return { cols: 3, rows: Math.ceil(n / 3) };
+}
+
+/**
+ * Reparte las fotos del PDF: hasta 4 en la primera hoja y el resto en páginas
+ * adicionales con cantidades parejas (11 fotos → 6 y 5, no 9 y 2).
+ */
+export function splitPhotosForPdf(total: number, firstPage = QUOTATION_PDF_FIRST_PAGE_PHOTOS) {
+  const first = Math.min(total, firstPage);
+  const rest = total - first;
+  if (rest <= 0) return { first, extraPages: [] as number[] };
+  const pages = Math.ceil(rest / PHOTOS_PER_EXTRA_PAGE);
+  const base = Math.floor(rest / pages);
+  const extra = rest % pages;
+  return { first, extraPages: Array.from({ length: pages }, (_, i) => base + (i < extra ? 1 : 0)) };
+}
