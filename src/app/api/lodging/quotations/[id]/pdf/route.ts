@@ -14,7 +14,7 @@ export async function GET(
   const [{ data: quotation }, { data: lines }, { data: photos }] = await Promise.all([
     supabase
       .from("lodging_quotations")
-      .select("quotation_number,issued_on,status,client_company,client_rut,client_contact,hostel_address,service_detail,check_in,check_out,net,iva,total")
+      .select("business_unit_id,quotation_number,issued_on,status,client_company,client_rut,client_contact,hostel_address,service_detail,check_in,check_out,net,iva,total")
       .eq("id", idResult.data)
       .maybeSingle(),
     supabase
@@ -29,6 +29,12 @@ export async function GET(
       .order("created_at"),
   ]);
   if (!quotation) return new NextResponse("Cotización no encontrada", { status: 404 });
+  // El logo es el del hostal de la cotización, no el del hostal activo en pantalla.
+  const { data: quotationUnit } = await supabase
+    .from("business_units")
+    .select("code")
+    .eq("id", quotation.business_unit_id)
+    .maybeSingle();
 
   const files = await Promise.all(
     (photos ?? []).map(async (p) => {
@@ -40,6 +46,7 @@ export async function GET(
     quotationNumber: quotation.quotation_number,
     issuedOn: quotation.issued_on,
     voided: quotation.status === "voided",
+    unitCode: quotationUnit?.code ?? null,
     client: {
       company: quotation.client_company,
       rut: quotation.client_rut,

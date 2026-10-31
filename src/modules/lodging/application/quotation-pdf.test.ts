@@ -78,4 +78,11 @@ describe("PDF de cotización de hostal", () => {
     );
     expect(withTwelve - withoutPhotos).toBe(10);
   });
+
+  it("usa el logo del hostal de la cotización", async () => {
+    const sizes = async (unitCode: string | null) => (await buildLodgingQuotationPdf({ ...base, unitCode })).length;
+    const [hoc, hu, hob, none] = await Promise.all([sizes("HOC"), sizes("HU"), sizes("HOB"), sizes(null)]);
+    // Cada hostal incrusta su propio archivo, así que el PDF pesa distinto en cada caso.
+    expect(new Set([hoc, hu, hob, none]).size).toBe(4);
+  });
 });

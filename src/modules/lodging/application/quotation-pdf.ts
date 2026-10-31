@@ -2,11 +2,14 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { PDFDocument, PDFFont, PDFImage, StandardFonts, rgb } from "pdf-lib";
 import { QUOTATION_MAX_PHOTOS, serviceBullets } from "../domain/quotations";
+import { loadLogo } from "./closing-pdf";
 
 export type LodgingQuotationPdfInput = {
   quotationNumber: string;
   issuedOn: string; // yyyy-mm-dd
   voided: boolean;
+  /** Código del hostal (HOC, HU, HOB): define el logo del encabezado. */
+  unitCode?: string | null;
   client: { company: string; rut: string | null; contact: string | null };
   hostelAddress: string | null;
   serviceDetail: string | null;
@@ -56,10 +59,12 @@ export async function buildLodgingQuotationPdf(input: LodgingQuotationPdfInput) 
   let page = pdf.addPage([W, H]);
   let y = H - 36;
 
-  const logo = await pdf.embedPng(
-    await readFile(path.join(process.cwd(), "public/oasis-modulares-quotation-logo.png")),
-  );
-  const logoW = 170;
+  // Logo del hostal que emite la cotización; sin logo propio se usa el genérico.
+  const unitLogo = input.unitCode ? await loadLogo(pdf, input.unitCode) : null;
+  const logo =
+    unitLogo ??
+    (await pdf.embedPng(await readFile(path.join(process.cwd(), "public/oasis-modulares-quotation-logo.png"))));
+  const logoW = unitLogo ? 84 : 170;
   const logoH = (logo.height / logo.width) * logoW;
   page.drawImage(logo, { x: left + 20, y: y - logoH, width: logoW, height: logoH });
   y -= logoH + 22;
