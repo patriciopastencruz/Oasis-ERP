@@ -22,45 +22,69 @@ async function shrink(file: File): Promise<File> {
   }
 }
 
-/** Fotos opcionales: cámara o galería, máximo `max`, con vista previa. */
-export function PhotoPicker({ name = "photos", max = 5 }: { name?: string; max?: number }) {
+/** Fotos opcionales: cámara o galería, máximo `max`, con vista previa. Cada selección se suma a las anteriores; `min` solo orienta. */
+export function PhotoPicker({ name = "photos", max = 5, min }: { name?: string; max?: number; min?: number }) {
   const input = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+
+  /** Deja en el campo del formulario exactamente las fotos elegidas hasta ahora. */
+  function apply(next: File[]) {
+    const el = input.current;
+    try {
+      const dt = new DataTransfer();
+      next.forEach((f) => dt.items.add(f));
+      if (el) el.files = dt.files;
+    } catch {
+      // Navegadores sin DataTransfer: se envía solo la última selección (el servidor valida tamaño).
+    }
+    previews.forEach((url) => URL.revokeObjectURL(url));
+    setFiles(next);
+    setPreviews(next.map((f) => URL.createObjectURL(f)));
+  }
 
   async function onChange() {
     const el = input.current;
     if (!el?.files) return;
     setBusy(true);
-    const files = await Promise.all([...el.files].slice(0, max).map(shrink));
-    try {
-      const dt = new DataTransfer();
-      files.forEach((f) => dt.items.add(f));
-      el.files = dt.files;
-    } catch {
-      // Navegadores sin DataTransfer: se envían los originales (el servidor valida tamaño).
-    }
-    previews.forEach((url) => URL.revokeObjectURL(url));
-    setPreviews(files.map((f) => URL.createObjectURL(f)));
+    const added = await Promise.all([...el.files].slice(0, Math.max(0, max - files.length)).map(shrink));
+    apply([...files, ...added]);
     setBusy(false);
   }
 
+  const full = files.length >= max;
   return (
     <div>
-      <label className="flex h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white text-base font-bold text-slate-700">
-        📷 {previews.length ? `${previews.length} foto${previews.length === 1 ? "" : "s"} · cambiar` : "Agregar fotos (opcional)"}
-        <input ref={input} type="file" name={name} accept="image/*" multiple className="sr-only" onChange={onChange} />
+      <label
+        className={`flex h-14 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white text-base font-bold text-slate-700 ${full ? "opacity-50" : "cursor-pointer"}`}
+      >
+        📷 {files.length ? `${files.length} foto${files.length === 1 ? "" : "s"} · agregar más` : "Agregar fotos (opcional)"}
+        <input ref={input} type="file" name={name} accept="image/*" multiple disabled={full} className="sr-only" onChange={onChange} />
       </label>
       {busy && <p className="mt-2 text-xs text-slate-500">Preparando fotos…</p>}
       {previews.length > 0 && (
         <div className="mt-2 grid grid-cols-5 gap-2">
-          {previews.map((src) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={src} src={src} alt="" className="aspect-square w-full rounded-lg object-cover" />
+          {previews.map((src, i) => (
+            <div key={src} className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt="" className="aspect-square w-full rounded-lg object-cover" />
+              <button
+                type="button"
+                aria-label={`Quitar foto ${i + 1}`}
+                onClick={() => apply(files.filter((_, j) => j !== i))}
+                className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-900/70 text-xs font-bold text-white"
+              >
+                ×
+              </button>
+            </div>
           ))}
         </div>
       )}
-      <p className="mt-1 text-xs text-slate-500">Máximo {max} fotos.</p>
+      <p className="mt-1 text-xs text-slate-500">
+        {min ? `Entre ${min} y ${max} fotos recomendadas.` : `Máximo ${max} fotos.`}
+        {files.length > 0 && min && files.length < min ? ` Te faltan ${min - files.length} para el mínimo recomendado.` : ""}
+      </p>
     </div>
   );
 }

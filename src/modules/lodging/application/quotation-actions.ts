@@ -57,7 +57,7 @@ async function uploadQuotationPhotos(
     });
     if (error) {
       await supabase.storage.from("lodging-operations").remove([path]);
-      if (/maximo 4 fotos/i.test(error.message)) break;
+      if (/maximo \d+ fotos/i.test(error.message)) break;
       continue;
     }
     saved++;

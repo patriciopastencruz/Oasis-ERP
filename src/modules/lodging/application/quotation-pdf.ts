@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { PDFDocument, PDFFont, PDFImage, StandardFonts, rgb } from "pdf-lib";
-import { serviceBullets } from "../domain/quotations";
+import { QUOTATION_MAX_PHOTOS, serviceBullets } from "../domain/quotations";
 
 export type LodgingQuotationPdfInput = {
   quotationNumber: string;
@@ -163,7 +163,7 @@ export async function buildLodgingQuotationPdf(input: LodgingQuotationPdfInput) 
 
   // ---------- Fotos ----------
   const images: PDFImage[] = [];
-  for (const p of input.photos.slice(0, 4)) {
+  for (const p of input.photos.slice(0, QUOTATION_MAX_PHOTOS)) {
     try {
       images.push(p.mime === "image/png" ? await pdf.embedPng(p.bytes) : await pdf.embedJpg(p.bytes));
     } catch {
@@ -171,19 +171,25 @@ export async function buildLodgingQuotationPdf(input: LodgingQuotationPdfInput) 
     }
   }
   if (images.length) {
+    // Cuadrícula de 4 por fila: con hasta 10 fotos pasan a una segunda y tercera fila (y a otra página si no caben).
+    const perRow = 4;
     const gap = 6;
-    const boxW = (tableW - gap * (images.length - 1)) / images.length;
+    const cols = Math.min(perRow, images.length);
+    const boxW = (tableW - gap * (cols - 1)) / cols;
     const boxH = 170;
-    if (y - boxH < 40) {
-      page = pdf.addPage([W, H]);
-      y = H - 40;
+    for (let start = 0; start < images.length; start += perRow) {
+      if (y - boxH < 40) {
+        page = pdf.addPage([W, H]);
+        y = H - 40;
+      }
+      images.slice(start, start + perRow).forEach((img, i) => {
+        const scale = Math.min(boxW / img.width, boxH / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        page.drawImage(img, { x: left + i * (boxW + gap) + (boxW - w) / 2, y: y - h, width: w, height: h });
+      });
+      y -= boxH + gap;
     }
-    images.forEach((img, i) => {
-      const scale = Math.min(boxW / img.width, boxH / img.height);
-      const w = img.width * scale;
-      const h = img.height * scale;
-      page.drawImage(img, { x: left + i * (boxW + gap) + (boxW - w) / 2, y: y - h, width: w, height: h });
-    });
   }
 
   return pdf.save();

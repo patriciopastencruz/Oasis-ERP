@@ -6,6 +6,7 @@ import {
   DEFAULT_SERVICE_DETAIL,
   QUOTATION_MAX_LINES,
   QUOTATION_MAX_PHOTOS,
+  QUOTATION_MIN_PHOTOS,
   lineTotals,
   nightsBetween,
   quotationTotals,
@@ -201,7 +202,7 @@ export function LodgingQuotationForm({
 
       <section className="grid gap-2">
         <h2 className="font-semibold">Fotos de la habitación (opcional)</h2>
-        <PhotoPicker name="photos" max={QUOTATION_MAX_PHOTOS} />
+        <PhotoPicker name="photos" min={QUOTATION_MIN_PHOTOS} max={QUOTATION_MAX_PHOTOS} />
       </section>
 
       <button
