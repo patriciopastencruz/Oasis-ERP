@@ -171,8 +171,9 @@ export async function buildLodgingQuotationPdf(input: LodgingQuotationPdfInput) 
   for (const p of input.photos.slice(0, QUOTATION_MAX_PHOTOS)) {
     try {
       images.push(p.mime === "image/png" ? await pdf.embedPng(p.bytes) : await pdf.embedJpg(p.bytes));
-    } catch {
-      // WebP u otros formatos no embebibles: se omiten sin romper el PDF.
+    } catch (error) {
+      // WebP u otros formatos no embebibles: se omiten sin romper el PDF, pero queda registro.
+      console.error("[lodging quotation pdf] foto no incrustable", { mime: p.mime, message: String(error) });
     }
   }
   if (images.length) {

@@ -38,7 +38,8 @@ export async function GET(
 
   const files = await Promise.all(
     (photos ?? []).map(async (p) => {
-      const { data } = await supabase.storage.from("lodging-operations").download(p.object_path);
+      const { data, error } = await supabase.storage.from("lodging-operations").download(p.object_path);
+      if (error) console.error("[lodging quotation pdf] no se pudo leer una foto", { quotation: idResult.data, message: error.message });
       return data ? { bytes: new Uint8Array(await data.arrayBuffer()), mime: p.mime_type } : null;
     }),
   );

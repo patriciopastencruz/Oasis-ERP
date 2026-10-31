@@ -57,10 +57,10 @@ export function PhotoPicker({ name = "photos", max = 5, min }: { name?: string; 
   return (
     <div>
       <label
-        className={`flex h-14 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white text-base font-bold text-slate-700 ${full ? "opacity-50" : "cursor-pointer"}`}
+        className={`flex h-14 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white text-base font-bold text-slate-700 ${full ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
       >
         📷 {files.length ? `${files.length} foto${files.length === 1 ? "" : "s"} · agregar más` : "Agregar fotos (opcional)"}
-        <input ref={input} type="file" name={name} accept="image/*" multiple disabled={full} className="sr-only" onChange={onChange} />
+        <input ref={input} type="file" name={name} accept="image/*" multiple tabIndex={full ? -1 : 0} className="sr-only" onChange={onChange} />
       </label>
       {busy && <p className="mt-2 text-xs text-slate-500">Preparando fotos…</p>}
       {previews.length > 0 && (
