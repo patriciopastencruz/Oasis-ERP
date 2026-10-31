@@ -85,13 +85,13 @@ export function serviceBullets(detail: string | null | undefined) {
     .filter(Boolean);
 }
 
-/** Fotos en la primera hoja del PDF: una sola fila bajo la tabla. */
-export const QUOTATION_PDF_FIRST_PAGE_PHOTOS = 4;
+/** La primera hoja del PDF es solo la cotización: las fotos van desde la segunda. */
+export const QUOTATION_PDF_FIRST_PAGE_PHOTOS = 0;
 const PHOTOS_PER_EXTRA_PAGE = 9;
 
 /**
- * Reparte las fotos del PDF: hasta 4 en la primera hoja y el resto en hojas
- * adicionales de 3 columnas por 3 filas. Cada hoja se llena completa antes de
+ * Reparte las fotos del PDF en hojas adicionales de 3 columnas por 3 filas
+ * (`firstPage` fotos pueden ir en la primera hoja; hoy ninguna). Cada hoja se llena completa antes de
  * pasar a la siguiente, así no quedan huecos con fotos pendientes después.
  */
 export function splitPhotosForPdf(total: number, firstPage = QUOTATION_PDF_FIRST_PAGE_PHOTOS) {

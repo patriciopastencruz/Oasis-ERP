@@ -191,30 +191,14 @@ export async function buildLodgingQuotationPdf(input: LodgingQuotationPdfInput) 
     };
     let next = 0;
 
-    // Primera hoja: filas de 4 fotos bajo la tabla, tantas como quepan. Si la tabla deja poco
-    // espacio, la primera fila se achica (hasta un mínimo) en vez de dejar un hueco en la hoja.
-    const perRow = Math.min(4, images.length);
-    const availH = y - 40;
-    const idealW = Math.min((tableW - gap * (perRow - 1)) / perRow, 260 / RATIO);
-    const idealH = idealW * RATIO;
-    const fullRows = availH >= idealH ? Math.floor((availH + gap) / (idealH + gap)) : 0;
-    const rowH = fullRows > 0 ? idealH : Math.min(idealH, availH);
-    const rowW = rowH / RATIO;
-    const rowsOnFirst = fullRows > 0 ? fullRows : rowH >= 110 ? 1 : 0;
-    const onFirstPage = Math.min(images.length, rowsOnFirst * perRow);
-    const rowX = left + (tableW - (perRow * rowW + gap * (perRow - 1))) / 2;
-    for (let i = 0; i < onFirstPage; i++) {
-      const r = Math.floor(i / perRow);
-      drawCell(images[next++], rowX + (i % perRow) * (rowW + gap), y - r * (rowH + gap), rowW, rowH);
-    }
-
-    // Hojas siguientes: cada una se llena completa (3 columnas) con celdas del mismo tamaño,
-    // desde el borde superior. Solo la última fila del documento puede quedar incompleta.
-    const pages = splitPhotosForPdf(images.length, onFirstPage).extraPages;
+    // Las fotos van desde la segunda hoja (la primera es solo la cotización): cada hoja se llena
+    // completa (3 columnas) con celdas del mismo tamaño, desde el borde superior. Solo la última
+    // fila del documento puede quedar incompleta.
+    const pages = splitPhotosForPdf(images.length).extraPages;
     const cols = QUOTATION_PDF_GRID_COLS;
     const cellW = (tableW - gap * (cols - 1)) / cols;
     const cellH = cellW * RATIO;
-    for (const count of images.length - next > 0 ? pages : []) {
+    for (const count of pages) {
       page = pdf.addPage([W, H]);
       const top = H - 40;
       for (let i = 0; i < count; i++) {
