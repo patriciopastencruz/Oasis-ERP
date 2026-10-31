@@ -61,22 +61,22 @@ async function imageCount(bytes: Uint8Array) {
 }
 
 describe("PDF de cotización de hostal", () => {
-  it("incluye las 10 fotos cuando se adjuntan 10", async () => {
+  it("incluye las 15 fotos cuando se adjuntan 15", async () => {
     const png = tinyPng();
     const withoutPhotos = await imageCount(await buildLodgingQuotationPdf(base));
-    const withTen = await imageCount(
-      await buildLodgingQuotationPdf({ ...base, photos: Array.from({ length: 10 }, () => ({ bytes: png, mime: "image/png" })) }),
+    const withMax = await imageCount(
+      await buildLodgingQuotationPdf({ ...base, photos: Array.from({ length: 15 }, () => ({ bytes: png, mime: "image/png" })) }),
     );
-    expect(withTen - withoutPhotos).toBe(10);
+    expect(withMax - withoutPhotos).toBe(15);
   });
 
   it("ignora fotos por sobre el máximo", async () => {
     const png = tinyPng();
     const withoutPhotos = await imageCount(await buildLodgingQuotationPdf(base));
-    const withTwelve = await imageCount(
-      await buildLodgingQuotationPdf({ ...base, photos: Array.from({ length: 12 }, () => ({ bytes: png, mime: "image/png" })) }),
+    const withOver = await imageCount(
+      await buildLodgingQuotationPdf({ ...base, photos: Array.from({ length: 18 }, () => ({ bytes: png, mime: "image/png" })) }),
     );
-    expect(withTwelve - withoutPhotos).toBe(10);
+    expect(withOver - withoutPhotos).toBe(15);
   });
 
   it("usa el logo del hostal de la cotización", async () => {

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const QUOTATION_IVA_RATE = 0.19;
 export const QUOTATION_MAX_LINES = 20;
 export const QUOTATION_MIN_PHOTOS = 4;
-export const QUOTATION_MAX_PHOTOS = 10;
+export const QUOTATION_MAX_PHOTOS = 15;
 
 export const DEFAULT_SERVICE_DETAIL =
   "Hospedaje por noches; 1 persona; 1 habitación\nHabitaciones completamente amobladas.";

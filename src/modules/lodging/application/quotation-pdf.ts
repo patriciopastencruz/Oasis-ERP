@@ -177,7 +177,7 @@ export async function buildLodgingQuotationPdf(input: LodgingQuotationPdfInput) 
     }
   }
   if (images.length) {
-    // Cuadrícula de 4 por fila: con hasta 10 fotos pasan a una segunda y tercera fila (y a otra página si no caben).
+    // Cuadrícula de 4 por fila: con hasta 15 fotos pasan a más filas (y a otra página si no caben).
     const perRow = 4;
     const gap = 6;
     const cols = Math.min(perRow, images.length);
