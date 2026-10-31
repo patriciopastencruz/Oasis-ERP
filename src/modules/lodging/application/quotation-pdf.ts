@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { PDFDocument, PDFFont, PDFImage, StandardFonts, clip, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb } from "pdf-lib";
-import { QUOTATION_MAX_PHOTOS, photoGrid, serviceBullets, splitPhotosForPdf } from "../domain/quotations";
+import { QUOTATION_MAX_PHOTOS, QUOTATION_PDF_GRID_COLS, serviceBullets, splitPhotosForPdf } from "../domain/quotations";
 import { loadLogo } from "./closing-pdf";
 
 export type LodgingQuotationPdfInput = {
@@ -189,37 +189,38 @@ export async function buildLodgingQuotationPdf(input: LodgingQuotationPdfInput) 
       page.drawImage(img, { x: x + (w - iw) / 2, y: top - h + (h - ih) / 2, width: iw, height: ih });
       page.pushOperators(popGraphicsState());
     };
-    const split = splitPhotosForPdf(images.length);
     let next = 0;
 
-    // Primera hoja: una fila con hasta 4 fotos bajo la tabla (si no caben, pasan a la hoja siguiente).
-    const firstCount = split.first;
-    const maxRowH = 260;
-    const rowW = Math.min((tableW - gap * (firstCount - 1)) / firstCount, maxRowH / RATIO);
-    const rowH = rowW * RATIO;
-    const firstRow = firstCount > 0 && y - rowH >= 40 ? firstCount : 0;
-    if (firstRow > 0) {
-      const rowX = left + (tableW - (firstRow * rowW + gap * (firstRow - 1))) / 2;
-      for (let i = 0; i < firstRow; i++) drawCell(images[next++], rowX + i * (rowW + gap), y, rowW, rowH);
+    // Primera hoja: filas de 4 fotos bajo la tabla, tantas como quepan. Si la tabla deja poco
+    // espacio, la primera fila se achica (hasta un mínimo) en vez de dejar un hueco en la hoja.
+    const perRow = Math.min(4, images.length);
+    const availH = y - 40;
+    const idealW = Math.min((tableW - gap * (perRow - 1)) / perRow, 260 / RATIO);
+    const idealH = idealW * RATIO;
+    const fullRows = availH >= idealH ? Math.floor((availH + gap) / (idealH + gap)) : 0;
+    const rowH = fullRows > 0 ? idealH : Math.min(idealH, availH);
+    const rowW = rowH / RATIO;
+    const rowsOnFirst = fullRows > 0 ? fullRows : rowH >= 110 ? 1 : 0;
+    const onFirstPage = Math.min(images.length, rowsOnFirst * perRow);
+    const rowX = left + (tableW - (perRow * rowW + gap * (perRow - 1))) / 2;
+    for (let i = 0; i < onFirstPage; i++) {
+      const r = Math.floor(i / perRow);
+      drawCell(images[next++], rowX + (i % perRow) * (rowW + gap), y - r * (rowH + gap), rowW, rowH);
     }
 
-    // Hojas siguientes: cuadrícula pareja que llena la página con celdas del mismo tamaño.
-    const pages = firstRow > 0 ? split.extraPages : splitPhotosForPdf(images.length, 0).extraPages;
+    // Hojas siguientes: cada una se llena completa (3 columnas) con celdas del mismo tamaño,
+    // desde el borde superior. Solo la última fila del documento puede quedar incompleta.
+    const pages = splitPhotosForPdf(images.length, onFirstPage).extraPages;
+    const cols = QUOTATION_PDF_GRID_COLS;
+    const cellW = (tableW - gap * (cols - 1)) / cols;
+    const cellH = cellW * RATIO;
     for (const count of images.length - next > 0 ? pages : []) {
       page = pdf.addPage([W, H]);
-      const { cols, rows } = photoGrid(count);
-      const areaH = H - 80;
-      const cellW = Math.min((tableW - gap * (cols - 1)) / cols, ((areaH - gap * (rows - 1)) / rows) / RATIO, 380 / RATIO);
-      const cellH = cellW * RATIO;
-      const gridH = rows * cellH + (rows - 1) * gap;
-      const top = H - 40 - (areaH - gridH) / 2; // centra el bloque en vertical
-      for (let r = 0; r < rows; r++) {
-        const inRow = Math.min(cols, count - r * cols);
-        // Cada fila (también la última, si queda incompleta) se centra en el ancho.
-        const rowX = left + (tableW - (inRow * cellW + gap * (inRow - 1))) / 2;
-        for (let c = 0; c < inRow; c++) {
-          drawCell(images[next++], rowX + c * (cellW + gap), top - r * (cellH + gap), cellW, cellH);
-        }
+      const top = H - 40;
+      for (let i = 0; i < count; i++) {
+        const r = Math.floor(i / cols);
+        const c = i % cols;
+        drawCell(images[next++], left + c * (cellW + gap), top - r * (cellH + gap), cellW, cellH);
       }
     }
   }
