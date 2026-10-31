@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { PDFDocument, PDFFont, PDFImage, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, PDFFont, PDFImage, StandardFonts, clip, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb } from "pdf-lib";
 import { QUOTATION_MAX_PHOTOS, photoGrid, serviceBullets, splitPhotosForPdf } from "../domain/quotations";
 import { loadLogo } from "./closing-pdf";
 
@@ -178,41 +178,47 @@ export async function buildLodgingQuotationPdf(input: LodgingQuotationPdfInput) 
   }
   if (images.length) {
     const gap = 8;
-    // Dibuja cada foto centrada y completa dentro de su celda.
+    // Todas las celdas tienen la misma proporción (3:4, como en la vista de la cotización):
+    // la foto llena la celda y se recorta lo que sobra, centrada.
+    const RATIO = 4 / 3;
     const drawCell = (img: PDFImage, x: number, top: number, w: number, h: number) => {
-      const scale = Math.min(w / img.width, h / img.height);
+      const scale = Math.max(w / img.width, h / img.height);
       const iw = img.width * scale;
       const ih = img.height * scale;
+      page.pushOperators(pushGraphicsState(), rectangle(x, top - h, w, h), clip(), endPath());
       page.drawImage(img, { x: x + (w - iw) / 2, y: top - h + (h - ih) / 2, width: iw, height: ih });
+      page.pushOperators(popGraphicsState());
     };
     const split = splitPhotosForPdf(images.length);
     let next = 0;
 
     // Primera hoja: una fila con hasta 4 fotos bajo la tabla (si no caben, pasan a la hoja siguiente).
-    const rowH = 190;
-    const firstRow = y - rowH >= 40 ? split.first : 0;
+    const firstCount = split.first;
+    const maxRowH = 260;
+    const rowW = Math.min((tableW - gap * (firstCount - 1)) / firstCount, maxRowH / RATIO);
+    const rowH = rowW * RATIO;
+    const firstRow = firstCount > 0 && y - rowH >= 40 ? firstCount : 0;
     if (firstRow > 0) {
-      const w = (tableW - gap * (firstRow - 1)) / firstRow;
-      for (let i = 0; i < firstRow; i++) drawCell(images[next++], left + i * (w + gap), y, w, rowH);
+      const rowX = left + (tableW - (firstRow * rowW + gap * (firstRow - 1))) / 2;
+      for (let i = 0; i < firstRow; i++) drawCell(images[next++], rowX + i * (rowW + gap), y, rowW, rowH);
     }
 
-    // Hojas siguientes: cuadrícula pareja que llena la página y mantiene el tamaño de celda.
-    const rest = images.length - next;
+    // Hojas siguientes: cuadrícula pareja que llena la página con celdas del mismo tamaño.
     const pages = firstRow > 0 ? split.extraPages : splitPhotosForPdf(images.length, 0).extraPages;
-    for (const count of rest > 0 ? pages : []) {
+    for (const count of images.length - next > 0 ? pages : []) {
       page = pdf.addPage([W, H]);
-      const top = H - 40;
       const { cols, rows } = photoGrid(count);
-      const cellW = (tableW - gap * (cols - 1)) / cols;
-      const cellH = Math.min(300, (H - 80 - gap * (rows - 1)) / rows);
-      const used = rows * cellH + (rows - 1) * gap;
-      const offsetY = (H - 80 - used) / 2; // centra el bloque en vertical
+      const areaH = H - 80;
+      const cellW = Math.min((tableW - gap * (cols - 1)) / cols, ((areaH - gap * (rows - 1)) / rows) / RATIO, 380 / RATIO);
+      const cellH = cellW * RATIO;
+      const gridH = rows * cellH + (rows - 1) * gap;
+      const top = H - 40 - (areaH - gridH) / 2; // centra el bloque en vertical
       for (let r = 0; r < rows; r++) {
         const inRow = Math.min(cols, count - r * cols);
-        // La última fila, si queda incompleta, se centra.
-        const rowX = left + ((cols - inRow) * (cellW + gap)) / 2;
+        // Cada fila (también la última, si queda incompleta) se centra en el ancho.
+        const rowX = left + (tableW - (inRow * cellW + gap * (inRow - 1))) / 2;
         for (let c = 0; c < inRow; c++) {
-          drawCell(images[next++], rowX + c * (cellW + gap), top - offsetY - r * (cellH + gap), cellW, cellH);
+          drawCell(images[next++], rowX + c * (cellW + gap), top - r * (cellH + gap), cellW, cellH);
         }
       }
     }
