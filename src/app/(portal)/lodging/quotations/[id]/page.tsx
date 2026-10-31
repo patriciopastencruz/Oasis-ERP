@@ -37,7 +37,11 @@ export default async function Page({
       <PageHeader
         eyebrow={`${unit.name} · Cotización de hospedaje`}
         title={quotation.quotation_number}
-        description={quotation.client_company}
+        description={
+          quotation.last_edited_at
+            ? `${quotation.client_company} · Editada el ${new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" }).format(new Date(quotation.last_edited_at))}`
+            : quotation.client_company
+        }
       />
       {q.success && <p className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{q.success}</p>}
       {q.error && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{q.error}</p>}
@@ -110,6 +114,14 @@ export default async function Page({
         >
           Descargar PDF
         </a>
+        {!voided && (
+          <Link
+            href={`/lodging/quotations/${quotation.id}/edit`}
+            className="rounded-xl border border-[#0b4f9c] px-4 py-2.5 text-sm font-semibold text-[#0b4f9c]"
+          >
+            Editar
+          </Link>
+        )}
         {!voided && (
           <form action={voidLodgingQuotationAction} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="quotation_id" value={quotation.id} />

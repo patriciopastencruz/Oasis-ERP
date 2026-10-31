@@ -19,20 +19,46 @@ const field =
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const num = (v: string) => (v.trim() === "" ? NaN : Number(v));
 
+/** Datos de una cotización ya emitida, para editarla. */
+export type QuotationInitial = {
+  id: string;
+  client_company: string;
+  client_rut: string;
+  client_contact: string;
+  client_email: string;
+  hostel_address: string;
+  service_detail: string;
+  check_in: string;
+  check_out: string;
+  lines: { description: string; quantity: number; unit_net: number; nights: number }[];
+  /** Fotos que la cotización ya tiene guardadas (cuentan contra el máximo). */
+  existingPhotos: number;
+};
+
 export function LodgingQuotationForm({
   action,
   defaultAddress,
   roomTypes,
+  initial,
 }: {
   action: (form: FormData) => void | Promise<void>;
   defaultAddress: string;
   roomTypes: string[];
+  initial?: QuotationInitial;
 }) {
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [lines, setLines] = useState<Line[]>([
-    { description: "", quantity: "1", unit_net: "", nights: "1" },
-  ]);
+  const [checkIn, setCheckIn] = useState(initial?.check_in ?? "");
+  const [checkOut, setCheckOut] = useState(initial?.check_out ?? "");
+  const [lines, setLines] = useState<Line[]>(
+    initial
+      ? initial.lines.map((l) => ({
+          description: l.description,
+          quantity: String(l.quantity),
+          unit_net: String(l.unit_net),
+          nights: String(l.nights),
+        }))
+      : [{ description: "", quantity: "1", unit_net: "", nights: "1" }],
+  );
+  const photoRoom = QUOTATION_MAX_PHOTOS - (initial?.existingPhotos ?? 0);
 
   const parsed = useMemo(
     () =>
@@ -64,24 +90,25 @@ export function LodgingQuotationForm({
   return (
     <form action={action} className="grid gap-5">
       <input type="hidden" name="lines" value={JSON.stringify(parsed)} />
+      {initial && <input type="hidden" name="quotation_id" value={initial.id} />}
 
       <section className="grid gap-3 sm:grid-cols-2">
         <h2 className="font-semibold sm:col-span-2">Empresa</h2>
         <label className="text-sm font-medium sm:col-span-2">
           Empresa *
-          <input name="client_company" required minLength={2} maxLength={160} className={field} />
+          <input name="client_company" defaultValue={initial?.client_company} required minLength={2} maxLength={160} className={field} />
         </label>
         <label className="text-sm font-medium">
           RUT
-          <input name="client_rut" maxLength={30} className={field} />
+          <input name="client_rut" defaultValue={initial?.client_rut} maxLength={30} className={field} />
         </label>
         <label className="text-sm font-medium">
           Persona de contacto
-          <input name="client_contact" maxLength={160} className={field} />
+          <input name="client_contact" defaultValue={initial?.client_contact} maxLength={160} className={field} />
         </label>
         <label className="text-sm font-medium sm:col-span-2">
           Correo
-          <input name="client_email" type="email" maxLength={160} className={field} />
+          <input name="client_email" type="email" defaultValue={initial?.client_email} maxLength={160} className={field} />
         </label>
       </section>
 
@@ -89,11 +116,11 @@ export function LodgingQuotationForm({
         <h2 className="font-semibold sm:col-span-2">Servicio</h2>
         <label className="text-sm font-medium sm:col-span-2">
           Dirección del hostal (aparece en el PDF)
-          <input name="hostel_address" defaultValue={defaultAddress} maxLength={200} placeholder="Ej. Calle Uruguay #2462" className={field} />
+          <input name="hostel_address" defaultValue={initial ? initial.hostel_address : defaultAddress} maxLength={200} placeholder="Ej. Calle Uruguay #2462" className={field} />
         </label>
         <label className="text-sm font-medium sm:col-span-2">
           Detalle del servicio (una viñeta por línea)
-          <textarea name="service_detail" rows={3} maxLength={1000} defaultValue={DEFAULT_SERVICE_DETAIL} className={field} />
+          <textarea name="service_detail" rows={3} maxLength={1000} defaultValue={initial ? initial.service_detail : DEFAULT_SERVICE_DETAIL} className={field} />
         </label>
         <label className="text-sm font-medium">
           Entrada (opcional)
@@ -196,20 +223,24 @@ export function LodgingQuotationForm({
           <div className="flex justify-between border-t pt-1 text-base font-bold"><dt>Total</dt><dd>{clp.format(totals.total)}</dd></div>
         </dl>
         <p className="text-xs text-slate-500">
-          El valor se ingresa neto (sin IVA). Los totales definitivos los calcula el sistema al emitir.
+          El valor se ingresa neto (sin IVA). Los totales definitivos los calcula el sistema al {initial ? "guardar" : "emitir"}.
         </p>
       </section>
 
       <section className="grid gap-2">
-        <h2 className="font-semibold">Fotos de la habitación (opcional)</h2>
-        <PhotoPicker name="photos" min={QUOTATION_MIN_PHOTOS} max={QUOTATION_MAX_PHOTOS} />
+        <h2 className="font-semibold">{initial ? "Agregar fotos de la habitación (opcional)" : "Fotos de la habitación (opcional)"}</h2>
+        {photoRoom > 0 ? (
+          <PhotoPicker name="photos" min={initial ? undefined : QUOTATION_MIN_PHOTOS} max={photoRoom} />
+        ) : (
+          <p className="text-xs text-slate-500">Ya tiene {QUOTATION_MAX_PHOTOS} fotos, el máximo. Quita alguna para agregar otras.</p>
+        )}
       </section>
 
       <button
         disabled={!valid.every(Boolean)}
         className="rounded-xl bg-[#0b4f9c] px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Emitir cotización
+        {initial ? "Guardar cambios" : "Emitir cotización"}
       </button>
     </form>
   );

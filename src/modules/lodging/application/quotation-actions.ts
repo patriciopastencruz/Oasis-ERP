@@ -20,6 +20,7 @@ function friendly(error: { message?: string } | null) {
   if (/autoriz/i.test(message)) return "No tienes autorización para esta acción.";
   if (/ya esta anulada/i.test(message)) return "La cotización ya está anulada.";
   if (/motivo/i.test(message)) return "Indica el motivo de la anulación (mínimo 5 caracteres).";
+  if (/anulada no se puede editar/i.test(message)) return "Una cotización anulada no se puede editar.";
   if (/invalido|requiere|empresa|posterior|maximo/i.test(message)) return message;
   return "No fue posible completar la operación.";
 }
@@ -107,6 +108,71 @@ export async function createLodgingQuotationAction(form: FormData) {
       ? ` ${photos.length - saved} foto(s) no se pudieron adjuntar.`
       : "";
   go(`/lodging/quotations/${quotationId}`, "success", `Cotización emitida.${note}`);
+}
+
+export async function updateLodgingQuotationAction(form: FormData) {
+  const { unit, supabase } = await lodgingContext("lodging.quotations.manage");
+  const idResult = z.string().uuid().safeParse(form.get("quotation_id"));
+  if (!idResult.success) go("/lodging/quotations", "error", "Cotización inválida.");
+  const id = idResult.data;
+  const editPath = `/lodging/quotations/${id}/edit`;
+  let rawLines: unknown = [];
+  try {
+    rawLines = JSON.parse(String(form.get("lines") ?? "[]"));
+  } catch {
+    go(editPath, "error", "La cotización requiere ítems.");
+  }
+  const parsed = quotationFormSchema.safeParse({
+    client_company: form.get("client_company") ?? "",
+    client_rut: form.get("client_rut") ?? "",
+    client_contact: form.get("client_contact") ?? "",
+    client_email: form.get("client_email") ?? "",
+    hostel_address: form.get("hostel_address") ?? "",
+    service_detail: form.get("service_detail") ?? "",
+    check_in: form.get("check_in") ?? "",
+    check_out: form.get("check_out") ?? "",
+    lines: rawLines,
+  });
+  if (!parsed.success)
+    go(editPath, "error", parsed.error.issues[0]?.message ?? "Revisa los datos de la cotización.");
+  // Los totales NO viajan: la base de datos los recalcula a partir de las líneas.
+  const { error } = await supabase.rpc("lodging_update_quotation", {
+    target_quotation: id,
+    payload: parsed.data,
+  });
+  if (error) go(editPath, "error", friendly(error));
+
+  const photos = form
+    .getAll("photos")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  const saved = photos.length
+    ? await uploadQuotationPhotos(supabase, unit.company_id, unit.id, id, photos)
+    : 0;
+  revalidatePath("/lodging/quotations");
+  revalidatePath(`/lodging/quotations/${id}`);
+  const note =
+    photos.length && saved < photos.length
+      ? ` ${photos.length - saved} foto(s) no se pudieron adjuntar.`
+      : "";
+  go(`/lodging/quotations/${id}`, "success", `Cotización actualizada.${note}`);
+}
+
+export async function removeLodgingQuotationPhotoAction(form: FormData) {
+  const { supabase } = await lodgingContext("lodging.quotations.manage");
+  const parsed = z
+    .object({ quotation_id: z.string().uuid(), photo_id: z.string().uuid() })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) go("/lodging/quotations", "error", "Foto inválida.");
+  const { quotation_id, photo_id } = parsed.data;
+  const back = `/lodging/quotations/${quotation_id}/edit`;
+  const { data: objectPath, error } = await supabase.rpc("lodging_quotation_photo_remove", {
+    target_photo: photo_id,
+  });
+  if (error) go(back, "error", friendly(error));
+  // El registro ya se quitó: el archivo se borra aparte y, si falla, solo queda sin uso.
+  if (typeof objectPath === "string") await supabase.storage.from("lodging-operations").remove([objectPath]);
+  revalidatePath(`/lodging/quotations/${quotation_id}`);
+  go(back, "success", "Foto quitada.");
 }
 
 export async function voidLodgingQuotationAction(form: FormData) {
