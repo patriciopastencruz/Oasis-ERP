@@ -161,6 +161,24 @@ describe("gastos declarados en el estado de resultados", () => {
     ]);
     expect(variable.groups[1].items[0]).toMatchObject({ kind: "auto", source: "gastos", label: "Gastos declarados (2)" });
   });
+  it("detalla cada gasto declarado con su nombre cuando viene el detalle", () => {
+    const withItems = [
+      {
+        ...declared[0],
+        items: [
+          { date: "2026-10-03", description: "Detergente y cloro", supplier: "Bodega Sur", amount: 15_000 },
+          { date: "2026-10-09", description: "Bolsas de basura", supplier: null, amount: 10_000 },
+        ],
+      },
+    ];
+    const st = buildStatement(summary({ expenses_source: "declared", declared_expenses: withItems }));
+    const group = st.find((s) => s.key === "variable")!.groups[1];
+    expect(group.total).toBe(25_000);
+    expect(group.items.map((i) => [i.label, i.amount, i.source])).toEqual([
+      ["Detergente y cloro · Bodega Sur", 15_000, "gastos"],
+      ["Bolsas de basura", 10_000, "gastos"],
+    ]);
+  });
   it("sin gastos declarados siguen contando los de cierres diarios", () => {
     const st = buildStatement(summary({ expenses_source: "daily", declared_expenses: [] }));
     expect(st.find((s) => s.key === "variable")!.groups[1].items[0]).toMatchObject({ source: "diario", amount: 30_000 });

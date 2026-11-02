@@ -99,3 +99,15 @@ describe("cierre mensual: gastos declarados", () => {
     expect(sql).toMatch(/^begin;[\s\S]*commit;\s*$/);
   });
 });
+
+describe("cierre mensual: detalle de gastos declarados", () => {
+  const sql = readFileSync("supabase/migrations/20261102183156_lodging_monthly_closing_declared_items.sql", "utf8");
+  it("entrega cada gasto declarado con su nombre sin cambiar los totales por categoría", () => {
+    expect(sql).toContain("'description',e.description");
+    expect(sql).toContain("'items',items");
+    expect(sql).toContain("e.voided_at is null");
+    expect(sql).toContain("select section,amount from daily where not (select use_declared from expense_source)");
+    expect(sql).toContain("lodging_monthly_refresh_totals(id)");
+    expect(sql).toMatch(/^begin;[\s\S]*commit;\s*$/);
+  });
+});

@@ -23,7 +23,15 @@ export type MonthlySummary = {
   commissions: { amount: number; category_id: string | null };
   daily_expenses: { category_id: string | null; name: string; section: FinanceSection; amount: number; lines: number }[];
   /** Gastos declarados en el módulo Gastos (no anulados): la fuente oficial. Ausente en cierres guardados antes de este dato. */
-  declared_expenses?: { category_id: string | null; name: string; section: FinanceSection; amount: number; lines: number }[];
+  declared_expenses?: {
+    category_id: string | null;
+    name: string;
+    section: FinanceSection;
+    amount: number;
+    lines: number;
+    /** Cada gasto con su nombre; ausente en cierres guardados antes de este detalle. */
+    items?: { date: string; description: string; supplier: string | null; amount: number }[];
+  }[];
   /** "declared": los gastos del mes son los declarados y los de cierres diarios solo son referencia; "daily": el hostal no declaró gastos. */
   expenses_source?: "declared" | "daily";
   /** Total de gastos de cierres diarios emitidos, siempre informado para conciliar. */
@@ -89,7 +97,20 @@ export function buildStatement(summary: MonthlySummary): StatementSection[] {
   const declared = summary.expenses_source === "declared";
   for (const d of declared ? (summary.declared_expenses ?? []) : summary.daily_expenses) {
     const id = d.category_id ?? "uncategorized";
-    add(group(id, d.name, d.section, order.get(id) ?? 999), {
+    const g = group(id, d.name, d.section, order.get(id) ?? 999);
+    const items = declared ? (d as NonNullable<MonthlySummary["declared_expenses"]>[number]).items : undefined;
+    if (items?.length) {
+      for (const it of items) {
+        add(g, {
+          kind: "auto",
+          label: it.supplier ? `${it.description} · ${it.supplier}` : it.description,
+          amount: Number(it.amount),
+          source: "gastos",
+        });
+      }
+      continue;
+    }
+    add(g, {
       kind: "auto",
       label: declared ? `Gastos declarados (${d.lines})` : `Gastos de cierres diarios (${d.lines})`,
       amount: Number(d.amount),
