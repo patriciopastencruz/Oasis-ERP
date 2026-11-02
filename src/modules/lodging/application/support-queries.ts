@@ -5,9 +5,9 @@ import { closingDeadline } from "../domain/reception-bonus";
 import {
   DEFAULT_SUPPORT_GOALS,
   isWeekday,
-  nightShiftDay,
+  supportShiftDay,
   computeSupportBonus,
-  countNightReservations,
+  countShiftReservations,
   monthlyGoal,
   weekdaysInMonth,
   type SupportGoals,
@@ -36,9 +36,9 @@ function parseGoals(raw: unknown): SupportGoals {
 }
 
 /**
- * Bono de apoyo transversal del mes: 70% el resultado conjunto de los hostales
- * (ya calculado con las reglas de recepción) y 30% las reservas que la persona
- * de apoyo crea de noche, de lunes a viernes, en cada hostal.
+ * Bono de apoyo transversal del mes: el resultado de recepción de Centro medido solo con sus sábados y
+ * domingos (los mismos 6 indicadores) y la gestión de la persona de apoyo dentro de su horario
+ * (lunes a viernes 19:00-24:00, sábado y domingo 09:00-19:00): reservas, cierres y pagos.
  */
 export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[], month: string) {
   if (!bonuses.length) return null;
@@ -91,8 +91,8 @@ export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[],
         .limit(5000),
     ]);
     if (!closingsRes.error) {
-      // Los cierres que ella emitió (o reemitió) de lunes a viernes; debe hacer uno por hostal por día laborable.
-      const list = (closingsRes.data ?? []).filter((c) => isWeekday(c.closing_date));
+      // Los cierres de días de lunes a viernes que ella emitió (o reemitió) dentro de su horario; debe hacer uno por hostal por día laborable.
+      const list = (closingsRes.data ?? []).filter((c) => isWeekday(c.closing_date) && c.issued_at && supportShiftDay(c.issued_at) !== null);
       closings = {
         expected: unitIds.length * weekdaysInMonth(month),
         issued: list.length,
@@ -101,8 +101,8 @@ export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[],
     }
     if (!paymentsRes.error) {
       const night = (paymentsRes.data ?? []).filter((p) => {
-        const day = nightShiftDay(p.created_at);
-        return p.type !== "refund" && day !== null && day >= start && day <= reference && isWeekday(day);
+        const day = supportShiftDay(p.created_at);
+        return p.type !== "refund" && day !== null && day >= start && day <= reference;
       });
       const receiptsOf = (p: (typeof night)[number]) =>
         (Array.isArray(p.lodging_payment_receipts) ? p.lodging_payment_receipts : p.lodging_payment_receipts ? [p.lodging_payment_receipts] : []).filter((r) => !r.deleted_at);
@@ -126,20 +126,24 @@ export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[],
       .lt("created_at", `${addDays(reference, 3)}T00:00:00Z`)
       .limit(5000);
     if (error) reservationsError = true;
-    else counts = countNightReservations(data ?? [], start, reference);
+    else counts = countShiftReservations(data ?? [], start, reference);
   }
 
   const weekdays = weekdaysInMonth(month);
-  const hostales: SupportHostalInput[] = bonuses.map((b) => ({
-    code: b.unit.code,
-    name: b.unit.name,
-    pool: b.config.pool,
-    missed: b.result.missedCount,
-    // Lo que realmente se paga a la recepción (con la reducción por orden si corresponde) sobre su máximo.
-    points: b.config.pool > 0 ? (b.result.amount / b.config.pool) * 100 : b.result.points,
-    created: counts.get(b.unit.id) ?? 0,
-    goal: monthlyGoal(b.unit.code, config.goals),
-  }));
+  const hostales: SupportHostalInput[] = bonuses.map((b) => {
+    // El hostal de referencia se mide solo con sus sábados y domingos.
+    const scope = b.weekend ?? b;
+    return {
+      code: b.unit.code,
+      name: b.unit.name,
+      pool: b.config.pool,
+      missed: scope.result.missedCount,
+      // Lo que realmente se paga a la recepción (con la reducción por orden si corresponde) sobre su máximo.
+      points: b.config.pool > 0 ? (scope.result.amount / b.config.pool) * 100 : scope.result.points,
+      created: counts.get(b.unit.id) ?? 0,
+      goal: monthlyGoal(b.unit.code, config.goals),
+    };
+  });
   const result = computeSupportBonus({ pool: config.pool, hostales, closings, payments });
   const saved = savedRes.data
     ? {

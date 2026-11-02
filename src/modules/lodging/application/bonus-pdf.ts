@@ -132,9 +132,9 @@ export async function buildBonusPdf(input: { monthLabel: string; provisional: bo
       y -= 10;
     }
     y -= 4;
-    text("15 puntos = resultado de recepcion de Centro; 85 = su gestion: reservas de noche 65, cierres 10 (los 3 hostales cada dia habil) y pagos 10, todo proporcional.", M, 7, R, MUTED);
+    text("15 puntos = resultado de recepcion de Centro solo sabados y domingos; 85 = su gestion en su horario: reservas 65, cierres 10 (los 3 hostales cada dia habil) y pagos 10, todo proporcional.", M, 7, R, MUTED);
     y -= 9;
-    text(`Reservas de noche: 19:00 a 06:00, lunes a viernes, con precio y activas. Bono = monto x puntos / 100. Si ${MAX_MISSED_INDICATORS} o mas indicadores de Centro no se cumplen, no hay bono.`, M, 7, R, MUTED);
+    text(`Horario: lunes a viernes 19:00-24:00, sabado y domingo 09:00-19:00; solo cuenta lo registrado en el. Reservas con precio y activas. Bono = monto x puntos / 100. Si ${MAX_MISSED_INDICATORS} o mas indicadores de Centro no se cumplen, no hay bono.`, M, 7, R, MUTED);
     y -= 24;
   }
   text(`Generado el ${new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", dateStyle: "short", timeStyle: "short" }).format(new Date())} - OASIS ERP`, M, 7.5, R, MUTED);

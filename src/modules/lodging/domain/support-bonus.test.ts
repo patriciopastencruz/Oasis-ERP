@@ -2,39 +2,46 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SUPPORT_GOALS,
   computeSupportBonus,
-  countNightReservations,
+  countShiftReservations,
   groupPoints,
   isWeekday,
   monthlyGoal,
-  nightShiftDay,
+  supportShiftDay,
   weekdaysInMonth,
 } from "./support-bonus";
 
 const hostal = (code: string, name: string, pool: number, points: number, created: number, goal: number) => ({ code, name, pool, points, created, goal });
 
 describe("bono de apoyo transversal", () => {
-  it("la noche es de 19:00 a 06:00 y se atribuye al día en que empieza", () => {
+  it("su horario es de lunes a viernes de 19:00 a 24:00 y sábado y domingo de 09:00 a 19:00", () => {
     // Octubre: Santiago está en UTC-3.
-    expect(nightShiftDay("2026-10-13T23:30:00Z")).toBe("2026-10-13"); // martes 20:30
-    expect(nightShiftDay("2026-10-14T05:00:00Z")).toBe("2026-10-13"); // miércoles 02:00 → noche del martes
-    expect(nightShiftDay("2026-10-13T15:00:00Z")).toBeNull(); // martes 12:00, de día
-    expect(nightShiftDay("2026-10-13T21:59:00Z")).toBeNull(); // 18:59
-    expect(nightShiftDay("2026-10-13T22:00:00Z")).toBe("2026-10-13"); // 19:00
+    expect(supportShiftDay("2026-10-13T22:00:00Z")).toBe("2026-10-13"); // martes 19:00
+    expect(supportShiftDay("2026-10-13T23:30:00Z")).toBe("2026-10-13"); // martes 20:30
+    expect(supportShiftDay("2026-10-14T02:59:00Z")).toBe("2026-10-13"); // martes 23:59
+    expect(supportShiftDay("2026-10-14T03:00:00Z")).toBeNull(); // miércoles 00:00: ya terminó el turno
+    expect(supportShiftDay("2026-10-14T05:00:00Z")).toBeNull(); // miércoles 02:00
+    expect(supportShiftDay("2026-10-13T15:00:00Z")).toBeNull(); // martes 12:00, antes de su turno
+    expect(supportShiftDay("2026-10-13T21:59:00Z")).toBeNull(); // martes 18:59
+    expect(supportShiftDay("2026-10-17T11:59:00Z")).toBeNull(); // sábado 08:59
+    expect(supportShiftDay("2026-10-17T12:00:00Z")).toBe("2026-10-17"); // sábado 09:00
+    expect(supportShiftDay("2026-10-17T21:59:00Z")).toBe("2026-10-17"); // sábado 18:59
+    expect(supportShiftDay("2026-10-17T22:00:00Z")).toBeNull(); // sábado 19:00
+    expect(supportShiftDay("2026-10-18T13:00:00Z")).toBe("2026-10-18"); // domingo 10:00
   });
 
-  it("solo cuentan las noches de lunes a viernes: la madrugada del sábado es del viernes y la noche del sábado no cuenta", () => {
+  it("solo cuentan las reservas creadas dentro de su horario", () => {
     expect(isWeekday("2026-10-16")).toBe(true); // viernes
     expect(isWeekday("2026-10-17")).toBe(false); // sábado
     const created = [
-      { created_at: "2026-10-17T05:00:00Z", business_unit_id: "a" }, // sábado 02:00 → noche del viernes: cuenta
-      { created_at: "2026-10-17T23:00:00Z", business_unit_id: "a" }, // sábado 20:00: no
-      { created_at: "2026-10-18T05:00:00Z", business_unit_id: "a" }, // domingo 02:00 → noche del sábado: no
+      { created_at: "2026-10-17T05:00:00Z", business_unit_id: "a" }, // sábado 02:00: fuera de horario
+      { created_at: "2026-10-17T15:00:00Z", business_unit_id: "a" }, // sábado 12:00: cuenta
+      { created_at: "2026-10-17T23:00:00Z", business_unit_id: "a" }, // sábado 20:00: fuera de horario
       { created_at: "2026-10-19T23:00:00Z", business_unit_id: "b" }, // lunes 20:00: cuenta
     ];
-    const count = countNightReservations(created, "2026-10-01", "2026-10-31");
+    const count = countShiftReservations(created, "2026-10-01", "2026-10-31");
     expect(count.get("a")).toBe(1);
     expect(count.get("b")).toBe(1);
-    expect(countNightReservations(created, "2026-10-18", "2026-10-31").get("a")).toBeUndefined();
+    expect(countShiftReservations(created, "2026-10-18", "2026-10-31").get("a")).toBeUndefined();
   });
 
   it("las metas de reservas de noche son un número fijo por mes en cada hostal", () => {

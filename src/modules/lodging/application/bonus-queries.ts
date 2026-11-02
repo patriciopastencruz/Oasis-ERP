@@ -2,12 +2,15 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { addDays, defaultClosingDate, santiagoToday } from "../domain/daily-closing";
 import { loadGroupWeeklyReport } from "./group-weekly-queries";
+import { combineTotals, type OpsKpis } from "../domain/ops-kpis";
+import { SUPPORT_REFERENCE_UNIT } from "../domain/support-bonus";
 import {
   DEFAULT_BONUS_WEIGHTS,
   DEFAULT_INSPECTION_MAX_WAIT,
   cappedOccupancyPct,
   closingDeadline,
   computeBonus,
+  isWeekendDay,
   type BonusInput,
   type BonusWeights,
 } from "../domain/reception-bonus";
@@ -59,8 +62,6 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
   const report = await loadGroupWeeklyReport(supabase, [unit], reference, workingDay);
   const h = report.hostels[0];
   const lastDue = reference < addDays(workingDay, -1) ? reference : addDays(workingDay, -1);
-  let dueDays = 0;
-  for (let d = start; d <= lastDue; d = addDays(d, 1)) dueDays++;
 
   const [configRes, savedRes, closingsRes, surveysRes, bookingRes] = await Promise.all([
     supabase
@@ -112,52 +113,88 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       }
     : defaultConfig;
 
-  const surveys = (surveysRes.data ?? []).filter((s) => {
-    const day = santiagoDay(s.created_at);
-    return day >= start && day <= reference;
-  });
-  const surveyAvg = surveys.length
-    ? surveys.reduce((sum, s) => sum + (s.cleanliness + s.comfort + s.staff + s.value_for_money) / 4, 0) / surveys.length
-    : null;
   const bookingReading = bookingRes.data ? { recordedOn: bookingRes.data.recorded_on as string, score: Number(bookingRes.data.score) } : null;
 
-  // Cierres: cada día vencido debe haberse emitido por primera vez antes de que terminara su día de trabajo,
-  // lo haya hecho la recepcionista o la persona de apoyo.
-  const firstIssued = new Map((closingsRes.data ?? []).map((c) => [c.closing_date, c.first_issued_at as string | null]));
-  const lateDays: number[] = [];
-  let onTimeClosings = 0;
-  for (let d = start; d <= lastDue; d = addDays(d, 1)) {
-    const issuedAt = firstIssued.get(d) ?? null;
-    if (issuedAt !== null && new Date(issuedAt).getTime() < closingDeadline(d).getTime()) onTimeClosings++;
-    else lateDays.push(Number(d.slice(8)));
-  }
-  // Saldos: estadías ya terminadas con deuda, sin contar las de empresa que paga después.
-  const unpaid = h.balances.rows.filter((r) => !r.postpaid_company && r.check_out <= lastDue);
-  const unpaidTotal = unpaid.reduce((sum, r) => sum + r.balance, 0);
+  // Los mismos 6 indicadores de todo el mes o solo de sábados y domingos (evaluación de la persona de apoyo).
+  const weekendDates: string[] = [];
+  for (let d = start; d <= reference; d = addDays(d, 1)) if (isWeekendDay(d)) weekendDates.push(d);
+  const wantWeekend = unit.code === SUPPORT_REFERENCE_UNIT;
+  const weekendInspections =
+    wantWeekend && h.inspections.available && h.inspections.enabled
+      ? await Promise.all(weekendDates.map((d) => supabase.rpc("lodging_ops_kpis", { target_unit: unit.id, from_date: d, to_date: d })))
+      : null;
 
-  const insp = h.inspections;
-  const input: BonusInput = {
-    pool: config.pool,
-    weights: config.weights,
-    occupancy: { value: cappedOccupancyPct(h.month.days, h.month.totalRooms), goal: h.goals.occupancyPct },
-    adr: { value: h.month.soldNights ? h.month.adr : null, goal: h.goals.averageRate },
-    booking: {
-      value: bookingReading ? bookingReading.score : null,
-      goal: h.goals.bookingScore,
-    },
-    survey: { value: surveyAvg, goal: config.surveyGoal, responses: surveys.length, minResponses: config.surveyMinResponses },
-    inspections: {
-      cleanings: insp.available && insp.enabled ? insp.cleanings : null,
-      inspected: insp.available ? insp.inspectedCleanings : 0,
-      avgWaitMinutes: insp.available ? insp.avgWaitMinutes : null,
-      maxWaitMinutes: config.inspectionMaxWait,
-    },
-    order: {
-      closings: dueDays > 0 ? { due: dueDays, onTime: onTimeClosings, lateDays } : null,
-      balances: { count: unpaid.length, total: unpaidTotal },
-    },
+  const firstIssued = new Map((closingsRes.data ?? []).map((c) => [c.closing_date, c.first_issued_at as string | null]));
+  const evaluate = (weekendOnly: boolean) => {
+    const inScope = (day: string) => !weekendOnly || isWeekendDay(day);
+    let dueDays = 0;
+    for (let d = start; d <= lastDue; d = addDays(d, 1)) if (inScope(d)) dueDays++;
+
+    const surveys = (surveysRes.data ?? []).filter((s) => {
+      const day = santiagoDay(s.created_at);
+      return day >= start && day <= reference && inScope(day);
+    });
+    const surveyAvg = surveys.length
+      ? surveys.reduce((sum, s) => sum + (s.cleanliness + s.comfort + s.staff + s.value_for_money) / 4, 0) / surveys.length
+      : null;
+
+    // Cierres: cada día vencido debe haberse emitido por primera vez antes de que terminara su día de trabajo,
+    // lo haya hecho la recepcionista o la persona de apoyo.
+    const lateDays: number[] = [];
+    let onTimeClosings = 0;
+    for (let d = start; d <= lastDue; d = addDays(d, 1)) {
+      if (!inScope(d)) continue;
+      const issuedAt = firstIssued.get(d) ?? null;
+      if (issuedAt !== null && new Date(issuedAt).getTime() < closingDeadline(d).getTime()) onTimeClosings++;
+      else lateDays.push(Number(d.slice(8)));
+    }
+    // Saldos: estadías ya terminadas con deuda, sin contar las de empresa que paga después.
+    const unpaid = h.balances.rows.filter((r) => !r.postpaid_company && r.check_out <= lastDue && inScope(r.check_out));
+    const unpaidTotal = unpaid.reduce((sum, r) => sum + r.balance, 0);
+
+    const days = h.month.days.filter((d) => inScope(d.date));
+    const soldNights = days.reduce((sum, d) => sum + d.sold, 0);
+    const soldRevenue = days.reduce((sum, d) => sum + d.soldRevenue, 0);
+
+    const insp = h.inspections;
+    const weekendKpis = weekendInspections && weekendInspections.every((r) => !r.error) ? combineTotals(weekendInspections.map((r) => r.data as OpsKpis)) : null;
+    const inspections: BonusInput["inspections"] =
+      weekendOnly && insp.available && insp.enabled
+        ? {
+            cleanings: weekendKpis ? weekendKpis.cleanings : null,
+            inspected: weekendKpis ? weekendKpis.inspected : 0,
+            avgWaitMinutes: weekendKpis ? weekendKpis.avgWaitMinutes : null,
+            maxWaitMinutes: config.inspectionMaxWait,
+          }
+        : {
+            cleanings: insp.available && insp.enabled ? insp.cleanings : null,
+            inspected: insp.available ? insp.inspectedCleanings : 0,
+            avgWaitMinutes: insp.available ? insp.avgWaitMinutes : null,
+            maxWaitMinutes: config.inspectionMaxWait,
+          };
+
+    const input: BonusInput = {
+      pool: config.pool,
+      weights: config.weights,
+      occupancy: { value: weekendOnly ? cappedOccupancyPct(days, h.month.totalRooms) : cappedOccupancyPct(h.month.days, h.month.totalRooms), goal: h.goals.occupancyPct },
+      adr: weekendOnly
+        ? { value: soldNights ? soldRevenue / soldNights : null, goal: h.goals.averageRate }
+        : { value: h.month.soldNights ? h.month.adr : null, goal: h.goals.averageRate },
+      booking: {
+        value: bookingReading ? bookingReading.score : null,
+        goal: h.goals.bookingScore,
+      },
+      survey: { value: surveyAvg, goal: config.surveyGoal, responses: surveys.length, minResponses: config.surveyMinResponses },
+      inspections,
+      order: {
+        closings: dueDays > 0 ? { due: dueDays, onTime: onTimeClosings, lateDays } : null,
+        balances: { count: unpaid.length, total: unpaidTotal },
+      },
+    };
+    return { input, result: computeBonus(input), counts: { dueDays, surveyResponses: surveys.length } };
   };
-  const result = computeBonus(input);
+  const { input, result, counts } = evaluate(false);
+  const weekend = wantWeekend ? evaluate(true) : null;
   const saved: SavedBonus | null = savedRes.data
     ? {
         points: Number(savedRes.data.points),
@@ -178,7 +215,8 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
     bookingRecordedOn: bookingReading?.recordedOn ?? null,
     result,
     saved,
-    counts: { dueDays, surveyResponses: surveys.length },
+    counts,
+    weekend,
   };
 }
 

@@ -31,6 +31,12 @@ export const DEFAULT_BONUS_WEIGHTS: BonusWeights = {
   order: 15,
 };
 
+/** Sábado o domingo (fecha AAAA-MM-DD, sin hora). */
+export const isWeekendDay = (date: string) => {
+  const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return dow === 0 || dow === 6;
+};
+
 /** Cada día cuenta como máximo 110% de ocupación: una reventa no infla el premio. */
 export const OCCUPANCY_DAY_CAP = 1.1;
 /** Tiempo máximo, en minutos, entre terminar el aseo y la inspección (promedio del mes). */

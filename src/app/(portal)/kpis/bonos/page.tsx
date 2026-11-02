@@ -148,7 +148,7 @@ function SupportPanel({ s, month, canManage, candidates }: { s: SupportBonus; mo
       </div>
       {!s.config.configured && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Falta configurar el monto del bono de apoyo.</p>}
       {s.config.configured && !s.config.userId && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Falta indicar la persona de apoyo: sin ella no se cuentan reservas.</p>}
-      {s.reservationsError && <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-700">No se pudieron leer las reservas; las de noche aparecen en 0.</p>}
+      {s.reservationsError && <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-700">No se pudieron leer las reservas; las de su horario aparecen en 0.</p>}
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[560px] text-sm">
           <thead className="border-b text-left text-xs uppercase text-slate-500">
@@ -176,9 +176,9 @@ function SupportPanel({ s, month, canManage, candidates }: { s: SupportBonus; mo
         </table>
       </div>
       <p className="mt-3 text-xs text-slate-600">
-        <b>Cómo se calcula:</b> 15 puntos son el resultado de recepción de Hostal Oasis Centro (lo que gana su recepción sobre el máximo posible, con los mismos 6 indicadores) y 85 puntos salen de su propia gestión, todos en forma proporcional
-        (puntos = peso × cumplimiento, con tope en la meta): <b>reservas que crea de noche</b> (19:00 a 06:00, de lunes a viernes, con precio y activas): 65 puntos, repartidos en Centro 24, Uruguay 24 y Cobija 17; <b>cierres de los hostales que hace ella</b> (uno por hostal por día laborable, aunque la recepcionista ya lo haya emitido; si lo corrige y lo reemite, queda hecho por ella): 5 por la cantidad de cierres hechos y 5 por los que salen antes de las 06:00 del día siguiente; <b>pagos por transferencia o tarjeta que registra de noche</b>: 5 por los que tienen comprobante y 5 por los comprobantes que la revisión no marca con diferencia.
-        Las metas de reservas de noche por mes son Centro {goals.HOC.per_month}, Uruguay {goals.HU.per_month} y Cobija {goals.HOB.per_month}. Bono = monto × puntos ÷ 100. <b>Condición mínima:</b> si {MAX_MISSED_INDICATORS} o más de los 6 indicadores de recepción de Centro no se cumplen, no hay bono de apoyo ese mes.
+        <b>Cómo se calcula:</b> su horario es de lunes a viernes de 19:00 a 24:00 y sábado y domingo de 09:00 a 19:00, y solo cuenta lo que registra dentro de él. 15 puntos son el resultado de recepción de Hostal Oasis Centro medido solo con sus sábados y domingos (lo que gana su recepción sobre el máximo posible, con los mismos 6 indicadores) y 85 puntos salen de su propia gestión, todos en forma proporcional
+        (puntos = peso × cumplimiento, con tope en la meta): <b>reservas que crea en su horario</b> (con precio y activas): 65 puntos, repartidos en Centro 24, Uruguay 24 y Cobija 17; <b>cierres de los hostales que hace ella en su horario</b> (uno por hostal por día laborable, aunque la recepcionista ya lo haya emitido; si lo corrige y lo reemite, queda hecho por ella): 5 por la cantidad de cierres hechos y 5 por los que salen antes de las 06:00 del día siguiente; <b>pagos por transferencia o tarjeta que registra en su horario</b>: 5 por los que tienen comprobante y 5 por los comprobantes que la revisión no marca con diferencia.
+        Las metas de reservas por mes son Centro {goals.HOC.per_month}, Uruguay {goals.HU.per_month} y Cobija {goals.HOB.per_month}. Bono = monto × puntos ÷ 100. <b>Condición mínima:</b> si {MAX_MISSED_INDICATORS} o más de los 6 indicadores de recepción de Centro no se cumplen, no hay bono de apoyo ese mes.
       </p>
       {canManage && (
         <details className="mt-3 rounded-xl border border-[#d9dfe6] p-3">

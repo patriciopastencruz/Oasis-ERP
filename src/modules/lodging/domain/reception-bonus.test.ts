@@ -5,6 +5,7 @@ import {
   MAX_MISSED_INDICATORS,
   closingDeadline,
   computeBonus,
+  isWeekendDay,
   tierFactor,
   type BonusInput,
 } from "./reception-bonus";
@@ -250,3 +251,12 @@ describe("condición mínima: con 3 indicadores sin cumplir no hay bono", () => 
   });
 });
 
+
+describe("isWeekendDay", () => {
+  it("solo sábado y domingo", () => {
+    expect(isWeekendDay("2026-10-16")).toBe(false); // viernes
+    expect(isWeekendDay("2026-10-17")).toBe(true);
+    expect(isWeekendDay("2026-10-18")).toBe(true);
+    expect(isWeekendDay("2026-10-19")).toBe(false); // lunes
+  });
+});

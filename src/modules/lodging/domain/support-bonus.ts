@@ -1,12 +1,12 @@
-import { MAX_MISSED_INDICATORS } from "./reception-bonus";
+import { MAX_MISSED_INDICATORS, isWeekendDay } from "./reception-bonus";
 
 /**
- * Bono de apoyo transversal: una persona trabaja de noche de lunes a viernes y
- * apoya a los 3 hostales. 15 puntos salen del resultado de recepción del hostal de
- * referencia (Centro: lo que gana su recepción sobre el máximo posible) y 85 de su
- * propia gestión, todos de forma proporcional: reservas que crea de noche (65, según
- * la meta de cada hostal), cierres que hace (10) y pagos que registra (10). Si en
- * el hostal de referencia 3 o más de los 6 indicadores no se cumplen, no hay bono.
+ * Bono de apoyo transversal: una persona apoya a los 3 hostales de lunes a viernes de 19:00 a 24:00 y
+ * sábado y domingo de 09:00 a 19:00. 15 puntos salen del resultado de recepción del hostal de
+ * referencia (Centro) medido solo con sus sábados y domingos (lo que gana su recepción sobre el máximo
+ * posible) y 85 de su propia gestión dentro de su horario, todos de forma proporcional: reservas que
+ * crea (65, según la meta de cada hostal), cierres que hace (10) y pagos que registra (10). Si en el
+ * hostal de referencia 3 o más de los 6 indicadores no se cumplen, no hay bono.
  */
 
 export const SUPPORT_GROUP_WEIGHT = 15;
@@ -16,9 +16,9 @@ export const SUPPORT_REFERENCE_UNIT = "HOC";
 export const SUPPORT_UNIT_WEIGHTS: Record<string, number> = { HOC: 24, HU: 24, HOB: 17 };
 export const SUPPORT_CLOSING_WEIGHT = 5;
 export const SUPPORT_PAYMENT_WEIGHT = 5;
-/** La noche empieza a las 19:00 y termina a las 06:00 del día siguiente. */
-export const NIGHT_STARTS_AT_HOUR = 19;
-export const NIGHT_ENDS_AT_HOUR = 6;
+/** Horario de la persona de apoyo (hora de Santiago, la hora de término no entra). */
+export const SUPPORT_WEEKDAY_SHIFT = { from: 19, to: 24 };
+export const SUPPORT_WEEKEND_SHIFT = { from: 9, to: 19 };
 
 export type SupportGoals = {
   HOC: { per_month: number };
@@ -43,12 +43,6 @@ const dayParts = (iso: string) => {
   return { date: `${parts.year}-${parts.month}-${parts.day}`, hour: Number(parts.hour) };
 };
 
-const shiftDate = (date: string, delta: number) => {
-  const d = new Date(`${date}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + delta);
-  return d.toISOString().slice(0, 10);
-};
-
 /** Lunes a viernes (día de la fecha, sin hora). */
 export const isWeekday = (date: string) => {
   const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
@@ -56,15 +50,13 @@ export const isWeekday = (date: string) => {
 };
 
 /**
- * Noche de trabajo a la que pertenece una creación: de 19:00 a 06:00 del día
- * siguiente, atribuida al día en que empezó la noche (una reserva del sábado a
- * las 02:00 es de la noche del viernes). Devuelve null si fue de día.
+ * Día de trabajo al que pertenece un registro hecho por la persona de apoyo, o null si fue fuera de su
+ * horario: lunes a viernes de 19:00 a 24:00 y sábado y domingo de 09:00 a 19:00.
  */
-export function nightShiftDay(createdAtIso: string) {
-  const { date, hour } = dayParts(createdAtIso);
-  if (hour >= NIGHT_STARTS_AT_HOUR) return date;
-  if (hour < NIGHT_ENDS_AT_HOUR) return shiftDate(date, -1);
-  return null;
+export function supportShiftDay(atIso: string) {
+  const { date, hour } = dayParts(atIso);
+  const shift = isWeekendDay(date) ? SUPPORT_WEEKEND_SHIFT : SUPPORT_WEEKDAY_SHIFT;
+  return hour >= shift.from && hour < shift.to ? date : null;
 }
 
 /** Cantidad de días de lunes a viernes de un mes (YYYY-MM). */
@@ -84,17 +76,17 @@ export function monthlyGoal(code: string, goals: SupportGoals) {
 
 /**
  * Cuántas reservas cuentan para la meta de cada hostal: las creadas por la
- * persona de apoyo en una noche de lunes a viernes dentro del rango del mes.
+ * persona de apoyo dentro de su horario en el rango del mes.
  */
-export function countNightReservations(
+export function countShiftReservations(
   reservations: { created_at: string; business_unit_id: string }[],
   from: string,
   to: string,
 ) {
   const byUnit = new Map<string, number>();
   for (const r of reservations) {
-    const day = nightShiftDay(r.created_at);
-    if (day === null || day < from || day > to || !isWeekday(day)) continue;
+    const day = supportShiftDay(r.created_at);
+    if (day === null || day < from || day > to) continue;
     byUnit.set(r.business_unit_id, (byUnit.get(r.business_unit_id) ?? 0) + 1);
   }
   return byUnit;
@@ -108,7 +100,7 @@ export type SupportHostalInput = {
   points: number;
   /** Indicadores de recepción sin cumplir en el mes. */
   missed?: number;
-  /** Reservas nocturnas creadas por la persona de apoyo y meta del mes. */
+  /** Reservas creadas por la persona de apoyo dentro de su horario y meta del mes. */
   created: number;
   goal: number;
 };
@@ -133,11 +125,11 @@ export type SupportInput = {
   pool: number;
   hostales: SupportHostalInput[];
   /**
-   * Cierres de los hostales que ella emitió en el mes (de lunes a viernes), sobre los que debía hacer
+   * Cierres de los hostales que ella emitió en el mes dentro de su horario (de días lunes a viernes), sobre los que debía hacer
    * (uno por hostal por día laborable), y cuántos estuvieron a tiempo.
    */
   closings: { expected: number; issued: number; onTime: number } | null;
-  /** Pagos por transferencia o tarjeta que registró de noche: con comprobante y con diferencia marcada. */
+  /** Pagos por transferencia o tarjeta que registró dentro de su horario: con comprobante y con diferencia marcada. */
   payments: { total: number; withReceipt: number; withDifference: number } | null;
 };
 
@@ -155,14 +147,14 @@ export function computeSupportBonus(input: SupportInput) {
   if (group !== null)
     add(
       "group",
-      `Resultado de recepción en ${reference?.name ?? "el hostal de referencia"}`,
+      `Resultado de recepción en ${reference?.name ?? "el hostal de referencia"} (sábados y domingos)`,
       SUPPORT_GROUP_WEIGHT,
       group / 100,
       `${(Math.round(group * 10) / 10).toLocaleString("es-CL")} de 100 puntos de recepción · ${missedCount} de 6 indicadores sin cumplir`,
     );
   for (const h of input.hostales) {
     if (h.goal <= 0) continue;
-    add(h.code, `Reservas de noche en ${h.name}`, SUPPORT_UNIT_WEIGHTS[h.code] ?? 17, h.created / h.goal, `${h.created} de ${h.goal} reservas (${pct(Math.min(h.created / h.goal, 1))})`);
+    add(h.code, `Reservas en su horario en ${h.name}`, SUPPORT_UNIT_WEIGHTS[h.code] ?? 17, h.created / h.goal, `${h.created} de ${h.goal} reservas (${pct(Math.min(h.created / h.goal, 1))})`);
   }
   const c = input.closings;
   if (c && c.expected > 0) {
@@ -172,7 +164,7 @@ export function computeSupportBonus(input: SupportInput) {
   }
   const p = input.payments;
   if (p && p.total > 0) {
-    add("payments_receipt", "Pagos de noche con comprobante", SUPPORT_PAYMENT_WEIGHT, p.withReceipt / p.total, `${p.withReceipt} de ${p.total} pagos por transferencia o tarjeta (${pct(p.withReceipt / p.total)})`);
+    add("payments_receipt", "Pagos en su horario con comprobante", SUPPORT_PAYMENT_WEIGHT, p.withReceipt / p.total, `${p.withReceipt} de ${p.total} pagos por transferencia o tarjeta (${pct(p.withReceipt / p.total)})`);
     // Sin comprobantes no hay nada que revisar y cuenta como no cumplido.
     const clean = p.withReceipt > 0 ? (p.withReceipt - p.withDifference) / p.withReceipt : 0;
     add("payments_clean", "Comprobantes sin diferencia", SUPPORT_PAYMENT_WEIGHT, clean, `${Math.max(p.withReceipt - p.withDifference, 0)} de ${p.withReceipt} comprobantes sin diferencia (${pct(clean)})`);
