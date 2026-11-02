@@ -62,7 +62,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
   let dueDays = 0;
   for (let d = start; d <= lastDue; d = addDays(d, 1)) dueDays++;
 
-  const [configRes, savedRes, closingsRes, surveysRes] = await Promise.all([
+  const [configRes, savedRes, closingsRes, surveysRes, bookingRes] = await Promise.all([
     supabase
       .from("lodging_bonus_config")
       .select("pool_amount,weights,survey_goal,survey_min_responses,inspection_max_wait_minutes")
@@ -87,8 +87,18 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       .eq("business_unit_id", unit.id)
       .gte("created_at", `${start}T00:00:00-06:00`)
       .lt("created_at", `${addDays(reference, 1)}T06:00:00Z`),
+    // Un mes cerrado se evalúa con el último puntaje registrado hasta su corte (el día 31), no con lecturas posteriores.
+    supabase
+      .from("lodging_review_scores")
+      .select("recorded_on,score")
+      .eq("business_unit_id", unit.id)
+      .eq("source", "booking")
+      .lte("recorded_on", reference)
+      .order("recorded_on", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
-  for (const r of [configRes, closingsRes, surveysRes]) if (r.error) throw r.error;
+  for (const r of [configRes, closingsRes, surveysRes, bookingRes]) if (r.error) throw r.error;
 
   const c = configRes.data;
   const config: BonusConfig = c
@@ -109,7 +119,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
   const surveyAvg = surveys.length
     ? surveys.reduce((sum, s) => sum + (s.cleanliness + s.comfort + s.staff + s.value_for_money) / 4, 0) / surveys.length
     : null;
-  const latestReview = [...h.reviews].sort((a, b) => b.recorded_on.localeCompare(a.recorded_on))[0] ?? null;
+  const bookingReading = bookingRes.data ? { recordedOn: bookingRes.data.recorded_on as string, score: Number(bookingRes.data.score) } : null;
 
   // Cierres: cada día vencido debe haberse emitido por primera vez antes de que terminara su día de trabajo,
   // lo haya hecho la recepcionista o la persona de apoyo.
@@ -132,7 +142,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
     occupancy: { value: cappedOccupancyPct(h.month.days, h.month.totalRooms), goal: h.goals.occupancyPct },
     adr: { value: h.month.soldNights ? h.month.adr : null, goal: h.goals.averageRate },
     booking: {
-      value: latestReview ? latestReview.score : null,
+      value: bookingReading ? bookingReading.score : null,
       goal: h.goals.bookingScore,
     },
     survey: { value: surveyAvg, goal: config.surveyGoal, responses: surveys.length, minResponses: config.surveyMinResponses },
@@ -165,6 +175,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
     provisional,
     config,
     input,
+    bookingRecordedOn: bookingReading?.recordedOn ?? null,
     result,
     saved,
     counts: { dueDays, surveyResponses: surveys.length },

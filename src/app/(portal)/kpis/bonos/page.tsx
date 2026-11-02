@@ -258,7 +258,7 @@ function ConfigForm({ b, canManage }: { b: UnitBonus; canManage: boolean }) {
             <input name="inspection_max_wait_minutes" type="number" min={1} max={1440} defaultValue={c.inspectionMaxWait} required className={input} />
           </label>
         </div>
-        <p className="text-[11px] text-slate-500">Las metas de ocupación, venta promedio y puntaje de Booking son las del reporte de los hostales.</p>
+        <p className="text-[11px] text-slate-500">Las metas de ocupación, venta promedio y puntaje de Booking son las del reporte de los hostales. El puntaje de Booking de un mes terminado es el último registrado hasta su último día; las lecturas posteriores cuentan para el mes siguiente.</p>
         <button className="rounded-xl bg-[#0b4f9c] px-4 py-2 text-sm font-semibold text-white">Guardar configuración</button>
       </form>
     </details>
