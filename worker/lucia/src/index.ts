@@ -477,6 +477,10 @@ async function main() {
     rpc<number>("lucia_escalate_unanswered", { target_company: companyId }).catch((error) =>
       logger.error({ error: String(error) }, "no se pudieron avisar los chats sin respuesta"),
     );
+    // A las 9:00, una vez al día: revisión del cierre de ayer al grupo del equipo.
+    rpc<boolean>("lucia_send_daily_audit", { target_company: companyId }).catch((error) =>
+      logger.error({ error: String(error) }, "no se pudo enviar el reporte diario de auditoría"),
+    );
   }, 60_000);
   // Los grupos cambian poco: se vuelven a leer cada 6 horas.
   setInterval(() => void syncGroups(companyId), 6 * 60 * 60_000);

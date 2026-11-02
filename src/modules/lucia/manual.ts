@@ -269,6 +269,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
           ["💸⚠️ Comprobante tardío", "Pagó después de vencer y la habitación ya no está libre: resuélvanlo con el cliente."],
           ["🚶 Cliente en camino", "Va directo a la hostal: alguien debe recibirlo. Si la recepción está cerrada, Lucía le pide esperar la confirmación del equipo antes de ir."],
           ["🚨 Cliente en la entrada", "Está afuera esperando: atiéndanlo de inmediato."],
+          ["📋 Revisión del cierre de ayer (9:00, en el grupo)", "Cada mañana Lucía revisa el cierre del día anterior de cada hostal: cierre no realizado, brechas entre el cierre y el ERP (ocupación, pagos o pendiente), piezas esperando inspección y saldos de huéspedes que ya salieron. Corrijan lo que aparezca con ❌, 🧹 o 💰."],
         ],
       },
       {
