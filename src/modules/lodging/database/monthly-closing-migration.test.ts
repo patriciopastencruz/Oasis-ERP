@@ -63,3 +63,15 @@ describe("esquema del cierre mensual gerencial", () => {
     expect(save).toContain("'Cada gasto requiere una categoria valida'");
   });
 });
+
+describe("tipos de gasto de Hostal Uruguay: arriendo y otros gastos fijos", () => {
+  const sql = readFileSync("supabase/migrations/20261102165522_lodging_expense_types_rent_other_fixed.sql", "utf8");
+  it("agrega Arriendo y Otros gastos fijos como gasto fijo de Uruguay, disponibles en Gastos", () => {
+    expect(sql).toContain("('Arriendo',14)");
+    expect(sql).toContain("('Otros gastos fijos',90)");
+    expect(sql).toContain("u.code='HU'");
+    expect(sql).toContain("'fixed'");
+    expect(sql).toContain("allow_expenses=true");
+    expect(sql).toMatch(/^begin;[\s\S]*commit;\s*$/);
+  });
+});
