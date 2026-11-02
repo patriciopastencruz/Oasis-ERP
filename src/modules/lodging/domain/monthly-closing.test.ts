@@ -149,3 +149,21 @@ describe("operación del mes", () => {
     expect(lines.at(-1)).toContain("1 pago(s) pendiente(s)");
   });
 });
+
+describe("gastos declarados en el estado de resultados", () => {
+  const declared = [{ category_id: "c-ins", name: "Insumos y limpieza", section: "variable" as const, amount: 25_000, lines: 2 }];
+  it("con gastos declarados solo suman los declarados y los de cierres diarios no entran", () => {
+    const st = buildStatement(summary({ expenses_source: "declared", declared_expenses: declared, daily_reference: { amount: 30_000, lines: 3 } }));
+    const variable = st.find((s) => s.key === "variable")!;
+    expect(variable.groups.map((g) => [g.name, g.total])).toEqual([
+      ["Comisiones plataformas", 50_000],
+      ["Insumos y limpieza", 25_000],
+    ]);
+    expect(variable.groups[1].items[0]).toMatchObject({ kind: "auto", source: "gastos", label: "Gastos declarados (2)" });
+  });
+  it("sin gastos declarados siguen contando los de cierres diarios", () => {
+    const st = buildStatement(summary({ expenses_source: "daily", declared_expenses: [] }));
+    expect(st.find((s) => s.key === "variable")!.groups[1].items[0]).toMatchObject({ source: "diario", amount: 30_000 });
+  });
+});
+

@@ -86,3 +86,16 @@ describe("tipos de gasto de Centro y Cobija: arriendo y otros gastos fijos", () 
     expect(sql).toMatch(/^begin;[\s\S]*commit;\s*$/);
   });
 });
+
+describe("cierre mensual: gastos declarados", () => {
+  const sql = readFileSync("supabase/migrations/20261102170152_lodging_monthly_closing_declared_expenses.sql", "utf8");
+  it("toma los gastos no anulados del módulo Gastos y no suma los de cierres diarios cuando hay declarados", () => {
+    expect(sql).toContain("from public.lodging_expenses e");
+    expect(sql).toContain("e.voided_at is null");
+    expect(sql).toContain("select section,amount from daily where not (select use_declared from expense_source)");
+    expect(sql).toContain("'expenses_source'");
+    expect(sql).toContain("'daily_reference'");
+    expect(sql).toContain("lodging_monthly_refresh_totals(id)");
+    expect(sql).toMatch(/^begin;[\s\S]*commit;\s*$/);
+  });
+});

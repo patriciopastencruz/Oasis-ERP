@@ -27,9 +27,10 @@ import {
 const sourceBadge = {
   reservas: "bg-[#e8f1fc] text-[#1c5cab]",
   diario: "bg-[#e3f6ef] text-[#137a55]",
+  gastos: "bg-[#fff3d6] text-[#8a5a00]",
   manual: "bg-slate-100 text-slate-600",
 } as const;
-const sourceLabel = { reservas: "Reservas", diario: "Cierres diarios", manual: "Manual" } as const;
+const sourceLabel = { reservas: "Reservas", diario: "Cierres diarios", gastos: "Gastos declarados", manual: "Manual" } as const;
 
 function Kpi({ label, value, hint, delta }: { label: string; value: string; hint?: string; delta?: number | null }) {
   return (
@@ -90,7 +91,7 @@ export default async function MonthlyClosingPage({
       <PageHeader
         eyebrow={unit.name}
         title="Cierre mensual"
-        description="Estado de resultados del mes: ingresos, costos, inversión y utilidad, junto con la ocupación. Se completa solo con reservas y cierres diarios; administración agrega los gastos manuales."
+        description="Estado de resultados del mes: ingresos, costos, inversión y utilidad, junto con la ocupación. Se completa solo con reservas y los gastos declarados en Gastos (o los de cierres diarios si el hostal aún no declara); administración agrega los gastos manuales."
       />
       {(q.error || q.success) && (
         <p className={`mb-4 rounded-xl p-3 text-sm ${q.error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"}`}>
@@ -186,8 +187,22 @@ export default async function MonthlyClosingPage({
             </table>
           </div>
           <p className="mt-3 text-xs text-slate-500">
-            Venta hospedaje = pagos recibidos en el mes. Los gastos de cierres diarios solo cuentan si el cierre del día fue emitido ({summary.daily_closings.issued}{" "}
-            cierres emitidos este mes).
+            Venta hospedaje = pagos recibidos en el mes.{" "}
+            {summary.expenses_source === "declared" ? (
+              <>
+                Los gastos del mes son los declarados en el módulo Gastos (los anulados no cuentan). Los gastos de cierres diarios ({clp(Number(summary.daily_reference?.amount ?? 0))}) son solo referencia
+                y no se suman:{" "}
+                {(() => {
+                  const declaredTotal = (summary.declared_expenses ?? []).reduce((s, d) => s + Number(d.amount), 0);
+                  const diff = declaredTotal - Number(summary.daily_reference?.amount ?? 0);
+                  return diff === 0 ? "coinciden con lo declarado." : `declarado ${clp(declaredTotal)}, diferencia ${clp(diff)} por revisar.`;
+                })()}
+              </>
+            ) : (
+              <>
+                Este hostal aún no declara gastos en el módulo Gastos, así que cuentan los de cierres diarios, solo si el cierre del día fue emitido ({summary.daily_closings.issued} cierres emitidos este mes).
+              </>
+            )}
           </p>
         </Panel>
 

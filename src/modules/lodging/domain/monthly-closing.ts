@@ -22,6 +22,12 @@ export type MonthlySummary = {
   lodging_income: { total: number; by_method: Record<string, number> };
   commissions: { amount: number; category_id: string | null };
   daily_expenses: { category_id: string | null; name: string; section: FinanceSection; amount: number; lines: number }[];
+  /** Gastos declarados en el módulo Gastos (no anulados): la fuente oficial. Ausente en cierres guardados antes de este dato. */
+  declared_expenses?: { category_id: string | null; name: string; section: FinanceSection; amount: number; lines: number }[];
+  /** "declared": los gastos del mes son los declarados y los de cierres diarios solo son referencia; "daily": el hostal no declaró gastos. */
+  expenses_source?: "declared" | "daily";
+  /** Total de gastos de cierres diarios emitidos, siempre informado para conciliar. */
+  daily_reference?: { amount: number; lines: number };
   lines: {
     id: string;
     category_id: string;
@@ -42,7 +48,7 @@ export type StatementItem = {
   kind: "auto" | "line";
   label: string;
   amount: number;
-  source: "reservas" | "diario" | "manual";
+  source: "reservas" | "diario" | "gastos" | "manual";
   lineId?: string;
   payer?: string | null;
   status?: "pagado" | "pendiente";
@@ -79,13 +85,15 @@ export function buildStatement(summary: MonthlySummary): StatementSection[] {
       source: "reservas",
     });
   }
-  for (const d of summary.daily_expenses) {
+  // Con gastos declarados son los únicos que suman; los de cierres diarios solo sirven para conciliar y no entran aquí.
+  const declared = summary.expenses_source === "declared";
+  for (const d of declared ? (summary.declared_expenses ?? []) : summary.daily_expenses) {
     const id = d.category_id ?? "uncategorized";
     add(group(id, d.name, d.section, order.get(id) ?? 999), {
       kind: "auto",
-      label: `Gastos de cierres diarios (${d.lines})`,
+      label: declared ? `Gastos declarados (${d.lines})` : `Gastos de cierres diarios (${d.lines})`,
       amount: Number(d.amount),
-      source: "diario",
+      source: declared ? "gastos" : "diario",
     });
   }
   for (const l of summary.lines) {

@@ -387,7 +387,7 @@ export async function buildMonthlyReportPdf(input: Input) {
       const daysExpected = ops.elapsedDays;
       p.bullet(x, ct + 54, summary.daily_closings.issued >= daysExpected ? "good" : "warning",
         `${summary.daily_closings.issued} de ${daysExpected} días con cierre diario emitido`,
-        "Los gastos diarios solo se suman desde cierres emitidos", mw);
+        summary.expenses_source === "declared" ? "Los gastos del mes son los declarados en Gastos; los de cierres diarios no se suman" : "Los gastos diarios solo se suman desde cierres emitidos", mw);
       const uncategorized = summary.daily_expenses.find((d) => d.category_id === null);
       p.bullet(x, ct + 80, uncategorized ? "serious" : "good",
         uncategorized ? `Gastos diarios sin categoría: ${clp(uncategorized.amount)}` : "Todos los gastos diarios tienen categoría",
@@ -553,7 +553,7 @@ export function drawRoomTable(p: Painter, top: number, ops: RangeOperations, R: 
 type Row =
   | { kind: "section"; label: string; amount: number; key: string }
   | { kind: "group"; label: string; amount: number }
-  | { kind: "item"; label: string; amount: number; source: "reservas" | "diario" | "manual"; payer?: string | null; status?: string }
+  | { kind: "item"; label: string; amount: number; source: "reservas" | "diario" | "gastos" | "manual"; payer?: string | null; status?: string }
   | { kind: "total"; label: string; amount: number };
 
 function statementRows(statement: StatementSection[]): Row[] {
@@ -592,7 +592,7 @@ function drawStatementRow(
     p.text(p.fit(r.label, 300, 7.5, B), col.label + 6, tt, 7.5, B, C.ink2);
     p.textR(clp(r.amount), col.amount, tt, 7.5, B, C.ink2);
   } else if (r.kind === "item") {
-    const dot = { reservas: hex("#2a78d6"), diario: hex("#1baf7a"), manual: hex("#8a96a3") }[r.source];
+    const dot = { reservas: hex("#2a78d6"), diario: hex("#1baf7a"), gastos: hex("#d99a00"), manual: hex("#8a96a3") }[r.source];
     p.page.drawCircle({ x: col.label + 16, y: p.Y(tt + 3.2), size: 2.2, color: dot });
     p.text(p.fit(r.label, 280, 7.2), col.label + 22, tt, 7.2);
     p.textR(clp(r.amount), col.amount, tt, 7.2);
