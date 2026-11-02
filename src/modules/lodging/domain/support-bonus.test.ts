@@ -6,6 +6,7 @@ import {
   groupPoints,
   isWeekday,
   monthlyGoal,
+  supportClosingShiftDay,
   supportShiftDay,
   weekdaysInMonth,
 } from "./support-bonus";
@@ -27,6 +28,17 @@ describe("bono de apoyo transversal", () => {
     expect(supportShiftDay("2026-10-17T21:59:00Z")).toBe("2026-10-17"); // sábado 18:59
     expect(supportShiftDay("2026-10-17T22:00:00Z")).toBeNull(); // sábado 19:00
     expect(supportShiftDay("2026-10-18T13:00:00Z")).toBe("2026-10-18"); // domingo 10:00
+  });
+
+  it("los cierres se pueden emitir hasta la 01:00 de la madrugada que sigue a un turno de lunes a viernes", () => {
+    expect(supportClosingShiftDay("2026-10-14T03:30:00Z")).toBe("2026-10-13"); // miércoles 00:30, turno del martes
+    expect(supportClosingShiftDay("2026-10-14T03:59:00Z")).toBe("2026-10-13"); // miércoles 00:59
+    expect(supportClosingShiftDay("2026-10-14T04:00:00Z")).toBeNull(); // miércoles 01:00
+    expect(supportClosingShiftDay("2026-10-17T03:30:00Z")).toBe("2026-10-16"); // sábado 00:30, turno del viernes
+    expect(supportClosingShiftDay("2026-10-18T03:30:00Z")).toBeNull(); // domingo 00:30: el sábado ya terminó a las 19:00
+    expect(supportClosingShiftDay("2026-10-13T23:30:00Z")).toBe("2026-10-13"); // dentro del turno
+    // Las reservas y los pagos siguen contando solo hasta las 24:00.
+    expect(supportShiftDay("2026-10-14T03:30:00Z")).toBeNull();
   });
 
   it("solo cuentan las reservas creadas dentro de su horario", () => {

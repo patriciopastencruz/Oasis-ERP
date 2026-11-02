@@ -6,6 +6,7 @@ import {
   DEFAULT_SUPPORT_GOALS,
   isWeekday,
   supportShiftDay,
+  supportClosingShiftDay,
   computeSupportBonus,
   countShiftReservations,
   monthlyGoal,
@@ -91,8 +92,8 @@ export async function loadSupportBonus(supabase: Supabase, bonuses: UnitBonus[],
         .limit(5000),
     ]);
     if (!closingsRes.error) {
-      // Los cierres de días de lunes a viernes que ella emitió (o reemitió) dentro de su horario; debe hacer uno por hostal por día laborable.
-      const list = (closingsRes.data ?? []).filter((c) => isWeekday(c.closing_date) && c.issued_at && supportShiftDay(c.issued_at) !== null);
+      // Los cierres de días de lunes a viernes que ella emitió (o reemitió) dentro de su horario (hasta la 01:00 de la madrugada siguiente); debe hacer uno por hostal por día laborable.
+      const list = (closingsRes.data ?? []).filter((c) => isWeekday(c.closing_date) && c.issued_at && supportClosingShiftDay(c.issued_at) !== null);
       closings = {
         expected: unitIds.length * weekdaysInMonth(month),
         issued: list.length,

@@ -59,6 +59,24 @@ export function supportShiftDay(atIso: string) {
   return hour >= shift.from && hour < shift.to ? date : null;
 }
 
+/** Hasta la 01:00 de la madrugada siguiente a un turno de lunes a viernes se puede terminar el cierre. */
+export const SUPPORT_CLOSING_GRACE_END_HOUR = 1;
+
+/**
+ * Como `supportShiftDay`, pero para emitir cierres: además del turno vale la hora siguiente a un turno de
+ * lunes a viernes (00:00 a 01:00), a veces ella se queda más tarde para terminarlos.
+ */
+export function supportClosingShiftDay(atIso: string) {
+  const day = supportShiftDay(atIso);
+  if (day !== null) return day;
+  const { date, hour } = dayParts(atIso);
+  if (hour >= SUPPORT_CLOSING_GRACE_END_HOUR) return null;
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  const previous = d.toISOString().slice(0, 10);
+  return isWeekday(previous) ? previous : null;
+}
+
 /** Cantidad de días de lunes a viernes de un mes (YYYY-MM). */
 export function weekdaysInMonth(month: string) {
   const [y, m] = month.split("-").map(Number);
