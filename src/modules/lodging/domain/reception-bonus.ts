@@ -48,7 +48,7 @@ export type BonusInput = {
   /** % de ocupación del mes (cada día con tope) y meta. */
   occupancy: { value: number | null; goal: number | null };
   adr: { value: number | null; goal: number | null };
-  /** Último puntaje de Booking registrado hasta el corte del mes (el día 31 si ya terminó, hoy si sigue en curso). */
+  /** Último puntaje de Booking registrado (una lectura del momento, también para un mes ya terminado). */
   booking: { value: number | null; goal: number | null };
   survey: { value: number | null; goal: number; responses: number; minResponses: number };
   /** Aseos terminados en el mes, cuántos se inspeccionaron y el tiempo promedio hasta la inspección. */

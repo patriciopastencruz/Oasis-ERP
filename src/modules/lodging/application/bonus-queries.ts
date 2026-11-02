@@ -87,13 +87,13 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       .eq("business_unit_id", unit.id)
       .gte("created_at", `${start}T00:00:00-06:00`)
       .lt("created_at", `${addDays(reference, 1)}T06:00:00Z`),
-    // Un mes cerrado se evalúa con el último puntaje registrado hasta su corte (el día 31), no con lecturas posteriores.
+    // El puntaje de Booking es una lectura del momento: el bono, también el de un mes cerrado, usa el último registrado.
     supabase
       .from("lodging_review_scores")
       .select("recorded_on,score")
       .eq("business_unit_id", unit.id)
       .eq("source", "booking")
-      .lte("recorded_on", reference)
+      .lte("recorded_on", santiagoToday())
       .order("recorded_on", { ascending: false })
       .limit(1)
       .maybeSingle(),
