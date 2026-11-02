@@ -75,3 +75,14 @@ describe("tipos de gasto de Hostal Uruguay: arriendo y otros gastos fijos", () =
     expect(sql).toMatch(/^begin;[\s\S]*commit;\s*$/);
   });
 });
+
+describe("tipos de gasto de Centro y Cobija: arriendo y otros gastos fijos", () => {
+  const sql = readFileSync("supabase/migrations/20261102165753_lodging_expense_types_rent_other_fixed_centro_cobija.sql", "utf8");
+  it("agrega Arriendo y Otros gastos fijos como gasto fijo de Centro y Cobija, disponibles en Gastos", () => {
+    expect(sql).toContain("('Arriendo',14)");
+    expect(sql).toContain("('Otros gastos fijos',90)");
+    expect(sql).toContain("u.code in('HOC','HOB')");
+    expect(sql).toContain("allow_expenses=true");
+    expect(sql).toMatch(/^begin;[\s\S]*commit;\s*$/);
+  });
+});
