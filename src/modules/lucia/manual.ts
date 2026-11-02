@@ -17,7 +17,7 @@ export type ManualBlock =
 export type ManualSection = { id: string; title: string; emoji: string; blocks: ManualBlock[] };
 
 export const MANUAL_TITLE = "Manual de Lucía para recepción";
-export const MANUAL_UPDATED = "29 de octubre de 2026";
+export const MANUAL_UPDATED = "2 de noviembre de 2026";
 /** Las pantallas del manual usan datos ficticios (María Pérez, Juan Rojas). */
 export const MANUAL_IMAGES_NOTE = "Las imágenes son de referencia, con clientes ficticios.";
 
@@ -207,6 +207,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
           ["El cliente quiere pagar en efectivo al llegar", "Lucía le explica que puede, pero la habitación no queda reservada: se confirma al llegar, dentro del horario de recepción."],
           ["El cliente paga al llegar (tarjeta o efectivo)", "Registren el pago en la reserva del ERP: si cubre el abono, la reserva queda confirmada sola y pueden hacer el check-in."],
           ["Reservas de 1 noche", "Se pagan completas (no abono)."],
+          ["Quiere llegar con la recepción cerrada", "Lucía **no le da la dirección exacta** (salvo que tenga la reserva pagada) y le pide coordinar antes con recepción: sin esa confirmación no se asegura la disponibilidad ni el ingreso. A ustedes les llega un 🔔 para coordinar su llegada."],
         ],
       },
       {
@@ -266,7 +267,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
           ["⏰ Venció el plazo", "No llegó el pago a tiempo y se anuló la reserva pendiente."],
           ["💸 Comprobante recibido (con la imagen)", "Verifiquen el pago en el banco y confirmen."],
           ["💸⚠️ Comprobante tardío", "Pagó después de vencer y la habitación ya no está libre: resuélvanlo con el cliente."],
-          ["🚶 Cliente en camino", "Va directo a la hostal: alguien debe recibirlo."],
+          ["🚶 Cliente en camino", "Va directo a la hostal: alguien debe recibirlo. Si la recepción está cerrada, Lucía le pide esperar la confirmación del equipo antes de ir."],
           ["🚨 Cliente en la entrada", "Está afuera esperando: atiéndanlo de inmediato."],
         ],
       },

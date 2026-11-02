@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildChatTurns, currentInquiryCustomerText, type LuciaHistoryMessage } from "@/modules/lucia/domain/history";
 import { usageCostUsd } from "@/modules/lucia/domain/pricing";
 import { describeBookingState } from "@/modules/lucia/domain/booking-context";
+import { hostelAddress, receptionState, type ClosedHostel } from "@/modules/lucia/domain/reception-hours";
 import { buildKnowledgeBlock, type LuciaHostelKnowledge } from "@/modules/lucia/domain/prompt";
 import { santiagoToday } from "@/modules/lodging/domain/daily-closing";
 import { checkLuciaAvailability } from "./availability-tool";
@@ -36,7 +37,7 @@ export async function processLuciaConversation(
 ): Promise<ProcessResult> {
   const { data: conversation } = await admin
     .from("lucia_conversations")
-    .select("id,company_id,status,paused_until,hostel_assigned,guest_name,booking_status,booking_total,booking_deposit,hold_expires_at,cheaper_shared_from")
+    .select("id,company_id,business_unit_id,status,paused_until,hostel_assigned,guest_name,booking_status,booking_total,booking_deposit,hold_expires_at,cheaper_shared_from")
     .eq("id", conversationId)
     .maybeSingle();
   if (!conversation) return { status: "skipped", reason: "not_found" };
@@ -70,6 +71,33 @@ export async function processLuciaConversation(
     settings.general_instructions,
     await loadHostelKnowledge(admin, conversation.company_id),
   );
+  // Hostales con la recepción cerrada ahora: no se entrega su dirección exacta
+  // a quien no tiene una reserva pagada; su llegada se coordina antes.
+  const { data: hostelHours } = await admin
+    .from("lucia_hostels")
+    .select("business_unit_id,display_name,manual,reception_open_time,reception_close_time,reception_close_time_weekend,business_units(code)")
+    .eq("company_id", conversation.company_id)
+    .eq("enabled", true);
+  const closedHostels: ClosedHostel[] = (hostelHours ?? []).flatMap((h) => {
+    const state = receptionState(h);
+    const unit = Array.isArray(h.business_units) ? h.business_units[0] : h.business_units;
+    return state.open
+      ? []
+      : [{
+          code: (unit as { code?: string } | null)?.code ?? "",
+          name: h.display_name,
+          address: hostelAddress(h.manual),
+          opens: state.opens,
+          closes: state.closes,
+        }];
+  });
+  const bookingConfirmed = conversation.booking_status === "confirmed";
+  const assignedHostel = conversation.hostel_assigned
+    ? (hostelHours ?? []).find((h) => h.business_unit_id === conversation.business_unit_id)
+    : undefined;
+  const assignedUnit = assignedHostel
+    ? (Array.isArray(assignedHostel.business_units) ? assignedHostel.business_units[0] : assignedHostel.business_units)
+    : null;
 
   try {
     const result = await generateLuciaReply({
@@ -83,6 +111,9 @@ export async function processLuciaConversation(
         [
           describeBookingState(conversation),
           conversation.guest_name ? `El cliente ya dio su nombre: ${conversation.guest_name}. No se lo vuelvas a pedir.` : null,
+          closedHostels.length && !bookingConfirmed
+            ? `En este momento la recepción está cerrada en: ${closedHostels.map((h) => `${h.name} (atiende de ${h.opens} a ${h.closes})`).join(", ")}. No des la dirección exacta de esas hostales ni le digas que puede llegar ahora: explícale que la llegada fuera del horario de recepción se coordina antes con recepción y que sin esa confirmación no podemos asegurar la disponibilidad ni su ingreso.`
+            : null,
           conversation.cheaper_shared_from
             ? `Como pidió departamento, se le mostraron solo opciones con baño privado; también hay opciones con baño compartido desde $${Math.round(Number(conversation.cheaper_shared_from)).toLocaleString("es-CL")} por noche. No se las ofrezcas por tu cuenta; si pide algo más barato o acepta verlas, usa consultar_disponibilidad y muéstralas.`
             : null,
@@ -90,6 +121,8 @@ export async function processLuciaConversation(
           .filter(Boolean)
           .join(" ") || null,
       cheaperSharedFrom: conversation.cheaper_shared_from === null ? null : Number(conversation.cheaper_shared_from),
+      closedHostels: bookingConfirmed ? [] : closedHostels,
+      assignedHostelCode: (assignedUnit as { code?: string } | null)?.code ?? null,
       bookingInProgress: ["awaiting_reception", "awaiting_payment", "proof_received", "confirmed"].includes(
         conversation.booking_status,
       ),

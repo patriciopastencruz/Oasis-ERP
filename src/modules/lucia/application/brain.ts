@@ -16,6 +16,7 @@ import { ALREADY_SENT_REPLY, repeatsSummary, summaryAlreadySent } from "@/module
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
 import { focusOnChosenHostel, wantsApartment } from "@/modules/lucia/domain/chosen-hostel";
 import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
+import { afterHoursArrivalReply, mentionsAddress, type ClosedHostel } from "@/modules/lucia/domain/reception-hours";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
 import type { AvailabilityQuery } from "./availability-tool";
 
@@ -104,6 +105,10 @@ export async function generateLuciaReply(input: {
   bookingInProgress?: boolean;
   /** Ya se le ocultaron opciones con baño compartido desde este precio. */
   cheaperSharedFrom?: number | null;
+  /** Hostales con la recepción cerrada ahora (vacío si el cliente tiene una reserva pagada). */
+  closedHostels?: ClosedHostel[];
+  /** Hostal asignada a la conversación, si la hay. */
+  assignedHostelCode?: string | null;
   checkAvailability: AvailabilityChecker;
 }): Promise<LuciaBrainResult> {
   if (input.turns.length === 0 || input.turns.at(-1)?.role !== "user") {
@@ -164,6 +169,7 @@ export async function generateLuciaReply(input: {
   let availabilityHasOptions = false;
   let accessNote: string | null = null;
   let insistedOnRequest = false;
+  let askedToConfirmDates = false;
   // Lo que escribió el cliente en esta consulta (sin los mensajes de Lucía).
   const customerMessages: string[] = [];
   for (const turn of [...input.turns].reverse()) {
@@ -271,6 +277,29 @@ export async function generateLuciaReply(input: {
           reply: "¡Genial! 😊 ¿Cuál de las opciones que te mostré prefieres? Así dejo lista tu solicitud.",
         };
       }
+      // Fechas sin confirmar en esta consulta no son una falla: se le preguntan
+      // al cliente en vez de derivar («no pude consultar la disponibilidad»).
+      if (
+        !availabilityWasChecked &&
+        !askedToConfirmDates &&
+        call < MAX_CALLS - 1 &&
+        output.needs_human &&
+        issues.some((issue) => issue.startsWith("Fechas no citadas"))
+      ) {
+        askedToConfirmDates = true;
+        messages.push({ role: "assistant", content: response.content });
+        messages.push({
+          role: "user",
+          content: [{
+            type: "tool_result",
+            tool_use_id: respond.id,
+            content:
+              "Respuesta rechazada: la consulta no falló; las fechas no están confirmadas en esta consulta (o las dijo hace horas). No derives ni digas que no pudiste consultar: pídele al cliente que confirme su llegada y su salida con fechas concretas, por ejemplo «¿Llegas hoy domingo 1 de noviembre y te vas mañana lunes 2?». Deja needs_human en false.",
+            is_error: true,
+          }],
+        });
+        continue;
+      }
       // Lucía ofreció dejar la solicitud y el cliente dijo que sí: se envía, no
       // se le vuelve a preguntar (antes daba vueltas pidiendo confirmación).
       if (
@@ -345,6 +374,18 @@ export async function generateLuciaReply(input: {
       ) {
         output = { ...output, reply: LOWER_PRICE_REPLY, booking_request: false };
       }
+      // Fuera del horario de recepción no se entrega la dirección exacta: la
+      // llegada se coordina antes (un cliente llegó a medianoche sin reserva).
+      const closedNamed = (input.closedHostels ?? []).filter((h) => h.address && mentionsAddress(output.reply, h.address));
+      if (closedNamed.length) {
+        output = {
+          ...output,
+          reply: afterHoursArrivalReply(closedNamed),
+          booking_request: false,
+          needs_human: true,
+          reason: `Quiere la dirección o llegar fuera del horario de recepción (${closedNamed.map((h) => h.name).join(", ")}): coordinar su llegada`,
+        };
+      }
       const detectedWalkIn = detectWalkInStatus(latestCustomerMessage);
       // Una alerta operacional nunca se basa solo en la interpretación del
       // modelo: frases como «pagar cuando llegue» pueden parecer una llegada
@@ -353,13 +394,17 @@ export async function generateLuciaReply(input: {
       const walkInStatus = detectedWalkIn;
       if (walkInStatus && (input.hostelAssigned || output.prospect.hostel_code)) {
         const atEntrance = walkInStatus === "at_entrance";
+        const targetCode = output.prospect.hostel_code ?? input.assignedHostelCode;
+        const closedTarget = (input.closedHostels ?? []).find((h) => h.code === targetCode);
         return {
           output: {
             ...output,
             reply: atEntrance
               ? "Ya avisé a recepción y administración que estás en la entrada para que puedan atenderte lo antes posible. 🙏"
-              : "Perfecto, ya avisé a recepción y administración que vas en camino para que puedan recibirte. 📍",
-            needs_human: atEntrance || output.needs_human,
+              : closedTarget
+                ? `Ya avisé al equipo que quieres venir. Ten en cuenta que la recepción de ${closedTarget.name} ya cerró (atiende de ${closedTarget.opens} a ${closedTarget.closes}): espera que el equipo te confirme antes de ir, porque sin esa confirmación no podemos asegurar la disponibilidad ni tu ingreso 🙏`
+                : "Perfecto, ya avisé a recepción y administración que vas en camino para que puedan recibirte. 📍",
+            needs_human: atEntrance || Boolean(closedTarget) || output.needs_human,
             reason: atEntrance
               ? "Cliente esperando en la entrada: atención inmediata"
               : output.reason,
@@ -409,7 +454,7 @@ export async function generateLuciaReply(input: {
               type: "tool_result",
               tool_use_id: block.id,
               content:
-                "No consultado: esas palabras no aparecen en lo que el cliente escribió o confirmó en esta consulta. Si el cliente escribió sus fechas, copia sus palabras exactas en fechas_del_cliente; si confirmó con un «sí» las fechas que tú le propusiste, copia exactamente tu frase con esas fechas. Si nadie las dijo, no supongas: pregúntale qué día llega y qué día se va.",
+                "No consultado (no es una falla del sistema): esas palabras no aparecen en lo que el cliente escribió o confirmó en esta consulta. Si el cliente escribió sus fechas, copia sus palabras exactas en fechas_del_cliente; si confirmó con un «sí» las fechas que tú le propusiste, copia exactamente tu frase con esas fechas. Si nadie las dijo, no supongas: pregúntale qué día llega y qué día se va.",
               is_error: true,
             };
           }

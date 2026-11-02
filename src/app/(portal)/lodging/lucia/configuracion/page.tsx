@@ -125,6 +125,9 @@ export default async function LuciaSettingsPage({
                   <input type="time" name="checkout_time" defaultValue={h.checkout_time.slice(0, 5)} className={inputClass} />
                 </label>
               </div>
+              <label className="block">Recepción abre
+                <input type="time" name="reception_open_time" defaultValue={h.reception_open_time.slice(0, 5)} required className={inputClass} />
+              </label>
               <div className="grid grid-cols-2 gap-2">
                 <label className="block">Recepción cierra (lun. a vie.)
                   <input type="time" name="reception_close_time" defaultValue={h.reception_close_time.slice(0, 5)} required className={inputClass} />
@@ -134,7 +137,7 @@ export default async function LuciaSettingsPage({
                 </label>
               </div>
               <p className="text-xs text-slate-500">
-                Cuando el equipo responde un chat, Lucía se pausa hasta esa hora y después retoma sola. Si responden con la recepción cerrada, la pausa es de 1 hora. Fin de semana vacío = mismo horario.
+                Cuando el equipo responde un chat, Lucía se pausa hasta esa hora y después retoma sola. Si responden con la recepción cerrada, la pausa es de 1 hora. Fin de semana vacío = mismo horario. Fuera del horario de recepción, Lucía no da la dirección exacta a quien no tiene una reserva pagada: le pide coordinar antes su llegada.
               </p>
               <label className="block">Link del álbum de fotos (se envía al confirmar la reserva)
                 <input type="url" name="photos_url" defaultValue={h.photos_url ?? ""} placeholder="https://…" className={inputClass} />
