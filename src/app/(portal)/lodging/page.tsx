@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Banknote,
   BedDouble,
   LogIn,
   LogOut,
@@ -11,6 +12,8 @@ import {
 } from "lucide-react";
 import { WeeklyCalendar } from "@/components/lodging/weekly-calendar";
 import { SyncButton } from "@/components/lodging/sync-button";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { loadCashForDay } from "@/modules/lodging/application/cash-queries";
 import { calendarData, clp } from "@/modules/lodging/application/queries";
 
 function localDate() {
@@ -30,6 +33,13 @@ export default async function Page() {
   const today = localDate(),
     start = today;
   const data = await calendarData(add(start, -21), add(start, 28));
+  // Si el usuario no puede leer los pagos, el indicador se muestra sin cifra
+  // en vez de romper el calendario.
+  const cashToday = await loadCashForDay(
+    await createSupabaseServerClient(),
+    data.unit.id,
+    today,
+  ).catch(() => null);
   const todayReservations = data.reservations.filter(
     (r) =>
       r.check_in <= today &&
@@ -70,6 +80,11 @@ export default async function Page() {
     ],
     ["% Ocupación hoy", `${occupancyPct}%`, PieChart],
     ["Monto total del día", clp.format(totalAmountToday), Wallet],
+    [
+      "Efectivo recibido hoy",
+      cashToday === null ? "—" : clp.format(cashToday),
+      Banknote,
+    ],
     ["Promedio por habitación", clp.format(averagePerRoom), Wallet],
     ["Reservas sin precio", reservationsWithoutPrice, Tag],
     [

@@ -51,3 +51,9 @@ type RelatedReservation = {
   lodging_rooms: { name: string } | { name: string }[] | null;
   lodging_guests: { full_name: string | null } | { full_name: string | null }[] | null;
 };
+
+/** Efectivo neto (cobros menos reembolsos) de un día de Santiago, para el indicador del calendario. */
+export async function loadCashForDay(supabase: Supabase, unitId: string, day: string) {
+  const report = await loadCashReport(supabase, unitId, day.slice(0, 7));
+  return report.days.find((d) => d.day === day)?.total ?? 0;
+}
