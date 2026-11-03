@@ -38,9 +38,11 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
   const today = santiagoToday();
   const current = units.find((u) => u.code === q.h) ?? units[0];
   const supabase = await createSupabaseServerClient();
+  const calendarFrom = addDays(today, -21);
+  const calendarTo = addDays(today, 28);
   const [report, calendar] = await Promise.all([
     loadGroupWeeklyReport(supabase, units, today, defaultClosingDate()),
-    unitCalendarData(supabase, current.id, addDays(today, -21), addDays(today, 28)),
+    unitCalendarData(supabase, current.id, calendarFrom, calendarTo),
   ]);
 
   const rows = report.hostels.map((h) => ({ unit: h.unit, m: h.month, goals: h.goals }));
@@ -198,6 +200,9 @@ export default async function HostalesPage({ searchParams }: { searchParams: Pro
         </nav>
         <WeeklyCalendar
           key={current.id}
+          unitId={current.id}
+          loadedFrom={calendarFrom}
+          loadedTo={calendarTo}
           showRoomStatus={calendar.housekeepingEnabled}
           rooms={calendar.rooms}
           reservations={calendar.reservations}

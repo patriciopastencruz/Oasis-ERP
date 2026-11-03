@@ -35,6 +35,25 @@ export async function calendarData(from: string, to: string) {
   return { unit, canManage, ...(await unitCalendarData(supabase, unit.id, from, to)) };
 }
 
+/** Reservas de un hostal que tocan el rango [from, to) del calendario (RLS limita el acceso). */
+export async function calendarReservations(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  unitId: string,
+  from: string,
+  to: string,
+) {
+  return supabase
+    .from("lodging_reservations")
+    .select(
+      "*,lodging_guests(full_name,phone),lodging_reservation_payments(status,amount,type,lodging_payment_receipts(id,deleted_at))",
+    )
+    .eq("business_unit_id", unitId)
+    .lt("check_in", to)
+    .gt("check_out", from)
+    .neq("status", "cancelled")
+    .order("check_in");
+}
+
 /** Habitaciones y reservas de un hostal para el calendario (RLS limita el acceso). */
 export async function unitCalendarData(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
@@ -51,16 +70,7 @@ export async function unitCalendarData(
         .eq("business_unit_id", unit.id)
         .eq("active", true)
         .order("display_order"),
-      supabase
-        .from("lodging_reservations")
-        .select(
-          "*,lodging_guests(full_name,phone),lodging_reservation_payments(status,amount,type,lodging_payment_receipts(id,deleted_at))",
-        )
-        .eq("business_unit_id", unit.id)
-        .lt("check_in", to)
-        .gt("check_out", from)
-        .neq("status", "cancelled")
-        .order("check_in"),
+      calendarReservations(supabase, unit.id, from, to),
       // Circuito de aseo e inspección activo en el hostal (se puede desactivar por unidad).
       supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id }),
     ]);

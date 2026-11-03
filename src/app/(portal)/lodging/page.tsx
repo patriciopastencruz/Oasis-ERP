@@ -32,7 +32,9 @@ export default async function Page() {
   // hoy) y marca la columna de hoy; recepción ve primero lo que viene.
   const today = localDate(),
     start = today;
-  const data = await calendarData(add(start, -21), add(start, 28));
+  const loadedFrom = add(start, -21);
+  const loadedTo = add(start, 28);
+  const data = await calendarData(loadedFrom, loadedTo);
   // Si el usuario no puede leer los pagos, el indicador se muestra sin cifra
   // en vez de romper el calendario.
   const cashToday = await loadCashForDay(
@@ -149,6 +151,9 @@ export default async function Page() {
         ))}
       </div>
       <WeeklyCalendar
+        unitId={data.unit.id}
+        loadedFrom={loadedFrom}
+        loadedTo={loadedTo}
         showRoomStatus={data.housekeepingEnabled}
         rooms={data.rooms}
         reservations={data.reservations}

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Banknote, ChevronLeft, ChevronRight, LogIn, User, Users, X } from "lucide-react";
 import { reassignReservationRoomAction } from "@/modules/lodging/application/actions";
+import { loadCalendarRangeAction } from "@/modules/lodging/application/calendar-range-actions";
 import { operationalStatusColors } from "@/modules/lodging/domain/operations";
 import { hourLabel, summarizeReservationHover } from "@/modules/lodging/domain/reservation-hover";
 
@@ -203,6 +204,8 @@ const roomState = (status?: string) => roomStates.find((s) => s.key === status);
 
 // Días visibles: diez, desde el día anterior (así se ven las salidas de hoy).
 const VISIBLE_DAYS = 10;
+// Al recorrer semanas fuera de lo cargado se trae ese tramo con un margen, para no pedir en cada clic.
+const RANGE_MARGIN_DAYS = 35;
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 const add = (date: Date, amount: number) => {
   const result = new Date(date);
@@ -239,15 +242,22 @@ function assignLanes<T extends { id: string; check_in: string; check_out: string
 }
 
 export function WeeklyCalendar({
+  unitId,
   rooms,
   reservations,
   initialStart,
+  loadedFrom,
+  loadedTo,
   canManage = false,
   showRoomStatus = true,
 }: {
+  unitId: string;
   rooms: Room[];
   reservations: Reservation[];
   initialStart: string;
+  /** Tramo [desde, hasta) que ya traen `reservations`; fuera de él se cargan las reservas al navegar. */
+  loadedFrom: string;
+  loadedTo: string;
   canManage?: boolean;
   /** Oculta el estado de limpieza cuando el hostal no usa el circuito de aseo. */
   showRoomStatus?: boolean;
@@ -261,9 +271,13 @@ export function WeeklyCalendar({
   // cambio de fechas), la copia local se reemplaza; si no, el calendario
   // seguiría mostrando la versión anterior hasta recargar la página.
   const [receivedReservations, setReceivedReservations] = useState(reservations);
+  const [loaded, setLoaded] = useState({ from: loadedFrom, to: loadedTo });
+  const [loadingRange, setLoadingRange] = useState(false);
+  const [rangeError, setRangeError] = useState<string | null>(null);
   if (reservations !== receivedReservations) {
     setReceivedReservations(reservations);
     setLocalReservations(reservations);
+    setLoaded({ from: loadedFrom, to: loadedTo });
   }
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hover, setHover] = useState<{ id: string; rect: DOMRect; draggable: boolean } | null>(null);
@@ -296,6 +310,36 @@ export function WeeklyCalendar({
       }
     });
   }
+  /** Cambia de semana y, si cae fuera de lo cargado, trae las reservas de ese tramo (también las de meses pasados). */
+  async function goTo(next: number) {
+    setOffset(next);
+    setRangeError(null);
+    const start = add(new Date(`${initialStart}T12:00:00Z`), next * 7 - 1);
+    const windowFrom = iso(start);
+    const windowTo = iso(add(start, VISIBLE_DAYS));
+    const wanted: { from: string; to: string }[] = [];
+    if (windowFrom < loaded.from) wanted.push({ from: iso(add(start, -RANGE_MARGIN_DAYS)), to: loaded.from });
+    if (windowTo > loaded.to) wanted.push({ from: loaded.to, to: iso(add(start, VISIBLE_DAYS + RANGE_MARGIN_DAYS)) });
+    if (!wanted.length) return;
+    setLoadingRange(true);
+    let range = loaded;
+    for (const part of wanted) {
+      const result = await loadCalendarRangeAction(unitId, part.from, part.to);
+      if (!result.ok) {
+        setRangeError(result.message);
+        break;
+      }
+      const fetched = result.reservations as unknown as Reservation[];
+      setLocalReservations((prev) => {
+        const byId = new Map(prev.map((r) => [r.id, r]));
+        for (const r of fetched) byId.set(r.id, r);
+        return [...byId.values()];
+      });
+      range = { from: part.from < range.from ? part.from : range.from, to: part.to > range.to ? part.to : range.to };
+      setLoaded(range);
+    }
+    setLoadingRange(false);
+  }
   const days = useMemo(() => {
     const start = add(new Date(`${initialStart}T12:00:00Z`), offset * 7 - 1);
     return Array.from({ length: VISIBLE_DAYS }, (_, index) => add(start, index));
@@ -311,7 +355,7 @@ export function WeeklyCalendar({
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-3">
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setOffset((value) => value - 1)}
+            onClick={() => void goTo(offset - 1)}
             aria-label="Semana anterior"
             title="Retroceder una semana"
             className="grid size-9 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
@@ -319,7 +363,7 @@ export function WeeklyCalendar({
             <ChevronLeft size={17} />
           </button>
           <button
-            onClick={() => setOffset((value) => value + 1)}
+            onClick={() => void goTo(offset + 1)}
             aria-label="Semana siguiente"
             title="Avanzar una semana"
             className="grid size-9 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
@@ -327,11 +371,13 @@ export function WeeklyCalendar({
             <ChevronRight size={17} />
           </button>
           <button
-            onClick={() => setOffset(0)}
+            onClick={() => void goTo(0)}
             className="ml-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Hoy
           </button>
+          {loadingRange && <span className="ml-2 text-xs text-slate-500">Cargando reservas…</span>}
+          {rangeError && <span className="ml-2 text-xs text-red-600">{rangeError}</span>}
         </div>
 
         <div className="ml-auto hidden flex-wrap items-center gap-4 xl:flex">
