@@ -22,7 +22,15 @@ export type MonthlySummary = {
   days: number;
   lodging_income: { total: number; by_method: Record<string, number> };
   commissions: { amount: number; category_id: string | null };
-  daily_expenses: { category_id: string | null; name: string; section: FinanceSection; amount: number; lines: number }[];
+  daily_expenses: {
+    category_id: string | null;
+    name: string;
+    section: FinanceSection;
+    amount: number;
+    lines: number;
+    /** Cada gasto con su nombre; ausente en cierres guardados antes de este detalle. */
+    items?: { date: string; description: string; amount: number }[];
+  }[];
   /** Gastos declarados en el módulo Gastos (no anulados): la fuente oficial. Ausente en cierres guardados antes de este dato. */
   declared_expenses?: {
     category_id: string | null;
@@ -99,14 +107,14 @@ export function buildStatement(summary: MonthlySummary): StatementSection[] {
   for (const d of declared ? (summary.declared_expenses ?? []) : summary.daily_expenses) {
     const id = d.category_id ?? "uncategorized";
     const g = group(id, d.name, d.section, order.get(id) ?? 999);
-    const items = declared ? (d as NonNullable<MonthlySummary["declared_expenses"]>[number]).items : undefined;
+    const items: { description: string; supplier?: string | null; amount: number }[] | undefined = d.items;
     if (items?.length) {
       for (const it of items) {
         add(g, {
           kind: "auto",
           label: it.supplier ? `${it.description} · ${it.supplier}` : it.description,
           amount: Number(it.amount),
-          source: "gastos",
+          source: declared ? "gastos" : "diario",
         });
       }
       continue;

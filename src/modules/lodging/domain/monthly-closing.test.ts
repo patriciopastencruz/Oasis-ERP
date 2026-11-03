@@ -183,5 +183,27 @@ describe("gastos declarados en el estado de resultados", () => {
     const st = buildStatement(summary({ expenses_source: "daily", declared_expenses: [] }));
     expect(st.find((s) => s.key === "variable")!.groups[1].items[0]).toMatchObject({ source: "diario", amount: 30_000 });
   });
+  it("los gastos de cierres diarios se detallan con su nombre", () => {
+    const daily = [
+      {
+        category_id: "c-ins",
+        name: "Insumos y limpieza",
+        section: "variable" as const,
+        amount: 30_000,
+        lines: 2,
+        items: [
+          { date: "2026-10-20", description: "GLORO GEL- SACAPELOS", amount: 10_100 },
+          { date: "2026-10-21", description: "Bolsas de basura", amount: 19_900 },
+        ],
+      },
+    ];
+    const st = buildStatement(summary({ expenses_source: "daily", declared_expenses: [], daily_expenses: daily }));
+    const group = st.find((s) => s.key === "variable")!.groups[1];
+    expect(group.total).toBe(30_000);
+    expect(group.items.map((i) => [i.label, i.amount, i.source])).toEqual([
+      ["GLORO GEL- SACAPELOS", 10_100, "diario"],
+      ["Bolsas de basura", 19_900, "diario"],
+    ]);
+  });
 });
 

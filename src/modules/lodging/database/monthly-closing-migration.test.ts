@@ -111,3 +111,13 @@ describe("cierre mensual: detalle de gastos declarados", () => {
     expect(sql).toMatch(/^begin;[\s\S]*commit;\s*$/);
   });
 });
+
+describe("cierre mensual: detalle de gastos de cierres diarios", () => {
+  const sql = readFileSync("supabase/migrations/20261103174916_lodging_monthly_closing_daily_items.sql", "utf8");
+  it("entrega cada gasto de cierre diario con su nombre sin cambiar los totales por categoría", () => {
+    expect(sql).toContain("'description',e.description");
+    expect(sql).toContain("'lines',lines,'items',items) order by amount desc) from daily)");
+    expect(sql).toContain("lodging_monthly_refresh_totals(id)");
+    expect(sql).toMatch(/^begin;[\s\S]*commit;\s*$/);
+  });
+});
