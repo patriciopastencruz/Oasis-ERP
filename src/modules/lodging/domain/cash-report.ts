@@ -1,12 +1,7 @@
-import { paymentDay } from "./payment-day";
-
 /** Detalle del efectivo cobrado en un hostal durante un mes (pagos confirmados con medio "efectivo"). */
 export type CashPaymentRow = {
   id: string;
   paid_at: string;
-  /** Estadía de la reserva: decide a qué día corresponde el pago (ver paymentDay). */
-  check_in?: string | null;
-  check_out?: string | null;
   type: string;
   amount: number;
   notes: string | null;
@@ -71,13 +66,10 @@ export function buildCashReport(month: string, confirmed: CashPaymentRow[], void
   const entries: CashEntry[] = confirmed
     .map((p) => {
       const when = new Date(p.paid_at);
-      const day = paymentDay(p.paid_at, p.check_in, p.check_out);
-      const paidDay = santiagoDay.format(when);
       return {
         id: p.id,
-        day,
-        // Si se pagó otro día (abono anticipado o regularización), se muestra cuándo.
-        time: paidDay === day ? santiagoTime.format(when) : `${paidDay.slice(8)}-${paidDay.slice(5, 7)} ${santiagoTime.format(when)}`,
+        day: santiagoDay.format(when),
+        time: santiagoTime.format(when),
         type: p.type,
         amount: p.type === "refund" ? -Number(p.amount) : Number(p.amount),
         notes: p.notes,
@@ -87,7 +79,7 @@ export function buildCashReport(month: string, confirmed: CashPaymentRow[], void
         registeredBy: p.registered_by,
       };
     })
-    // La consulta lee pagos con margen; el filtro exacto es por el día al que corresponde cada pago.
+    // El filtro de la consulta lleva margen por la diferencia horaria; el exacto es por fecha de Santiago.
     .filter((e) => e.day >= from && e.day < toExclusive)
     .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
 

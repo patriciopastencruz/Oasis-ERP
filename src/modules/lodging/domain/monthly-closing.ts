@@ -1,5 +1,4 @@
 import { addDays, clp, pct, santiagoToday } from "./daily-closing";
-import { paymentDay } from "./payment-day";
 import { isOutOfServiceOn, type ServiceGap } from "./room-service";
 
 export type FinanceSection = "income" | "fixed" | "variable" | "investment" | "withdrawal" | "other";
@@ -153,9 +152,9 @@ export function buildStatement(summary: MonthlySummary): StatementSection[] {
 
 export type OpsRoom = { id: string; name: string; room_type: string; display_order: number };
 export type OpsReservation = { room_id: string; check_in: string; check_out: string; total_value: number };
-/** Con la estadía de la reserva, el pago cuenta en el día que le corresponde (ver paymentDay). */
-export type OpsPayment = { paid_at: string; amount: number; payment_method: string; check_in?: string | null; check_out?: string | null };
+export type OpsPayment = { paid_at: string; amount: number; payment_method: string };
 
+const santiagoDate = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date(iso));
 const weekday = (day: string) => new Date(`${day}T12:00:00Z`).getUTCDay();
 export const monthStart = (month: string) => `${month}-01`;
 export const monthEnd = (month: string) => addDays(`${nextMonth(month)}-01`, -1);
@@ -212,7 +211,7 @@ export function rangeOperations(
   const receivedByDay = new Map<string, number>();
   const byMethod: Record<string, number> = {};
   for (const p of payments) {
-    const day = paymentDay(p.paid_at, p.check_in, p.check_out);
+    const day = santiagoDate(p.paid_at);
     if (day < start || day > end) continue;
     receivedByDay.set(day, (receivedByDay.get(day) ?? 0) + Number(p.amount));
     byMethod[p.payment_method] = (byMethod[p.payment_method] ?? 0) + Number(p.amount);

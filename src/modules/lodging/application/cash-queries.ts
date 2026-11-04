@@ -1,8 +1,6 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildCashReport, cashMonthRange, type CashPaymentRow } from "../domain/cash-report";
-import { addDays } from "../domain/daily-closing";
-import { PAYMENT_DAY_MARGIN_DAYS } from "../domain/payment-day";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -11,20 +9,16 @@ const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ?
 /** Efectivo cobrado por un hostal en un mes: cada pago con quién lo registró, para revisar o cuadrar la caja. */
 export async function loadCashReport(supabase: Supabase, unitId: string, month: string) {
   const { from, toExclusive } = cashMonthRange(month);
-  // Los pagos cuentan en el día que les corresponde según la estadía (abonos anticipados y
-  // regularizaciones caen en otro día): se leen con margen y se filtran al armar el reporte.
-  const base = (margin: number) =>
+  const base = () =>
     supabase
       .from("lodging_reservation_payments")
-      .select("id,paid_at,type,amount,notes,registered_by,lodging_reservations(origin,check_in,check_out,lodging_rooms(name),lodging_guests(full_name))")
+      .select("id,paid_at,type,amount,notes,registered_by,lodging_reservations(origin,lodging_rooms(name),lodging_guests(full_name))")
       .eq("business_unit_id", unitId)
       .eq("payment_method", "cash")
-      .gte("paid_at", `${addDays(from, -margin)}T00:00:00-06:00`)
-      .lt("paid_at", `${addDays(toExclusive, margin)}T06:00:00Z`);
-  const [confirmed, voided] = await Promise.all([
-    base(PAYMENT_DAY_MARGIN_DAYS).eq("status", "confirmed"),
-    base(0).eq("status", "voided"),
-  ]);
+      // Margen por la diferencia horaria; el filtro exacto es por fecha de Santiago.
+      .gte("paid_at", `${from}T00:00:00-06:00`)
+      .lt("paid_at", `${toExclusive}T06:00:00Z`);
+  const [confirmed, voided] = await Promise.all([base().eq("status", "confirmed"), base().eq("status", "voided")]);
   if (confirmed.error) throw confirmed.error;
   if (voided.error) throw voided.error;
 
@@ -40,8 +34,6 @@ export async function loadCashReport(supabase: Supabase, unitId: string, month: 
     return {
       id: p.id,
       paid_at: p.paid_at,
-      check_in: reservation?.check_in ?? null,
-      check_out: reservation?.check_out ?? null,
       type: p.type,
       amount: Number(p.amount),
       notes: p.notes,
@@ -56,8 +48,6 @@ export async function loadCashReport(supabase: Supabase, unitId: string, month: 
 
 type RelatedReservation = {
   origin: string | null;
-  check_in: string | null;
-  check_out: string | null;
   lodging_rooms: { name: string } | { name: string }[] | null;
   lodging_guests: { full_name: string | null } | { full_name: string | null }[] | null;
 };

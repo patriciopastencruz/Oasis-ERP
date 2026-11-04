@@ -42,3 +42,17 @@ body {
     scrollbar-color: #9aa8b8 #eef1f5;
   }
 }
+
+/* Barra de avance del indicador «Procesando…» (PendingGuard). */
+@keyframes pending-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.pending-bar {
+  animation: pending-bar 1.1s ease-in-out infinite;
+}

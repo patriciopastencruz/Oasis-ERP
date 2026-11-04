@@ -10,8 +10,6 @@ import {
   type MonthlySummary,
 } from "../domain/monthly-closing";
 import { serviceGaps } from "../domain/room-service";
-import { addDays } from "../domain/daily-closing";
-import { PAYMENT_DAY_MARGIN_DAYS } from "../domain/payment-day";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -53,12 +51,12 @@ export async function loadOperationsSource(supabase: Supabase, unitId: string, f
       .gt("check_out", from),
     supabase
       .from("lodging_reservation_payments")
-      .select("paid_at,amount,type,payment_method,lodging_reservations(check_in,check_out)")
+      .select("paid_at,amount,type,payment_method")
       .eq("business_unit_id", unitId)
       .eq("status", "confirmed")
-      // Margen: abonos anticipados y regularizaciones cuentan en el día de la estadía; el filtro exacto lo hace rangeOperations.
-      .gte("paid_at", `${addDays(from, -PAYMENT_DAY_MARGIN_DAYS)}T00:00:00-06:00`)
-      .lt("paid_at", `${addDays(toExclusive, PAYMENT_DAY_MARGIN_DAYS)}T06:00:00Z`),
+      // Margen por la diferencia horaria; el filtro exacto es por fecha de Santiago.
+      .gte("paid_at", `${from}T00:00:00-06:00`)
+      .lt("paid_at", `${toExclusive}T06:00:00Z`),
     // Historial de salidas y regresos a servicio: una habitación solo deja de contar mientras estuvo fuera de servicio.
     supabase
       .from("lodging_room_status_events")
@@ -76,18 +74,11 @@ export async function loadOperationsSource(supabase: Supabase, unitId: string, f
     // Todas las habitaciones activas; cuáles cuentan cada día lo decide `gaps`.
     rooms: rooms.data ?? [],
     reservations: (reservations.data ?? []).map((r) => ({ ...r, total_value: Number(r.total_value) })),
-    payments: (payments.data ?? []).map((p) => {
-      const stay = (Array.isArray(p.lodging_reservations) ? p.lodging_reservations[0] : p.lodging_reservations) as
-        | { check_in: string; check_out: string }
-        | null;
-      return {
-        paid_at: p.paid_at,
-        check_in: stay?.check_in ?? null,
-        check_out: stay?.check_out ?? null,
-        payment_method: p.payment_method,
-        amount: p.type === "refund" ? -Number(p.amount) : Number(p.amount),
-      };
-    }),
+    payments: (payments.data ?? []).map((p) => ({
+      paid_at: p.paid_at,
+      payment_method: p.payment_method,
+      amount: p.type === "refund" ? -Number(p.amount) : Number(p.amount),
+    })),
   };
 }
 

@@ -292,7 +292,6 @@ export const MANUAL_SECTIONS: ManualSection[] = [
           "**Nunca confirmen una reserva sin ver el pago en el banco.**",
           "**Marquen «Resuelto»** al terminar un caso que Lucía derivó, para que salga de «Por atender».",
           "**Registren cada pago una sola vez** (Pago verificado o en la reserva, no en ambos).",
-          "**Cada pago cuenta en el cierre del día que corresponde a la estadía:** un abono pagado antes de llegar cuenta el día de ingreso; lo pagado durante la estadía (la noche siguiente o una extensión), el día en que se paga; y lo pagado al salir o después, en la última noche. Si registran tarde un pago de un día cuyo cierre ya se emitió, **reemitan ese cierre**.",
         ],
       },
     ],
