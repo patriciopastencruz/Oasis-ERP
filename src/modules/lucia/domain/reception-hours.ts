@@ -2,7 +2,9 @@
  * Horario de recepción de cada hostal y la regla de la dirección: fuera de
  * ese horario Lucía no entrega la dirección exacta a quien no tiene una
  * reserva pagada, porque nadie puede asegurar la disponibilidad ni recibirlo.
- * La llegada fuera de horario se coordina antes con recepción.
+ * La llegada fuera de horario se coordina antes con recepción. La regla es
+ * solo para quien quiere llegar hoy: una reserva para otro día se cotiza
+ * normalmente y recepción coordina después la hora de llegada.
  */
 
 export type ReceptionHours = {
@@ -34,6 +36,11 @@ export function receptionState(hours: ReceptionHours, now = new Date()) {
   const opens = hhmm(hours.reception_open_time);
   const closes = hhmm(weekend ? hours.reception_close_time_weekend ?? hours.reception_close_time : hours.reception_close_time);
   return { open: time >= opens && time < closes, opens, closes };
+}
+
+/** ¿Quiere llegar hoy (o aún no dijo cuándo)? Solo entonces importa que la recepción esté cerrada. */
+export function arrivesToday(checkIn: string | null | undefined, todayIso: string) {
+  return !checkIn || checkIn <= todayIso;
 }
 
 /** «Cobija 3207» desde la línea «- Dirección: Cobija 3207, Calama…» del manual de la hostal. */

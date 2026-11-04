@@ -16,7 +16,7 @@ import { ALREADY_SENT_REPLY, repeatsSummary, summaryAlreadySent } from "@/module
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
 import { focusOnChosenHostel, wantsApartment } from "@/modules/lucia/domain/chosen-hostel";
 import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
-import { afterHoursArrivalReply, mentionsAddress, type ClosedHostel } from "@/modules/lucia/domain/reception-hours";
+import { afterHoursArrivalReply, arrivesToday, mentionsAddress, type ClosedHostel } from "@/modules/lucia/domain/reception-hours";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
 import type { AvailabilityQuery } from "./availability-tool";
 
@@ -376,7 +376,8 @@ export async function generateLuciaReply(input: {
       }
       // Fuera del horario de recepción no se entrega la dirección exacta: la
       // llegada se coordina antes (un cliente llegó a medianoche sin reserva).
-      const closedNamed = (input.closedHostels ?? []).filter((h) => h.address && mentionsAddress(output.reply, h.address));
+      // Solo si quiere llegar hoy: una reserva para otro día se cotiza normal.
+      const closedNamed = (arrivesToday(output.prospect.check_in, input.todayIso) ? input.closedHostels ?? [] : []).filter((h) => h.address && mentionsAddress(output.reply, h.address));
       if (closedNamed.length) {
         output = {
           ...output,

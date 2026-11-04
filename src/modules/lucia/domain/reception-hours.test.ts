@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { afterHoursArrivalReply, hostelAddress, mentionsAddress, receptionState } from "./reception-hours";
+import { afterHoursArrivalReply, arrivesToday, hostelAddress, mentionsAddress, receptionState } from "./reception-hours";
 
 const cobija = { reception_open_time: "10:30:00", reception_close_time: "19:30:00", reception_close_time_weekend: null };
 const centro = { reception_open_time: "09:00:00", reception_close_time: "23:30:00", reception_close_time_weekend: "19:00:00" };
@@ -36,5 +36,13 @@ describe("dirección", () => {
     expect(reply).toContain("Hospedaje Oasis Cobija ya cerró por hoy (atiende de 10:30 a 19:30)");
     expect(reply).toContain("coordinarlo antes con recepción");
     expect(reply).not.toContain("3207");
+  });
+});
+
+describe("arrivesToday", () => {
+  it("la regla de fuera de horario es solo para llegadas de hoy", () => {
+    expect(arrivesToday("2026-11-04", "2026-11-04")).toBe(true);
+    expect(arrivesToday(null, "2026-11-04")).toBe(true);
+    expect(arrivesToday("2026-11-06", "2026-11-04")).toBe(false);
   });
 });

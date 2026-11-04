@@ -112,7 +112,7 @@ export async function processLuciaConversation(
           describeBookingState(conversation),
           conversation.guest_name ? `El cliente ya dio su nombre: ${conversation.guest_name}. No se lo vuelvas a pedir.` : null,
           closedHostels.length && !bookingConfirmed
-            ? `En este momento la recepción está cerrada en: ${closedHostels.map((h) => `${h.name} (atiende de ${h.opens} a ${h.closes})`).join(", ")}. No des la dirección exacta de esas hostales ni le digas que puede llegar ahora: explícale que la llegada fuera del horario de recepción se coordina antes con recepción y que sin esa confirmación no podemos asegurar la disponibilidad ni su ingreso.`
+            ? `En este momento la recepción está cerrada en: ${closedHostels.map((h) => `${h.name} (atiende de ${h.opens} a ${h.closes})`).join(", ")}. No des la dirección exacta de esas hostales ni le digas que puede llegar ahora: explícale que la llegada fuera del horario de recepción se coordina antes con recepción y que sin esa confirmación no podemos asegurar la disponibilidad ni su ingreso. Esto es SOLO si quiere llegar hoy (esta noche o de madrugada): si su llegada es otro día, aunque sea tarde, no menciones el horario de recepción ni que debe confirmar su llegada; entrégale las opciones y el precio como siempre, y recepción coordinará la hora de llegada después.`
             : null,
           conversation.cheaper_shared_from
             ? `Como pidió departamento, se le mostraron solo opciones con baño privado; también hay opciones con baño compartido desde $${Math.round(Number(conversation.cheaper_shared_from)).toLocaleString("es-CL")} por noche. No se las ofrezcas por tu cuenta; si pide algo más barato o acepta verlas, usa consultar_disponibilidad y muéstralas.`
