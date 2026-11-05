@@ -95,8 +95,8 @@ details ul{margin:6px 0 0;padding-left:16px}
         <li>Pasillo de 1 m (según la nota del croquis) a nivel +2,60 m, con baranda.</li>
         <li>Separación entre el local y el pasillo: 4 m, con la escalera al fondo.</li>
         <li>Container Forrer montado sobre el local, con puente de 1 m hasta su puerta.</li>
-        <li>Baño de 1,2 × 2,0 m en la esquina derecha (muro exterior): ducha de 1,0 × 0,8 m al fondo, WC contra el tabique y lavamanos junto a la puerta. Cocina americana empotrada de 1,7 m a la izquierda, junto al pasillo: 3 cajones, frigobar, encimera, lavaplatos, mueble alto con nicho para horno. Barra de 1,0 m adosada a la punta del baño, alineada con su frente, con 2 pisos.</li>
-        <li>Cada modular tiene 2 ventanas iguales de 1,2 × 1,05 m hacia el pasillo: una en el dormitorio, centrada con la cama, y otra en la cocina. TV de 32" en el muro, sobre la ventana del dormitorio, frente a la cama.</li>
+        <li>Baño de 1,2 × 2,0 m en la esquina derecha (muro exterior): en línea contra el muro exterior: ducha de 1,0 × 0,75 m al fondo, WC al centro y lavamanos junto a la puerta. Cocina americana empotrada de 1,7 m a la izquierda, junto al pasillo: 3 cajones, frigobar, encimera, lavaplatos, mueble alto con nicho para horno. Barra de 1,0 m adosada a la punta del baño, alineada con su frente, con 2 pisos.</li>
+        <li>Cada modular tiene 2 ventanas iguales de 1,2 × 1,05 m hacia el pasillo: una en el dormitorio, centrada con la cama, y otra en la cocina. TV de 32" en el muro frente a la cama, en la esquina junto a la ventana del dormitorio.</li>
         <li>Exterior de los modulares en siding café nogal horizontal, con esquineros, zócalo, tapacán y marcos de ventanas en negro.</li>
         <li>Escalera volada en L: sube desde el patio, descanso de 1 × 1 m a media altura y llega al pasillo. Peldaños de madera sobre zancas metálicas, 1 m de ancho, y deja 1,4 m libres frente a la puerta del local.</li>
         <li>Alturas: 2,60 m por piso. Puertas y ventanas en posición referencial.</li>
@@ -136,7 +136,7 @@ new MutationObserver(themeBg).observe(document.documentElement,{attributes:true,
 
 scene.add(new THREE.HemisphereLight(0xffffff,0x8a8f88,0.75));
 const sun=new THREE.DirectionalLight(0xffffff,0.75);
-sun.position.set(-14,26,-10);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+sun.position.set(-14,26,-10);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.02;
 Object.assign(sun.shadow.camera,{left:-20,right:20,top:20,bottom:-20,near:1,far:80});
 sun.target.position.set(5.5,0,9);scene.add(sun,sun.target);
 
@@ -176,10 +176,12 @@ function opening(g,axis,pos,from,len,y,h,m){
   if(m!==mat.glass&&m!==mat.door) return;
   // marco de aluminio negro (ventanas: 4 lados; puertas: 3 lados + manilla)
   const t=0.05,th=0.17,isWin=m===mat.glass,y0=isWin?y-t:y,hh=isWin?h+2*t:h+t;
-  const bars=[[from-t,y+h,len+2*t,t],[from-t,y0,t,hh],[from+len,y0,t,hh]];
-  if(isWin) bars.push([from-t,y-t,len+2*t,t]);
+  // e: el marco se mete unos mm en el vano para no compartir plano con los cantos del muro (evita el parpadeo / z-fighting)
+  const e=isWin?0.006:0;
+  const bars=[[from-t,y+h-e,len+2*t,t+e],[from-t,y0,t+e,hh],[from+len-e,y0,t+e,hh]];
+  if(isWin) bars.push([from-t,y-t,len+2*t,t+e]);
   bars.forEach(([a,b,l,bh])=>axis==='x'?box(g,pos-th/2,b,a,th,bh,l,mat.trim,false):box(g,a,b,pos-th/2,l,bh,th,mat.trim,false));
-  if(isWin&&len>1.0){const mx=from+len/2-0.02;axis==='x'?box(g,pos-0.08,y,mx,0.16,h,0.04,mat.trim,false):box(g,mx,y,pos-0.08,0.04,h,0.16,mat.trim,false);}
+  if(isWin&&len>1.0){const mx=from+len/2-0.02;axis==='x'?box(g,pos-0.08,y+0.003,mx,0.16,h-0.006,0.04,mat.trim,false):box(g,mx,y+0.003,pos-0.08,0.04,h-0.006,0.16,mat.trim,false);}
   if(!isWin) axis==='x'?box(g,pos-0.11,y+1.0,from+len-0.16,0.22,0.03,0.03,mat.inox,false):box(g,from+len-0.16,y+1.0,pos-0.11,0.03,0.03,0.22,mat.inox,false);
 }
 // Siding café nogal: textura de tablas horizontales (2 × 2 m por repetición)
@@ -335,9 +337,10 @@ mods.forEach((m,i)=>{
   opening(p2,'z',bdz,bx+0.12,0.65,Y,2.0,mat.doorIn);
   [1,-1].forEach(d=>knob(p2,'z',bdz+d*0.07,bx+0.69,Y+1.0,d));          // chapa redonda negra, ambos lados
   // ducha al fondo a todo el ancho, WC contra el tabique, lavamanos contra el muro exterior
-  showerFull(11,oz,-1,sz,Y+0.08,0.1,0.1,1.0,0.8);
-  wcSide(bx+T,1,at(oz,sz,1.15,0),Y+0.08);
-  sink(11,oz,-1,sz,Y+0.08,0.1,1.35,0.35,0.45);
+  // en línea contra el muro exterior: ducha al fondo, WC al centro y lavamanos junto a la puerta
+  showerFull(11,oz,-1,sz,Y+0.08,0.1,0.1,1.0,0.75);
+  wcSide(11-T,-1,at(oz,sz,1.15,0),Y+0.08);
+  sink(11,oz,-1,sz,Y+0.08,0.1,1.48,0.35,0.4);
   opening(p2,'x',11,at(oz,sz,0.2,0.5),0.5,Y+1.7,0.5,mat.glass);
   // puerta y 2 ventanas iguales hacia el pasillo: una en el dormitorio (centrada con la cama) y otra en la cocina
   const bedZ=top?m.z+4.35:m.z+1.6,WL=1.2,WY=Y+0.9,WH=1.05;
@@ -349,7 +352,7 @@ mods.forEach((m,i)=>{
   wins.forEach(w=>opening(p2,'x',8,w.from,w.len,w.y,w.h,mat.glass));
   // cama 2 plazas: espaldar contra el muro de 6 m, mirando hacia la puerta de entrada
   bedroom(bedZ);
-  tv(8+T,bedZ,WY+WH+0.12);
+  tv(8+T,top?m.z+6-T-0.06-0.37:m.z+T+0.06+0.37,Y+1.25);   // esquina del dormitorio, al lado de la ventana
   kitchen(top?m.z:m.z+6,sz);
   label('Modular '+(i+1)+' · 6×3',9.5,Y+H+1.0,m.z+3,0.95);
   label('Baño 1,2×2',10.4,Y+H+0.3,at(oz,sz,1.0,0),0.6);
@@ -363,7 +366,7 @@ function innerDoor(g,x,z,len,y,h){
   box(g,x,y,z-t,0.03,h+t,t,mat.trim,false);box(g,x,y,z+len,0.03,h+t,t,mat.trim,false);
   knob(g,'x',x+0.015,z+len-0.1,y+1.0,1,true);
 }
-// TV de 32" colgada en el muro del pasillo, sobre la ventana del dormitorio y frente a la cama
+// TV de 32" colgada en el muro del pasillo, en la esquina junto a la ventana del dormitorio, frente a la cama
 function tv(x,cz,y0){
   const g=groups.furn,w=0.74,h=0.44;
   box(g,x,y0+0.12,cz-0.1,0.03,0.2,0.2,mat.black,false);                  // soporte
@@ -387,7 +390,7 @@ function showerFull(ox,oz,sx,sz,y,u,v,w,d){
   const g=groups.furn,x=at(ox,sx,u,w),z=at(oz,sz,v,d);
   box(g,x,y,z,w,0.07,d,mat.white);
   box(g,x+w*0.45,y+0.071,z+d*0.45,0.1,0.005,0.1,mat.inox,false);
-  box(g,x,y+0.07,sz>0?z+d-0.01:z,w*0.6,1.9,0.01,mat.glass,false);            // mampara fija, acceso por el costado
+  box(g,x+w*0.4,y+0.07,sz>0?z+d-0.01:z,w*0.6,1.9,0.01,mat.glass,false);      // mampara fija del lado del WC, acceso por el lado del tabique
   const hx=x+w/2,hz=sz>0?z+0.03:z+d-0.06;
   box(g,hx-0.01,y+1.6,hz,0.02,0.4,0.03,mat.inox,false);
   const head=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,0.02,18),mat.inox);
