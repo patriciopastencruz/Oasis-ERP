@@ -321,7 +321,9 @@ mods.forEach((m,i)=>{
   box(p2,bx,Y,top?bz+BL-T:bz,BW,H,T,mat.module);
   box(p2,bx,Y,bz,T,H,BL,mat.module);
   box(p2,bx+T,Y+0.08,bz,BW-0.2,0.02,BL,mat.bathFloor,false);
-  opening(p2,'z',top?bz+BL-0.05:bz+0.05,bx+0.12,0.65,Y,2.0,mat.doorIn);
+  const bdz=top?bz+BL-0.05:bz+0.05;
+  opening(p2,'z',bdz,bx+0.12,0.65,Y,2.0,mat.doorIn);
+  [1,-1].forEach(d=>knob(p2,'z',bdz+d*0.07,bx+0.69,Y+1.0,d));          // chapa redonda negra, ambos lados
   // ducha al fondo a todo el ancho, WC contra el tabique, lavamanos contra el muro exterior
   showerFull(11,oz,-1,sz,Y+0.08,0.1,0.1,1.0,0.8);
   wcSide(bx+T,1,at(oz,sz,1.15,0),Y+0.08);
@@ -329,7 +331,7 @@ mods.forEach((m,i)=>{
   opening(p2,'x',11,at(oz,sz,0.2,0.5),0.5,Y+1.7,0.5,mat.glass);
   // puerta y ventana hacia pasillo
   opening(p2,'x',8,m.door,0.9,Y,2.05,mat.door);
-  opening(p2,'x',8,top?m.door+1.3:m.door-1.7,1.2,Y+1.0,1.1,mat.glass);
+  innerDoor(p2,8+T,m.door,0.9,Y,2.05);  opening(p2,'x',8,top?m.door+1.3:m.door-1.7,1.2,Y+1.0,1.1,mat.glass);
   // cama 2 plazas: espaldar contra el muro de 6 m, mirando hacia la puerta de entrada
   bedroom(top?m.z+4.35:m.z+1.6);
   kitchen(top?m.z:m.z+6,sz);
@@ -337,6 +339,26 @@ mods.forEach((m,i)=>{
   label('Baño 1,2×2',10.4,Y+H+0.3,at(oz,sz,1.0,0),0.6);
   label('Cocina americana',8.95,Y+H+0.3,at(oz,sz,1.0,0),0.7);
 });
+// Cara interior de la puerta de entrada (el muro de 10 cm la tapaba desde adentro): hoja, marco y manilla
+function innerDoor(g,x,z,len,y,h){
+  box(g,x,y,z,0.015,h,len,mat.door,false);
+  const t=0.05;
+  box(g,x,y+h,z-t,0.03,t,len+2*t,mat.trim,false);
+  box(g,x,y,z-t,0.03,h+t,t,mat.trim,false);box(g,x,y,z+len,0.03,h+t,t,mat.trim,false);
+  knob(g,'x',x+0.015,z+len-0.1,y+1.0,1,true);
+}
+// Chapa redonda: roseta + pomo. axis 'x' sale en x desde a (en z=b); axis 'z' sale en z desde a (en x=b)
+function knob(g,axis,a,b,y,dir,lever){
+  const m=lever?mat.inox:mat.black;
+  const ros=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.012,20),m);
+  const k=lever?new THREE.Mesh(new THREE.BoxGeometry(0.03,0.03,0.14),m):new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.024,0.05,20),m);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.04,10),m);
+  const put=(o,off)=>{if(axis==='x'){o.position.set(a+dir*off,y,b);}else{o.position.set(b,y,a+dir*off);}g.add(o);};
+  [ros,neck].forEach(o=>axis==='x'?o.rotation.z=Math.PI/2:o.rotation.x=Math.PI/2);
+  put(ros,0.006);put(neck,0.03);
+  if(lever){put(k,0.06);k.position[axis==='x'?'z':'x']-=0.06;}
+  else{if(axis==='x')k.rotation.z=Math.PI/2;else k.rotation.x=dir*Math.PI/2;put(k,0.065);}
+}
 function showerFull(ox,oz,sx,sz,y,u,v,w,d){
   const g=groups.furn,x=at(ox,sx,u,w),z=at(oz,sz,v,d);
   box(g,x,y,z,w,0.07,d,mat.white);
