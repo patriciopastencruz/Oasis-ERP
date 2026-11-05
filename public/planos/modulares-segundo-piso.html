@@ -33,7 +33,13 @@ details{font-size:12px;color:var(--muted);line-height:1.45}
 summary{cursor:pointer;color:var(--fg);font-weight:600}
 details ul{margin:6px 0 0;padding-left:16px}
 #toggle{padding:4px 9px;font-size:16px;line-height:1}
-#openMenu{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));background:var(--panel);box-shadow:0 4px 16px rgb(0 0 0 / .14);padding:8px 12px}
+/* Barra de atajos arriba: Menú + vistas más usadas + techos */
+.qbar{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));display:flex;gap:6px;align-items:center;max-width:calc(100vw - 32px);overflow-x:auto;scrollbar-width:none}
+.qbar.shift{left:calc(max(16px,env(safe-area-inset-left,0px)) + 342px);max-width:calc(100vw - 374px)}
+.qbar button{background:var(--panel);box-shadow:0 4px 16px rgb(0 0 0 / .14);padding:8px 12px;font-size:13px;white-space:nowrap;flex:none}
+.qbar button[aria-pressed="true"]{background:var(--fg);color:var(--panel)}
+.qbar .sep{width:1px;height:22px;background:var(--line);flex:none}
+@media (max-width:560px){.qbar,.qbar.shift{left:12px;right:12px;max-width:none;gap:5px}.qbar button{padding:7px 8px;font-size:12px}}
 @media (max-width:560px){
   .panel{top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px));max-height:52%}
 }
@@ -44,14 +50,22 @@ details ul{margin:6px 0 0;padding-left:16px}
 .nav button{padding:0;font-size:19px;line-height:1;touch-action:none;-webkit-touch-callout:none}
 .nav button.on{background:var(--fg);color:var(--panel)}
 .nav .ud{grid-column:5}
-@media (max-width:560px){.nav{bottom:auto;top:calc(12px + env(safe-area-inset-top,0px));grid-template-columns:repeat(3,42px) 6px 42px;grid-template-rows:repeat(2,42px);gap:5px;padding:6px}}
+@media (max-width:560px){.nav{bottom:auto;top:calc(60px + env(safe-area-inset-top,0px));grid-template-columns:repeat(3,42px) 6px 42px;grid-template-rows:repeat(2,42px);gap:5px;padding:6px}}
 </style>
 
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
 <div id="app">
-  <button id="openMenu" aria-controls="panel" hidden>☰ Menú</button>
+  <div class="qbar" id="qbar" role="toolbar" aria-label="Atajos">
+    <button id="openMenu" aria-controls="panel" hidden>☰ Menú</button>
+    <button data-v="iso" aria-pressed="true" title="Vista 3D general">3D</button>
+    <button data-v="top" aria-pressed="false" title="Vista en planta, sin techos">Planta</button>
+    <button data-v="side" aria-pressed="false" title="Vista lateral">Lateral</button>
+    <button data-v="kitchen" aria-pressed="false" title="Ver la cocina por dentro, sin techos">Cocina</button>
+    <span class="sep" aria-hidden="true"></span>
+    <button data-l="roof" aria-pressed="true" title="Mostrar u ocultar techos">Techos</button>
+  </div>
   <div class="panel" id="panel">
     <div class="head">
       <div><h1>Segundo piso modular</h1><div class="sub">3 modulares 6×3 · local · terraza · container</div></div>
@@ -281,7 +295,7 @@ opening(p1,'x',3,9.85,0.8,0,2.0,mat.door);
   wc(0,oz,1,sz,0.08,1.25,0.1);
   sink(0,oz,1,sz,0.08,2.0,0.1,0.5,0.4);
 });
-label('Baño',1.5,3.2,8.75,0.7);label('Baño',1.5,3.2,10.25,0.7);
+label('Baño',1.5,3.2,9.5,0.7);
 // escalera volada en "L": tramo 1 sube desde el patio hacia el fondo, descanso, tramo 2 llega al pasillo.
 // Deja 1,4 m libres frente a la puerta del local. 14 contrahuellas de 18,6 cm, huellas de 27 cm, ancho 1 m.
 const N=14,rise=H/N,run=0.27,LH=7*rise,lx1=7-6*run,lx0=lx1-1.0,lz0=0.1,lz1=1.1,zFoot=lz1+6*run;
@@ -354,9 +368,12 @@ mods.forEach((m,i)=>{
   bedroom(bedZ);
   tv(8+T,top?m.z+6-T-0.06-0.37:m.z+T+0.06+0.37,Y+1.25);   // esquina del dormitorio, al lado de la ventana
   kitchen(top?m.z:m.z+6,sz);
-  label('Modular '+(i+1)+' · 6×3',9.5,Y+H+1.0,m.z+3,0.95);
-  label('Baño 1,2×2',10.4,Y+H+0.3,at(oz,sz,1.0,0),0.6);
-  label('Cocina americana',8.95,Y+H+0.3,at(oz,sz,1.0,0),0.7);
+  // etiquetas en un solo modular (el del medio): los 3 son iguales
+  if(i===1){
+    label('Modular · 6×3',9.5,Y+H+1.0,m.z+3,0.95);
+    label('Baño 1,2×2',10.4,Y+H+0.3,at(oz,sz,1.0,0),0.6);
+    label('Cocina americana',8.95,Y+H+0.3,at(oz,sz,1.0,0),0.7);
+  }
 });
 // Cara interior de la puerta de entrada (el muro de 10 cm la tapaba desde adentro): hoja, marco y manilla
 function innerDoor(g,x,z,len,y,h){
@@ -542,19 +559,22 @@ function go(v){
   anim={s,e,t0:performance.now()};
 }
 camera.position.set(...views.iso.p);controls.target.copy(center);
-document.getElementById('views').addEventListener('click',ev=>{
+// Vistas y capas: los botones del menú y los atajos de arriba comparten estado
+function pickView(v){
+  document.querySelectorAll('[data-v]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===v));
+  if(v==='top'||v==='kitchen'){setLayer('roof',false);setLayer('furn',true);}
+  go(v);
+}
+function setLayer(l,on){groups[l].visible=on;document.querySelectorAll(`[data-l="${l}"]`).forEach(b=>b.setAttribute('aria-pressed',on));}
+['views','layers','qbar'].forEach(id=>document.getElementById(id).addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;
-  document.querySelectorAll('#views button').forEach(x=>x.setAttribute('aria-pressed',x===b));
-  if(b.dataset.v==='top'||b.dataset.v==='kitchen'){setLayer('roof',false);setLayer('furn',true);}
-  go(b.dataset.v);
-});
-function setLayer(l,on){groups[l].visible=on;const b=document.querySelector(`[data-l="${l}"]`);if(b)b.setAttribute('aria-pressed',on);}
-document.getElementById('layers').addEventListener('click',ev=>{
-  const b=ev.target.closest('button');if(!b)return;setLayer(b.dataset.l,b.getAttribute('aria-pressed')!=='true');
-});
+  if(b.dataset.v)pickView(b.dataset.v);
+  else if(b.dataset.l)setLayer(b.dataset.l,!groups[b.dataset.l].visible);
+}));
 const panel=document.getElementById('panel'),tg=document.getElementById('toggle'),om=document.getElementById('openMenu');
+const qbar=document.getElementById('qbar');
 function showMenu(on){
-  panel.hidden=!on;om.hidden=on;
+  panel.hidden=!on;om.hidden=on;qbar.classList.toggle('shift',on);
   try{localStorage.setItem('menu',on?'1':'0');}catch(e){}
   (on?tg:om).focus({preventScroll:true});
 }
@@ -562,7 +582,7 @@ tg.addEventListener('click',()=>showMenu(false));
 om.addEventListener('click',()=>showMenu(true));
 addEventListener('keydown',e=>{if((e.key==='m'||e.key==='M')&&!e.ctrlKey&&!e.metaKey&&!e.altKey)showMenu(panel.hidden);});
 let menuPref=null;try{menuPref=localStorage.getItem('menu');}catch(e){}
-panel.hidden=menuPref!=='1';om.hidden=!panel.hidden;
+panel.hidden=menuPref!=='1';om.hidden=!panel.hidden;qbar.classList.toggle('shift',!panel.hidden);
 
 // ---- Botones de navegación: se mantienen presionados para seguir moviéndose
 const active=new Set(),Yax=new THREE.Vector3(0,1,0);
