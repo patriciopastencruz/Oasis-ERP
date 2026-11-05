@@ -199,6 +199,11 @@ export default async function Page({
           {q.error}
         </p>
       )}
+      {r.simultaneous && (
+        <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Reserva simultánea: esta habitación tiene otra reserva en las mismas fechas.
+        </p>
+      )}
       {r.imported_from_ical && (
         <p className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
           Esta reserva proviene de Booking/Airbnb. Los cambios de la reserva

@@ -90,6 +90,17 @@ export default async function Page({
               className={`mt-1 block w-full ${field}`}
             />
           </label>
+          <label className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm md:col-span-2 xl:col-span-3">
+            <input type="checkbox" name="allow_overlap" className="mt-1" />
+            <span>
+              <b>Reserva simultánea</b>
+              <span className="block text-slate-600">
+                Marca esta opción si la habitación ya tiene otra reserva en esas fechas y quieres cargar esta igual. Las dos
+                quedan en el calendario, una sobre otra, y cada una cuenta sus propios pagos y noches vendidas. Solo se admite
+                una reserva simultánea a la vez por habitación.
+              </span>
+            </span>
+          </label>
           <label className="text-sm font-medium">
             Nombre del huésped
             <input
