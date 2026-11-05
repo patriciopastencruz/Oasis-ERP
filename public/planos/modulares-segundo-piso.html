@@ -70,11 +70,7 @@ details ul{margin:6px 0 0;padding-left:16px}
     <div>
       <div class="lbl">Capas</div>
       <div class="row" id="layers">
-        <button data-l="p1" aria-pressed="true">1er piso</button>
-        <button data-l="p2" aria-pressed="true">2do piso</button>
-        <button data-l="forrer" aria-pressed="true">Container Forrer</button>
         <button data-l="roof" aria-pressed="true">Techos</button>
-        <button data-l="furn" aria-pressed="true">Muebles</button>
         <button data-l="labels" aria-pressed="true">Etiquetas</button>
       </div>
     </div>
@@ -100,6 +96,7 @@ details ul{margin:6px 0 0;padding-left:16px}
         <li>Separación entre el local y el pasillo: 4 m, con la escalera al fondo.</li>
         <li>Container Forrer montado sobre el local, con puente de 1 m hasta su puerta.</li>
         <li>Baño de 1,2 × 2,0 m en la esquina derecha (muro exterior): ducha de 1,0 × 0,8 m al fondo, WC contra el tabique y lavamanos junto a la puerta. Cocina americana empotrada de 1,7 m a la izquierda, junto al pasillo: 3 cajones, frigobar, encimera, lavaplatos, mueble alto con nicho para horno. Barra de 1,0 m adosada a la punta del baño, alineada con su frente, con 2 pisos.</li>
+        <li>Cada modular tiene 2 ventanas iguales de 1,2 × 1,05 m hacia el pasillo: una en el dormitorio, centrada con la cama, y otra en la cocina. TV de 32" en el muro, sobre la ventana del dormitorio, frente a la cama.</li>
         <li>Exterior de los modulares en siding café nogal horizontal, con esquineros, zócalo, tapacán y marcos de ventanas en negro.</li>
         <li>Escalera volada en L: sube desde el patio, descanso de 1 × 1 m a media altura y llega al pasillo. Peldaños de madera sobre zancas metálicas, 1 m de ancho, y deja 1,4 m libres frente a la puerta del local.</li>
         <li>Alturas: 2,60 m por piso. Puertas y ventanas en posición referencial.</li>
@@ -154,7 +151,7 @@ const mat={
   door:M(0x2b2e30,{roughness:.5}),white:M(0xffffff,{roughness:.4}),bed:M(0x8a9a8c,{roughness:.95}),bedBase:M(0x4a4f55),headboard:M(0xb8b0a2,{roughness:.95}),floor:M(0xcdbfa8),
   ground:M(0xa7ad9f),cabinet:M(0xe3dacb),counter:M(0x3b3f43,{roughness:.5}),black:M(0x1b1c1d,{roughness:.5}),
   wood:M(0xb57a42,{roughness:.7}),cabinetFront:M(0xd9cdb8,{roughness:.6}),inox:M(0xb9bdc0,{metalness:.7,roughness:.3}),
-  splash:M(0xd3d5d6,{roughness:.3}),tread:M(0x8a5a32,{roughness:.6}),seat:M(0xf4f4f4,{roughness:.3}),bulb:new THREE.MeshStandardMaterial({color:0xffd58a,emissive:0xffb347,emissiveIntensity:1.2})
+  splash:M(0xd3d5d6,{roughness:.3}),tread:M(0x8a5a32,{roughness:.6}),seat:M(0xf4f4f4,{roughness:.3}),screen:M(0x14202b,{roughness:.15,metalness:.3,emissive:0x0b1622,emissiveIntensity:.6}),bulb:new THREE.MeshStandardMaterial({color:0xffd58a,emissive:0xffb347,emissiveIntensity:1.2})
 };
 const groups={p1:new THREE.Group(),p2:new THREE.Group(),forrer:new THREE.Group(),roof:new THREE.Group(),furn:new THREE.Group(),labels:new THREE.Group()};
 Object.values(groups).forEach(g=>scene.add(g));
@@ -165,10 +162,11 @@ function box(g,x,y,z,w,h,d,m,shadow=true){
   mesh.position.set(x+w/2,y+h/2,z+d/2);mesh.castShadow=shadow;mesh.receiveShadow=true;g.add(mesh);return mesh;
 }
 const T=0.1;
-function shell(g,x,z,w,d,y,h,m,roofMat){
+function shell(g,x,z,w,d,y,h,m,roofMat,noX0){
   box(g,x,y,z,w,0.08,d,mat.floor);
   box(g,x,y,z,w,h,T,m);box(g,x,y,z+d-T,w,h,T,m);
-  box(g,x,y,z,T,h,d,m);box(g,x+w-T,y,z,T,h,d,m);
+  if(!noX0) box(g,x,y,z,T,h,d,m);
+  box(g,x+w-T,y,z,T,h,d,m);
   if(roofMat) box(groups.roof,x-0.05,y+h,z-0.05,w+0.1,0.12,d+0.1,roofMat);
 }
 // aberturas sobre muros: eje 'x' = muro de x constante, 'z' = muro de z constante
@@ -198,15 +196,16 @@ const sidingCanvas=(function(){
   }
   return c;
 })();
-function sidingMat(len,h){
-  const t=new THREE.CanvasTexture(sidingCanvas);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(len/2,h/2);t.anisotropy=8;
+function sidingMat(len,h,oy=0){
+  const t=new THREE.CanvasTexture(sidingCanvas);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(len/2,h/2);t.offset.set(0,oy/2);t.anisotropy=8;
   return new THREE.MeshStandardMaterial({map:t,bumpMap:t,bumpScale:0.02,roughness:.72});
 }
 // Revestimiento exterior + esquineros, zócalo y tapacán negros
-function clad(g,x,z,w,d,y,h){
+function clad(g,x,z,w,d,y,h,noX0){
   const s=0.025;
   box(g,x-s,y,z-s,w+2*s,h,s,sidingMat(w,h));box(g,x-s,y,z+d,w+2*s,h,s,sidingMat(w,h));
-  box(g,x-s,y,z,s,h,d,sidingMat(d,h));box(g,x+w,y,z,s,h,d,sidingMat(d,h));
+  if(!noX0) box(g,x-s,y,z,s,h,d,sidingMat(d,h));
+  box(g,x+w,y,z,s,h,d,sidingMat(d,h));
   [[x-s,z-s],[x+w,z-s],[x-s,z+d],[x+w,z+d]].forEach(([cx,cz])=>box(g,cx-0.02,y,cz-0.02,0.065,h,0.065,mat.trim));
   const e=0.07,fy=y+h-0.04,fh=0.3;
   box(g,x-e,fy,z-e,w+2*e,fh,0.03,mat.trim);box(g,x-e,fy,z+d+e-0.03,w+2*e,fh,0.03,mat.trim);
@@ -214,6 +213,17 @@ function clad(g,x,z,w,d,y,h){
   const b=0.045,bh=0.14;
   box(g,x-b,y,z-b,w+2*b,bh,0.02,mat.trim);box(g,x-b,y,z+d+b-0.02,w+2*b,bh,0.02,mat.trim);
   box(g,x-b,y,z-b,0.02,bh,d+2*b,mat.trim);box(g,x+w+b-0.02,y,z-b,0.02,bh,d+2*b,mat.trim);
+}
+// Muro de x constante con vanos reales (para ver por las ventanas desde dentro). holes: {from,len,y,h}; mk(largo,alto,y0) = material
+function holedX(g,x,th,z0,z1,y,h,holes,mk){
+  let c=z0;
+  holes.slice().sort((a,b)=>a.from-b.from).forEach(o=>{
+    if(o.from>c) box(g,x,y,c,th,h,o.from-c,mk(o.from-c,h,0));
+    box(g,x,y,o.from,th,o.y-y,o.len,mk(o.len,o.y-y,0));
+    const t=o.y+o.h;box(g,x,t,o.from,th,y+h-t,o.len,mk(o.len,y+h-t,t-y));
+    c=o.from+o.len;
+  });
+  if(z1>c) box(g,x,y,c,th,h,z1-c,mk(z1-c,h,0));
 }
 function label(text,x,y,z,size=1){
   const c=document.createElement('canvas');c.width=640;c.height=128;const k=c.getContext('2d');
@@ -311,8 +321,8 @@ label('Pasillo 1 m',6.4,Y+1.5,12,0.8);
 const BW=1.2,BL=2.0;   // baño de los modulares: 1,2 m de ancho × 2,0 m de largo
 const mods=[{z:0,bath:'bottom',door:2.9},{z:6,bath:'top',door:8.25},{z:12,bath:'top',door:14.25}];
 mods.forEach((m,i)=>{
-  shell(p2,8,m.z,3,6,Y,H,mat.module,mat.moduleRoof);
-  clad(p2,8,m.z,3,6,Y,H);
+  shell(p2,8,m.z,3,6,Y,H,mat.module,mat.moduleRoof,true);
+  clad(p2,8,m.z,3,6,Y,H,true);
   box(p2,7.9,Y+2.2,m.door-0.32,0.06,0.16,0.1,mat.trim,false);   // aplique de luz junto a la puerta
   box(p2,7.88,Y+2.22,m.door-0.3,0.02,0.12,0.06,mat.bulb,false);
   const top=m.bath==='top',bz=top?m.z:m.z+6-BL,oz=top?bz:bz+BL,sz=top?1:-1;
@@ -329,11 +339,17 @@ mods.forEach((m,i)=>{
   wcSide(bx+T,1,at(oz,sz,1.15,0),Y+0.08);
   sink(11,oz,-1,sz,Y+0.08,0.1,1.35,0.35,0.45);
   opening(p2,'x',11,at(oz,sz,0.2,0.5),0.5,Y+1.7,0.5,mat.glass);
-  // puerta y ventana hacia pasillo
+  // puerta y 2 ventanas iguales hacia el pasillo: una en el dormitorio (centrada con la cama) y otra en la cocina
+  const bedZ=top?m.z+4.35:m.z+1.6,WL=1.2,WY=Y+0.9,WH=1.05;
+  const wins=[{from:bedZ-WL/2,len:WL,y:WY,h:WH},{from:top?m.z+0.75:m.z+6-0.75-WL,len:WL,y:WY,h:WH}];
+  holedX(p2,8,T,m.z,m.z+6,Y,H,wins,()=>mat.module);
+  holedX(p2,8-0.025,0.025,m.z,m.z+6,Y,H,wins,(l,hh,oy)=>sidingMat(l,hh,oy));
   opening(p2,'x',8,m.door,0.9,Y,2.05,mat.door);
-  innerDoor(p2,8+T,m.door,0.9,Y,2.05);  opening(p2,'x',8,top?m.door+1.3:m.door-1.7,1.2,Y+1.0,1.1,mat.glass);
+  innerDoor(p2,8+T,m.door,0.9,Y,2.05);
+  wins.forEach(w=>opening(p2,'x',8,w.from,w.len,w.y,w.h,mat.glass));
   // cama 2 plazas: espaldar contra el muro de 6 m, mirando hacia la puerta de entrada
-  bedroom(top?m.z+4.35:m.z+1.6);
+  bedroom(bedZ);
+  tv(8+T,bedZ,WY+WH+0.12);
   kitchen(top?m.z:m.z+6,sz);
   label('Modular '+(i+1)+' · 6×3',9.5,Y+H+1.0,m.z+3,0.95);
   label('Baño 1,2×2',10.4,Y+H+0.3,at(oz,sz,1.0,0),0.6);
@@ -346,6 +362,14 @@ function innerDoor(g,x,z,len,y,h){
   box(g,x,y+h,z-t,0.03,t,len+2*t,mat.trim,false);
   box(g,x,y,z-t,0.03,h+t,t,mat.trim,false);box(g,x,y,z+len,0.03,h+t,t,mat.trim,false);
   knob(g,'x',x+0.015,z+len-0.1,y+1.0,1,true);
+}
+// TV de 32" colgada en el muro del pasillo, sobre la ventana del dormitorio y frente a la cama
+function tv(x,cz,y0){
+  const g=groups.furn,w=0.74,h=0.44;
+  box(g,x,y0+0.12,cz-0.1,0.03,0.2,0.2,mat.black,false);                  // soporte
+  box(g,x+0.03,y0,cz-w/2,0.04,h,w,mat.black);                             // marco
+  box(g,x+0.07,y0+0.02,cz-w/2+0.02,0.003,h-0.04,w-0.04,mat.screen,false); // pantalla
+  box(g,x+0.071,y0+0.035,cz+w/2-0.06,0.003,0.01,0.02,mat.bulb,false);    // led de encendido
 }
 // Chapa redonda: roseta + pomo. axis 'x' sale en x desde a (en z=b); axis 'z' sale en z desde a (en x=b)
 function knob(g,axis,a,b,y,dir,lever){
@@ -521,7 +545,7 @@ document.getElementById('views').addEventListener('click',ev=>{
   if(b.dataset.v==='top'||b.dataset.v==='kitchen'){setLayer('roof',false);setLayer('furn',true);}
   go(b.dataset.v);
 });
-function setLayer(l,on){groups[l].visible=on;document.querySelector(`[data-l="${l}"]`).setAttribute('aria-pressed',on);}
+function setLayer(l,on){groups[l].visible=on;const b=document.querySelector(`[data-l="${l}"]`);if(b)b.setAttribute('aria-pressed',on);}
 document.getElementById('layers').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;setLayer(b.dataset.l,b.getAttribute('aria-pressed')!=='true');
 });
