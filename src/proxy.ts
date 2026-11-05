@@ -23,6 +23,9 @@ const PUBLIC = [
   // Medidas de pantalla del dispositivo (diagnóstico sin datos de la empresa,
   // ver src/app/(public)/dispositivo/page.tsx).
   "/dispositivo",
+  // Planos y modelos 3D estáticos para compartir (archivos en public/planos/,
+  // sin datos de la empresa).
+  "/planos",
   // Manifiesto de la PWA "Oasis Operaciones": el navegador lo pide sin sesión.
   "/manifest.webmanifest",
   // Manifiesto de la app "Oasis Hostales" (la página /hostales sí pide sesión).
