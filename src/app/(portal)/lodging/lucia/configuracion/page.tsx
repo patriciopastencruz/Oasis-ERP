@@ -93,6 +93,10 @@ export default async function LuciaSettingsPage({
                   <input name="manager_phone" defaultValue={h.manager_phone ?? ""} placeholder="+56 9 ..." className={inputClass} />
                 </label>
               </div>
+              <label className="block">Teléfono de recepción para huéspedes
+                <input name="reception_phone" defaultValue={h.reception_phone ?? ""} placeholder="+56 9 ..." className={inputClass} />
+                <span className="text-xs text-slate-500">Lucía se lo entrega a los huéspedes con reserva que piden algo de su estadía (por ejemplo la clave del Wi-Fi). Si queda vacío, Lucía avisa a recepción para que les escriba.</span>
+              </label>
               <label className="block">WhatsApp de los administradores (opcional)
                 <input name="admin_phones" defaultValue={(h.admin_phones ?? []).join(", ")} placeholder="+56 9 ..., +56 9 ..." className={inputClass} />
                 <span className="text-xs text-slate-500">Separados por coma (hasta 5). Reciben los mismos avisos que el encargado y también pueden responder OK o NO, por ejemplo fuera del horario de recepción. Vale la primera respuesta.</span>

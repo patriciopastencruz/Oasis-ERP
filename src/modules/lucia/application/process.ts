@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildChatTurns, currentInquiryCustomerText, type LuciaHistoryMessage } from "@/modules/lucia/domain/history";
 import { usageCostUsd } from "@/modules/lucia/domain/pricing";
 import { describeBookingState } from "@/modules/lucia/domain/booking-context";
+import { receptionContactLine } from "@/modules/lucia/domain/guest-contact";
 import { hostelAddress, receptionState, type ClosedHostel } from "@/modules/lucia/domain/reception-hours";
 import { buildKnowledgeBlock, type LuciaHostelKnowledge } from "@/modules/lucia/domain/prompt";
 import { santiagoToday } from "@/modules/lodging/domain/daily-closing";
@@ -75,7 +76,7 @@ export async function processLuciaConversation(
   // a quien no tiene una reserva pagada; su llegada se coordina antes.
   const { data: hostelHours } = await admin
     .from("lucia_hostels")
-    .select("business_unit_id,display_name,manual,reception_open_time,reception_close_time,reception_close_time_weekend,business_units(code)")
+    .select("business_unit_id,display_name,manual,reception_phone,reception_open_time,reception_close_time,reception_close_time_weekend,business_units(code)")
     .eq("company_id", conversation.company_id)
     .eq("enabled", true);
   const closedHostels: ClosedHostel[] = (hostelHours ?? []).flatMap((h) => {
@@ -114,6 +115,9 @@ export async function processLuciaConversation(
           closedHostels.length && !bookingConfirmed
             ? `En este momento la recepción está cerrada en: ${closedHostels.map((h) => `${h.name} (atiende de ${h.opens} a ${h.closes})`).join(", ")}. No des la dirección exacta de esas hostales ni le digas que puede llegar ahora: explícale que la llegada fuera del horario de recepción se coordina antes con recepción y que sin esa confirmación no podemos asegurar la disponibilidad ni su ingreso. Esto es SOLO si quiere llegar hoy (esta noche o de madrugada): si su llegada es otro día, aunque sea tarde, no menciones el horario de recepción ni que debe confirmar su llegada; entrégale las opciones y el precio como siempre, y recepción coordinará la hora de llegada después.`
             : null,
+          assignedHostel && bookingConfirmed
+            ? `El cliente ya tiene su reserva en ${assignedHostel.display_name}. Si pide algo de su estadía que no está en el manual (clave del Wi-Fi, toallas, llaves, un problema en la habitación) o el contacto de recepción, ${assignedHostel.reception_phone ? `entrégale el teléfono de recepción: ${receptionContactLine(assignedHostel.display_name, assignedHostel.reception_phone)}. Escríbelo completo; nunca digas que se lo dejas sin escribirlo.` : "dile que ya avisaste a recepción para que le escriban y marca needs_human en true."}`
+            : null,
           conversation.cheaper_shared_from
             ? `Como pidió departamento, se le mostraron solo opciones con baño privado; también hay opciones con baño compartido desde $${Math.round(Number(conversation.cheaper_shared_from)).toLocaleString("es-CL")} por noche. No se las ofrezcas por tu cuenta; si pide algo más barato o acepta verlas, usa consultar_disponibilidad y muéstralas.`
             : null,
@@ -122,6 +126,10 @@ export async function processLuciaConversation(
           .join(" ") || null,
       cheaperSharedFrom: conversation.cheaper_shared_from === null ? null : Number(conversation.cheaper_shared_from),
       closedHostels: bookingConfirmed ? [] : closedHostels,
+      guestReception:
+        assignedHostel && bookingConfirmed
+          ? { name: assignedHostel.display_name, phone: assignedHostel.reception_phone }
+          : null,
       assignedHostelCode: (assignedUnit as { code?: string } | null)?.code ?? null,
       bookingInProgress: ["awaiting_reception", "awaiting_payment", "proof_received", "confirmed"].includes(
         conversation.booking_status,

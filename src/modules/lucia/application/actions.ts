@@ -241,6 +241,7 @@ const hostelSchema = z.object({
   manual: z.string().max(40000),
   manager_name: z.string().trim().max(120),
   manager_phone: z.string().trim().max(20),
+  reception_phone: z.string().trim().max(20),
   admin_phones: z.string().trim().max(120),
   mode: z.enum(["draft", "auto"]),
   payment_instructions: z.string().trim().max(2000),
@@ -262,6 +263,7 @@ export async function saveHostelAction(form: FormData) {
     manual: form.get("manual") ?? "",
     manager_name: form.get("manager_name") ?? "",
     manager_phone: form.get("manager_phone") ?? "",
+    reception_phone: form.get("reception_phone") ?? "",
     admin_phones: form.get("admin_phones") ?? "",
     mode: form.get("mode"),
     payment_instructions: form.get("payment_instructions") ?? "",
@@ -278,6 +280,9 @@ export async function saveHostelAction(form: FormData) {
   const phone = parsed.data.manager_phone ? normalizePhoneNumber(parsed.data.manager_phone) : null;
   if (parsed.data.manager_phone && !phone)
     back(SETTINGS_PATH, "error", "El WhatsApp del encargado no es válido (usa formato +56 9 ...).");
+  const receptionPhone = parsed.data.reception_phone ? normalizePhoneNumber(parsed.data.reception_phone) : null;
+  if (parsed.data.reception_phone && !receptionPhone)
+    back(SETTINGS_PATH, "error", "El teléfono de recepción no es válido (usa formato +56 9 ...).");
   // Varios administradores, separados por coma o salto de línea.
   const adminInputs = parsed.data.admin_phones.split(/[,;\n]+/).map((p) => p.trim()).filter(Boolean);
   const adminPhones = [...new Set(adminInputs.map((p) => normalizePhoneNumber(p)))];
@@ -291,6 +296,7 @@ export async function saveHostelAction(form: FormData) {
       ...parsed.data,
       manager_name: parsed.data.manager_name || null,
       manager_phone: phone,
+      reception_phone: receptionPhone,
       admin_phones: adminPhones as string[],
       reception_close_time_weekend: parsed.data.reception_close_time_weekend || null,
       photos_url: parsed.data.photos_url || null,

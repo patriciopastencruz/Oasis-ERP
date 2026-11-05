@@ -208,6 +208,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
           ["El cliente paga al llegar (tarjeta o efectivo)", "Registren el pago en la reserva del ERP: si cubre el abono, la reserva queda confirmada sola y pueden hacer el check-in."],
           ["Reservas de 1 noche", "Se pagan completas (no abono)."],
           ["Quiere llegar hoy con la recepción cerrada", "Lucía **no le da la dirección exacta** (salvo que tenga la reserva pagada) y le pide coordinar antes con recepción: sin esa confirmación no se asegura la disponibilidad ni el ingreso. A ustedes les llega un 🔔 para coordinar su llegada."],
+          ["Huésped pide la clave del Wi-Fi o algo de su estadía", "Lucía le entrega el teléfono de recepción de su hostal para que lo coordine directo con ustedes (se configura en Configuración de Lucía). Si no está configurado, les llega un 🔔 para escribirle."],
           ["Reserva para otro día con llegada tarde", "Lucía cotiza y envía el cobro como siempre, sin hablar del horario. Cuando la reserva llegue a ustedes, coordinen con el cliente la hora de llegada."],
         ],
       },

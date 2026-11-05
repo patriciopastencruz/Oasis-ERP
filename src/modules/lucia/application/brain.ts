@@ -16,6 +16,7 @@ import { ALREADY_SENT_REPLY, repeatsSummary, summaryAlreadySent } from "@/module
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
 import { focusOnChosenHostel, wantsApartment } from "@/modules/lucia/domain/chosen-hostel";
 import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
+import { asksForWifi, wifiReply } from "@/modules/lucia/domain/guest-contact";
 import { afterHoursArrivalReply, arrivesToday, mentionsAddress, type ClosedHostel } from "@/modules/lucia/domain/reception-hours";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
 import type { AvailabilityQuery } from "./availability-tool";
@@ -107,6 +108,8 @@ export async function generateLuciaReply(input: {
   cheaperSharedFrom?: number | null;
   /** Hostales con la recepción cerrada ahora (vacío si el cliente tiene una reserva pagada). */
   closedHostels?: ClosedHostel[];
+  /** Huésped con reserva confirmada: su recepción (teléfono null si no está configurado). */
+  guestReception?: { name: string; phone: string | null } | null;
   /** Hostal asignada a la conversación, si la hay. */
   assignedHostelCode?: string | null;
   checkAvailability: AvailabilityChecker;
@@ -385,6 +388,24 @@ export async function generateLuciaReply(input: {
           booking_request: false,
           needs_human: true,
           reason: `Quiere la dirección o llegar fuera del horario de recepción (${closedNamed.map((h) => h.name).join(", ")}): coordinar su llegada`,
+        };
+      }
+      // Huésped que pide la clave del Wi-Fi: Lucía no la tiene; se la da
+      // recepción, así que le entrega su teléfono (o avisa al equipo).
+      if (input.guestReception && asksForWifi(latestCustomerMessage)) {
+        return {
+          output: {
+            ...output,
+            reply: wifiReply(input.guestReception.name, input.guestReception.phone),
+            booking_request: false,
+            needs_human: !input.guestReception.phone,
+            reason: input.guestReception.phone ? output.reason : "Huésped pide la clave del Wi-Fi: escribirle",
+            walk_in_alert: null,
+          },
+          usage,
+          model,
+          issues,
+          cheaperSharedFrom,
         };
       }
       const detectedWalkIn = detectWalkInStatus(latestCustomerMessage);
