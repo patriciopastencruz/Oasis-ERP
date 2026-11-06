@@ -273,6 +273,7 @@ label('Construcción existente',9,1.3,18.6,0.9);
 // container local 6x3
 shell(p1,0,0,3,6,0,H,mat.local,mat.local);
 opening(p1,'x',3,0.25,0.9,0,2.05,mat.door);           // puerta esquina
+innerDoor(p1,3-T,0.25,0.9,0,2.05,-1);
 opening(p1,'x',3,1.9,1.4,0.9,1.2,mat.glass);           // ventana 1
 opening(p1,'x',3,3.9,1.4,0.9,1.2,mat.glass);           // ventana 2
 opening(p1,'z',6,0.2,2.6,0.1,2.2,mat.glass);           // ventanal a terraza
@@ -290,6 +291,7 @@ clad(p1,0,8,3,3,0,H);
 box(p1,0,0,9.45,3,H,0.1,mat.module);
 opening(p1,'x',3,8.3,0.8,0,2.0,mat.door);
 opening(p1,'x',3,9.85,0.8,0,2.0,mat.door);
+innerDoor(p1,3-T,8.3,0.8,0,2.0,-1);innerDoor(p1,3-T,9.85,0.8,0,2.0,-1);   // cara interior de las puertas de los 2 baños
 [[8,1],[11,-1]].forEach(([oz,sz])=>{
   shower(0,oz,1,sz,0.08,0.1,0.1,0.9);
   wc(0,oz,1,sz,0.08,1.25,0.1);
@@ -366,7 +368,7 @@ mods.forEach((m,i)=>{
   wins.forEach(w=>opening(p2,'x',8,w.from,w.len,w.y,w.h,mat.glass));
   // cama 2 plazas: espaldar contra el muro de 6 m, mirando hacia la puerta de entrada
   bedroom(bedZ);
-  tv(8+T,top?m.z+6-T-0.06-0.37:m.z+T+0.06+0.37,Y+1.25);   // esquina del dormitorio, al lado de la ventana
+  tv(8+T,top?m.z+6-T-0.06-0.37:m.z+T+0.06+0.37,Y+1.47,10.4,bedZ);   // esquina del dormitorio, orientada a la cama
   kitchen(top?m.z:m.z+6,sz);
   // etiquetas en un solo modular (el del medio): los 3 son iguales
   if(i===1){
@@ -376,20 +378,31 @@ mods.forEach((m,i)=>{
   }
 });
 // Cara interior de la puerta de entrada (el muro de 10 cm la tapaba desde adentro): hoja, marco y manilla
-function innerDoor(g,x,z,len,y,h){
-  box(g,x,y,z,0.015,h,len,mat.door,false);
-  const t=0.05;
-  box(g,x,y+h,z-t,0.03,t,len+2*t,mat.trim,false);
-  box(g,x,y,z-t,0.03,h+t,t,mat.trim,false);box(g,x,y,z+len,0.03,h+t,t,mat.trim,false);
-  knob(g,'x',x+0.015,z+len-0.1,y+1.0,1,true);
+// x = cara interior del muro; dir = hacia dónde queda el interior (+1 o -1)
+function innerDoor(g,x,z,len,y,h,dir=1){
+  const t=0.05,a=(d)=>dir>0?x:x-d;
+  box(g,a(0.015),y,z,0.015,h,len,mat.door,false);
+  box(g,a(0.03),y+h,z-t,0.03,t,len+2*t,mat.trim,false);
+  box(g,a(0.03),y,z-t,0.03,h+t,t,mat.trim,false);box(g,a(0.03),y,z+len,0.03,h+t,t,mat.trim,false);
+  knob(g,'x',x+dir*0.015,z+len-0.1,y+1.0,dir,true);
 }
-// TV de 32" colgada en el muro del pasillo, en la esquina junto a la ventana del dormitorio, frente a la cama
-function tv(x,cz,y0){
-  const g=groups.furn,w=0.74,h=0.44;
-  box(g,x,y0+0.12,cz-0.1,0.03,0.2,0.2,mat.black,false);                  // soporte
-  box(g,x+0.03,y0,cz-w/2,0.04,h,w,mat.black);                             // marco
-  box(g,x+0.07,y0+0.02,cz-w/2+0.02,0.003,h-0.04,w-0.04,mat.screen,false); // pantalla
-  box(g,x+0.071,y0+0.035,cz+w/2-0.06,0.003,0.01,0.02,mat.bulb,false);    // led de encendido
+// TV de 32" en la esquina del dormitorio, sobre un brazo articulado que sale del muro y la gira hacia la cama.
+// (xw,cz) = punto del muro, yc = altura del centro, (tx,tz) = punto de la cama al que mira
+function tv(xw,cz,yc,tx,tz){
+  const g=groups.furn,w=0.74,h=0.44,arm=0.3,px=xw+arm,side=Math.sign(tz-cz);
+  box(g,xw,yc-0.1,cz-0.06,0.02,0.2,0.12,mat.black);                                       // placa al muro
+  const elbow=V(xw+0.15,yc,cz+side*0.07);
+  bar(g,V(xw+0.02,yc+0.03,cz),V(elbow.x,yc+0.03,elbow.z),0.035,mat.black);               // brazo articulado (2 tramos)
+  bar(g,V(xw+0.02,yc-0.03,cz),V(elbow.x,yc-0.03,elbow.z),0.035,mat.black);
+  bar(g,V(elbow.x,yc,elbow.z),V(px,yc,cz),0.04,mat.black);
+  const pin=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.1,12),mat.black);pin.position.copy(elbow);g.add(pin);
+  const t=new THREE.Group();t.position.set(px,yc,cz);t.rotation.order='YZX';
+  t.rotation.y=Math.atan2(-(tz-cz),tx-px);t.rotation.z=-0.12;                            // gira hacia la cama e inclina un poco hacia abajo
+  box(t,-0.02,-0.1,-0.1,0.04,0.2,0.2,mat.black);                                          // placa VESA
+  box(t,0.02,-h/2,-w/2,0.04,h,w,mat.black);                                               // marco
+  box(t,0.06,-h/2+0.02,-w/2+0.02,0.003,h-0.04,w-0.04,mat.screen,false);                   // pantalla
+  box(t,0.061,-h/2+0.008,-0.01,0.003,0.008,0.02,mat.bulb,false);                          // led de encendido
+  g.add(t);
 }
 // Chapa redonda: roseta + pomo. axis 'x' sale en x desde a (en z=b); axis 'z' sale en z desde a (en x=b)
 function knob(g,axis,a,b,y,dir,lever){
@@ -537,6 +550,7 @@ function sink(ox,oz,sx,sz,y,u,v,w,d){
 const f=groups.forrer;
 shell(f,0,0,3,4.7,Y,H,mat.forrer,mat.forrer);
 opening(f,'x',3,3.65,0.9,Y,2.05,mat.door);
+innerDoor(f,3-T,3.65,0.9,Y,2.05,-1);
 opening(f,'x',3,1.0,1.4,Y+0.9,1.1,mat.glass);
 box(f,3,Y,3.6,4,0.08,1.0,mat.walk);
 rail(f,3.02,3.6,7,3.6,Y);rail(f,3.02,4.6,7,4.6,Y);
