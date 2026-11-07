@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Casa Modular 36 m²</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: full-screen 3D view, a compact title plate and a two-way view switch floating over it */
+:root{
+  --bg:#dfe8ef; --panel:rgba(255,255,255,.92); --fg:#17191c; --muted:#5a6068;
+  --line:#c9d1d8; --accent:#1f5f8b; --accent-fg:#ffffff;
+  --display:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body:"IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1b2026; --panel:rgba(26,30,36,.92); --fg:#eef1f4; --muted:#a3abb4;
+  --line:#3a424c; --accent:#6fb0dc; --accent-fg:#0d1a24; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1b2026; --panel:rgba(26,30,36,.92); --fg:#eef1f4; --muted:#a3abb4;
+  --line:#3a424c; --accent:#6fb0dc; --accent-fg:#0d1a24; color-scheme:dark}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:var(--body);overflow:hidden}
+#stage{position:relative;height:100%;width:100%}
+#view{position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:none}
+.plate{position:absolute;top:12px;left:max(16px, env(safe-area-inset-left, 0px));right:max(16px, env(safe-area-inset-right, 0px));
+  display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;justify-content:space-between;pointer-events:none}
+.card{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.brand{font-family:var(--display);font-weight:800;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:700;font-size:20px;margin:2px 0 2px;text-wrap:balance}
+.spec{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.switch{display:flex;gap:4px;padding:4px}
+.switch button{font:500 13px var(--body);border:0;border-radius:7px;padding:9px 14px;min-height:40px;cursor:pointer;
+  background:transparent;color:var(--fg)}
+.switch button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.switch button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{position:absolute;bottom:14px;left:max(16px, env(safe-area-inset-left, 0px));font-size:12px;color:var(--muted);
+  background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+.err{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="view" aria-label="Modelo 3D de la casa modular de dos módulos"></canvas>
+  <div class="plate">
+    <div class="card">
+      <div class="brand">Oasis Modulares</div>
+      <h1>Casa modular 36 m²</h1>
+      <div class="spec">2 módulos 6,00 × 3,00 m · 1 dormitorio · baño · cocina-living</div>
+    </div>
+    <div class="card switch" role="group" aria-label="Vista">
+      <button id="bExt" type="button" aria-pressed="true">Exterior</button>
+      <button id="bInt" type="button" aria-pressed="false">Interior</button>
+    </div>
+  </div>
+  <div class="hint">Arrastra para girar · pellizca o rueda para acercar</div>
+  <div class="err" id="err" hidden>No se pudo cargar el visor 3D. Recarga la página.</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+if(!window.THREE || !THREE.OrbitControls){document.getElementById('err').hidden=false;return;}
+var canvas=document.getElementById('view');
+var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;
+
+var scene=new THREE.Scene();
+scene.background=new THREE.Color('#7fb2e3');
+scene.fog=new THREE.Fog('#a9cbe9',30,70);
+
+var camera=new THREE.PerspectiveCamera(42,1,0.1,200);
+var controls=new THREE.OrbitControls(camera,canvas);
+controls.enableDamping=true; controls.maxPolarAngle=Math.PI*0.49; controls.minDistance=3; controls.maxDistance=30;
+
+scene.add(new THREE.HemisphereLight('#dceeff','#b89a74',0.75));
+var sun=new THREE.DirectionalLight('#fff5e6',1.05);
+sun.position.set(14,18,9); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+var sc=sun.shadow.camera; sc.left=-10;sc.right=10;sc.top=10;sc.bottom=-10;sc.near=1;sc.far=60;
+sun.shadow.bias=-0.0006;
+scene.add(sun); sun.target.position.set(3,0,3); scene.add(sun.target);
+
+var M=function(c,o){o=o||{};return new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.8,metalness:0},o));};
+var mat={
+  wall:M('#f3f3f0',{roughness:.6}), frame:M('#1a1b1e',{roughness:.45,metalness:.3}),
+  floor:M('#c8a57a',{roughness:.7}), tile:M('#cfd4d8',{roughness:.5}), ground:M('#d9c09a',{roughness:1}),
+  glass:M('#5d7f96',{transparent:true,opacity:.42,roughness:.05,metalness:.2}),
+  frosted:M('#dfe6ea',{transparent:true,opacity:.85,roughness:.9}),
+  door:M('#2a2b2e',{roughness:.5}), roof:M('#3a3d42',{roughness:.6,metalness:.2}),
+  wood:M('#8b5a35'), lightwood:M('#b88a5c'), linen:M('#ece7de'), blanket:M('#8f857a'),
+  sofa:M('#d6d0c6'), counter:M('#ebe8e2',{roughness:.35}), steel:M('#b9bdc1',{roughness:.3,metalness:.6}),
+  black:M('#222326'), green:M('#4f7a43'), white:M('#fbfbfb',{roughness:.3})
+};
+
+var house=new THREE.Group(); scene.add(house);
+// box from plan coords: x1,z1,x2,z2 (m) and height y1..y2
+function box(x1,z1,x2,z2,y1,y2,m,parent){
+  var g=new THREE.BoxGeometry(Math.abs(x2-x1),Math.abs(y2-y1),Math.abs(z2-z1));
+  var o=new THREE.Mesh(g,m); o.position.set((x1+x2)/2,(y1+y2)/2,(z1+z2)/2);
+  o.castShadow=true; o.receiveShadow=true; (parent||house).add(o); return o;
+}
+
+var F0=0.18, WH=2.62, TOP=2.84; // floor level, wall top, frame top
+
+// ground
+var ground=new THREE.Mesh(new THREE.PlaneGeometry(120,120),mat.ground);
+ground.rotation.x=-Math.PI/2; ground.position.set(3,0,3); ground.receiveShadow=true; scene.add(ground);
+
+// supports (wood blocks like in the yard photos)
+[[0,0],[2.85,0],[3.0,0],[5.85,0],[0,5.85],[2.85,5.85],[3.0,5.85],[5.85,5.85],[0,2.9],[5.85,2.9]].forEach(function(p){
+  box(p[0]-0.05,p[1]-0.05,p[0]+0.2,p[1]+0.2,-0.02,0.06,mat.lightwood);
+});
+
+// floors
+box(0.1,0.1,5.9,5.9,0.06,F0,mat.floor);
+box(0.1,0.1,2.3,1.7,F0,F0+0.005,mat.tile);
+
+// steel frames of both modules
+[[0,3],[3,6]].forEach(function(mx){
+  var a=mx[0]-0.03, b=mx[1]+0.03, t=0.17;
+  [[a,-0.03],[b-t,-0.03],[a,6.03-t],[b-t,6.03-t]].forEach(function(p){ box(p[0],p[1],p[0]+t,p[1]+t,0.06,TOP,mat.frame); });
+  [[0.06,0.24],[WH,TOP]].forEach(function(h){
+    box(a,-0.03,b,-0.03+t,h[0],h[1],mat.frame); box(a,6.03-t,b,6.03,h[0],h[1],mat.frame);
+    box(a,-0.03,a+t,6.03,h[0],h[1],mat.frame); box(b-t,-0.03,b,6.03,h[0],h[1],mat.frame);
+  });
+});
+
+// full-height walls
+[[0,0,1.35,0.1],[1.95,0,4.1,0.1],[5.1,0,6,0.1],
+ [0,5.9,0.95,6],[1.95,5.9,4.0,6],[5.0,5.9,6,6],
+ [0,0,0.1,6],[5.9,0,6,2.5],[5.9,3.4,6,6],
+ [2.95,1.7,3.05,3.6],[2.95,4.4,3.05,5.9],
+ [2.3,0.1,2.38,0.95],[2.3,1.65,2.38,1.7],
+ [0.1,1.7,2.95,1.78],[0.1,3.4,2.1,3.48]
+].forEach(function(w){ box(w[0],w[1],w[2],w[3],F0,WH,mat.wall); });
+
+// windows 1,00 x 1,00 m: sill 1.0, head 2.0 above floor
+// bathroom window 0,60 x 0,40 m, high (sill 1.60)
+[[1.35,0,1.95,0.1,1.6,2.0,true],[4.1,0,5.1,0.1],[0.95,5.9,1.95,6],[4.0,5.9,5.0,6]].forEach(function(w){
+  var s=F0+(w[4]||1.0), h=F0+(w[5]||2.0), frosted=!!w[6];
+  box(w[0],w[1],w[2],w[3],F0,s,mat.wall);
+  box(w[0],w[1],w[2],w[3],h,WH,mat.wall);
+  var cz=(w[1]+w[3])/2, cx=(w[0]+w[2])/2;
+  box(w[0],cz-0.01,w[2],cz+0.01,s,h,frosted?mat.frosted:mat.glass);
+  var f=0.05;
+  box(w[0],w[1]-0.01,w[0]+f,w[3]+0.01,s,h,mat.frame);
+  box(w[2]-f,w[1]-0.01,w[2],w[3]+0.01,s,h,mat.frame);
+  if(!frosted) box(cx-0.02,w[1]-0.01,cx+0.02,w[3]+0.01,s,h,mat.frame);
+  box(w[0],w[1]-0.01,w[2],w[3]+0.01,s,s+f,mat.frame);
+  box(w[0],w[1]-0.01,w[2],w[3]+0.01,h-f,h,mat.frame);
+});
+
+// door headers
+[[2.95,3.6,3.05,4.4],[2.3,0.95,2.38,1.65],[5.9,2.5,6,3.4],[2.1,3.4,2.95,3.48]].forEach(function(d){
+  box(d[0],d[1],d[2],d[3],F0+2.05,WH,mat.wall);
+});
+// entrance door (black, closed) with handle
+box(5.93,2.52,5.98,3.38,F0,F0+2.05,mat.door);
+box(5.98,3.22,6.03,3.3,F0+0.95,F0+1.0,mat.steel);
+// interior doors, open against the walls
+box(2.3,1.6,2.98,1.64,F0,F0+2.03,mat.lightwood);   // bath door, open into the bath
+box(2.18,4.35,2.95,4.39,F0,F0+2.03,mat.lightwood); // bedroom door, open into the bedroom
+
+// roof
+var roof=box(-0.03,-0.03,6.03,6.03,TOP,TOP+0.05,mat.roof);
+var topFrames=[];
+
+// ---- bathroom
+box(0.1,0.1,1.0,1.0,F0,F0+0.08,mat.white);
+box(0.98,0.1,1.0,1.0,F0+0.08,F0+2.0,mat.glass);
+box(0.1,0.98,0.75,1.0,F0+0.08,F0+2.0,mat.glass);
+box(1.12,0.1,1.48,0.32,F0+0.35,F0+0.75,mat.white); // tank
+var bowl=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.15,0.4,24),mat.white);
+bowl.position.set(1.3,F0+0.2,0.5); bowl.castShadow=true; house.add(bowl);
+box(0.25,1.28,0.85,1.7,F0+0.78,F0+0.88,mat.white); // vanity top
+box(0.32,1.35,0.78,1.7,F0,F0+0.78,mat.lightwood);
+box(0.3,1.68,0.8,1.7,F0+1.0,F0+1.7,mat.glass); // mirror
+
+// ---- closet
+box(0.1,1.78,2.95,2.38,F0,F0+2.1,mat.lightwood);
+box(0.1,2.38,0.7,3.4,F0,F0+2.1,mat.lightwood);
+
+// ---- bedroom
+box(0.1,3.95,2.0,5.35,F0,F0+0.32,mat.wood);
+box(0.12,3.97,1.98,5.33,F0+0.32,F0+0.55,mat.linen);
+box(0.75,3.96,1.99,5.34,F0+0.55,F0+0.58,mat.blanket);
+box(0.08,3.95,0.16,5.35,F0,F0+1.05,mat.wood); // headboard
+box(0.2,4.08,0.48,4.6,F0+0.55,F0+0.7,mat.linen);
+box(0.2,4.7,0.48,5.22,F0+0.55,F0+0.7,mat.linen);
+box(0.1,3.52,0.5,3.9,F0,F0+0.5,mat.wood);
+box(0.1,5.42,0.5,5.8,F0,F0+0.5,mat.wood);
+
+// ---- kitchen
+box(3.05,0.1,5.25,0.7,F0,F0+0.86,mat.lightwood);
+box(3.05,0.1,5.25,0.72,F0+0.86,F0+0.9,mat.counter);
+box(3.4,0.22,3.95,0.58,F0+0.9,F0+0.905,mat.steel);
+box(4.45,0.22,5.0,0.58,F0+0.9,F0+0.905,mat.black);
+box(3.05,0.1,5.25,0.45,F0+1.55,F0+2.2,mat.lightwood); // wall cabinets
+box(5.27,0.12,5.88,0.75,F0,F0+1.8,mat.steel);
+
+// ---- dining
+box(3.85,1.25,5.05,2.0,F0+0.72,F0+0.76,mat.wood);
+[[3.92,1.32],[4.95,1.32],[3.92,1.9],[4.95,1.9]].forEach(function(p){ box(p[0],p[1],p[0]+0.06,p[1]+0.06,F0,F0+0.72,mat.wood); });
+[[3.4,1.42,3.75,1.82],[5.15,1.42,5.5,1.82],[4.0,2.1,4.4,2.45],[4.5,2.1,4.9,2.45]].forEach(function(c){
+  box(c[0],c[1],c[2],c[3],F0+0.42,F0+0.46,mat.black);
+  box(c[0]+0.03,c[1]+0.03,c[2]-0.03,c[3]-0.03,F0,F0+0.42,mat.black).scale.set(0.2,1,0.2);
+});
+var plant=new THREE.Mesh(new THREE.SphereGeometry(0.12,16,12),mat.green);
+plant.position.set(4.45,F0+0.86,1.62); plant.castShadow=true; house.add(plant);
+
+// ---- living
+box(5.05,3.9,5.85,5.8,F0,F0+0.42,mat.sofa);
+box(5.62,3.9,5.85,5.8,F0+0.42,F0+0.85,mat.sofa);
+box(5.05,3.9,5.85,4.08,F0+0.42,F0+0.62,mat.sofa);
+box(5.05,5.62,5.85,5.8,F0+0.42,F0+0.62,mat.sofa);
+var ct=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.05,32),mat.wood);
+ct.position.set(4.52,F0+0.4,4.85); ct.castShadow=true; house.add(ct);
+box(4.5,4.83,4.54,4.87,F0,F0+0.38,mat.wood);
+box(3.05,4.6,3.45,5.6,F0,F0+0.5,mat.wood);
+box(3.06,4.75,3.1,5.45,F0+1.0,F0+1.6,mat.black); // TV
+
+// ---- view modes
+var views={
+  ext:{pos:[13,6.2,14.5],tgt:[3,1.3,3],roof:true},
+  int:{pos:[3.2,12.5,10.5],tgt:[3,0,3],roof:false}
+};
+var bExt=document.getElementById('bExt'), bInt=document.getElementById('bInt');
+function setView(k){
+  var v=views[k];
+  camera.position.set(v.pos[0],v.pos[1],v.pos[2]);
+  controls.target.set(v.tgt[0],v.tgt[1],v.tgt[2]);
+  roof.visible=v.roof;
+  bExt.setAttribute('aria-pressed',String(k==='ext'));
+  bInt.setAttribute('aria-pressed',String(k==='int'));
+  controls.update();
+}
+bExt.addEventListener('click',function(){setView('ext');});
+bInt.addEventListener('click',function(){setView('int');});
+
+function resize(){
+  var w=canvas.clientWidth, h=canvas.clientHeight;
+  if(!w||!h) return;
+  renderer.setSize(w,h,false); camera.aspect=w/h;
+  camera.fov = w<600 ? 55 : 42;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',resize);
+resize(); setView('ext');
+
+(function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
+})();
+</script>
+
+</body>
+</html>
