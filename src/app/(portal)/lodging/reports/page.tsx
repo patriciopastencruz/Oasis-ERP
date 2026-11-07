@@ -91,7 +91,7 @@ export default async function Page({
         .gt("check_out", monthStartIso),
       supabase
         .from("lodging_reservation_payments")
-        .select("amount,type,status,paid_at,lodging_reservations(origin,status)")
+        .select("amount,type,status,paid_at,lodging_reservations(origin,status,payments_retained)")
         .eq("business_unit_id", unit.id)
         .eq("status", "confirmed")
         .gte("paid_at", `${addDays(monthStartIso, -1)}T00:00:00Z`)

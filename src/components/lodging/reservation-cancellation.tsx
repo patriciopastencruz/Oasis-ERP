@@ -1,6 +1,10 @@
 import { Panel } from "@/components/ui/page";
 import { ConfirmButton } from "@/components/sales/confirm-button";
-import { decideReservationCancellationAction, requestReservationCancellationAction } from "@/modules/lodging/application/actions";
+import {
+  decideReservationCancellationAction,
+  requestReservationCancellationAction,
+  settleCancelledPaymentsAction,
+} from "@/modules/lodging/application/actions";
 
 export type CancellationRequest = {
   id: string;
@@ -12,12 +16,58 @@ export type CancellationRequest = {
   decision_notes: string | null;
   requester: string | null;
   decider: string | null;
+  payments_action: PaymentsAction | null;
+};
+
+export type PaymentsAction = "void" | "refund" | "move" | "retain";
+/** Reserva vigente a la que se pueden trasladar los pagos (mismo huésped o misma habitación). */
+export type MoveCandidate = { id: string; label: string };
+
+export const paymentsActionLabel: Record<PaymentsAction, string> = {
+  void: "Anular los pagos (registro repetido o error)",
+  refund: "Se devolvieron al huésped",
+  move: "Trasladarlos a otra reserva",
+  retain: "Se retienen: el hostal se queda con el dinero",
 };
 
 const clp = (n: number) => new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n);
 const when = (iso: string) =>
   new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
 const field = "w-full rounded-xl border px-3 py-2 text-sm";
+
+/**
+ * Qué hacer con los pagos de la reserva que se anula. Anular o devolver pagos lo decide quien puede
+ * anular pagos; si no, la anulación pasa a aprobación (la base aplica la misma regla).
+ */
+function PaymentsDecision({ candidates, canVoidPayments }: { candidates: MoveCandidate[]; canVoidPayments: boolean }) {
+  return (
+    <fieldset className="space-y-1.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
+      <legend className="px-1 text-xs font-semibold text-amber-900">¿Qué pasa con los pagos?</legend>
+      {(Object.keys(paymentsActionLabel) as PaymentsAction[]).map((a) => (
+        <label key={a} className={`flex items-start gap-2 text-sm ${a === "move" && !candidates.length ? "opacity-50" : ""}`}>
+          <input type="radio" name="payments_action" value={a} required disabled={a === "move" && !candidates.length} className="mt-1" />
+          <span>
+            {paymentsActionLabel[a]}
+            {(a === "void" || a === "refund") && !canVoidPayments && (
+              <span className="block text-xs text-amber-800">Requiere aprobación del administrador.</span>
+            )}
+            {a === "move" && !candidates.length && <span className="block text-xs">No hay otra reserva vigente del huésped o la habitación.</span>}
+          </span>
+        </label>
+      ))}
+      {candidates.length > 0 && (
+        <select name="payments_move_to" className={`${field} bg-white`} defaultValue="">
+          <option value="">Reserva de destino (si se trasladan)</option>
+          {candidates.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      )}
+    </fieldset>
+  );
+}
 
 /**
  * Anulación de la reserva. Las que empiezan hoy o después se anulan de
@@ -35,6 +85,10 @@ export function ReservationCancellation({
   canRequest,
   canApprove,
   startsTodayOrLater,
+  paymentsRetained,
+  moveCandidates,
+  canVoidPayments,
+  canSettlePayments,
 }: {
   reservationId: string;
   status: string;
@@ -46,6 +100,12 @@ export function ReservationCancellation({
   canApprove: boolean;
   /** Las reservas del día o futuras no requieren aprobación (misma regla que la base). */
   startsTodayOrLater: boolean;
+  paymentsRetained: boolean;
+  moveCandidates: MoveCandidate[];
+  /** Puede anular o devolver pagos sin aprobación (anular pagos o aprobar anulaciones). */
+  canVoidPayments: boolean;
+  /** Puede resolver los pagos de una reserva ya anulada (registrar pagos o aprobar anulaciones). */
+  canSettlePayments: boolean;
 }) {
   const immediate = canApprove || startsTodayOrLater;
   const pending = latest?.status === "pending" ? latest : null;
@@ -59,7 +119,27 @@ export function ReservationCancellation({
           {cancellationReason ? `Motivo: ${cancellationReason}` : "Anulada."}
           {latest?.status === "approved" && latest.decider ? ` · Aprobada por ${latest.decider}${latest.decided_at ? ` el ${when(latest.decided_at)}` : ""}` : ""}
         </p>
-        {totalPaid > 0 && <p className="mt-1 text-sm font-semibold text-red-900">Tiene {clp(totalPaid)} pagados: registra la devolución si corresponde.</p>}
+        {paymentsRetained ? (
+          <p className="mt-1 text-sm font-semibold text-red-900">Pagos retenidos: {clp(totalPaid)} cuentan como ingreso.</p>
+        ) : (
+          totalPaid > 0 && (
+            <>
+              <p className="mt-1 text-sm font-semibold text-red-900">
+                Tiene {clp(totalPaid)} en pagos sin resolver: no cuentan como ingreso hasta que se decida qué hacer con ellos.
+              </p>
+              {canSettlePayments && (
+                <form action={settleCancelledPaymentsAction} className="mt-3 space-y-2">
+                  <input type="hidden" name="reservation_id" value={reservationId} />
+                  <PaymentsDecision candidates={moveCandidates} canVoidPayments={canVoidPayments} />
+                  <input name="note" required minLength={3} maxLength={300} placeholder="Nota (ej.: transferencia repetida, devuelta el 05-11)" className={`${field} bg-white`} />
+                  <ConfirmButton message="¿Resolver los pagos de esta reserva anulada?" className="rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white">
+                    Resolver pagos
+                  </ConfirmButton>
+                </form>
+              )}
+            </>
+          )
+        )}
       </Panel>
     );
 
@@ -70,7 +150,12 @@ export function ReservationCancellation({
         <p className="mt-1 text-sm text-amber-900">
           Solicitada por {pending.requester ?? "recepción"} el {when(pending.requested_at)}. Motivo: {pending.reason}
         </p>
-        {pending.paid_amount > 0 && <p className="mt-1 text-sm font-semibold text-amber-900">El huésped tiene {clp(pending.paid_amount)} pagados.</p>}
+        {pending.paid_amount > 0 && (
+          <p className="mt-1 text-sm font-semibold text-amber-900">
+            El huésped tiene {clp(pending.paid_amount)} pagados.
+            {pending.payments_action ? ` Al aprobar: ${paymentsActionLabel[pending.payments_action].toLowerCase()}.` : ""}
+          </p>
+        )}
         {canApprove ? (
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             <form action={decideReservationCancellationAction}>
@@ -108,7 +193,12 @@ export function ReservationCancellation({
       <form action={requestReservationCancellationAction} className="mt-3 space-y-2">
         <input type="hidden" name="reservation_id" value={reservationId} />
         <textarea name="reason" required minLength={5} maxLength={500} rows={2} placeholder="Motivo (ej.: el huésped canceló por teléfono)" className={field} />
-        {totalPaid > 0 && <p className="text-xs font-semibold text-amber-800">Tiene {clp(totalPaid)} pagados: si corresponde devolución, regístrala como reembolso.</p>}
+        {totalPaid > 0 && (
+          <>
+            <p className="text-xs font-semibold text-amber-800">Tiene {clp(totalPaid)} pagados.</p>
+            <PaymentsDecision candidates={moveCandidates} canVoidPayments={canVoidPayments} />
+          </>
+        )}
         <p className="text-xs text-slate-500">
           {canApprove
             ? "Como administrador, la reserva queda anulada de inmediato. No se borra: queda registrada con el motivo."

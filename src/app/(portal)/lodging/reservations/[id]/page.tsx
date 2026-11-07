@@ -31,8 +31,10 @@ import { ClpInput } from "@/components/lodging/clp-input";
 import {
   ReservationCancellation,
   type CancellationRequest,
+  type MoveCandidate,
 } from "@/components/lodging/reservation-cancellation";
 import { ReservationNoShow } from "@/components/lodging/reservation-no-show";
+import { addDays } from "@/modules/lodging/domain/daily-closing";
 import { CheckinOnlinePanel } from "@/components/lodging/checkin-online-panel";
 import { SurveySharePanel } from "@/components/lodging/survey-share-panel";
 import { ArrivalContactPanel } from "@/components/lodging/arrival-contact-panel";
@@ -63,6 +65,7 @@ export default async function Page({
     { data: cancellations },
     { data: housekeepingEnabled },
     { data: manualReviews },
+    { data: moveTargets },
   ] = await Promise.all([
     supabase
       .from("lodging_reservation_payments")
@@ -73,7 +76,7 @@ export default async function Page({
     supabase
       .from("lodging_reservation_cancellations")
       .select(
-        "id,status,reason,paid_amount,requested_at,decided_at,decision_notes,requester:profiles!lodging_reservation_cancellations_requested_by_fkey(first_name,last_name),decider:profiles!lodging_reservation_cancellations_decided_by_fkey(first_name,last_name)",
+        "id,status,reason,paid_amount,payments_action,requested_at,decided_at,decision_notes,requester:profiles!lodging_reservation_cancellations_requested_by_fkey(first_name,last_name),decider:profiles!lodging_reservation_cancellations_decided_by_fkey(first_name,last_name)",
       )
       .eq("reservation_id", id)
       .order("requested_at", { ascending: false })
@@ -86,6 +89,18 @@ export default async function Page({
       .select("id,outcome,comment,reviewed_at,reviewer:profiles!lodging_receipt_reviews_reviewed_by_fkey(first_name,last_name)")
       .eq("reservation_id", id)
       .order("reviewed_at", { ascending: false }),
+    // Reservas vigentes del mismo huésped o habitación, cerca de estas fechas: destino para trasladar pagos al anular.
+    supabase
+      .from("lodging_reservations")
+      .select("id,check_in,check_out,lodging_rooms(name),lodging_guests(full_name)")
+      .eq("business_unit_id", r.business_unit_id)
+      .neq("id", id)
+      .not("status", "in", "(cancelled,conflict)")
+      .or(r.guest_id ? `guest_id.eq.${r.guest_id},room_id.eq.${r.room_id}` : `room_id.eq.${r.room_id}`)
+      .gte("check_out", addDays(r.check_in, -30))
+      .lte("check_in", addDays(r.check_in, 60))
+      .order("check_in")
+      .limit(20),
   ]);
   const canReviewReceipts = ctx.permissions.has("lodging.receipts.review");
   const canSeeReceiptReview = canReviewReceipts || ctx.permissions.has("lodging.closings.reports");
@@ -122,8 +137,15 @@ export default async function Page({
         decision_notes: lastCancellation.decision_notes,
         requester: personName(lastCancellation.requester as Person),
         decider: personName(lastCancellation.decider as Person),
+        payments_action: lastCancellation.payments_action,
       }
     : null;
+  const ddmm = (iso: string) => `${iso.slice(8, 10)}-${iso.slice(5, 7)}`;
+  const moveCandidates: MoveCandidate[] = (moveTargets ?? []).map((t) => {
+    const room = Array.isArray(t.lodging_rooms) ? t.lodging_rooms[0] : t.lodging_rooms;
+    const guest = Array.isArray(t.lodging_guests) ? t.lodging_guests[0] : t.lodging_guests;
+    return { id: t.id, label: `${room?.name ?? "—"} · ${ddmm(t.check_in)} al ${ddmm(t.check_out)} · ${guest?.full_name ?? "sin huésped"}` };
+  });
   const s = summary?.[0] ?? {
     total_paid: 0,
     balance: r.total_value,
@@ -240,6 +262,10 @@ export default async function Page({
         canRequest={ctx.permissions.has("lodging.reservations.cancel_request")}
         canApprove={ctx.permissions.has("lodging.reservations.cancel_approve")}
         startsTodayOrLater={r.check_in >= todaySantiago}
+        paymentsRetained={Boolean(r.payments_retained)}
+        moveCandidates={moveCandidates}
+        canVoidPayments={ctx.permissions.has("lodging.payments.void") || ctx.permissions.has("lodging.reservations.cancel_approve")}
+        canSettlePayments={ctx.permissions.has("lodging.payments.manage") || ctx.permissions.has("lodging.reservations.cancel_approve")}
       />
       <ReservationNoShow
         reservationId={id}

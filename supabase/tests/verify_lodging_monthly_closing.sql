@@ -74,14 +74,14 @@ begin
   perform public.lodging_monthly_delete_line(line);
 
   s := public.lodging_monthly_summary(hu,m);
-  -- Ingresos: pagos 200.000 - 10.000 + estacionamiento 5.000.
-  if (s->'totals'->>'income')::numeric<>195000 or (s->'lodging_income'->>'total')::numeric<>190000 then raise exception 'Ingresos incorrectos: %',s->'totals'; end if;
+  -- Ingresos: venta de la reserva 200.000 + estacionamiento 5.000 (los pagos, 200.000 - 10.000, son referencia).
+  if (s->'totals'->>'income')::numeric<>205000 or (s->'lodging_income'->>'total')::numeric<>190000 then raise exception 'Ingresos incorrectos: %',s->'totals'; end if;
   -- Variables: comisión 30.000 + gasto diario emitido 15.000 (el borrador no suma).
   if (s->'totals'->>'variable')::numeric<>45000 or (s->'commissions'->>'amount')::numeric<>30000 then raise exception 'Variables incorrectos: %',s->'totals'; end if;
   if (s->'totals'->>'fixed')::numeric<>90000 or (s->'totals'->>'investment')::numeric<>20000 then raise exception 'Fijos/inversión incorrectos: %',s->'totals'; end if;
-  if (s->'totals'->>'profit')::numeric<>40000 then raise exception 'Utilidad incorrecta: %',s->'totals'; end if;
+  if (s->'totals'->>'profit')::numeric<>50000 then raise exception 'Utilidad incorrecta: %',s->'totals'; end if;
   if (s->'pending'->>'amount')::numeric<>40000 or jsonb_array_length(s->'lines')<>4 then raise exception 'Pendientes/líneas incorrectos: %',s->'pending'; end if;
-  if (select profit from public.lodging_monthly_closings where id=closing)<>40000 then raise exception 'Totales guardados incorrectos'; end if;
+  if (select profit from public.lodging_monthly_closings where id=closing)<>50000 then raise exception 'Totales guardados incorrectos'; end if;
 
   perform public.lodging_monthly_close(closing,'Cierre de prueba');
   failed := false;
@@ -91,7 +91,7 @@ begin
   -- La foto no cambia aunque llegue un pago después del cierre.
   insert into public.lodging_reservation_payments(company_id,business_unit_id,reservation_id,type,payment_method,amount,paid_at,registered_by)
   values((select company_id from public.business_units where id=hu),hu,'00000000-0000-4000-8000-0000000b1001','partial','cash',77777,(m+6)::timestamp at time zone 'America/Santiago'+interval '12 hours',auth.uid());
-  if (public.lodging_monthly_summary(hu,m)->'totals'->>'income')::numeric<>195000 then raise exception 'La foto del mes cerrado cambió'; end if;
+  if (public.lodging_monthly_summary(hu,m)->'totals'->>'income')::numeric<>205000 then raise exception 'La foto del mes cerrado cambió'; end if;
 
   -- El mes siguiente copia los costos fijos como pendientes.
   next_closing := public.lodging_monthly_start(hu,(m+interval '1 month')::date);
@@ -103,7 +103,9 @@ begin
   begin perform public.lodging_monthly_reopen(closing,''); exception when others then failed := true; end;
   if not failed then raise exception 'Se reabrió sin motivo'; end if;
   perform public.lodging_monthly_reopen(closing,'Falta una factura');
-  if (public.lodging_monthly_summary(hu,m)->'totals'->>'income')::numeric<>272777 then raise exception 'Al reabrir debe recalcular en vivo'; end if;
+  -- Al reabrir se recalcula en vivo: el pago tardío suma a los pagos de referencia, no a la venta.
+  s := public.lodging_monthly_summary(hu,m);
+  if (s->'lodging_income'->>'total')::numeric<>267777 or (s->'totals'->>'income')::numeric<>205000 then raise exception 'Al reabrir debe recalcular en vivo: %',s->'totals'; end if;
 
   failed := false;
   begin perform public.lodging_monthly_start(hu,(m+interval '3 months')::date); exception when others then failed := true; end;

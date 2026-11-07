@@ -52,7 +52,7 @@ export async function loadOperationsSource(supabase: Supabase, unitId: string, f
       .gt("check_out", from),
     supabase
       .from("lodging_reservation_payments")
-      .select("paid_at,amount,type,payment_method,lodging_reservations(status)")
+      .select("paid_at,amount,type,payment_method,lodging_reservations(status,payments_retained)")
       .eq("business_unit_id", unitId)
       .eq("status", "confirmed")
       // Margen por la diferencia horaria; el filtro exacto es por fecha de Santiago.

@@ -872,6 +872,16 @@ function cancellationError(error: { code?: string; message: string }) {
       return "Las reservas de Booking o Airbnb se anulan en la plataforma.";
     if (/autorizacion/i.test(error.message))
       return "No tienes autorización para esta acción.";
+    if (/que hacer con los pagos/i.test(error.message))
+      return "La reserva tiene pagos: indica qué hacer con ellos.";
+    if (/destino no es valida/i.test(error.message))
+      return "Elige una reserva vigente de destino para trasladar los pagos.";
+    if (/no tiene pagos por resolver/i.test(error.message))
+      return "La reserva no tiene pagos por resolver.";
+    if (/ya quedaron retenidos/i.test(error.message))
+      return "Los pagos ya quedaron retenidos.";
+    if (/Indica una nota/i.test(error.message))
+      return "Indica una nota (mínimo 3 caracteres).";
   }
   return "No fue posible completar la anulación.";
 }
@@ -889,10 +899,12 @@ export async function requestReservationCancellationAction(form: FormData) {
   const reason = String(form.get("reason") ?? "")
     .trim()
     .slice(0, 500);
+  const payments = cancelledPaymentsDecision(form);
   const s = await createSupabaseServerClient();
   const { data, error } = await s.rpc("lodging_reservation_cancel_request", {
     target_reservation: parsed.data,
     cancel_reason: reason,
+    ...payments,
   });
   if (error) go(back, "error", cancellationError(error));
   const applied = Boolean((data as { applied?: boolean } | null)?.applied);
@@ -905,8 +917,39 @@ export async function requestReservationCancellationAction(form: FormData) {
     "success",
     applied
       ? "Reserva anulada. Queda registrada en la auditoría."
-      : "La reserva empezó en un día anterior: la solicitud de anulación se envió al administrador para su aprobación.",
+      : "La solicitud de anulación se envió al administrador para su aprobación.",
   );
+}
+
+/** Qué hacer con los pagos de la reserva anulada; la base valida la acción, el destino y los permisos. */
+function cancelledPaymentsDecision(form: FormData) {
+  const action = z.enum(["void", "refund", "move", "retain"]).safeParse(form.get("payments_action"));
+  const moveTo = uuid.safeParse(form.get("payments_move_to"));
+  return {
+    payments_action: action.success ? action.data : undefined,
+    payments_move_to: action.success && action.data === "move" && moveTo.success ? moveTo.data : undefined,
+  };
+}
+
+/** Resolver los pagos que quedaron en una reserva ya anulada. */
+export async function settleCancelledPaymentsAction(form: FormData) {
+  const parsed = uuid.safeParse(form.get("reservation_id"));
+  if (!parsed.success) go("/lodging", "error", "Reserva inválida.");
+  const back = `/lodging/reservations/${parsed.data}`;
+  const payments = cancelledPaymentsDecision(form);
+  if (!payments.payments_action) go(back, "error", "Indica qué hacer con los pagos.");
+  const s = await createSupabaseServerClient();
+  const { error } = await s.rpc("lodging_cancelled_payments_settle", {
+    target_reservation: parsed.data,
+    payments_action: payments.payments_action!,
+    payments_move_to: payments.payments_move_to,
+    note: String(form.get("note") ?? "").trim().slice(0, 300),
+  });
+  if (error) go(back, "error", cancellationError(error));
+  revalidatePath("/lodging");
+  revalidatePath(back);
+  if (payments.payments_move_to) revalidatePath(`/lodging/reservations/${payments.payments_move_to}`);
+  go(back, "success", "Pagos resueltos. Queda registrado en la auditoría.");
 }
 
 export async function markNoShowAction(form: FormData) {

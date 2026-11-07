@@ -10,5 +10,10 @@ describe("pagos que cuentan como ingreso", () => {
   it("no cuenta los pagos de reservas anuladas o en conflicto", () => {
     expect(paymentCountsAsIncome({ status: "cancelled" })).toBe(false);
     expect(paymentCountsAsIncome([{ status: "conflict" }])).toBe(false);
+    expect(paymentCountsAsIncome({ status: "cancelled", payments_retained: false })).toBe(false);
+  });
+
+  it("cuenta los pagos retenidos de una reserva anulada", () => {
+    expect(paymentCountsAsIncome({ status: "cancelled", payments_retained: true })).toBe(true);
   });
 });

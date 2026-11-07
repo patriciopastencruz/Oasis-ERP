@@ -58,7 +58,7 @@ do $$ declare r jsonb; failed boolean := false;
 begin
   begin perform public.lodging_reservation_cancel_request('00000000-0000-4000-8000-0000000a3001','no'); exception when others then failed := sqlerrm like '%motivo%'; end;
   if not failed then raise exception 'Exige motivo'; end if;
-  r := public.lodging_reservation_cancel_request('00000000-0000-4000-8000-0000000a3001','El huésped canceló por teléfono');
+  r := public.lodging_reservation_cancel_request('00000000-0000-4000-8000-0000000a3001','El huésped canceló por teléfono','retain');
   if (r->>'applied')::boolean then raise exception 'Recepción no anula directo'; end if;
   if pg_temp.res_status('00000000-0000-4000-8000-0000000a3001') is distinct from 'confirmed' then raise exception 'La reserva sigue activa hasta aprobar'; end if;
   if (select paid_amount from public.lodging_reservation_cancellations where id=(r->>'id')::uuid) is distinct from 80::numeric then raise exception 'Guarda lo pagado'; end if;
