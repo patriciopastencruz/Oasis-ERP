@@ -96,8 +96,8 @@ export default async function Page({
               <b>Reserva simultánea</b>
               <span className="block text-slate-600">
                 Marca esta opción si la habitación ya tiene otra reserva en esas fechas y quieres cargar esta igual. Las dos
-                quedan en el calendario, una sobre otra, y cada una cuenta sus propios pagos y noches vendidas. Solo se admite
-                una reserva simultánea a la vez por habitación.
+                quedan en el calendario, una sobre otra, y cada una cuenta sus propios pagos y noches vendidas. Si la habitación
+                ya tiene un huésped con check-in, la reserva se carga sola como simultánea, sin marcar nada.
               </span>
             </span>
           </label>

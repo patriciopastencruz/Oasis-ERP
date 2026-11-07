@@ -230,9 +230,7 @@ export async function createReservationAction(form: FormData) {
       "/lodging/reservations/new",
       "error",
       conflict
-        ? parsed.data.allow_overlap === "on"
-          ? "La habitación ya tiene una reserva simultánea en esas fechas."
-          : "La habitación ya está reservada en esas fechas. Si corresponde, marca «Reserva simultánea» para cargarla igual."
+        ? "La habitación ya está reservada en esas fechas. Si corresponde, marca «Reserva simultánea» para cargarla igual."
         : error.message.includes("capacidad")
           ? error.message
           : "No fue posible crear la reserva.",
