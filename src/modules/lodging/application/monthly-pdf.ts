@@ -298,7 +298,7 @@ export async function buildMonthlyReportPdf(input: Input) {
     const others = ["booking", "company", "other"].reduce((s, k) => s + Number(by[k] ?? 0), 0);
     const methods = ["transfer", "cash", "card", "airbnb"].map((k) => ({ k, v: Number(by[k] ?? 0) })).concat([{ k: "others", v: others }]).filter((m) => m.v > 0);
     const mTotal = methods.reduce((s, m) => s + m.v, 0);
-    p.card(M + half + 10, top, half, h, "Ingresos por medio de pago", clp(Number(summary.lodging_income.total)));
+    p.card(M + half + 10, top, half, h, "Pagos contabilizados por medio (referencia)", clp(Number(summary.lodging_income.total)));
     const mx = M + half + 22, mw = half - 24;
     if (!mTotal) p.text("Sin pagos recibidos en el mes.", mx, top + 32, 8, R, C.ink2);
     let cur = mx;

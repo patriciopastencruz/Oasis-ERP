@@ -19,7 +19,27 @@ export type FinanceCategory = { id: string; section: FinanceSection; name: strin
 export type MonthlySummary = {
   period: string;
   days: number;
+  /** Pagos contabilizados en el mes (por fecha de pago): desde la venta por noches, solo referencia para conciliar. */
   lodging_income: { total: number; by_method: Record<string, number> };
+  /** Venta de las noches del mes según el monto de cada reserva. Ausente en cierres guardados antes de este dato. */
+  sales?: { total: number; nights: number; reservations: number };
+  /** Conciliación de la venta con los pagos. Ausente en cierres guardados antes de este dato. */
+  reconciliation?: {
+    /** Reservas con noches en el mes cuyo monto no coincide con lo pagado (pagos de cualquier fecha). */
+    mismatches: {
+      id: string;
+      room: string;
+      guest: string | null;
+      check_in: string;
+      check_out: string;
+      total_value: number;
+      paid: number;
+      difference: number;
+      postpaid_company: boolean;
+    }[];
+    /** Pagos del mes que quedaron en reservas anuladas: no cuentan y hay que anularlos o moverlos. */
+    cancelled_payments: { count: number; amount: number };
+  };
   commissions: { amount: number; category_id: string | null };
   daily_expenses: {
     category_id: string | null;
@@ -86,12 +106,18 @@ export function buildStatement(summary: MonthlySummary): StatementSection[] {
     g.items.push(item);
     g.total += Number(item.amount);
   };
-  add(group("lodging", "Venta hospedaje", "income", 0), {
-    kind: "auto",
-    label: "Pagos recibidos de reservas",
-    amount: Number(summary.lodging_income.total),
-    source: "reservas",
-  });
+  // Desde que existe la venta por noches, el ingreso es el monto de las reservas; los cierres guardados antes contaban los pagos.
+  add(
+    group("lodging", "Venta hospedaje", "income", 0),
+    summary.sales
+      ? {
+          kind: "auto",
+          label: `Venta de noches del mes (${summary.sales.nights} noches, ${summary.sales.reservations} reservas)`,
+          amount: Number(summary.sales.total),
+          source: "reservas",
+        }
+      : { kind: "auto", label: "Pagos recibidos de reservas", amount: Number(summary.lodging_income.total), source: "reservas" },
+  );
   if (Number(summary.commissions.amount) > 0) {
     const id = summary.commissions.category_id ?? "commissions";
     add(group(id, "Comisiones plataformas", "variable", order.get(id) ?? 10), {

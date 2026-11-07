@@ -4,6 +4,7 @@ import { PageHeader, Panel } from "@/components/ui/page";
 import { ConfirmButton } from "@/components/sales/confirm-button";
 import { MonthlyLineForm } from "@/components/lodging/monthly-line-form";
 import { MonthlyPreparationView } from "@/components/lodging/monthly-preparation";
+import { MonthlyReconciliation } from "@/components/lodging/monthly-reconciliation";
 import { lodgingContext } from "@/modules/lodging/application/queries";
 import { loadMonthly, loadPreparation } from "@/modules/lodging/application/monthly-queries";
 import {
@@ -160,6 +161,7 @@ export default async function MonthlyClosingPage({
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+        <div className="min-w-0 space-y-5">
         <Panel className="min-w-0">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold">Estado de resultados</h2>
@@ -187,7 +189,9 @@ export default async function MonthlyClosingPage({
             </table>
           </div>
           <p className="mt-3 text-xs text-slate-500">
-            Venta hospedaje = pagos recibidos en el mes.{" "}
+            {summary.sales
+              ? "Venta hospedaje = monto de las reservas por sus noches del mes (hasta hoy en el mes en curso), se haya pagado o no."
+              : "Venta hospedaje = pagos recibidos en el mes."}{" "}
             {summary.expenses_source === "declared" ? (
               <>
                 Los gastos del mes son los declarados en el módulo Gastos (los anulados no cuentan). Los gastos de cierres diarios ({clp(Number(summary.daily_reference?.amount ?? 0))}) son solo referencia
@@ -205,6 +209,8 @@ export default async function MonthlyClosingPage({
             )}
           </p>
         </Panel>
+        <MonthlyReconciliation summary={summary} />
+        </div>
 
         <div className="space-y-4">
           {canManage && !closing && (

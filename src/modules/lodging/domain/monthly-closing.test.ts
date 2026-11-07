@@ -31,6 +31,19 @@ const summary = (overrides: Partial<MonthlySummary> = {}): MonthlySummary => ({
 });
 
 describe("estado de resultados", () => {
+  it("el ingreso de hospedaje es la venta de noches del mes, no los pagos", () => {
+    const st = buildStatement(summary({ sales: { total: 1_200_000, nights: 40, reservations: 18 } }));
+    const lodging = st.find((s) => s.key === "income")!.groups[0];
+    expect(lodging.items).toEqual([
+      { kind: "auto", label: "Venta de noches del mes (40 noches, 18 reservas)", amount: 1_200_000, source: "reservas" },
+    ]);
+  });
+
+  it("un cierre guardado sin venta por noches sigue mostrando los pagos recibidos", () => {
+    const lodging = buildStatement(summary()).find((s) => s.key === "income")!.groups[0];
+    expect(lodging.items[0]).toMatchObject({ label: "Pagos recibidos de reservas", amount: 1_000_000 });
+  });
+
   it("agrupa automáticos y manuales por sección y categoría", () => {
     const st = buildStatement(summary());
     expect(st.map((s) => s.key)).toEqual(["income", "fixed", "variable", "investment", "withdrawal", "other"]);
