@@ -6,6 +6,7 @@ import { LodgingReportTabs } from "@/components/lodging/report-tabs";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
 import { rangeOperations } from "@/modules/lodging/domain/monthly-closing";
 import { averageStay, cancellationStats, futureOccupancy } from "@/modules/lodging/domain/report-indicators";
+import { paymentCountsAsIncome } from "@/modules/lodging/domain/payment-income";
 
 function todayInSantiago() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -90,7 +91,7 @@ export default async function Page({
         .gt("check_out", monthStartIso),
       supabase
         .from("lodging_reservation_payments")
-        .select("amount,type,status,paid_at,lodging_reservations(origin)")
+        .select("amount,type,status,paid_at,lodging_reservations(origin,status)")
         .eq("business_unit_id", unit.id)
         .eq("status", "confirmed")
         .gte("paid_at", `${addDays(monthStartIso, -1)}T00:00:00Z`)
@@ -176,7 +177,7 @@ export default async function Page({
   const byOrigin = new Map<string, number>();
   for (const p of payments ?? []) {
     const day = santiagoDateOf(p.paid_at);
-    if (day < monthStartIso || day > selectedIso) continue;
+    if (day < monthStartIso || day > selectedIso || !paymentCountsAsIncome(p.lodging_reservations)) continue;
     const signed = p.type === "refund" ? -Number(p.amount) : Number(p.amount);
     monthIncome += signed;
     if (day === selectedIso) selectedIncome += signed;

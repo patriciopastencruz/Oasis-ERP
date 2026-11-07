@@ -10,6 +10,7 @@ import {
   type MonthlySummary,
 } from "../domain/monthly-closing";
 import { serviceGaps } from "../domain/room-service";
+import { paymentCountsAsIncome } from "../domain/payment-income";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -51,7 +52,7 @@ export async function loadOperationsSource(supabase: Supabase, unitId: string, f
       .gt("check_out", from),
     supabase
       .from("lodging_reservation_payments")
-      .select("paid_at,amount,type,payment_method")
+      .select("paid_at,amount,type,payment_method,lodging_reservations(status)")
       .eq("business_unit_id", unitId)
       .eq("status", "confirmed")
       // Margen por la diferencia horaria; el filtro exacto es por fecha de Santiago.
@@ -74,7 +75,7 @@ export async function loadOperationsSource(supabase: Supabase, unitId: string, f
     // Todas las habitaciones activas; cuáles cuentan cada día lo decide `gaps`.
     rooms: rooms.data ?? [],
     reservations: (reservations.data ?? []).map((r) => ({ ...r, total_value: Number(r.total_value) })),
-    payments: (payments.data ?? []).map((p) => ({
+    payments: (payments.data ?? []).filter((p) => paymentCountsAsIncome(p.lodging_reservations)).map((p) => ({
       paid_at: p.paid_at,
       payment_method: p.payment_method,
       amount: p.type === "refund" ? -Number(p.amount) : Number(p.amount),
