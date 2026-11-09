@@ -17,7 +17,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 import { dispatchApprovalEmails } from "@/lib/notifications/approval-email";
-import { totalForStay } from "../domain/reservations";
+import { nights, totalForStay } from "../domain/reservations";
+import { santiagoToday } from "../domain/daily-closing";
 import { detectedMime } from "../domain/receipts";
 import { reviewAndSavePaymentReceipt } from "./receipt-ai-review";
 
@@ -112,6 +113,8 @@ const requestSchema = z.object({
 
 const RETURN_PATH = "/reservar/hostal-uruguay";
 
+const PUBLIC_MAX_NIGHTS = 30;
+
 export async function submitPublicLodgingRequestAction(form: FormData) {
   const parsed = requestSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) go(RETURN_PATH, "error", parsed.error.issues[0].message);
@@ -134,7 +137,7 @@ export async function submitPublicLodgingRequestAction(form: FormData) {
   const db = createSupabaseAdminClient();
   const { data: room } = await db
     .from("lodging_rooms")
-    .select("id,base_rate")
+    .select("id,base_rate,capacity")
     .eq("id", data.room_id)
     .eq("business_unit_id", unit.id)
     .eq("active", true)
@@ -157,6 +160,13 @@ export async function submitPublicLodgingRequestAction(form: FormData) {
     );
   }
   if (total <= 0) go(RETURN_PATH, "error", "El rango de fechas no es válido.");
+  // Sin estos topes, una solicitud anónima podía bloquear una pieza por años o con fechas pasadas.
+  if (data.check_in < santiagoToday())
+    go(RETURN_PATH, "error", "La llegada no puede ser anterior a hoy.");
+  if (nights(data.check_in, data.check_out) > PUBLIC_MAX_NIGHTS)
+    go(RETURN_PATH, "error", `Por la web se reservan hasta ${PUBLIC_MAX_NIGHTS} noches. Para estadías más largas, escríbenos.`);
+  if (room.capacity && data.guest_count > Number(room.capacity))
+    go(RETURN_PATH, "error", "La habitación no admite esa cantidad de huéspedes.");
 
   // La base permite que una reserva manual conviva con una importada por
   // iCal (lo usa el personal), pero un huésped que reserva por la web nunca

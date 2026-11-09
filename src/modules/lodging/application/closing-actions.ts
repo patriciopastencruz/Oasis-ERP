@@ -75,9 +75,13 @@ export async function saveClosingAction(form: FormData) {
 }
 
 async function emailClosing(id: string) {
-  const { unit, supabase } = await lodgingContext("lodging.closings.create");
+  const { ctx, supabase } = await lodgingContext("lodging.closings.create");
   const loaded = await loadClosing(supabase, id);
   if (!loaded) return { sent: false, message: "Cierre no encontrado." };
+  // El hostal sale del cierre, no del hostal elegido en la pantalla (otra pestaña pudo cambiarlo).
+  const unit = ctx.units.find((u) => u.id === loaded.closing.business_unit_id);
+  if (!unit) return { sent: false, message: "Cierre no encontrado." };
+  if (loaded.closing.status !== "issued") return { sent: false, message: "Solo se envía por correo un cierre emitido." };
   const { data: recipients, error } = await supabase.rpc("lodging_closing_email_recipients", {
     target_closing: id,
   });
