@@ -318,7 +318,7 @@ export async function updateReservationDatesAction(form: FormData) {
   });
   if (error) {
     const conflict =
-      error.code === "23P01" || /conflict|exclusion/i.test(error.message);
+      error.code === "23P01" || /conflict|exclusion|ya esta reservada/i.test(error.message);
     go(
       back,
       "error",
@@ -758,7 +758,9 @@ export async function checkInAction(form: FormData) {
         ? "No tienes autorización para forzar el check-in."
         : /motivo/i.test(error.message)
           ? "Indica el motivo del check-in forzado (mínimo 5 caracteres)."
-          : "No fue posible realizar el check-in.";
+          : /entre la fecha de llegada/i.test(error.message)
+            ? "El check-in se hace entre la fecha de llegada y la de salida."
+            : "No fue posible realizar el check-in.";
     go(`/lodging/reservations/${id}`, "error", message);
   }
   revalidatePath("/lodging");
@@ -832,12 +834,17 @@ export async function reassignReservationRoomAction(
     .eq("id", parsedReservationId.data);
   if (error) {
     const conflict =
-      error.code === "23P01" || /conflict|exclusion/i.test(error.message);
+      error.code === "23P01" ||
+      /conflict|exclusion|ya esta reservada/i.test(error.message);
     return {
       ok: false as const,
       message: conflict
         ? "La habitación ya está reservada en esas fechas."
-        : "No fue posible mover la reserva.",
+        : /cantidad de huespedes/i.test(error.message)
+          ? "La habitación no admite esa cantidad de huéspedes."
+          : /ya no se puede cambiar/i.test(error.message)
+            ? "La reserva ya no se puede cambiar de habitación."
+            : "No fue posible mover la reserva.",
     };
   }
   revalidatePath("/lodging");

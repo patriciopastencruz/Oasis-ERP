@@ -577,7 +577,10 @@ export default async function Page({
               </form>
             )}
           <div className="mt-5 flex flex-wrap gap-2">
-            {r.status === "confirmed" &&
+            {r.status === "confirmed" && (r.check_in > todaySantiago || r.check_out < todaySantiago) && (
+              <p className="text-sm text-slate-500">El check-in se hace entre la fecha de llegada y la de salida.</p>
+            )}
+            {r.status === "confirmed" && r.check_in <= todaySantiago && r.check_out >= todaySantiago &&
               (!needsInspection || room?.operational_status === "inspected" ? (
                 <form action={checkInAction}>
                   <input type="hidden" name="reservation_id" value={id} />

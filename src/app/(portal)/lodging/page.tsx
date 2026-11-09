@@ -49,7 +49,7 @@ export default async function Page() {
       !["cancelled", "conflict"].includes(r.status),
   );
   const sellableRooms = data.rooms.filter(
-    (r) => r.status !== "out_of_service" && r.status !== "maintenance",
+    (r) => r.active && r.status !== "out_of_service" && r.status !== "maintenance",
   ).length;
   // Cada reserva activa cuenta como una ocupación: si la persona que pagó no
   // llegó y la habitación se revendió (una reserva importada y otra manual

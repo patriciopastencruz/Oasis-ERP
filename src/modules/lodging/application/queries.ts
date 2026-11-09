@@ -68,15 +68,19 @@ export async function unitCalendarData(
         .from("lodging_rooms")
         .select("*")
         .eq("business_unit_id", unit.id)
-        .eq("active", true)
         .order("display_order"),
       calendarReservations(supabase, unit.id, from, to),
       // Circuito de aseo e inspección activo en el hostal (se puede desactivar por unidad).
       supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id }),
     ]);
+  // Una habitación desactivada sigue en el calendario mientras tenga reservas vigentes en el rango:
+  // si no, esas reservas desaparecían aunque siguieran válidas.
+  const withStays = new Set(
+    (reservations ?? []).filter((r) => !["cancelled", "conflict"].includes(r.status)).map((r) => r.room_id),
+  );
   return {
     housekeepingEnabled: housekeepingEnabled !== false,
-    rooms: rooms ?? [],
+    rooms: (rooms ?? []).filter((r) => r.active || withStays.has(r.id)),
     reservations: reservations ?? [],
   };
 }
