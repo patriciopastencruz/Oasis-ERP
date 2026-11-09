@@ -120,7 +120,9 @@ export function ReservationCancellation({
           {latest?.status === "approved" && latest.decider ? ` · Aprobada por ${latest.decider}${latest.decided_at ? ` el ${when(latest.decided_at)}` : ""}` : ""}
         </p>
         {paymentsRetained ? (
-          <p className="mt-1 text-sm font-semibold text-red-900">Pagos retenidos: {clp(totalPaid)} cuentan como ingreso.</p>
+          <p className="mt-1 text-sm font-semibold text-red-900">
+            {totalPaid > 0 ? `Pagos retenidos: ${clp(totalPaid)} cuentan como ingreso.` : "Pagos devueltos al huésped: la devolución quedó registrada."}
+          </p>
         ) : (
           totalPaid > 0 && (
             <>
@@ -162,6 +164,11 @@ export function ReservationCancellation({
               <input type="hidden" name="request_id" value={pending.id} />
               <input type="hidden" name="reservation_id" value={reservationId} />
               <input type="hidden" name="decision" value="approve" />
+              {totalPaid > 0 && !pending.payments_action && (
+                <div className="mb-2">
+                  <PaymentsDecision candidates={moveCandidates} canVoidPayments />
+                </div>
+              )}
               <input name="notes" maxLength={500} placeholder="Comentario (opcional)" className={`${field} mb-2 bg-white`} />
               <ConfirmButton message="¿Aprobar la anulación? La reserva quedará anulada y la fecha se libera." className="w-full rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white">
                 Aprobar anulación

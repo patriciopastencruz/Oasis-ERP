@@ -177,6 +177,17 @@ export default async function Page({
   const todaySantiago = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Santiago",
   }).format(new Date());
+  // Fecha y hora de ahora en Santiago para el pago: es el valor por defecto y el máximo (no se registran pagos futuros).
+  const santiagoNowLocal = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Santiago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .format(new Date())
+    .replace(" ", "T");
   const canManage = ctx.permissions.has("lodging.reservations.manage");
   // Fechas y precio siguen la misma regla (también en la base): reservas
   // directas no anuladas; con check-out, solo el administrador o superior.
@@ -659,6 +670,9 @@ export default async function Page({
       />
       <Panel className="mt-4">
         <h2 className="font-semibold">Registrar nuevo pago</h2>
+        {["cancelled", "conflict"].includes(r.status) ? (
+          <p className="mt-2 text-sm text-slate-500">La reserva está anulada: no se registran pagos nuevos. Si el dinero es de otra estadía, regístralo en esa reserva.</p>
+        ) : (
         <form
           action={registerPaymentAction}
           className="mt-4 grid gap-3 md:grid-cols-4"
@@ -698,6 +712,8 @@ export default async function Page({
             name="paid_at"
             type="datetime-local"
             required
+            defaultValue={santiagoNowLocal}
+            max={santiagoNowLocal}
             className={field}
           />
           <input
@@ -711,6 +727,7 @@ export default async function Page({
             Registrar pago
           </button>
         </form>
+        )}
         <div className="mt-6 space-y-3">
           {(payments ?? []).map((p) => (
             <div

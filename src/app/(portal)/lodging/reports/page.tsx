@@ -95,7 +95,7 @@ export default async function Page({
         .eq("business_unit_id", unit.id)
         .eq("status", "confirmed")
         .gte("paid_at", `${addDays(monthStartIso, -1)}T00:00:00Z`)
-        .lt("paid_at", `${addDays(selectedIso, 1)}T00:00:00Z`),
+        .lt("paid_at", `${addDays(selectedIso, 1)}T06:00:00Z`),
       // Reservas de los próximos 30 días desde hoy (independiente del día elegido).
       supabase
         .from("lodging_reservations")

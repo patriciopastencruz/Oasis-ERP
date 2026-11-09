@@ -23,6 +23,8 @@ export type MonthlySummary = {
   lodging_income: { total: number; by_method: Record<string, number> };
   /** Venta de las noches del mes según el monto de cada reserva. Ausente en cierres guardados antes de este dato. */
   sales?: { total: number; nights: number; reservations: number };
+  /** Pagos reales (retenidos o devueltos) de reservas anuladas, por su fecha de pago. Ausente en cierres guardados antes de este dato. */
+  retained?: { total: number; reservations: number };
   /** Conciliación de la venta con los pagos. Ausente en cierres guardados antes de este dato. */
   reconciliation?: {
     /** Reservas con noches en el mes cuyo monto no coincide con lo pagado (pagos de cualquier fecha). */
@@ -118,6 +120,14 @@ export function buildStatement(summary: MonthlySummary): StatementSection[] {
         }
       : { kind: "auto", label: "Pagos recibidos de reservas", amount: Number(summary.lodging_income.total), source: "reservas" },
   );
+  if (summary.sales && Number(summary.retained?.total ?? 0) !== 0) {
+    add(group("lodging", "Venta hospedaje", "income", 0), {
+      kind: "auto",
+      label: `Pagos retenidos de reservas anuladas (${summary.retained!.reservations})`,
+      amount: Number(summary.retained!.total),
+      source: "reservas",
+    });
+  }
   if (Number(summary.commissions.amount) > 0) {
     const id = summary.commissions.category_id ?? "commissions";
     add(group(id, "Comisiones plataformas", "variable", order.get(id) ?? 10), {

@@ -86,7 +86,7 @@ async function loadUnit(supabase: Supabase, unit: Unit, month: string, start: st
       .from("lodging_satisfaction_surveys")
       .select("created_at,cleanliness,comfort,staff,value_for_money")
       .eq("business_unit_id", unit.id)
-      .gte("created_at", `${start}T00:00:00-06:00`)
+      .gte("created_at", `${start}T00:00:00Z`)
       .lt("created_at", `${addDays(reference, 1)}T06:00:00Z`),
     // El puntaje de Booking es una lectura del momento: el bono, también el de un mes cerrado, usa el último registrado.
     supabase

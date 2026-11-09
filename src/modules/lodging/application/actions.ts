@@ -233,7 +233,9 @@ export async function createReservationAction(form: FormData) {
         ? "La habitación ya está reservada en esas fechas. Si corresponde, marca «Reserva simultánea» para cargarla igual."
         : error.message.includes("capacidad")
           ? error.message
-          : "No fue posible crear la reserva.",
+          : /fecha del pago|ya fue emitido/i.test(error.message)
+            ? paymentGuardError(error)
+            : "No fue posible crear la reserva.",
     );
   }
   // La hora de salida es solo informativa: si no se pudo guardar, la reserva
@@ -465,7 +467,7 @@ export async function registerPaymentAction(form: FormData) {
     go(
       `/lodging/reservations/${parsed.data.reservation_id}`,
       "error",
-      "No fue posible registrar el pago.",
+      paymentGuardError(error),
     );
   revalidatePath("/lodging");
   go(
@@ -473,6 +475,18 @@ export async function registerPaymentAction(form: FormData) {
     "success",
     "Pago registrado correctamente.",
   );
+}
+
+/** Mensajes del control de pagos de la base (lodging_payment_guard). */
+function paymentGuardError(error: { code?: string; message: string }) {
+  if (error.code === "P0001") {
+    if (/no puede ser futura/i.test(error.message)) return "La fecha del pago no puede ser futura.";
+    if (/ya fue emitido/i.test(error.message))
+      return "El cierre de ese día ya fue emitido: registra el pago con la fecha de hoy.";
+    if (/esta anulada/i.test(error.message)) return "La reserva está anulada: no se registran pagos nuevos.";
+    if (/mismo hostal/i.test(error.message)) return "El pago debe ser del mismo hostal que la reserva.";
+  }
+  return "No fue posible registrar el pago.";
 }
 
 export async function voidPaymentAction(form: FormData) {
@@ -1012,6 +1026,7 @@ export async function decideReservationCancellationAction(form: FormData) {
     go("/lodging", "error", "Solicitud inválida.");
   const back = `/lodging/reservations/${reservation.data}`;
   const approve = form.get("decision") === "approve";
+  const payments = approve ? cancelledPaymentsDecision(form) : {};
   const s = await createSupabaseServerClient();
   const { error } = await s.rpc("lodging_reservation_cancel_decide", {
     target_request: request.data,
@@ -1019,6 +1034,7 @@ export async function decideReservationCancellationAction(form: FormData) {
     notes: String(form.get("notes") ?? "")
       .trim()
       .slice(0, 500),
+    ...payments,
   });
   if (error) go(back, "error", cancellationError(error));
   revalidatePath("/lodging");

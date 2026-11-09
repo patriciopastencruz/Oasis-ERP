@@ -76,7 +76,7 @@ async function loadHostel(supabase: Supabase, unit: Unit, monthStart: string, re
       .from("lodging_satisfaction_surveys")
       .select("created_at,cleanliness,comfort,staff,value_for_money,recommend")
       .eq("business_unit_id", unit.id)
-      .gte("created_at", `${monthStart}T00:00:00-06:00`)
+      .gte("created_at", `${monthStart}T00:00:00Z`)
       .lt("created_at", `${dayAfter}T06:00:00Z`),
     supabase.from("lodging_bonus_config").select("survey_goal").eq("business_unit_id", unit.id).maybeSingle(),
   ]);

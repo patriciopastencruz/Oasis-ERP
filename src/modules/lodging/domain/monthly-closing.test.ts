@@ -39,6 +39,13 @@ describe("estado de resultados", () => {
     ]);
   });
 
+  it("suma los pagos retenidos de reservas anuladas a la venta hospedaje", () => {
+    const st = buildStatement(summary({ sales: { total: 1_200_000, nights: 40, reservations: 18 }, retained: { total: 14_220, reservations: 1 } }));
+    const lodging = st.find((s) => s.key === "income")!.groups[0];
+    expect(lodging.total).toBe(1_214_220);
+    expect(lodging.items[1]).toMatchObject({ label: "Pagos retenidos de reservas anuladas (1)", amount: 14_220 });
+  });
+
   it("un cierre guardado sin venta por noches sigue mostrando los pagos recibidos", () => {
     const lodging = buildStatement(summary()).find((s) => s.key === "income")!.groups[0];
     expect(lodging.items[0]).toMatchObject({ label: "Pagos recibidos de reservas", amount: 1_000_000 });

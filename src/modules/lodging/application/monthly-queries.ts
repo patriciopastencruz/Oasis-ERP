@@ -56,7 +56,7 @@ export async function loadOperationsSource(supabase: Supabase, unitId: string, f
       .eq("business_unit_id", unitId)
       .eq("status", "confirmed")
       // Margen por la diferencia horaria; el filtro exacto es por fecha de Santiago.
-      .gte("paid_at", `${from}T00:00:00-06:00`)
+      .gte("paid_at", `${from}T00:00:00Z`)
       .lt("paid_at", `${toExclusive}T06:00:00Z`),
     // Historial de salidas y regresos a servicio: una habitación solo deja de contar mientras estuvo fuera de servicio.
     supabase
