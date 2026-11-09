@@ -6,6 +6,7 @@ import {
   requirePermission,
   requireSession,
 } from "@/modules/platform/auth/application/session";
+import { santiagoToday } from "@/modules/lodging/domain/daily-closing";
 
 
 /** Acepta un permiso o una lista (basta con tener cualquiera de ellos). */
@@ -73,10 +74,16 @@ export async function unitCalendarData(
       // Circuito de aseo e inspección activo en el hostal (se puede desactivar por unidad).
       supabase.rpc("lodging_ops_housekeeping_enabled", { target_unit: unit.id }),
     ]);
-  // Una habitación desactivada sigue en el calendario mientras tenga reservas vigentes en el rango:
-  // si no, esas reservas desaparecían aunque siguieran válidas.
+  // Una habitación desactivada sigue en el calendario solo mientras tenga reservas que aún no terminan:
+  // si no, esas reservas desaparecían aunque siguieran válidas. Las estadías pasadas no la mantienen visible.
+  const today = santiagoToday();
   const withStays = new Set(
-    (reservations ?? []).filter((r) => !["cancelled", "conflict"].includes(r.status)).map((r) => r.room_id),
+    (reservations ?? [])
+      .filter(
+        (r) =>
+          !["cancelled", "conflict", "checked_out"].includes(r.status) && r.check_out > today,
+      )
+      .map((r) => r.room_id),
   );
   return {
     housekeepingEnabled: housekeepingEnabled !== false,
