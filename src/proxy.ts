@@ -26,6 +26,10 @@ const PUBLIC = [
   // Planos y modelos 3D estáticos para compartir (archivos en public/planos/,
   // sin datos de la empresa).
   "/planos",
+  // Páginas compartidas de Oasis Modulares (archivo .html subido desde el ERP,
+  // ver src/app/(public)/p/[slug]/route.ts). Con barra final para no abarcar
+  // otras rutas que empiecen con "p".
+  "/p/",
   // Manifiesto de la PWA "Oasis Operaciones": el navegador lo pide sin sesión.
   "/manifest.webmanifest",
   // Manifiesto de la app "Oasis Hostales" (la página /hostales sí pide sesión).

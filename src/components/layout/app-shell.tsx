@@ -39,6 +39,7 @@ import {
   CalendarRange,
   Gauge,
   FileText,
+  Link2,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
@@ -328,6 +329,12 @@ const commercialManagementNav = [
     label: "Catálogo de productos",
     icon: Tags,
     permission: "sales.quotations.approve",
+  },
+  {
+    href: "/sales/shared-pages",
+    label: "Páginas compartidas",
+    icon: Link2,
+    permission: "sales.quotations.create",
   },
 ];
 

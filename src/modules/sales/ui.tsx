@@ -26,6 +26,7 @@ export function QuotationTabs({ canApprove }: { canApprove: boolean }) {
     ["/sales/quotations", "Cotizaciones"],
     ["/sales/quotations/new", "Nueva cotización"],
     ...(canApprove ? [["/sales/quotations/approvals", "Aprobaciones"]] : []),
+    ["/sales/shared-pages", "Páginas compartidas"],
   ] as const;
   return (
     <nav className="mb-6 flex flex-wrap gap-2 text-sm">
