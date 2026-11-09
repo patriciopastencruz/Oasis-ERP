@@ -169,4 +169,22 @@ describe("revisión IA de comprobantes", () => {
       issue: null,
     });
   });
+  it("no dice que coincide si otro cobro confirmado no tiene comprobante", () => {
+    const receipt = {
+      id: "a",
+      deleted_at: null,
+      ai_review_status: "matched" as const,
+      ai_detected_amount: 50_000,
+      ai_confidence: 0.95,
+      ai_notes: null,
+    };
+    const payments: ReceiptPaymentRow[] = [
+      { amount: 50_000, type: "deposit", status: "confirmed", payment_method: "transfer", lodging_payment_receipts: [receipt] },
+      { amount: 70_000, type: "total", status: "confirmed", payment_method: "transfer", lodging_payment_receipts: [] },
+      { amount: 30_000, type: "total", status: "voided", payment_method: "transfer", lodging_payment_receipts: [] },
+      { amount: 20_000, type: "total", status: "confirmed", payment_method: "airbnb", lodging_payment_receipts: [] },
+    ];
+    expect(summarizeReceiptReviews(payments).status).toBe("missing");
+    expect(summarizeReceiptReviews(payments.filter((p) => p.amount !== 70_000)).status).toBe("matched");
+  });
 });

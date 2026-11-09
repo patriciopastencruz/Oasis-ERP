@@ -87,6 +87,7 @@ export default async function Page({
         .select("room_id,check_in,check_out,total_value")
         .eq("business_unit_id", unit.id)
         .not("status", "in", '("cancelled","conflict")')
+        .neq("origin", "maintenance")
         .lt("check_in", addDays(selectedIso, 1))
         .gt("check_out", monthStartIso),
       supabase
@@ -102,6 +103,7 @@ export default async function Page({
         .select("room_id,check_in,check_out")
         .eq("business_unit_id", unit.id)
         .not("status", "in", '("cancelled","conflict")')
+        .neq("origin", "maintenance")
         .lt("check_in", addDays(todayIso, 30))
         .gt("check_out", todayIso),
       // Todas las reservas del mes (también canceladas) y sus vecinas, para
@@ -110,6 +112,7 @@ export default async function Page({
         .from("lodging_reservations")
         .select("room_id,check_in,check_out,status,origin,total_value")
         .eq("business_unit_id", unit.id)
+        .neq("origin", "maintenance")
         .gt("check_out", addDays(monthStartIso, -7))
         .lte("check_in", addDays(selectedIso, 60)),
     ]);

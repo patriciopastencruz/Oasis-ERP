@@ -19,6 +19,7 @@ function friendly(error: { message?: string } | null) {
   console.error("[lodging-monthly]", message);
   if (/ya esta cerrado/i.test(message)) return "El mes ya está cerrado. Reábrelo para modificarlo.";
   if (/mes futuro/i.test(message)) return "No se puede preparar un mes futuro.";
+  if (/todavia no termina/i.test(message)) return "El mes todavía no termina: se cierra a partir del día 1 del mes siguiente.";
   if (/categoria/i.test(message)) return "Revisa la categoría seleccionada.";
   if (/descripcion|monto/i.test(message)) return "Revisa la descripción y el monto.";
   if (/motivo/i.test(message)) return "Indica el motivo.";

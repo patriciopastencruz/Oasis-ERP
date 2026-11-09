@@ -17,6 +17,8 @@ import {
 import { clp, pct, santiagoToday } from "@/modules/lodging/domain/daily-closing";
 import {
   breakEven,
+  comparablePreviousTotals,
+  costPerNight,
   buildStatement,
   monthLabel,
   monthlyConclusions,
@@ -84,7 +86,8 @@ export default async function MonthlyClosingPage({
   const editing = summary.lines.find((l) => l.id === q.edit);
   const be = breakEven(summary, ops);
   const conclusions = monthlyConclusions(summary, ops, previous, statement);
-  const prevTotals = previous.summary?.totals;
+  const prevTotals = comparablePreviousTotals(summary, ops, previous);
+  const perNight = costPerNight(summary, ops);
   const field = "mt-1 w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-2 text-sm";
 
   return (
@@ -152,7 +155,7 @@ export default async function MonthlyClosingPage({
         <Kpi label="Ocupación" value={pct(ops.occupancy * 100)} hint={`${ops.nightsSold} noches vendidas · ${ops.totalRooms} hab.`} />
         <Kpi label="Venta promedio (ADR)" value={clp(ops.adr)} delta={percentChange(ops.adr, previous.ops?.adr)} />
         <Kpi label="RevPAR" value={clp(ops.revpar)} delta={percentChange(ops.revpar, previous.ops?.revpar)} />
-        <Kpi label="Costo por noche" value={ops.nightsSold ? clp(Number(t.costs) / ops.nightsSold) : "—"} hint="Fijos + variables / noches" />
+        <Kpi label="Costo por noche" value={perNight === null ? "—" : clp(perNight)} hint="Fijos del período + variables / noches" />
         <Kpi
           label="Punto de equilibrio"
           value={be.occupancy === null ? "—" : pct(be.occupancy * 100)}
@@ -240,7 +243,13 @@ export default async function MonthlyClosingPage({
               ))}
             </ul>
           </Panel>
-          {canClose && closing?.status === "draft" && (
+          {canClose && closing?.status === "draft" && month >= currentMonth && (
+            <Panel>
+              <h2 className="font-semibold">Cerrar el mes</h2>
+              <p className="mt-1 text-sm text-slate-500">El mes se cierra cuando termina: hasta entonces la venta llega solo hasta hoy.</p>
+            </Panel>
+          )}
+          {canClose && closing?.status === "draft" && month < currentMonth && (
             <Panel>
               <h2 className="font-semibold">Cerrar el mes</h2>
               <p className="mt-1 text-sm text-slate-500">

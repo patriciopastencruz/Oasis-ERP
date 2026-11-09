@@ -42,11 +42,12 @@ export default async function Page() {
     data.unit.id,
     today,
   ).catch(() => null);
-  const todayReservations = data.reservations.filter(
-    (r) =>
-      r.check_in <= today &&
-      r.check_out > today &&
-      !["cancelled", "conflict"].includes(r.status),
+  // Igual que el cierre: sin anuladas, en conflicto ni bloqueos de mantención.
+  const activeReservations = data.reservations.filter(
+    (r) => !["cancelled", "conflict"].includes(r.status) && r.origin !== "maintenance",
+  );
+  const todayReservations = activeReservations.filter(
+    (r) => r.check_in <= today && r.check_out > today,
   );
   const sellableRooms = data.rooms.filter(
     (r) => r.active && r.status !== "out_of_service" && r.status !== "maintenance",
@@ -91,12 +92,12 @@ export default async function Page() {
     ["Reservas sin precio", reservationsWithoutPrice, Tag],
     [
       "Llegadas de hoy",
-      data.reservations.filter((r) => r.check_in === today).length,
+      activeReservations.filter((r) => r.check_in === today).length,
       LogIn,
     ],
     [
       "Salidas de hoy",
-      data.reservations.filter((r) => r.check_out === today).length,
+      activeReservations.filter((r) => r.check_out === today).length,
       LogOut,
     ],
     [

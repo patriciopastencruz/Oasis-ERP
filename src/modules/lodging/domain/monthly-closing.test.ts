@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   breakEven,
   buildStatement,
+  comparablePreviousTotals,
+  costPerNight,
+  elapsedShare,
   monthOperations,
   monthlyConclusions,
   previousMonth,
@@ -167,6 +170,23 @@ describe("operación del mes", () => {
     const lines = monthlyConclusions(s, ops, { summary: summary({ totals: { ...s.totals, profit: 400_000 } }), ops: null }, buildStatement(s));
     expect(lines[0]).toContain("+30,0% frente a junio");
     expect(lines.at(-1)).toContain("1 pago(s) pendiente(s)");
+  });
+
+  it("en el mes en curso compara los costos fijos en la proporción de días transcurridos", () => {
+    const partial = monthOperations("2026-07", rooms, reservations, payments, "2026-07-10");
+    const s = summary();
+    expect(elapsedShare(s, partial)).toBeCloseTo(10 / 31);
+    expect(breakEven(s, partial).nights).toBeCloseTo((300_000 * 10) / 31 / (partial.adr * 0.92));
+    expect(costPerNight(s, partial)).toBeCloseTo((300_000 * (10 / 31) + 80_000) / partial.nightsSold);
+    expect(elapsedShare(s, ops)).toBe(1);
+  });
+
+  it("no compara ingreso y utilidad con un mes parcial ni entre criterios distintos", () => {
+    const s = summary({ sales: { total: 1_000_000, nights: 40, reservations: 10 } });
+    const partial = monthOperations("2026-07", rooms, reservations, payments, "2026-07-10");
+    expect(comparablePreviousTotals(s, partial, { summary: summary({ sales: s.sales }) })).toBeNull();
+    expect(comparablePreviousTotals(s, ops, { summary: summary() })).toBeNull();
+    expect(comparablePreviousTotals(s, ops, { summary: summary({ sales: s.sales }) })).not.toBeNull();
   });
 });
 

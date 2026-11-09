@@ -24,7 +24,7 @@ function friendly(error: { message?: string } | null) {
   if (/hoy o el dia anterior/i.test(message))
     return "Solo puedes cerrar el día de hoy o el día anterior. Pide a administración cerrar fechas más antiguas.";
   if (/ya fue emitido/i.test(message))
-    return "Este cierre ya fue emitido. Solo administración puede corregirlo.";
+    return "Este cierre ya fue emitido. Para corregirlo, ábrelo, guarda los cambios y vuelve a emitirlo.";
   if (/fecha futura/i.test(message)) return "No se puede cerrar una fecha futura.";
   if (/gasto|monto|descripcion/i.test(message))
     return "Revisa los gastos: cada uno necesita categoría, descripción y un monto mayor a cero.";

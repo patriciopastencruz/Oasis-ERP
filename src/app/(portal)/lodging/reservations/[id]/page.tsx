@@ -178,6 +178,7 @@ export default async function Page({
     timeZone: "America/Santiago",
   }).format(new Date());
   // Fecha y hora de ahora en Santiago para el pago: es el valor por defecto y el máximo (no se registran pagos futuros).
+  const paymentStatusLabel: Record<string, string> = { voided: "Anulado", refunded: "Devuelto", pending: "Pendiente" };
   const santiagoNowLocal = new Intl.DateTimeFormat("sv-SE", {
     timeZone: "America/Santiago",
     year: "numeric",
@@ -737,11 +738,16 @@ export default async function Page({
               key={p.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 text-sm"
             >
-              <div>
-                <b>{clp.format(Number(p.amount))}</b>
+              <div className={p.status === "confirmed" ? "" : "opacity-60"}>
+                <b className={p.status === "voided" ? "line-through" : ""}>{clp.format(Number(p.amount))}</b>
                 <span className="ml-2 capitalize text-slate-500">
                   {uiLabel(p.type)} · {uiLabel(p.payment_method)}
                 </span>
+                {p.status !== "confirmed" && (
+                  <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                    {paymentStatusLabel[p.status] ?? p.status}
+                  </span>
+                )}
                 <span className="block text-xs text-slate-400">
                   {new Intl.DateTimeFormat("es-CL", {
                     timeZone: "America/Santiago",
@@ -803,6 +809,7 @@ export default async function Page({
                       </div>
                     ),
                   )}
+                {p.status === "confirmed" && (
                 <form
                   action={uploadPaymentReceiptAction}
                   className="flex items-center gap-2"
@@ -826,6 +833,7 @@ export default async function Page({
                     Adjuntar
                   </button>
                 </form>
+                )}
                 {ctx.permissions.has("lodging.payments.void") &&
                   p.status === "confirmed" && (
                     <form

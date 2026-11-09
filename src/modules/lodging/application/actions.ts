@@ -448,6 +448,12 @@ export async function registerPaymentAction(form: FormData) {
     target_reservation: parsed.data.reservation_id,
   });
   const balance = Number(current?.[0]?.balance ?? 0);
+  if (parsed.data.type === "refund" && parsed.data.amount > Number(current?.[0]?.total_paid ?? 0))
+    go(
+      `/lodging/reservations/${parsed.data.reservation_id}`,
+      "error",
+      "La devolución no puede superar lo pagado.",
+    );
   if (
     parsed.data.type !== "refund" &&
     parsed.data.amount > balance &&
@@ -485,6 +491,7 @@ function paymentGuardError(error: { code?: string; message: string }) {
       return "El cierre de ese día ya fue emitido: registra el pago con la fecha de hoy.";
     if (/esta anulada/i.test(error.message)) return "La reserva está anulada: no se registran pagos nuevos.";
     if (/mismo hostal/i.test(error.message)) return "El pago debe ser del mismo hostal que la reserva.";
+    if (/superar lo pagado/i.test(error.message)) return "La devolución no puede superar lo pagado.";
   }
   return "No fue posible registrar el pago.";
 }
@@ -495,7 +502,7 @@ export async function voidPaymentAction(form: FormData) {
   const reservationId = uuid.parse(form.get("reservation_id"));
   const reason = text.min(3).max(300).parse(form.get("void_reason"));
   const s = await createSupabaseServerClient();
-  const { error } = await s
+  const { data, error } = await s
     .from("lodging_reservation_payments")
     .update({
       status: "voided",
@@ -504,8 +511,10 @@ export async function voidPaymentAction(form: FormData) {
       void_reason: reason,
     })
     .eq("id", paymentId)
-    .eq("status", "confirmed");
-  if (error)
+    .eq("status", "confirmed")
+    .select("id");
+  // Sin filas no se anuló nada (ya estaba anulado o no es de este hostal): no se informa éxito.
+  if (error || !data?.length)
     go(
       `/lodging/reservations/${reservationId}`,
       "error",

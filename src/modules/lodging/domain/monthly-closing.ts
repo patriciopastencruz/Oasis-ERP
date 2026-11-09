@@ -371,11 +371,40 @@ export type MonthOperations = ReturnType<typeof monthOperations>;
 export type RangeOperations = ReturnType<typeof rangeOperations>;
 
 /** Punto de equilibrio: noches y ocupación necesarias para cubrir los costos fijos. */
+/**
+ * Parte del mes ya transcurrida (1 en un mes terminado). En el mes en curso la venta y la capacidad llegan hasta
+ * hoy, mientras los costos fijos son del mes completo: se comparan en la misma proporción.
+ */
+export function elapsedShare(summary: MonthlySummary, ops: MonthOperations) {
+  const days = Number(summary.days) || ops.elapsedDays;
+  return days ? Math.min(1, ops.elapsedDays / days) : 1;
+}
+
+/** Costo por noche vendida: costos fijos del período transcurrido más variables, sobre las noches vendidas. */
+export function costPerNight(summary: MonthlySummary, ops: MonthOperations) {
+  if (!ops.nightsSold) return null;
+  return (Number(summary.totals.fixed) * elapsedShare(summary, ops) + Number(summary.totals.variable)) / ops.nightsSold;
+}
+
+/**
+ * Totales del mes anterior para comparar ingreso y utilidad, o null si la comparación engaña: el mes en curso
+ * (parcial) contra uno completo, o un mes cerrado antes de que el ingreso fuera la venta por noches (sin `sales`).
+ */
+export function comparablePreviousTotals(
+  summary: MonthlySummary,
+  ops: MonthOperations,
+  previous: { summary: MonthlySummary | null },
+) {
+  if (!previous.summary || elapsedShare(summary, ops) < 1) return null;
+  if (Boolean(previous.summary.sales) !== Boolean(summary.sales)) return null;
+  return previous.summary.totals;
+}
+
 export function breakEven(summary: MonthlySummary, ops: MonthOperations) {
   const income = Number(summary.totals.income);
   const variableRate = income ? Number(summary.totals.variable) / income : 0;
   const contribution = ops.adr * (1 - variableRate);
-  const nights = contribution > 0 ? Number(summary.totals.fixed) / contribution : null;
+  const nights = contribution > 0 ? (Number(summary.totals.fixed) * elapsedShare(summary, ops)) / contribution : null;
   const capacity = ops.roomNights;
   return { nights, occupancy: nights !== null && capacity ? nights / capacity : null };
 }
@@ -394,7 +423,8 @@ export function monthlyConclusions(
   const t = summary.totals;
   const income = Number(t.income);
   const margin = income ? (Number(t.profit) / income) * 100 : 0;
-  const profitChange = change(Number(t.profit), previous.summary ? Number(previous.summary.totals.profit) : null);
+  const prevTotals = comparablePreviousTotals(summary, ops, previous);
+  const profitChange = change(Number(t.profit), prevTotals ? Number(prevTotals.profit) : null);
   out.push(
     `La utilidad fue ${clp(t.profit)} (margen ${pct(margin)})${
       profitChange === null ? "" : `, ${profitChange >= 0 ? "+" : ""}${pct(profitChange)} frente a ${monthName(previousMonth(ops.month))}`

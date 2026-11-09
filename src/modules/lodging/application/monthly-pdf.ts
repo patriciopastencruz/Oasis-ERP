@@ -8,6 +8,8 @@ import {
   monthName,
   monthlyConclusions,
   percentChange,
+  comparablePreviousTotals,
+  costPerNight,
   previousMonth,
   type MonthOperations,
   type RangeOperations,
@@ -116,7 +118,8 @@ export async function buildMonthlyReportPdf(input: Input) {
   const statement = buildStatement(summary);
   const t = summary.totals;
   const income = Number(t.income);
-  const prevT = previous.summary?.totals ?? null;
+  const prevT = comparablePreviousTotals(summary, ops, previous);
+  const perNight = costPerNight(summary, ops);
   const prevName = monthName(previousMonth(month));
   const be = breakEven(summary, ops);
   const share = (v: number) => (income ? pct((v / income) * 100) : "-");
@@ -182,7 +185,7 @@ export async function buildMonthlyReportPdf(input: Input) {
       { label: "Ocupación", value: pct(ops.occupancy * 100, 0), delta: [previous.ops ? (ops.occupancy - previous.ops.occupancy) * 100 : null, `vs ${prevName}`, " pts"] },
       { label: "Venta prom. (ADR)", value: clp(ops.adr), delta: [percentChange(ops.adr, previous.ops?.adr), `vs ${prevName}`] },
       { label: "RevPAR", value: clp(ops.revpar), delta: [percentChange(ops.revpar, previous.ops?.revpar), `vs ${prevName}`] },
-      { label: "Costo por noche", value: ops.nightsSold ? clp(Number(t.costs) / ops.nightsSold) : "-", hint: ops.nightsSold ? `Utilidad por noche ${clp(Number(t.profit) / ops.nightsSold)}` : undefined },
+      { label: "Costo por noche", value: perNight === null ? "-" : clp(perNight), hint: ops.nightsSold ? `Utilidad por noche ${clp(Number(t.profit) / ops.nightsSold)}` : undefined },
       { label: "Punto de equilibrio", value: be.occupancy === null ? "-" : pct(be.occupancy * 100, 0), hint: be.nights === null ? "Sin ventas para calcular" : `${Math.ceil(be.nights)} noches mínimas` },
     ]);
 
@@ -230,7 +233,7 @@ export async function buildMonthlyReportPdf(input: Input) {
     p.text("Costo fijo", M + 24, ly - 1, 6.5, R, C.muted);
     p.round(M + 72, ly, 8, 6, 2, sectionColor.variable);
     p.text("Costo variable", M + 84, ly - 1, 6.5, R, C.muted);
-    footer(p, 1, "Ingresos = pagos recibidos en el mes");
+    footer(p, 1, summary.sales ? "Ingresos = venta de las noches del mes según el monto de las reservas" : "Ingresos = pagos recibidos en el mes");
   }
 
   // ======================= Página 2: ocupación y ventas =======================
@@ -323,7 +326,7 @@ export async function buildMonthlyReportPdf(input: Input) {
       p.card(M, top, W - 2 * M, rh, "Rentabilidad por noche y punto de equilibrio");
       const cols: [string, string, string][] = [
         ["Venta por noche (ADR)", clp(ops.adr), "lo que se cobra en promedio"],
-        ["Costo por noche vendida", ops.nightsSold ? clp(Number(t.costs) / ops.nightsSold) : "-", "fijos + variables / noches"],
+        ["Costo por noche vendida", perNight === null ? "-" : clp(perNight), "fijos del período + variables / noches"],
         ["Utilidad por noche", ops.nightsSold ? clp(Number(t.profit) / ops.nightsSold) : "-", "después de inversión"],
         ["Ocupación mínima", be.occupancy === null ? "-" : pct(be.occupancy * 100, 0), be.nights === null ? "" : `${Math.ceil(be.nights)} noches para cubrir costos`],
       ];

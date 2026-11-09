@@ -48,6 +48,8 @@ export type ReceiptPaymentRow = {
   amount: number | string;
   type: string;
   status: string;
+  /** Sin el medio no se puede saber si falta comprobante (Airbnb no tiene); si no viene, no se exige. */
+  payment_method?: string | null;
   lodging_payment_receipts: ReceiptReviewRow[] | ReceiptReviewRow | null;
 };
 
@@ -102,20 +104,27 @@ function reviewPayment(
   };
 }
 
+const receiptsOf = (payment: ReceiptPaymentRow) =>
+  (Array.isArray(payment.lodging_payment_receipts)
+    ? payment.lodging_payment_receipts
+    : payment.lodging_payment_receipts
+      ? [payment.lodging_payment_receipts]
+      : []
+  ).filter((receipt) => !receipt.deleted_at);
+
 export function summarizeReceiptReviews(payments: ReceiptPaymentRow[]) {
-  const results = payments
-    .filter((payment) => payment.status !== "voided")
-    .map((payment) => {
-      const nested = Array.isArray(payment.lodging_payment_receipts)
-        ? payment.lodging_payment_receipts
-        : payment.lodging_payment_receipts
-          ? [payment.lodging_payment_receipts]
-          : [];
-      return reviewPayment(
-        Number(payment.amount),
-        nested.filter((receipt) => !receipt.deleted_at),
-      );
-    })
+  // Solo los pagos confirmados: los anulados, devueltos o pendientes no se respaldan.
+  const confirmed = payments.filter((payment) => payment.status === "confirmed");
+  // Un cobro confirmado sin comprobante (salvo Airbnb, que no tiene) impide decir que todo coincide.
+  const unbacked = confirmed.filter(
+    (payment) =>
+      payment.type !== "refund" &&
+      payment.payment_method != null &&
+      payment.payment_method !== "airbnb" &&
+      receiptsOf(payment).length === 0,
+  ).length;
+  const results = confirmed
+    .map((payment) => reviewPayment(Number(payment.amount), receiptsOf(payment)))
     .filter((result) => result.receiptCount > 0);
 
   if (!results.length)
@@ -138,7 +147,7 @@ export function summarizeReceiptReviews(payments: ReceiptPaymentRow[]) {
   const issue = results.find((result) => result.status === status) ?? null;
 
   return {
-    status,
+    status: status === "matched" && unbacked > 0 ? ("missing" as const) : status,
     receiptCount: results.reduce((sum, result) => sum + result.receiptCount, 0),
     issue,
   };
