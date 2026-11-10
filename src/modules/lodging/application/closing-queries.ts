@@ -103,18 +103,26 @@ export async function findClosingId(supabase: Supabase, unitId: string, date: st
   return data?.id as string | undefined;
 }
 
-/** Categorías habilitadas para los gastos del cierre diario. */
-export async function dailyExpenseCategories(supabase: Supabase, unitId: string) {
+/** Gastos ingresados en el módulo Gastos para el día (no anulados): son los que cuenta el cierre diario. */
+export async function declaredDayExpenses(supabase: Supabase, unitId: string, date: string) {
   const { data, error } = await supabase
-    .from("lodging_finance_categories")
-    .select("id,name,section")
+    .from("lodging_expenses")
+    .select("id,description,amount,payment_method,lodging_finance_categories(name)")
     .eq("business_unit_id", unitId)
-    .eq("active", true)
-    .eq("allow_daily", true)
-    .order("sort_order")
-    .order("name");
+    .eq("expense_date", date)
+    .is("voided_at", null)
+    .order("created_at");
   if (error) throw error;
-  return (data ?? []) as { id: string; name: string; section: string }[];
+  return (data ?? []).map((e) => {
+    const category = Array.isArray(e.lodging_finance_categories) ? e.lodging_finance_categories[0] : e.lodging_finance_categories;
+    return {
+      id: e.id as string,
+      description: e.description as string,
+      amount: Number(e.amount),
+      payment_method: e.payment_method as string,
+      category: (category?.name as string | undefined) ?? null,
+    };
+  });
 }
 
 export async function liveMetrics(supabase: Supabase, unitId: string, date: string) {

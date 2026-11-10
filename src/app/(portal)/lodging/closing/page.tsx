@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { PageHeader, Panel } from "@/components/ui/page";
-import { ClosingExpenses } from "@/components/lodging/closing-expenses";
 import { lodgingContext } from "@/modules/lodging/application/queries";
 import {
-  dailyExpenseCategories,
+  declaredDayExpenses,
   findClosingId,
   listRecentClosings,
   liveMetrics,
@@ -22,6 +21,7 @@ import {
   santiagoToday,
   defaultClosingDate,
 } from "@/modules/lodging/domain/daily-closing";
+import { expensePaymentLabels } from "@/modules/lodging/domain/expenses";
 
 export default async function DailyClosingPage({
   searchParams,
@@ -44,11 +44,12 @@ export default async function DailyClosingPage({
 
   const existingId = await findClosingId(supabase, unit.id, date);
   const existing = existingId ? await loadClosing(supabase, existingId) : null;
-  const [metrics, recent, expenseCategories] = await Promise.all([
+  const [metrics, recent, dayExpenses] = await Promise.all([
     liveMetrics(supabase, unit.id, date),
     listRecentClosings(supabase, unit.id, 10),
-    dailyExpenseCategories(supabase, unit.id),
+    declaredDayExpenses(supabase, unit.id, date),
   ]);
+  const dayExpenseTotal = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
   const textarea =
     "mt-1 w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#0b4f9c]";
   const indicators: [string, string][] = [
@@ -71,7 +72,7 @@ export default async function DailyClosingPage({
       <PageHeader
         eyebrow={unit.name}
         title="Cierre diario"
-        description="Los indicadores se calculan solos con las reservas y los pagos recibidos en el día. Solo agrega los gastos y las observaciones, previsualiza y genera el PDF."
+        description="Los indicadores se calculan solos con las reservas y los pagos recibidos en el día. Los gastos son los que se ingresan en el módulo Gastos. Solo agrega las observaciones, previsualiza y genera el PDF."
       />
       <nav className="mb-5 flex flex-wrap gap-2 text-sm">
         <span className="rounded-full border border-[#0b4f9c] bg-[#0b4f9c] px-3 py-1.5 font-medium text-white">Cierre diario</span>
@@ -196,8 +197,43 @@ export default async function DailyClosingPage({
           </Panel>
 
           <Panel>
-            <h2 className="mb-3 font-semibold">Gastos del día</h2>
-            <ClosingExpenses initial={existing?.expenses ?? []} categories={expenseCategories} />
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-semibold">Gastos del día</h2>
+              <Link href={`/lodging/expenses?month=${date.slice(0, 7)}`} className="text-sm font-semibold text-[#0b4f9c]">
+                Ingresar un gasto
+              </Link>
+            </div>
+            {dayExpenses.length === 0 ? (
+              <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">
+                Sin gastos ingresados en el módulo Gastos para el {formatClosingDate(date)}.
+              </p>
+            ) : (
+              <ul className="divide-y text-sm">
+                {dayExpenses.map((e) => (
+                  <li key={e.id} className="flex items-start justify-between gap-3 py-2">
+                    <span>
+                      {e.description}
+                      <span className="block text-xs text-slate-500">
+                        {[e.category, expensePaymentLabels[e.payment_method as keyof typeof expensePaymentLabels] ?? e.payment_method]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </span>
+                    <span className="font-semibold tabular-nums">{clp(e.amount)}</span>
+                  </li>
+                ))}
+                <li className="flex justify-between gap-3 pt-2 font-semibold">
+                  <span>Gasto total</span>
+                  <span className="tabular-nums">{clp(dayExpenseTotal)}</span>
+                </li>
+              </ul>
+            )}
+            {existing && Math.round(existing.closing.expense_total) !== dayExpenseTotal && dayExpenses.length > 0 && (
+              <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+                Los gastos ingresados cambiaron desde que se guardó este cierre. Guarda de nuevo
+                {existing.closing.status === "issued" ? " y emítelo otra vez" : ""} para que el cierre los incluya.
+              </p>
+            )}
           </Panel>
 
           <Panel className="space-y-3">

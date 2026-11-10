@@ -84,3 +84,26 @@ describe("Hostal Oasis Cobija", () => {
     expect(sql).toContain("public.has_permission('lodging.closings.create')");
   });
 });
+
+describe("el cierre diario toma los gastos del módulo Gastos", () => {
+  const declared = readFileSync(
+    resolve(process.cwd(), "supabase/migrations/20261110220851_lodging_closing_uses_declared_expenses.sql"),
+    "utf8",
+  );
+
+  it("copia al cierre los gastos declarados del día, no anulados, con su origen", () => {
+    expect(declared).toContain("add column source_expense_id uuid references public.lodging_expenses(id)");
+    expect(declared).toContain("e.expense_date=c.closing_date and e.voided_at is null");
+    expect(declared).toContain("when e.payment_method in('debit_card','credit_card') then 'card'");
+  });
+
+  it("solo reemplaza las líneas manuales antiguas si el día tiene gastos declarados", () => {
+    expect(declared).toContain("(source_expense_id is not null or declared_n>0)");
+  });
+
+  it("guardar el cierre ya no recibe ni escribe gastos manuales", () => {
+    const save = declared.split("function public.lodging_save_daily_closing(")[1] ?? "";
+    expect(save).not.toContain("lodging_daily_closing_expenses");
+    expect(save).toContain("perform public.lodging_apply_closing_snapshot(saved_id)");
+  });
+});

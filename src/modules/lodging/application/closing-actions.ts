@@ -26,38 +26,16 @@ function friendly(error: { message?: string } | null) {
   if (/ya fue emitido/i.test(message))
     return "Este cierre ya fue emitido. Para corregirlo, ábrelo, guarda los cambios y vuelve a emitirlo.";
   if (/fecha futura/i.test(message)) return "No se puede cerrar una fecha futura.";
-  if (/gasto|monto|descripcion/i.test(message))
-    return "Revisa los gastos: cada uno necesita categoría, descripción y un monto mayor a cero.";
   if (/autoriz|permission|row-level|42501|no autorizada/i.test(message))
     return "No tienes autorización para esta acción.";
   return "No fue posible completar la operación. Intenta nuevamente.";
 }
-
-const expenseSchema = z
-  .array(
-    z.object({
-      description: z.string().trim().min(2).max(200),
-      amount: z.number().int().positive(),
-      payment_method: z.enum(["cash", "transfer", "card", "other"]),
-      category_id: uuid,
-    }),
-  )
-  .max(50);
 
 export async function saveClosingAction(form: FormData) {
   const { unit, supabase } = await lodgingContext("lodging.closings.create");
   const date = String(form.get("closing_date") ?? "");
   const back = `/lodging/closing?date=${date}`;
   if (!isValidDay(date)) go("/lodging/closing", "error", "Fecha inválida.");
-  let rawExpenses: unknown;
-  try {
-    rawExpenses = JSON.parse(String(form.get("expenses") ?? "[]"));
-  } catch {
-    go(back, "error", "No fue posible leer los gastos.");
-  }
-  const expenses = expenseSchema.safeParse(rawExpenses);
-  if (!expenses.success)
-    go(back, "error", "Revisa los gastos: cada uno necesita categoría, descripción y un monto mayor a cero.");
   const text = (key: string, max: number) => String(form.get(key) ?? "").trim().slice(0, max);
   const { data, error } = await supabase.rpc("lodging_save_daily_closing", {
     target_unit: unit.id,
@@ -66,7 +44,6 @@ export async function saveClosingAction(form: FormData) {
       reported_problems: text("reported_problems", 2000),
       items_to_replenish: text("items_to_replenish", 2000),
       observations: text("observations", 4000),
-      expenses: expenses.data,
     },
   });
   if (error) go(back, "error", friendly(error));
