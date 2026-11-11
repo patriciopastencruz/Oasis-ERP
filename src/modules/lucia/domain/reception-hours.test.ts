@@ -12,7 +12,9 @@ describe("receptionState", () => {
     expect(receptionState(cobija, at("2026-11-02T00:10")).open).toBe(false);
     expect(receptionState(cobija, at("2026-11-02T10:00")).open).toBe(false);
     expect(receptionState(cobija, at("2026-11-02T10:30")).open).toBe(true);
-    expect(receptionState(cobija, at("2026-11-02T19:29"))).toEqual({ open: true, opens: "10:30", closes: "19:30" });
+    expect(receptionState(cobija, at("2026-11-02T19:29"))).toEqual({ open: true, beforeOpening: false, opens: "10:30", closes: "19:30" });
+    expect(receptionState(cobija, at("2026-11-02T08:26")).beforeOpening).toBe(true);
+    expect(receptionState(cobija, at("2026-11-02T00:13")).beforeOpening).toBe(false);
   });
 
   it("usa el cierre de fin de semana", () => {

@@ -15,5 +15,17 @@ export function repeatsSummary(reply: string, summary: string | null) {
   return copied >= Math.min(2, lines.length) && copied > 0;
 }
 
+/** ¿Ya se enviaron las fotos de este tipo de habitación («📸 Mini depto · …»)? */
+export function photosAlreadySent(turns: Turn[], roomType: string) {
+  return turns.some((t) => t.role === "assistant" && t.content.includes(`📸 ${roomType} ·`));
+}
+
+/** ¿Pide ver las fotos otra vez? */
+export function asksForPhotosAgain(text: string) {
+  return /\b(?:otra vez|de nuevo|nuevamente|mas fotos|otras fotos|reenvi|no (?:me )?llegaron)/.test(
+    text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(),
+  );
+}
+
 export const ALREADY_SENT_REPLY =
   "Las opciones con sus precios están en mi mensaje anterior 😊 ¿Te acomoda alguna, o prefieres que revise otras fechas?";

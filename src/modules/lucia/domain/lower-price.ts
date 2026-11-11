@@ -16,11 +16,34 @@ const BARE_PRICE =
 const NEW_DATES =
   /\b\d{1,2}\s*(?:de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b|\b\d{1,2}[\/-]\d{1,2}\b/;
 
-/** ¿Pide algo más barato, de menor precio o a un monto distinto? */
-export function asksForLowerPrice(text: string) {
+/** Montos que Lucía ya cotizó en la conversación (por noche y totales). */
+export function quotedAmounts(turns: { role: string; content: string }[]) {
+  const amounts = new Set<number>();
+  for (const t of turns) {
+    if (t.role !== "assistant") continue;
+    for (const m of t.content.matchAll(/\$\s?(\d{1,3}(?:\.\d{3})+|\d+)/g)) amounts.add(Number(m[1].replace(/\./g, "")));
+  }
+  return amounts;
+}
+
+/** Montos que nombra el cliente, en pesos («30» y «30 mil» son $30.000). */
+function mentionedAmounts(text: string) {
+  return [...text.matchAll(/(\d{1,3}(?:\.\d{3})+|\d+)/g)]
+    .map((m) => Number(m[1].replace(/\./g, "")))
+    .map((n) => (n < 1000 ? n * 1000 : n));
+}
+
+/**
+ * ¿Pide algo más barato, de menor precio o a un monto distinto? Si el monto
+ * que nombra es uno de los ya cotizados («esa de 30», «¿el de 38 es para 4?»)
+ * está eligiendo o preguntando por esa opción, no pidiendo rebaja.
+ */
+export function asksForLowerPrice(text: string, quoted: Set<number> = new Set()) {
   const t = plain(text);
   if (NEW_DATES.test(t)) return false;
-  return LOWER_PRICE.test(t) || PRICE_FIGURE.test(t) || BARE_PRICE.test(t);
+  if (LOWER_PRICE.test(t)) return true;
+  if (!PRICE_FIGURE.test(t) && !BARE_PRICE.test(t)) return false;
+  return !mentionedAmounts(t).some((n) => quoted.has(n));
 }
 
 /** ¿Ya se le enviaron precios en la conversación? */

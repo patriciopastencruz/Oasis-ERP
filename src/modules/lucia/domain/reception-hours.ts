@@ -30,12 +30,16 @@ function santiagoClock(now: Date) {
   return { time: `${get("hour")}:${get("minute")}`, weekend: ["Sat", "Sun"].includes(get("weekday")) };
 }
 
-/** ¿Está abierta la recepción ahora? Con el horario de apertura y cierre de hoy. */
+/**
+ * ¿Está abierta la recepción ahora? Con el horario de apertura y cierre de hoy.
+ * `beforeOpening`: es de mañana (desde las 06:00) y aún no abre; abrirá en
+ * el día, así que quien llega más tarde no necesita coordinar nada.
+ */
 export function receptionState(hours: ReceptionHours, now = new Date()) {
   const { time, weekend } = santiagoClock(now);
   const opens = hhmm(hours.reception_open_time);
   const closes = hhmm(weekend ? hours.reception_close_time_weekend ?? hours.reception_close_time : hours.reception_close_time);
-  return { open: time >= opens && time < closes, opens, closes };
+  return { open: time >= opens && time < closes, beforeOpening: time >= "06:00" && time < opens, opens, closes };
 }
 
 /** ¿Quiere llegar hoy (o aún no dijo cuándo)? Solo entonces importa que la recepción esté cerrada. */

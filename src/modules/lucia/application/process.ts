@@ -82,7 +82,8 @@ export async function processLuciaConversation(
   const closedHostels: ClosedHostel[] = (hostelHours ?? []).flatMap((h) => {
     const state = receptionState(h);
     const unit = Array.isArray(h.business_units) ? h.business_units[0] : h.business_units;
-    return state.open
+    // De mañana, antes de abrir, la recepción abrirá en el día: no hay llegada que coordinar.
+    return state.open || state.beforeOpening
       ? []
       : [{
           code: (unit as { code?: string } | null)?.code ?? "",
@@ -113,7 +114,7 @@ export async function processLuciaConversation(
           describeBookingState(conversation),
           conversation.guest_name ? `El cliente ya dio su nombre: ${conversation.guest_name}. No se lo vuelvas a pedir.` : null,
           closedHostels.length && !bookingConfirmed
-            ? `En este momento la recepción está cerrada en: ${closedHostels.map((h) => `${h.name} (atiende de ${h.opens} a ${h.closes})`).join(", ")}. No des la dirección exacta de esas hostales ni le digas que puede llegar ahora: explícale que la llegada fuera del horario de recepción se coordina antes con recepción y que sin esa confirmación no podemos asegurar la disponibilidad ni su ingreso. Esto es SOLO si quiere llegar hoy (esta noche o de madrugada): si su llegada es otro día, aunque sea tarde, no menciones el horario de recepción ni que debe confirmar su llegada; entrégale las opciones y el precio como siempre, y recepción coordinará la hora de llegada después.`
+            ? `En este momento la recepción está cerrada en: ${closedHostels.map((h) => `${h.name} (atiende de ${h.opens} a ${h.closes})`).join(", ")}. No des la dirección exacta de esas hostales ni le digas que puede llegar ahora: explícale que la llegada fuera del horario de recepción se coordina antes con recepción y que sin esa confirmación no podemos asegurar la disponibilidad ni su ingreso. Dilo una sola vez en la conversación: si ya se lo explicaste, no lo repitas. Esto es SOLO si quiere llegar hoy (esta noche o de madrugada): si su llegada es otro día, aunque sea tarde, no menciones el horario de recepción ni que debe confirmar su llegada; entrégale las opciones y el precio como siempre, y recepción coordinará la hora de llegada después.`
             : null,
           assignedHostel && bookingConfirmed
             ? `El cliente ya tiene su reserva en ${assignedHostel.display_name}. Si pide algo de su estadía que no está en el manual (clave del Wi-Fi, toallas, llaves, un problema en la habitación) o el contacto de recepción, ${assignedHostel.reception_phone ? `entrégale el teléfono de recepción: ${receptionContactLine(assignedHostel.display_name, assignedHostel.reception_phone)}. Escríbelo completo; nunca digas que se lo dejas sin escribirlo.` : "dile que ya avisaste a recepción para que le escriban y marca needs_human en true."}`
@@ -130,6 +131,11 @@ export async function processLuciaConversation(
         assignedHostel && bookingConfirmed
           ? { name: assignedHostel.display_name, phone: assignedHostel.reception_phone }
           : null,
+      receptionPhones: (hostelHours ?? []).flatMap((h) => {
+        const unit = Array.isArray(h.business_units) ? h.business_units[0] : h.business_units;
+        const code = (unit as { code?: string } | null)?.code;
+        return code && h.reception_phone ? [{ code, name: h.display_name, phone: h.reception_phone }] : [];
+      }),
       assignedHostelCode: (assignedUnit as { code?: string } | null)?.code ?? null,
       bookingInProgress: ["awaiting_reception", "awaiting_payment", "proof_received", "confirmed"].includes(
         conversation.booking_status,

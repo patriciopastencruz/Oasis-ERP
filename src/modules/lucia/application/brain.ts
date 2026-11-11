@@ -11,12 +11,12 @@ import {
 import { choiceIsAmbiguous } from "@/modules/lucia/domain/option-choice";
 import { LUCIA_BASE_RULES } from "@/modules/lucia/domain/prompt";
 import { mentionsShortStay, nightlyChargeNote } from "@/modules/lucia/domain/stay-hours";
-import { LOWER_PRICE_REPLY, asksForLowerPrice, pricesWereQuoted } from "@/modules/lucia/domain/lower-price";
-import { ALREADY_SENT_REPLY, repeatsSummary, summaryAlreadySent } from "@/modules/lucia/domain/no-repeat";
+import { LOWER_PRICE_REPLY, asksForLowerPrice, pricesWereQuoted, quotedAmounts } from "@/modules/lucia/domain/lower-price";
+import { ALREADY_SENT_REPLY, asksForPhotosAgain, photosAlreadySent, repeatsSummary, summaryAlreadySent } from "@/modules/lucia/domain/no-repeat";
 import { validateStayAgainstCustomerText } from "@/modules/lucia/domain/stay-validation";
-import { focusOnChosenHostel, wantsApartment } from "@/modules/lucia/domain/chosen-hostel";
+import { asksForOtherHostels, focusOnChosenHostel, wantsApartment } from "@/modules/lucia/domain/chosen-hostel";
 import { detectWalkInStatus } from "@/modules/lucia/domain/walk-in";
-import { asksForWifi, wifiReply } from "@/modules/lucia/domain/guest-contact";
+import { asksForWifi, receptionContactLine, wifiReply } from "@/modules/lucia/domain/guest-contact";
 import { afterHoursArrivalReply, arrivesToday, mentionsAddress, type ClosedHostel } from "@/modules/lucia/domain/reception-hours";
 import type { ClaudeUsage } from "@/modules/lucia/domain/pricing";
 import type { AvailabilityQuery } from "./availability-tool";
@@ -108,6 +108,8 @@ export async function generateLuciaReply(input: {
   cheaperSharedFrom?: number | null;
   /** Hostales con la recepción cerrada ahora (vacío si el cliente tiene una reserva pagada). */
   closedHostels?: ClosedHostel[];
+  /** Teléfono de recepción de cada hostal que lo tiene configurado. */
+  receptionPhones?: { code: string; name: string; phone: string }[];
   /** Huésped con reserva confirmada: su recepción (teléfono null si no está configurado). */
   guestReception?: { name: string; phone: string | null } | null;
   /** Hostal asignada a la conversación, si la hay. */
@@ -173,6 +175,8 @@ export async function generateLuciaReply(input: {
   let accessNote: string | null = null;
   let insistedOnRequest = false;
   let askedToConfirmDates = false;
+  let rejectedRepeat = false;
+  let rejectedPhotos = false;
   // Lo que escribió el cliente en esta consulta (sin los mensajes de Lucía).
   const customerMessages: string[] = [];
   for (const turn of [...input.turns].reverse()) {
@@ -183,8 +187,9 @@ export async function generateLuciaReply(input: {
   // Pidió departamento: primero solo baño privado. Las de baño compartido se
   // muestran recién si pide algo más barato o acepta verlas.
   const lastLuciaMessage = input.turns.at(-2)?.role === "assistant" ? input.turns.at(-2)!.content : "";
+  const quoted = quotedAmounts(input.turns);
   const sharedAccepted =
-    customerMessages.some((m) => /compartid/.test(plain(m)) || asksForLowerPrice(m)) ||
+    customerMessages.some((m) => /compartid/.test(plain(m)) || asksForLowerPrice(m, quoted)) ||
     (/bano compartido/.test(plain(lastLuciaMessage)) && ACCEPTS.test(plain(input.turns.at(-1)!.content).trim()));
   const apartment = wantsApartment(customerMessages) && !sharedAccepted;
   let cheaperSharedFrom: number | null | undefined;
@@ -342,13 +347,56 @@ export async function generateLuciaReply(input: {
       // Las mismas opciones con los mismos precios no se envían dos veces: si ya están en la conversación, no se rearma el mensaje
       // ni se deja pasar una copia de Claude (por ejemplo, cuando el cliente agradece o se despide).
       // Si el cliente ya eligió una hostal u opción, se muestran solo las de esa hostal.
-      if (availabilitySummary && availabilityHasOptions) {
+      if (availabilitySummary && availabilityHasOptions && !asksForOtherHostels(latestCustomerMessage)) {
         availabilitySummary = focusOnChosenHostel(availabilitySummary, customerMessages) ?? availabilitySummary;
       }
       const optionsAlreadySent = summaryAlreadySent(input.turns.slice(0, -1), availabilitySummary);
+      // Copiar otra vez la lista ya enviada no responde al cliente (que eligió
+      // una opción o preguntó algo): se le pide a Claude que responda eso.
       if (optionsAlreadySent && repeatsSummary(output.reply, availabilitySummary)) {
+        if (!rejectedRepeat && call < MAX_CALLS - 1) {
+          rejectedRepeat = true;
+          messages.push({ role: "assistant", content: response.content });
+          messages.push({
+            role: "user",
+            content: [{
+              type: "tool_result",
+              tool_use_id: respond.id,
+              content:
+                "Respuesta rechazada: el cliente ya recibió esas mismas opciones; no las copies otra vez. Responde a lo que dijo en su último mensaje: si eligió una opción, sigue con la solicitud (pide su nombre si falta o marca booking_request); si preguntó algo (ubicación, camas, si caben todos en una habitación, fotos), respóndelo; si pidió más opciones u otras hostales que no aparecen, dile con claridad que no hay otras disponibles para esas fechas.",
+              is_error: true,
+            }],
+          });
+          continue;
+        }
         output = { ...output, reply: ALREADY_SENT_REPLY };
       }
+      // Las mismas fotos no se mandan dos veces, salvo que las pida de nuevo.
+      if (
+        output.photos &&
+        photosAlreadySent(input.turns, output.photos.room_type) &&
+        !asksForPhotosAgain(latestCustomerMessage)
+      ) {
+        if (!rejectedPhotos && call < MAX_CALLS - 1) {
+          rejectedPhotos = true;
+          messages.push({ role: "assistant", content: response.content });
+          messages.push({
+            role: "user",
+            content: [{
+              type: "tool_result",
+              tool_use_id: respond.id,
+              content: `Respuesta rechazada: las fotos de «${output.photos.room_type}» ya se enviaron en esta conversación. Deja photos en null, no digas que las envías y responde a lo que el cliente preguntó.`,
+              is_error: true,
+            }],
+          });
+          continue;
+        }
+        output = { ...output, photos: null };
+      }
+      // Los horarios de acceso se explican una sola vez por conversación.
+      const accessAlreadySaid = Boolean(
+        accessNote && input.turns.some((t) => t.role === "assistant" && t.content.includes(accessNote!)),
+      );
       if (availabilityWasChecked && availabilitySummary && shouldUseExactAvailabilitySummary && !optionsAlreadySent) {
         output = {
           ...output,
@@ -357,7 +405,7 @@ export async function generateLuciaReply(input: {
                 // Antes de las opciones: horarios de acceso y, si el cliente dice que se queda solo hasta cierta hora, el cobro por noche.
                 mentionsShortStay(latestCustomerMessage)
                   ? nightlyChargeNote(accessNote)
-                  : accessNote
+                  : accessNote && !accessAlreadySaid
                     ? `Antes de las opciones, un dato importante: ${accessNote}.`
                     : null,
                 `Estas son las opciones que encontré para tu estadía 😊\n\n${availabilitySummary}\n\n¿Cuál opción te acomoda?`,
@@ -370,7 +418,7 @@ export async function generateLuciaReply(input: {
       // Si ya recibió precios y pide algo más barato, los enviados son los únicos vigentes: no hay una tarifa menor.
       // Salvo que haya opciones con baño compartido que aún no se le mostraron.
       if (
-        asksForLowerPrice(latestCustomerMessage) &&
+        asksForLowerPrice(latestCustomerMessage, quoted) &&
         pricesWereQuoted(input.turns.slice(0, -1)) &&
         !input.cheaperSharedFrom &&
         !cheaperSharedFrom
@@ -418,11 +466,14 @@ export async function generateLuciaReply(input: {
         const atEntrance = walkInStatus === "at_entrance";
         const targetCode = output.prospect.hostel_code ?? input.assignedHostelCode;
         const closedTarget = (input.closedHostels ?? []).find((h) => h.code === targetCode);
+        const targetReception = (input.receptionPhones ?? []).find((h) => h.code === targetCode);
         return {
           output: {
             ...output,
             reply: atEntrance
-              ? "Ya avisé a recepción y administración que estás en la entrada para que puedan atenderte lo antes posible. 🙏"
+              ? `Ya avisé a recepción y administración que estás en la entrada para que puedan atenderte lo antes posible. 🙏${
+                  targetReception ? `\nTambién puedes llamar o escribir directo:\n${receptionContactLine(targetReception.name, targetReception.phone)}` : ""
+                }`
               : closedTarget
                 ? `Ya avisé al equipo que quieres venir. Ten en cuenta que la recepción de ${closedTarget.name} ya cerró (atiende de ${closedTarget.opens} a ${closedTarget.closes}): espera que el equipo te confirme antes de ir, porque sin esa confirmación no podemos asegurar la disponibilidad ni tu ingreso 🙏`
                 : "Perfecto, ya avisé a recepción y administración que vas en camino para que puedan recibirte. 📍",

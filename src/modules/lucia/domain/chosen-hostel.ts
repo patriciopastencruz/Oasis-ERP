@@ -49,6 +49,13 @@ export function focusOnChosenHostel(summary: string, customerMessages: string[])
   return null;
 }
 
+/** «Muéstrame más opciones», «¿tienes en otras hostales?»: quiere ver la lista completa. */
+export function asksForOtherHostels(message: string) {
+  return /\b(?:otr[oa]s? (?:hostal(?:es)?|hospedajes?|lugar(?:es)?|sucursal(?:es)?|opciones|partes?)|mas opciones|demas hostales|todas las (?:hostales|opciones))\b/.test(
+    message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(),
+  );
+}
+
 /** «Departamento», «depto», «mini depto», «apartamento»: el cliente busca algo con todo privado. */
 export function wantsApartment(customerMessages: string[]) {
   return customerMessages.some((m) =>
