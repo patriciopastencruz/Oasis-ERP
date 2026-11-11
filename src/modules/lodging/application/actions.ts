@@ -12,6 +12,8 @@ import { fetchIcal, assertSafeIcalUrl } from "./security";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { dispatchApprovalEmails } from "@/lib/notifications/approval-email";
 import { reviewAndSavePaymentReceipt } from "./receipt-ai-review";
+import { DOCUMENT_PHOTO_ERROR, readDocumentPhotos } from "../domain/guest-documents";
+import { saveReservationDocuments } from "./guest-documents";
 
 const uuid = z.string().uuid();
 const text = z.string().trim().min(1);
@@ -148,6 +150,7 @@ export async function createReservationAction(form: FormData) {
       phone: text.max(50),
       email: z.string().trim().max(160),
       document: z.string().trim().max(80),
+      nationality: z.string().trim().max(80).optional().default(""),
       check_in: date,
       check_out: date,
       guest_count: z.coerce.number().int().positive(),
@@ -182,6 +185,9 @@ export async function createReservationAction(form: FormData) {
     .safeParse(Object.fromEntries(form));
   if (!parsed.success)
     go("/lodging/reservations/new", "error", parsed.error.issues[0].message);
+  // La foto del documento se revisa antes de crear la reserva: si no sirve, no se crea nada a medias.
+  const photos = await readDocumentPhotos(form);
+  if (photos === "invalid") go("/lodging/reservations/new", "error", DOCUMENT_PHOTO_ERROR);
   let total: number;
   try {
     total = totalForStay({
@@ -245,7 +251,15 @@ export async function createReservationAction(form: FormData) {
       target_reservation: data,
       departure: parsed.data.estimated_departure,
     });
+  // El documento se guarda aparte: si falla, la reserva igual queda creada y se adjunta desde su ficha.
+  const documentFailure = await saveReservationDocuments(s, data as string, photos as Exclude<typeof photos, "invalid">);
   revalidatePath("/lodging");
+  if (documentFailure)
+    go(
+      `/lodging/reservations/${data}`,
+      "error",
+      "Reserva creada, pero no se pudo guardar el documento. Adjúntalo desde «Documento de identidad».",
+    );
   go(
     `/lodging/reservations/${data}`,
     "success",

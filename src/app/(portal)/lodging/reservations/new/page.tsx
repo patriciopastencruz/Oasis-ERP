@@ -2,6 +2,7 @@ import { PageHeader, Panel } from "@/components/ui/page";
 import { lodgingContext, clp } from "@/modules/lodging/application/queries";
 import { createReservationAction } from "@/modules/lodging/application/actions";
 import { NightlyRateField } from "@/components/lodging/nightly-rate-field";
+import { IdPhotoField } from "@/components/lodging/id-photo-field";
 import type { RatesByGuests } from "@/modules/lodging/domain/reservations";
 
 export default async function Page({
@@ -210,12 +211,29 @@ export default async function Page({
             />
           </label>
           <label className="text-sm font-medium">
+            Nacionalidad
+            <input
+              name="nationality"
+              maxLength={80}
+              className={`mt-1 block w-full ${field}`}
+            />
+          </label>
+          <label className="text-sm font-medium">
             Patente
             <input
               name="license_plate"
               className={`mt-1 block w-full ${field}`}
             />
           </label>
+          <fieldset className="grid gap-3 rounded-xl border p-4 md:col-span-2 md:grid-cols-2 xl:col-span-3">
+            <legend className="px-2 text-sm font-semibold">Documento de identidad (opcional)</legend>
+            <IdPhotoField name="document_front" label="Foto del frente (carnet o pasaporte)" />
+            <IdPhotoField name="document_back" label="Foto del reverso" />
+            <p className="text-xs text-slate-500 md:col-span-2">
+              JPG, PNG o WEBP de hasta 10 MB. Solo la ve el personal con acceso a las reservas de este hostal. También se puede
+              adjuntar después desde la ficha de la reserva.
+            </p>
+          </fieldset>
           <label className="text-sm font-medium md:col-span-2 xl:col-span-3">
             Observaciones
             <textarea

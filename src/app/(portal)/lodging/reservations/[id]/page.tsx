@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader, Panel } from "@/components/ui/page";
+import { ReservationDocumentsPanel } from "@/components/lodging/reservation-documents-panel";
 import { ReceiptReviewForm } from "@/components/lodging/receipt-review-form";
 import { REVIEW_OUTCOME_LABELS, mapManualReviews } from "@/modules/lodging/domain/receipt-manual-review";
 import { receiptReviewLabels } from "@/modules/lodging/domain/history-report";
@@ -543,6 +544,24 @@ export default async function Page({
               <dt className="text-slate-500">Teléfono</dt>
               <dd>{guest?.phone || "Pendiente"}</dd>
             </div>
+            {guest?.email && (
+              <div>
+                <dt className="text-slate-500">Correo</dt>
+                <dd className="break-all">{guest.email}</dd>
+              </div>
+            )}
+            {guest?.document && (
+              <div>
+                <dt className="text-slate-500">Documento</dt>
+                <dd>{guest.document}</dd>
+              </div>
+            )}
+            {guest?.nationality && (
+              <div>
+                <dt className="text-slate-500">Nacionalidad</dt>
+                <dd>{guest.nationality}</dd>
+              </div>
+            )}
             <div>
               <dt className="text-slate-500">Llegada estimada</dt>
               <dd>{r.estimated_arrival || "Sin informar"}</dd>
@@ -666,6 +685,9 @@ export default async function Page({
           guest={guest ? { full_name: guest.full_name, phone: guest.phone } : null}
           canManage={canManage}
         />
+      </div>
+      <div className="mt-4">
+        <ReservationDocumentsPanel reservation={{ id: r.id, status: r.status, origin: r.origin }} canManage={canManage} />
       </div>
       <SurveySharePanel
         reservation={{ status: r.status, origin: r.origin, room_id: r.room_id }}
