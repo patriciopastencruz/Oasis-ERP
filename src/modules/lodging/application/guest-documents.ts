@@ -10,14 +10,14 @@ const BUCKET = "lodging-guest-documents";
 
 /**
  * Sube las fotos del documento a la carpeta de la reserva (empresa/hostal/reserva/archivo) y las registra con
- * lodging_set_reservation_documents, que vuelve a validar permiso, hostal y ruta. Devuelve un mensaje si falló.
+ * lodging_set_reservation_documents (solo el frente), que vuelve a validar permiso, hostal y ruta. Devuelve un mensaje si falló.
  */
 export async function saveReservationDocuments(
   supabase: Supabase,
   reservationId: string,
-  photos: { front: DocumentPhoto | null; back: DocumentPhoto | null },
+  photos: { front: DocumentPhoto | null },
 ): Promise<string | null> {
-  if (!photos.front && !photos.back) return null;
+  if (!photos.front) return null;
   const { data: reservation } = await supabase
     .from("lodging_reservations")
     .select("company_id,business_unit_id")
@@ -36,11 +36,10 @@ export async function saveReservationDocuments(
   };
   try {
     const front = await upload(photos.front);
-    const back = await upload(photos.back);
     const { data, error } = await supabase.rpc("lodging_set_reservation_documents", {
       p_reservation: reservationId,
       p_front: front,
-      p_back: back,
+      p_back: null,
     });
     if (error) throw new Error(error.message);
     // Fotos reemplazadas: no se guardan copias viejas del documento.

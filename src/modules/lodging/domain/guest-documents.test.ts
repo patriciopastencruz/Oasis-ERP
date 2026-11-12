@@ -24,13 +24,13 @@ describe("fotos del documento de identidad", () => {
     expect(await readDocumentPhoto(new File([], ""))).toBeNull();
   });
 
-  it("lee frente y reverso del formulario y marca el inválido", async () => {
+  it("lee solo el frente del formulario y marca el inválido", async () => {
     const form = new FormData();
     form.set("document_front", file(jpeg));
-    form.set("document_back", new File([], ""));
-    const ok = await readDocumentPhotos(form);
-    expect(ok).toMatchObject({ front: { mime: "image/jpeg" }, back: null });
-    form.set("document_back", file([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], "x.jpg"));
+    form.set("document_back", file(jpeg));
+    expect(await readDocumentPhotos(form)).toEqual({ front: expect.objectContaining({ mime: "image/jpeg" }) });
+    form.set("document_front", file([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], "x.jpg"));
     expect(await readDocumentPhotos(form)).toBe("invalid");
+    expect(await readDocumentPhotos(new FormData())).toEqual({ front: null });
   });
 });

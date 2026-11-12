@@ -225,11 +225,10 @@ export default async function Page({
               className={`mt-1 block w-full ${field}`}
             />
           </label>
-          <fieldset className="grid gap-3 rounded-xl border p-4 md:col-span-2 md:grid-cols-2 xl:col-span-3">
+          <fieldset className="grid gap-3 rounded-xl border p-4 md:col-span-2 xl:col-span-3">
             <legend className="px-2 text-sm font-semibold">Documento de identidad (opcional)</legend>
             <IdPhotoField name="document_front" label="Foto del frente (carnet o pasaporte)" />
-            <IdPhotoField name="document_back" label="Foto del reverso" />
-            <p className="text-xs text-slate-500 md:col-span-2">
+            <p className="text-xs text-slate-500">
               JPG, PNG o WEBP de hasta 10 MB. Solo la ve el personal con acceso a las reservas de este hostal. También se puede
               adjuntar después desde la ficha de la reserva.
             </p>

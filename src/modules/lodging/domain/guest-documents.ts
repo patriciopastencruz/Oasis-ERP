@@ -14,10 +14,8 @@ export async function readDocumentPhoto(value: FormDataEntryValue | null): Promi
   return mime && DOCUMENT_PHOTO_EXT[mime] ? { bytes, mime, ext: DOCUMENT_PHOTO_EXT[mime] } : "invalid";
 }
 
-/** Frente y reverso del documento tal como llegan del formulario de la reserva. */
+/** Foto del frente del documento tal como llega del formulario de la reserva (el reverso no se pide). */
 export async function readDocumentPhotos(form: FormData) {
   const front = await readDocumentPhoto(form.get("document_front"));
-  const back = await readDocumentPhoto(form.get("document_back"));
-  if (front === "invalid" || back === "invalid") return "invalid" as const;
-  return { front, back };
+  return front === "invalid" ? ("invalid" as const) : { front };
 }

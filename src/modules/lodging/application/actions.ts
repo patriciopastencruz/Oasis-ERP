@@ -258,7 +258,7 @@ export async function createReservationAction(form: FormData) {
     go(
       `/lodging/reservations/${data}`,
       "error",
-      "Reserva creada, pero no se pudo guardar el documento. Adjúntalo desde «Documento de identidad».",
+      "Reserva creada, pero no se pudo guardar el documento. Adjúntalo desde «Datos del huésped y documento de identidad».",
     );
   go(
     `/lodging/reservations/${data}`,
