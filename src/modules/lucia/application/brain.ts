@@ -50,6 +50,24 @@ function anthropic() {
 
 const AVAILABILITY_TOOL = "consultar_disponibilidad";
 const MAX_CALLS = 4;
+
+/**
+ * Rechazo de una respuesta de Claude para que la corrija: cada tool_use del
+ * turno necesita su tool_result, o la API responde 400 (un cliente quedó sin
+ * respuesta cuando Claude pidió responder y consultar a la vez).
+ */
+function rejectionResults(response: Anthropic.Message, respondId: string, reason: string): Anthropic.ToolResultBlockParam[] {
+  return response.content.flatMap((block) =>
+    block.type === "tool_use"
+      ? [{
+          type: "tool_result" as const,
+          tool_use_id: block.id,
+          content: block.id === respondId ? reason : "No ejecutada: la respuesta fue rechazada. Vuelve a usarla si la necesitas.",
+          is_error: true,
+        }]
+      : [],
+  );
+}
 const FUTURE_AVAILABILITY_PROMISE =
   /\b(?:dejame|permiteme|voy a|vamos a|puedo)\s+(?:revisar|consultar|confirmar|verificar)|\b(?:consultare|revisare|confirmare|verificare)\b|\bestoy (?:volviendo a )?(?:revisando|consultando|verificando)\b|\bte (?:aviso|escribo|respondo|confirmo) (?:enseguida|en seguida|altiro|al tiro|en breve|en un momento)\b/;
 // Lucía ofreció dejar la solicitud y el cliente acepta: corresponde enviarla, no volver a preguntar.
@@ -250,13 +268,7 @@ export async function generateLuciaReply(input: {
         messages.push({ role: "assistant", content: response.content });
         messages.push({
           role: "user",
-          content: [{
-            type: "tool_result",
-            tool_use_id: respond.id,
-            content:
-              "Respuesta rechazada: ya tienes llegada, salida y personas. No prometas consultar después ni afirmes disponibilidad sin comprobarla. Usa consultar_disponibilidad ahora y responde con su resultado en este mismo mensaje.",
-            is_error: true,
-          }],
+          content: rejectionResults(response, respond.id, "Respuesta rechazada: ya tienes llegada, salida y personas. No prometas consultar después ni afirmes disponibilidad sin comprobarla. Usa consultar_disponibilidad ahora y responde con su resultado en este mismo mensaje."),
         });
         continue;
       }
@@ -269,13 +281,7 @@ export async function generateLuciaReply(input: {
           messages.push({ role: "assistant", content: response.content });
           messages.push({
             role: "user",
-            content: [{
-              type: "tool_result",
-              tool_use_id: respond.id,
-              content:
-                "Respuesta rechazada: el cliente no dijo cuál de las opciones que le mostraste quiere. No elijas por él ni envíes la solicitud: deja booking_request en false y pregúntale cuál prefiere, nombrando las opciones en una frase breve.",
-              is_error: true,
-            }],
+            content: rejectionResults(response, respond.id, "Respuesta rechazada: el cliente no dijo cuál de las opciones que le mostraste quiere. No elijas por él ni envíes la solicitud: deja booking_request en false y pregúntale cuál prefiere, nombrando las opciones en una frase breve."),
           });
           continue;
         }
@@ -298,13 +304,7 @@ export async function generateLuciaReply(input: {
         messages.push({ role: "assistant", content: response.content });
         messages.push({
           role: "user",
-          content: [{
-            type: "tool_result",
-            tool_use_id: respond.id,
-            content:
-              "Respuesta rechazada: la consulta no falló; las fechas no están confirmadas en esta consulta (o las dijo hace horas). No derives ni digas que no pudiste consultar: pídele al cliente que confirme su llegada y su salida con fechas concretas, por ejemplo «¿Llegas hoy domingo 1 de noviembre y te vas mañana lunes 2?». Deja needs_human en false.",
-            is_error: true,
-          }],
+          content: rejectionResults(response, respond.id, "Respuesta rechazada: la consulta no falló; las fechas no están confirmadas en esta consulta (o las dijo hace horas). No derives ni digas que no pudiste consultar: pídele al cliente que confirme su llegada y su salida con fechas concretas, por ejemplo «¿Llegas hoy domingo 1 de noviembre y te vas mañana lunes 2?». Deja needs_human en false."),
         });
         continue;
       }
@@ -324,13 +324,7 @@ export async function generateLuciaReply(input: {
         messages.push({ role: "assistant", content: response.content });
         messages.push({
           role: "user",
-          content: [{
-            type: "tool_result",
-            tool_use_id: respond.id,
-            content:
-              "Respuesta rechazada: el cliente ya aceptó dejar la solicitud; no le vuelvas a preguntar. Usa consultar_disponibilidad ahora con las fechas confirmadas (en fechas_del_cliente copia exactamente la frase con las fechas que el cliente escribió o que confirmó con un «sí»), copia el option_code de la opción que eligió y marca booking_request en true. Si su nombre ya aparece en la conversación, úsalo sin pedirlo.",
-            is_error: true,
-          }],
+          content: rejectionResults(response, respond.id, "Respuesta rechazada: el cliente ya aceptó dejar la solicitud; no le vuelvas a preguntar. Usa consultar_disponibilidad ahora con las fechas confirmadas (en fechas_del_cliente copia exactamente la frase con las fechas que el cliente escribió o que confirmó con un «sí»), copia el option_code de la opción que eligió y marca booking_request en true. Si su nombre ya aparece en la conversación, úsalo sin pedirlo."),
         });
         continue;
       }
@@ -359,13 +353,7 @@ export async function generateLuciaReply(input: {
           messages.push({ role: "assistant", content: response.content });
           messages.push({
             role: "user",
-            content: [{
-              type: "tool_result",
-              tool_use_id: respond.id,
-              content:
-                "Respuesta rechazada: el cliente ya recibió esas mismas opciones; no las copies otra vez. Responde a lo que dijo en su último mensaje: si eligió una opción, sigue con la solicitud (pide su nombre si falta o marca booking_request); si preguntó algo (ubicación, camas, si caben todos en una habitación, fotos), respóndelo; si pidió más opciones u otras hostales que no aparecen, dile con claridad que no hay otras disponibles para esas fechas.",
-              is_error: true,
-            }],
+            content: rejectionResults(response, respond.id, "Respuesta rechazada: el cliente ya recibió esas mismas opciones; no las copies otra vez. Responde a lo que dijo en su último mensaje: si eligió una opción, sigue con la solicitud (pide su nombre si falta o marca booking_request); si preguntó algo (ubicación, camas, si caben todos en una habitación, fotos), respóndelo; si pidió más opciones u otras hostales que no aparecen, dile con claridad que no hay otras disponibles para esas fechas."),
           });
           continue;
         }
@@ -382,12 +370,7 @@ export async function generateLuciaReply(input: {
           messages.push({ role: "assistant", content: response.content });
           messages.push({
             role: "user",
-            content: [{
-              type: "tool_result",
-              tool_use_id: respond.id,
-              content: `Respuesta rechazada: las fotos de «${output.photos.room_type}» ya se enviaron en esta conversación. Deja photos en null, no digas que las envías y responde a lo que el cliente preguntó.`,
-              is_error: true,
-            }],
+            content: rejectionResults(response, respond.id, `Respuesta rechazada: las fotos de «${output.photos.room_type}» ya se enviaron en esta conversación. Deja photos en null, no digas que las envías y responde a lo que el cliente preguntó.`),
           });
           continue;
         }
