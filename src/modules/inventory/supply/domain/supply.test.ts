@@ -49,9 +49,11 @@ describe("pedido de materiales del maestro", () => {
     });
   });
 
-  it("solo el borrador se edita y solo lo que no está en lista se anula", () => {
+  it("se edita y se anula solo lo que todavía no está en una lista de compras", () => {
     expect(isRequestEditable("draft")).toBe(true);
-    expect(isRequestEditable("submitted")).toBe(false);
+    expect(isRequestEditable("submitted")).toBe(true);
+    expect(isRequestEditable("in_list")).toBe(false);
+    expect(isRequestEditable("cancelled")).toBe(false);
     expect(isRequestCancellable("draft")).toBe(true);
     expect(isRequestCancellable("submitted")).toBe(true);
     expect(isRequestCancellable("in_list")).toBe(false);

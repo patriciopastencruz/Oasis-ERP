@@ -61,6 +61,7 @@ export default async function RequestDetailPage({
         catalog={catalog}
         projects={projects}
         today={today}
+        mode={request.status === "submitted" ? "update" : "send"}
         initial={{
           requestId: request.id,
           projectId: request.project_id,
@@ -99,6 +100,9 @@ export default async function RequestDetailPage({
 
       {editor ?? (
         <Panel>
+          {request.status === "in_list" && (
+            <p className="mb-3 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">Bodega ya incluyó este pedido en una lista de compras. Si necesitas cambiar algo, avísale.</p>
+          )}
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase text-slate-500">
               <tr>

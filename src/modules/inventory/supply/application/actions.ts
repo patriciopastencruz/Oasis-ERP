@@ -22,7 +22,7 @@ function fail(path: string, error: { message: string }): never {
   go(path, "error", supplyErrorMessage(error.message));
 }
 
-/** Maestro: guarda el borrador o envía el pedido a bodega. */
+/** Maestro: envía su pedido a bodega, o corrige uno ya enviado que bodega aún no pasa a una lista. */
 export async function saveRequestAction(form: FormData) {
   await supplyContext(SUPPLY_REQUEST);
   const requestId = uuid.safeParse(form.get("request_id"));
@@ -48,7 +48,7 @@ export async function saveRequestAction(form: FormData) {
   const cleaned = cleanRequestLines(rows);
   if ("error" in cleaned) go(back, "error", cleaned.error);
 
-  const submit = form.get("intent") === "submit";
+  const updating = form.get("mode") === "update";
   const urgent = form.get("urgent") === "on";
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("om_supply_save_request", {
@@ -60,19 +60,16 @@ export async function saveRequestAction(form: FormData) {
       urgent,
       urgent_reason: parsed.data.urgent_reason,
       notes: parsed.data.notes,
-      submit,
+      submit: true,
       lines: cleaned.lines,
     },
   });
   if (error) fail(back, error);
   revalidatePath("/supply", "layout");
   const id = String(data);
-  if (submit) {
-    // Un pedido urgente avisa por correo a bodega: se envía de inmediato además del cron de respaldo.
-    if (urgent) await dispatchApprovalEmails().catch(() => {});
-    go(`/supply/requests/${id}`, "success", "Pedido enviado a bodega.");
-  }
-  go(`/supply/requests/${id}`, "success", "Borrador guardado. Puedes seguir completándolo y enviarlo después.");
+  // Un pedido urgente nuevo avisa por correo a bodega: se envía de inmediato además del cron de respaldo.
+  if (urgent && !updating) await dispatchApprovalEmails().catch(() => {});
+  go(`/supply/requests/${id}`, "success", updating ? "Cambios guardados. Bodega verá tu pedido actualizado." : "Pedido enviado a bodega.");
 }
 
 export async function cancelRequestAction(form: FormData) {

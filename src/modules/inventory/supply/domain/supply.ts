@@ -40,8 +40,8 @@ export const statusTone: Record<string, string> = {
   covered: "bg-slate-100 text-slate-600",
 };
 
-/** Un pedido se puede seguir editando solo mientras es borrador. */
-export const isRequestEditable = (status: string) => status === "draft";
+/** El maestro corrige su pedido mientras bodega no lo haya pasado a una lista de compras. */
+export const isRequestEditable = (status: string) => status === "draft" || status === "submitted";
 
 /** Se puede anular un pedido que todavía no pasó a una lista de compras. */
 export const isRequestCancellable = (status: string) => status === "draft" || status === "submitted";

@@ -35,7 +35,11 @@ export default async function SupplyHome({ searchParams }: { searchParams: Promi
       <PageHeader
         eyebrow="Oasis Modulares"
         title="Abastecimiento de materiales"
-        description="El maestro pide lo que necesita para los próximos 2 días, bodega junta los pedidos y arma la lista de compras, y compras la ejecuta."
+        description={
+          canConsolidate || canBuy
+            ? "El maestro pide lo que necesita para los próximos 2 días, bodega junta los pedidos y arma la lista de compras, y compras la ejecuta."
+            : "Pide los materiales que necesitas para tu proyecto."
+        }
       />
       <Notice {...q} />
       <div className="grid gap-4 md:grid-cols-2">
@@ -73,15 +77,17 @@ export default async function SupplyHome({ searchParams }: { searchParams: Promi
           </Link>
         )}
       </div>
-      <Panel className="mt-6">
-        <h2 className="font-semibold">Cómo funciona</h2>
-        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
-          <li>Cada tarde el maestro envía su pedido para los próximos 2 días.</li>
-          <li>Bodega revisa todos los pedidos y arma una sola lista: lo pedido menos el stock y menos lo que ya está en camino.</li>
-          <li>Bodega emite la lista y compras recibe el aviso en la app y por correo.</li>
-          <li>Compras marca lo comprado y bodega lo marca recibido.</li>
-        </ol>
-      </Panel>
+      {(canConsolidate || canBuy) && (
+        <Panel className="mt-6">
+          <h2 className="font-semibold">Cómo funciona</h2>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+            <li>Cada tarde el maestro envía su pedido para los próximos 2 días.</li>
+            <li>Bodega revisa todos los pedidos y arma una sola lista: lo pedido menos el stock y menos lo que ya está en camino.</li>
+            <li>Bodega emite la lista y compras recibe el aviso en la app y por correo.</li>
+            <li>Compras marca lo comprado y bodega lo marca recibido.</li>
+          </ol>
+        </Panel>
+      )}
     </>
   );
 }

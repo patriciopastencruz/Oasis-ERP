@@ -13,42 +13,31 @@ const input = "mt-1 block w-full rounded-xl border border-[#d5dce4] bg-white px-
 let counter = 0;
 const emptyRow = (): FormRow => ({ key: `r${Date.now()}-${counter++}`, materialId: "", customName: "", unit: "", quantity: "", note: "" });
 
-function SubmitButtons() {
+function SubmitButton({ updating }: { updating: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <div className="sticky bottom-0 -mx-1 flex gap-2 border-t bg-white/95 px-1 py-3 backdrop-blur">
-      <button
-        name="intent"
-        value="submit"
-        disabled={pending}
-        className="flex-1 rounded-xl bg-[#0b4f9c] px-4 py-3.5 text-base font-semibold text-white disabled:opacity-60"
-      >
-        {pending ? "Enviando…" : "Enviar a bodega"}
-      </button>
-      <button
-        name="intent"
-        value="draft"
-        disabled={pending}
-        className="shrink-0 rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-base font-semibold disabled:opacity-60"
-      >
-        Borrador
+    <div className="sticky bottom-0 -mx-1 border-t bg-white/95 px-1 py-3 backdrop-blur">
+      <button disabled={pending} className="w-full rounded-xl bg-[#0b4f9c] px-4 py-3.5 text-base font-semibold text-white disabled:opacity-60">
+        {pending ? "Enviando…" : updating ? "Guardar cambios" : "Enviar a bodega"}
       </button>
     </div>
   );
 }
 
-/** Pedido de materiales pensado para el celular: elegir material, cantidad y los días que cubre. */
+/** Pedido de materiales pensado para el celular: elegir material y cantidad. Lo demás está en «Más opciones». */
 export function RequestForm({
   action,
   catalog,
   projects,
   today,
   initial,
+  mode = "send",
 }: {
   action: (form: FormData) => void | Promise<void>;
   catalog: CatalogItem[];
   projects: Project[];
   today: string;
+  mode?: "send" | "update";
   initial: {
     requestId?: string;
     projectId?: string;
@@ -62,6 +51,7 @@ export function RequestForm({
 }) {
   const [rows, setRows] = useState<FormRow[]>(initial.rows?.length ? initial.rows : [emptyRow(), emptyRow(), emptyRow()]);
   const [urgent, setUrgent] = useState(Boolean(initial.urgent));
+  const [withNote, setWithNote] = useState(() => new Set((initial.rows ?? []).filter((r) => r.note).map((r) => r.key)));
   const byId = new Map(catalog.map((m) => [m.id, m]));
   const categories = [...new Set(catalog.map((m) => m.category))];
 
@@ -80,31 +70,28 @@ export function RequestForm({
     <form action={action} className="space-y-5">
       {initial.requestId && <input type="hidden" name="request_id" value={initial.requestId} />}
       <input type="hidden" name="lines_json" value={linesJson} />
+      <input type="hidden" name="mode" value={mode} />
 
-      <section className="space-y-3 rounded-2xl border border-[#d9dfe6] bg-white p-4">
-        <label className="block text-sm font-medium">
-          Proyecto
-          <select name="project_id" required defaultValue={initial.projectId ?? (projects.length === 1 ? projects[0].id : "")} className={input}>
-            {projects.length !== 1 && <option value="">Elige tu proyecto</option>}
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {[p.project_number, p.name].filter(Boolean).join(" · ")}
-                {p.place ? ` — ${p.place}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="grid grid-cols-2 gap-3">
+      <section className="rounded-2xl border border-[#d9dfe6] bg-white p-4">
+        {projects.length === 1 ? (
+          <>
+            <input type="hidden" name="project_id" value={projects[0].id} />
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Proyecto</p>
+            <p className="font-semibold">{[projects[0].project_number, projects[0].name].filter(Boolean).join(" · ")}</p>
+          </>
+        ) : (
           <label className="block text-sm font-medium">
-            Lo necesito desde
-            <input type="date" name="cover_from" required min={today} defaultValue={initial.from} className={input} />
+            Proyecto
+            <select name="project_id" required defaultValue={initial.projectId ?? ""} className={input}>
+              <option value="">Elige tu proyecto</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {[p.project_number, p.name].filter(Boolean).join(" · ")}
+                </option>
+              ))}
+            </select>
           </label>
-          <label className="block text-sm font-medium">
-            Hasta
-            <input type="date" name="cover_to" required min={today} defaultValue={initial.to} className={input} />
-          </label>
-        </div>
-        <p className="text-xs text-slate-500">Pide lo que vas a usar en los próximos 2 días de armado.</p>
+        )}
       </section>
 
       <section className="space-y-3">
@@ -168,14 +155,20 @@ export function RequestForm({
                     />
                     <span className="text-sm text-slate-500">{material?.unit ?? (other ? row.unit : "")}</span>
                   </div>
-                  <input
-                    aria-label={`Detalle ${index + 1}`}
-                    value={row.note}
-                    onChange={(e) => patch(row.key, { note: e.target.value })}
-                    placeholder="Detalle (opcional)"
-                    maxLength={300}
-                    className={`${input.replace("mt-1 ", "")} text-sm`}
-                  />
+                  {withNote.has(row.key) ? (
+                    <input
+                      aria-label={`Nota ${index + 1}`}
+                      value={row.note}
+                      onChange={(e) => patch(row.key, { note: e.target.value })}
+                      placeholder="Nota (medida, color…)"
+                      maxLength={300}
+                      className={`${input.replace("mt-1 ", "")} text-sm`}
+                    />
+                  ) : (
+                    <button type="button" onClick={() => setWithNote((all) => new Set(all).add(row.key))} className="text-xs font-semibold text-[#0b4f9c]">
+                      + Agregar nota
+                    </button>
+                  )}
                 </div>
                 {rows.length > 1 && (
                   <button
@@ -200,32 +193,43 @@ export function RequestForm({
         </button>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-[#d9dfe6] bg-white p-4">
-        <label className="flex items-start gap-3 text-sm font-medium">
-          <input type="checkbox" name="urgent" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} className="mt-1 size-5" />
-          <span>
-            Es urgente
-            <span className="block text-xs font-normal text-slate-500">Úsalo solo si falta algo antes de la hora de corte; avisa a bodega por correo.</span>
-          </span>
-        </label>
-        {urgent && (
-          <input
-            name="urgent_reason"
-            defaultValue={initial.urgentReason ?? ""}
-            required
-            minLength={3}
-            maxLength={300}
-            placeholder="¿Por qué es urgente?"
-            className={input}
-          />
-        )}
-        <label className="block text-sm font-medium">
-          Comentario para bodega (opcional)
-          <textarea name="notes" defaultValue={initial.notes ?? ""} rows={2} maxLength={1000} className={input} />
-        </label>
-      </section>
+      <details className="rounded-2xl border border-[#d9dfe6] bg-white p-4" open={urgent || Boolean(initial.notes)}>
+        <summary className="cursor-pointer list-none text-sm font-semibold text-[#0b4f9c]">Más opciones (días, urgente, comentario)</summary>
+        <div className="mt-3 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block text-sm font-medium">
+              Lo necesito desde
+              <input type="date" name="cover_from" required min={today} defaultValue={initial.from} className={input} />
+            </label>
+            <label className="block text-sm font-medium">
+              Hasta
+              <input type="date" name="cover_to" required min={today} defaultValue={initial.to} className={input} />
+            </label>
+          </div>
+          <label className="flex items-start gap-3 text-sm font-medium">
+            <input type="checkbox" name="urgent" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} className="mt-1 size-5" />
+            <span>
+              Es urgente
+              <span className="block text-xs font-normal text-slate-500">Úsalo solo si falta algo con urgencia; avisa a bodega por correo.</span>
+            </span>
+          </label>
+          {urgent && (
+            <input
+              name="urgent_reason"
+              defaultValue={initial.urgentReason ?? ""}
+              maxLength={300}
+              placeholder="¿Por qué es urgente?"
+              className={input}
+            />
+          )}
+          <label className="block text-sm font-medium">
+            Comentario para bodega (opcional)
+            <textarea name="notes" defaultValue={initial.notes ?? ""} rows={2} maxLength={1000} className={input} />
+          </label>
+        </div>
+      </details>
 
-      <SubmitButtons />
+      <SubmitButton updating={mode === "update"} />
     </form>
   );
 }
