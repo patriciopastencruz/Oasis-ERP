@@ -6,7 +6,6 @@ import { Notice } from "@/modules/inventory/ui";
 import {
   getPurchaseList,
   loadCatalog,
-  loadSuppliers,
   personName,
   requestsInList,
   SUPPLY_BUY,
@@ -47,8 +46,7 @@ export default async function ListDetailPage({
   const found = await getPurchaseList(supabase, id);
   if (!found) notFound();
   const { list, items } = found;
-  const [suppliers, catalog, requests] = await Promise.all([
-    canConsolidate && list.status === "draft" ? loadSuppliers(supabase) : [],
+  const [catalog, requests] = await Promise.all([
     canConsolidate && list.status === "draft" ? loadCatalog(supabase) : [],
     canConsolidate ? requestsInList(supabase, list.id) : [],
   ]);
@@ -58,12 +56,12 @@ export default async function ListDetailPage({
   const buying = canBuy && active;
   const estimated = items.filter((i) => i.status !== "covered").reduce((sum, i) => sum + (i.reference_price ?? 0) * i.quantity_to_buy, 0);
 
-  const groups = new Map<string, PurchaseItem[]>();
-  for (const item of items) {
-    const key = item.status === "covered" ? "No se compra" : (item.supplier_name ?? "Sin proveedor sugerido");
-    groups.set(key, [...(groups.get(key) ?? []), item]);
-  }
-  const ordered = [...groups.entries()].sort(([a], [b]) => (a === "No se compra" ? 1 : b === "No se compra" ? -1 : a.localeCompare(b)));
+  const toBuy = items.filter((i) => i.status !== "covered");
+  const skipped = items.filter((i) => i.status === "covered");
+  const ordered: [string, PurchaseItem[]][] = [
+    ["Productos", toBuy],
+    ...(skipped.length ? [["No se compra", skipped] as [string, PurchaseItem[]]] : []),
+  ];
 
   return (
     <>
@@ -105,14 +103,10 @@ export default async function ListDetailPage({
                 {item.status === "not_found" && item.resolution_note && <p className="text-xs text-red-700">{item.resolution_note}</p>}
 
                 {draft && canConsolidate && (
-                  <form action={updateItemAction} className="mt-2 grid gap-2 sm:grid-cols-[7rem_1fr_1fr_auto]">
+                  <form action={updateItemAction} className="mt-2 grid gap-2 sm:grid-cols-[7rem_1fr_auto]">
                     <input type="hidden" name="list_id" value={list.id} />
                     <input type="hidden" name="item_id" value={item.id} />
                     <input name="quantity_to_buy" defaultValue={String(item.quantity_to_buy).replace(".", ",")} inputMode="decimal" aria-label="Cantidad a comprar" className={small} />
-                    <select name="supplier_id" defaultValue={item.supplier_id ?? ""} aria-label="Proveedor" className={small}>
-                      <option value="">Sin proveedor</option>
-                      {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
                     <input name="note" defaultValue={item.note ?? ""} placeholder="Nota para compras" maxLength={300} className={small} />
                     <button className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold">Guardar</button>
                   </form>

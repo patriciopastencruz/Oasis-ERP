@@ -118,7 +118,6 @@ export async function updateItemAction(form: FormData) {
   const back = `/supply/lists/${list.data}`;
   const quantity = String(form.get("quantity_to_buy") ?? "").trim().replace(",", ".");
   const payload: Record<string, unknown> = {
-    supplier_id: String(form.get("supplier_id") ?? ""),
     note: String(form.get("note") ?? "").slice(0, 300),
   };
   if (quantity !== "") {

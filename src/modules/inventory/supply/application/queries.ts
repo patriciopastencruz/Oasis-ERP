@@ -76,12 +76,6 @@ export async function loadMyProjects(supabase: Supabase) {
   return (data ?? []) as SupplyProject[];
 }
 
-export async function loadSuppliers(supabase: Supabase) {
-  const { data, error } = await supabase.rpc("om_supply_suppliers");
-  if (error) throw error;
-  return (data ?? []) as { id: string; name: string }[];
-}
-
 export async function listRequests(supabase: Supabase, status?: string) {
   let query = supabase.from("om_supply_requests").select(REQUEST_SELECT).order("created_at", { ascending: false }).limit(150);
   if (status) query = query.eq("status", status);
