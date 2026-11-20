@@ -7,7 +7,7 @@ export type SupplyItemStatus = "pending" | "bought" | "received" | "not_found" |
 export const requestStatusLabels: Record<SupplyRequestStatus, string> = {
   draft: "Borrador",
   submitted: "Enviado a bodega",
-  in_list: "En lista de compras",
+  in_list: "En compras",
   cancelled: "Anulado",
 };
 
