@@ -21,6 +21,10 @@ export default async function Home() {
             : ctx.permissions.has("finance.payment_requests.create") ||
                 ctx.permissions.has("finance.payment_requests.view_own")
               ? "/finance/payment-control"
+              : ctx.permissions.has("inventory.supply.consolidate") ||
+                  ctx.permissions.has("inventory.supply.request") ||
+                  ctx.permissions.has("inventory.supply.buy")
+                ? "/supply"
               : ctx.permissions.has("inventory.materials.view")
                 ? "/inventory"
                 : ctx.permissions.has("lodging.reservations.view")

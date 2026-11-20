@@ -40,6 +40,10 @@ export function notificationActionPath(
       return `/lodging/lucia/${entityId}`;
     case "lucia_settings":
       return "/lodging/lucia/conexion";
+    case "om_supply_request":
+      return `/supply/requests/${entityId}`;
+    case "om_supply_purchase_list":
+      return `/supply/lists/${entityId}`;
     case "lodging_closing_authorization":
       return "/lodging/closing/authorizations";
     default:

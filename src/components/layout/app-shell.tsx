@@ -304,6 +304,44 @@ const inventoryNav = [
   },
 ];
 
+// Abastecimiento de Oasis Modulares: cada ítem se muestra si la persona tiene alguno de sus permisos.
+const supplyNav = [
+  {
+    href: "/supply",
+    label: "Inicio de abastecimiento",
+    icon: PackageOpen,
+    permissions: [
+      "inventory.supply.request",
+      "inventory.supply.consolidate",
+      "inventory.supply.buy",
+    ],
+  },
+  {
+    href: "/supply/requests/new",
+    label: "Nuevo pedido",
+    icon: FilePlus2,
+    permissions: ["inventory.supply.request"],
+  },
+  {
+    href: "/supply/requests",
+    label: "Mis pedidos",
+    icon: ListTodo,
+    permissions: ["inventory.supply.request"],
+  },
+  {
+    href: "/supply/consolidate",
+    label: "Pedidos por revisar",
+    icon: ClipboardCheck,
+    permissions: ["inventory.supply.consolidate"],
+  },
+  {
+    href: "/supply/lists",
+    label: "Listas de compras",
+    icon: ShoppingCart,
+    permissions: ["inventory.supply.consolidate", "inventory.supply.buy"],
+  },
+];
+
 const commercialManagementNav = [
   {
     href: "/sales/quotations",
@@ -513,6 +551,9 @@ export async function AppShell({
   const visibleInventoryNav = inventoryNav.filter((item) =>
     ctx.permissions.has(item.permission),
   );
+  const visibleSupplyNav = supplyNav.filter((item) =>
+    item.permissions.some((permission) => ctx.permissions.has(permission)),
+  );
   const visibleCommercialManagementNav = commercialManagementNav.filter(
     (item) => canView(item, ctx.permissions),
   );
@@ -658,6 +699,32 @@ export async function AppShell({
                 </summary>
                 <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
                   {visibleInventoryNav.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            </HideInAdminGeneral>
+          )}
+          {isOasisModulares && visibleSupplyNav.length > 0 && (
+            <HideInAdminGeneral>
+              <details className="group/supply">
+                <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+                  <PackageOpen size={17} />
+                  <span className="flex-1">Abastecimiento</span>
+                  <ChevronDown
+                    size={15}
+                    className="transition-transform group-open/supply:rotate-180"
+                  />
+                </summary>
+                <div className="ml-5 mt-1 space-y-1 border-l border-white/15 pl-2">
+                  {visibleSupplyNav.map(({ href, label, icon: Icon }) => (
                     <Link
                       key={href}
                       href={href}
