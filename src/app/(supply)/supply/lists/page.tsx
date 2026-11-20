@@ -16,13 +16,13 @@ export default async function ListsPage({ searchParams }: { searchParams: Promis
     <>
       <PageHeader
         eyebrow="Abastecimiento"
-        title="Listas de compras"
-        description={canConsolidate ? "Las listas que arma bodega y cómo va cada compra." : "Las listas que te asignó bodega para comprar."}
+        title={canConsolidate ? "Mis pedidos" : "Listas de compras"}
+        description={canConsolidate ? "Lo que enviaste a compras y cómo va cada compra." : "Las listas que te envió bodega para comprar."}
       />
       <Notice {...q} />
       <Panel>
         {!lists.length ? (
-          <p className="py-8 text-center text-sm text-slate-500">Todavía no hay listas de compras.</p>
+          <p className="py-8 text-center text-sm text-slate-500">Todavía no has enviado nada a compras.</p>
         ) : (
           <ul className="divide-y">
             {lists.map((l) => (

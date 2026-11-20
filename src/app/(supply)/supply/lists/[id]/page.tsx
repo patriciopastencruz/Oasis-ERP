@@ -60,10 +60,10 @@ export default async function ListDetailPage({
 
   const groups = new Map<string, PurchaseItem[]>();
   for (const item of items) {
-    const key = item.status === "covered" ? "Cubierto con stock (no se compra)" : (item.supplier_name ?? "Sin proveedor sugerido");
+    const key = item.status === "covered" ? "No se compra" : (item.supplier_name ?? "Sin proveedor sugerido");
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
-  const ordered = [...groups.entries()].sort(([a], [b]) => (a.startsWith("Cubierto") ? 1 : b.startsWith("Cubierto") ? -1 : a.localeCompare(b)));
+  const ordered = [...groups.entries()].sort(([a], [b]) => (a === "No se compra" ? 1 : b === "No se compra" ? -1 : a.localeCompare(b)));
 
   return (
     <>
@@ -94,10 +94,8 @@ export default async function ListDetailPage({
                 </div>
                 <p className="mt-0.5 text-sm text-slate-600">
                   Comprar <b>{quantityFormat(item.quantity_to_buy)} {item.unit}</b>
-                  {canConsolidate && (
-                    <span className="text-xs text-slate-500">
-                      {" "}· pedido {quantityFormat(item.requested_quantity)} − stock {quantityFormat(item.stock_quantity)} − en camino {quantityFormat(item.in_transit_quantity)}
-                    </span>
+                  {canConsolidate && item.requested_quantity !== item.quantity_to_buy && (
+                    <span className="text-xs text-slate-500"> · pedido {quantityFormat(item.requested_quantity)}</span>
                   )}
                 </p>
                 {item.note && <p className="text-xs text-slate-500">{item.note}</p>}

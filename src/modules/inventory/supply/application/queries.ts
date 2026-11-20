@@ -103,9 +103,7 @@ export async function getRequest(supabase: Supabase, id: string) {
   return { ...normalizeRequest(data), lines: (lines ?? []).map((l) => ({ ...l, quantity: Number(l.quantity) })) as RequestLine[] };
 }
 
-/** Pedidos enviados que aún no están en una lista de compras, con sus líneas. */
-export async function listPendingRequests(supabase: Supabase) {
-  const requests = await listRequests(supabase, "submitted");
+async function withLines(supabase: Supabase, requests: SupplyRequest[]) {
   if (!requests.length) return [];
   const { data, error } = await supabase
     .from("om_supply_request_lines")
@@ -113,12 +111,22 @@ export async function listPendingRequests(supabase: Supabase) {
     .in("request_id", requests.map((r) => r.id))
     .order("created_at");
   if (error) throw error;
-  return requests
-    .map((r) => ({
-      ...r,
-      lines: (data ?? []).filter((l) => l.request_id === r.id).map((l) => ({ ...l, quantity: Number(l.quantity) })) as RequestLine[],
-    }))
-    .sort((a, b) => Number(b.urgent) - Number(a.urgent) || a.created_at.localeCompare(b.created_at));
+  return requests.map((r) => ({
+    ...r,
+    lines: (data ?? []).filter((l) => l.request_id === r.id).map((l) => ({ ...l, quantity: Number(l.quantity) })) as RequestLine[],
+  }));
+}
+
+/** Pedidos enviados que aún no están en una lista de compras, con sus líneas: primero los urgentes, luego los más antiguos. */
+export async function listPendingRequests(supabase: Supabase) {
+  const requests = await withLines(supabase, await listRequests(supabase, "submitted"));
+  return requests.sort((a, b) => Number(b.urgent) - Number(a.urgent) || a.created_at.localeCompare(b.created_at));
+}
+
+/** Todas las solicitudes (no borradores) con sus líneas, para la bandeja de bodega. */
+export async function listAllRequests(supabase: Supabase) {
+  const requests = (await listRequests(supabase)).filter((r) => r.status !== "draft");
+  return withLines(supabase, requests);
 }
 
 export type PurchaseList = {

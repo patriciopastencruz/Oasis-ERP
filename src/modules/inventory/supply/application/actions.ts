@@ -87,20 +87,27 @@ export async function cancelRequestAction(form: FormData) {
   go(back, "success", "Pedido anulado.");
 }
 
-/** Bodega: arma la lista de compras con los pedidos elegidos. */
-export async function buildListAction(form: FormData) {
+/** Bodega: envía a compras la lista consolidada, con las cantidades que ajustó. */
+export async function sendToPurchasingAction(form: FormData) {
   await supplyContext(SUPPLY_CONSOLIDATE);
   const back = "/supply/consolidate";
-  const ids = form.getAll("request_id").map(String).filter((v) => uuid.safeParse(v).success);
-  if (!ids.length) go(back, "error", "Elige al menos un pedido.");
+  const requests = form.getAll("request_id").map(String).filter((v) => uuid.safeParse(v).success);
+  if (!requests.length) go(back, "error", "No hay solicitudes para enviar.");
+  const lines = form.getAll("line").map(String);
+  const amounts = form.getAll("qty").map((v) => String(v).trim().replace(",", "."));
+  if (lines.length !== amounts.length || lines.some((l) => !uuid.safeParse(l).success)) go(back, "error", "No se pudo leer la lista. Actualiza la página.");
+  const quantities = amounts.map((text, i) => ({ line_id: lines[i], quantity: text === "" ? NaN : Number(text) }));
+  if (quantities.some((q) => !Number.isFinite(q.quantity) || q.quantity < 0 || q.quantity >= 1_000_000)) go(back, "error", "Revisa las cantidades: usa números, 0 si no se compra.");
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("om_supply_build_purchase_list", {
-    p_requests: ids,
+  const { data, error } = await supabase.rpc("om_supply_send_to_purchasing", {
+    p_requests: requests,
+    p_quantities: quantities,
     p_notes: String(form.get("notes") ?? "").slice(0, 1000),
   });
   if (error) fail(back, error);
   revalidatePath("/supply", "layout");
-  go(`/supply/lists/${String(data)}`, "success", "Lista armada. Revisa las cantidades y emítela al comprador.");
+  await dispatchApprovalEmails().catch(() => {});
+  go(`/supply/lists/${String(data)}`, "success", "Lista enviada a compras. El encargado de compras ya fue avisado.");
 }
 
 export async function updateItemAction(form: FormData) {

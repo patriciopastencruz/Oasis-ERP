@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cleanRequestLines,
+  consolidateRequests,
   defaultCoverWindow,
   formatCoverWindow,
   isRequestCancellable,
@@ -72,5 +73,33 @@ describe("pedido de materiales del maestro", () => {
   it("muestra la ventana de días", () => {
     expect(formatCoverWindow("2026-11-21", "2026-11-22")).toBe("21-11 al 22-11");
     expect(formatCoverWindow("2026-11-21", "2026-11-21")).toBe("21-11");
+  });
+
+  it("consolida lo pedido por todos los maestros: suma por material y junta los de fuera de catálogo", () => {
+    const items = consolidateRequests([
+      {
+        id: "r1",
+        urgent: false,
+        lines: [
+          { id: "l1", material_id: "m1", name: "Volcanita", unit: "un", quantity: 30 },
+          { id: "l2", material_id: null, name: "Pintura roja", unit: "tarro", quantity: 2 },
+        ],
+      },
+      {
+        id: "r2",
+        urgent: true,
+        lines: [
+          { id: "l3", material_id: "m1", name: "Volcanita", unit: "un", quantity: 20.5 },
+          { id: "l4", material_id: null, name: " pintura ROJA ", unit: "Tarro", quantity: 1 },
+          { id: "l5", material_id: "m2", name: "Canal", unit: "un", quantity: 15 },
+        ],
+      },
+    ]);
+    expect(items.map((i) => [i.name, i.quantity, i.requests, i.urgent, i.lineId])).toEqual([
+      ["Canal", 15, 1, true, "l5"],
+      ["Pintura roja", 3, 2, true, "l2"],
+      ["Volcanita", 50.5, 2, true, "l1"],
+    ]);
+    expect(consolidateRequests([])).toEqual([]);
   });
 });

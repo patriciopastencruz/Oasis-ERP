@@ -23,7 +23,7 @@ export const itemStatusLabels: Record<SupplyItemStatus, string> = {
   bought: "Comprado",
   received: "Recibido en bodega",
   not_found: "No se encontró",
-  covered: "Cubierto con stock",
+  covered: "No se compra",
 };
 
 export const statusTone: Record<string, string> = {
@@ -139,6 +139,7 @@ const friendlyErrors: [RegExp, string][] = [
   [/ya no esta pendiente|no se puede marcar|no se puede reabrir|solo se recibe|no esta recibido/i, "Ese producto ya cambió de estado. Actualiza la página."],
   [/ya tiene productos comprados/i, "La lista ya tiene productos comprados: no se puede anular."],
   [/ya no se puede anular/i, "Esta lista ya no se puede anular."],
+  [/cambiaron mientras armabas/i, "Un pedido cambió mientras armabas la lista. Actualiza la página y revisa las cantidades."],
   [/unidad no autorizada|sin autorizacion|42501/i, "No tienes autorización para esta acción."],
 ];
 
@@ -153,3 +154,51 @@ export function formatCoverWindow(from: string, to: string) {
 
 export const quantityFormat = (value: number | string | null | undefined) =>
   new Intl.NumberFormat("es-CL", { maximumFractionDigits: 3 }).format(Number(value ?? 0));
+
+export type ConsolidatedItem = {
+  key: string;
+  materialId: string | null;
+  name: string;
+  unit: string;
+  quantity: number;
+  /** Una línea de pedido del producto: la base la usa para ubicar el producto de la lista. */
+  lineId: string;
+  requests: number;
+  urgent: boolean;
+};
+
+type ConsolidableRequest = {
+  id: string;
+  urgent: boolean;
+  lines?: { id: string; material_id: string | null; name: string; unit: string; quantity: number }[];
+};
+
+const norm = (text: string) => text.trim().toLowerCase();
+
+/** Suma lo pedido por todos los maestros: un renglón por material (los fuera de catálogo se juntan por nombre y unidad). */
+export function consolidateRequests(requests: ConsolidableRequest[]): ConsolidatedItem[] {
+  const groups = new Map<string, ConsolidatedItem & { ids: Set<string> }>();
+  for (const request of requests)
+    for (const line of request.lines ?? []) {
+      const key = line.material_id ?? `c:${norm(line.name)}|${norm(line.unit)}`;
+      const group = groups.get(key) ?? {
+        key,
+        materialId: line.material_id,
+        name: line.name.trim(),
+        unit: line.unit.trim(),
+        quantity: 0,
+        lineId: line.id,
+        requests: 0,
+        urgent: false,
+        ids: new Set<string>(),
+      };
+      group.quantity = Math.round((group.quantity + line.quantity) * 1000) / 1000;
+      group.urgent ||= request.urgent;
+      group.ids.add(request.id);
+      group.requests = group.ids.size;
+      groups.set(key, group);
+    }
+  return [...groups.values()]
+    .map((group) => ({ key: group.key, materialId: group.materialId, name: group.name, unit: group.unit, quantity: group.quantity, lineId: group.lineId, requests: group.requests, urgent: group.urgent }))
+    .sort((a, b) => Number(b.urgent) - Number(a.urgent) || a.name.localeCompare(b.name, "es"));
+}
