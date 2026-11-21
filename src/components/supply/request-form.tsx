@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 type CatalogItem = { id: string; code: string; name: string; category: string; unit: string };
@@ -12,6 +12,95 @@ const input = "mt-1 block w-full rounded-xl border border-[#d5dce4] bg-white px-
 
 let counter = 0;
 const emptyRow = (): FormRow => ({ key: `r${Date.now()}-${counter++}`, materialId: "", customName: "", unit: "", quantity: "", note: "" });
+
+const fold = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const MAX_RESULTS = 60;
+
+/** Selector de material para el celular: pantalla completa con búsqueda por texto y filtro por categoría. */
+function MaterialPicker({
+  catalog,
+  categories,
+  onPick,
+  onClose,
+}: {
+  catalog: CatalogItem[];
+  categories: string[];
+  onPick: (id: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    searchRef.current?.focus();
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
+  const matches = useMemo(() => {
+    const words = fold(query).split(/\s+/).filter(Boolean);
+    return catalog.filter((m) => (!category || m.category === category) && words.every((w) => fold(`${m.name} ${m.category}`).includes(w)));
+  }, [catalog, query, category]);
+
+  const chip = (active: boolean) =>
+    `shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium ${active ? "border-[#0b4f9c] bg-[#0b4f9c] text-white" : "border-[#d5dce4] bg-white text-slate-700"}`;
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Elegir material" style={{ margin: 0 }} className="fixed inset-0 z-50 flex flex-col bg-white">
+      <div className="space-y-2 border-b px-3 pb-3 pt-3">
+        <div className="flex items-center gap-2">
+          <input
+            ref={searchRef}
+            type="search"
+            aria-label="Buscar material"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar material (ej: perfil 50, tornillo, pintura)"
+            className="block w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-3 text-base outline-none focus:border-[var(--oasis-primary)]"
+          />
+          <button type="button" onClick={onClose} className="shrink-0 rounded-xl px-3 py-3 text-sm font-semibold text-[#0b4f9c]">
+            Cerrar
+          </button>
+        </div>
+        <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1" role="group" aria-label="Filtrar por categoría">
+          <button type="button" onClick={() => setCategory("")} aria-pressed={!category} className={chip(!category)}>
+            Todas
+          </button>
+          {categories.map((c) => (
+            <button key={c} type="button" onClick={() => setCategory(category === c ? "" : c)} aria-pressed={category === c} className={chip(category === c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ul className="flex-1 divide-y overflow-y-auto overscroll-contain">
+        {matches.slice(0, MAX_RESULTS).map((m) => (
+          <li key={m.id}>
+            <button type="button" onClick={() => onPick(m.id)} className="block w-full px-4 py-3 text-left active:bg-slate-100">
+              <span className="block text-base font-medium leading-snug">{m.name}</span>
+              <span className="block text-xs text-slate-500">
+                {m.category} · {m.unit}
+              </span>
+            </button>
+          </li>
+        ))}
+        {matches.length > MAX_RESULTS && (
+          <li className="px-4 py-3 text-center text-sm text-slate-500">Hay {matches.length - MAX_RESULTS} más: escribe para acotar la búsqueda.</li>
+        )}
+        {matches.length === 0 && <li className="px-4 py-6 text-center text-sm text-slate-500">No encontramos ese material. Prueba con otra palabra o elige «Otro».</li>}
+      </ul>
+      <div className="border-t p-3">
+        <button type="button" onClick={() => onPick(OTHER)} className="w-full rounded-xl border border-[#d5dce4] px-4 py-3 text-base font-semibold text-slate-700">
+          Otro (no está en la lista)
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function SubmitButton({ updating }: { updating: boolean }) {
   const { pending } = useFormStatus();
@@ -52,6 +141,7 @@ export function RequestForm({
   const [rows, setRows] = useState<FormRow[]>(initial.rows?.length ? initial.rows : [emptyRow(), emptyRow(), emptyRow()]);
   const [urgent, setUrgent] = useState(Boolean(initial.urgent));
   const [withNote, setWithNote] = useState(() => new Set((initial.rows ?? []).filter((r) => r.note).map((r) => r.key)));
+  const [pickingFor, setPickingFor] = useState<string | null>(null);
   const byId = new Map(catalog.map((m) => [m.id, m]));
   const categories = [...new Set(catalog.map((m) => m.category))];
 
@@ -104,26 +194,19 @@ export function RequestForm({
               <div className="flex items-start gap-2">
                 <span className="mt-3 w-5 shrink-0 text-center text-sm font-semibold text-slate-400">{index + 1}</span>
                 <div className="min-w-0 flex-1 space-y-2">
-                  <select
+                  <button
+                    type="button"
                     aria-label={`Material ${index + 1}`}
-                    value={row.materialId}
-                    onChange={(e) => patch(row.key, { materialId: e.target.value, unit: byId.get(e.target.value)?.unit ?? row.unit })}
-                    className={input.replace("mt-1 ", "")}
+                    onClick={() => setPickingFor(row.key)}
+                    className={`${input.replace("mt-1 ", "")} flex items-center justify-between gap-2 text-left`}
                   >
-                    <option value="">Elige un material…</option>
-                    {categories.map((category) => (
-                      <optgroup key={category} label={category}>
-                        {catalog
-                          .filter((m) => m.category === category)
-                          .map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.name}
-                            </option>
-                          ))}
-                      </optgroup>
-                    ))}
-                    <option value={OTHER}>Otro (no está en la lista)…</option>
-                  </select>
+                    <span className={`min-w-0 flex-1 ${material || other ? "font-medium" : "text-slate-500"}`}>
+                      {material ? material.name : other ? "Otro (no está en la lista)" : "Buscar material…"}
+                    </span>
+                    <span aria-hidden className="shrink-0 text-slate-400">
+                      ⌕
+                    </span>
+                  </button>
                   {other && (
                     <div className="grid grid-cols-3 gap-2">
                       <input
@@ -228,6 +311,18 @@ export function RequestForm({
           </label>
         </div>
       </details>
+
+      {pickingFor && (
+        <MaterialPicker
+          catalog={catalog}
+          categories={categories}
+          onClose={() => setPickingFor(null)}
+          onPick={(id) => {
+            patch(pickingFor, { materialId: id, unit: byId.get(id)?.unit ?? "" });
+            setPickingFor(null);
+          }}
+        />
+      )}
 
       <SubmitButton updating={mode === "update"} />
     </form>
