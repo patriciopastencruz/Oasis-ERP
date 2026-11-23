@@ -820,58 +820,53 @@ export async function checkOutAction(form: FormData) {
   );
 }
 
+/**
+ * Mueve una reserva a otra habitación (arrastrar en el calendario). Si la habitación destino ya tiene otra reserva
+ * en esas noches, la base la rechaza con `overlap: true` para que la pantalla pregunte; con `allowOverlap` la
+ * reserva se mueve igual y queda como simultánea (sobre-reserva).
+ */
 export async function reassignReservationRoomAction(
   reservationId: string,
   roomId: string,
+  allowOverlap = false,
 ) {
   await requirePermission("lodging.reservations.manage");
   const parsedReservationId = uuid.safeParse(reservationId);
   const parsedRoomId = uuid.safeParse(roomId);
   if (!parsedReservationId.success || !parsedRoomId.success)
-    return { ok: false as const, message: "Datos inválidos." };
+    return { ok: false as const, message: "Datos inválidos.", overlap: false };
   const s = await createSupabaseServerClient();
-  const [{ data: reservation }, { data: room }] = await Promise.all([
-    s
-      .from("lodging_reservations")
-      .select("business_unit_id")
-      .eq("id", parsedReservationId.data)
-      .maybeSingle(),
-    s
-      .from("lodging_rooms")
-      .select("business_unit_id")
-      .eq("id", parsedRoomId.data)
-      .maybeSingle(),
-  ]);
-  if (
-    !reservation ||
-    !room ||
-    reservation.business_unit_id !== room.business_unit_id
-  )
-    return {
-      ok: false as const,
-      message: "Habitación no válida para esta reserva.",
-    };
-  const { error } = await s
-    .from("lodging_reservations")
-    .update({ room_id: parsedRoomId.data })
-    .eq("id", parsedReservationId.data);
+  const { data, error } = await s.rpc("move_lodging_reservation", {
+    target_reservation: parsedReservationId.data,
+    target_room: parsedRoomId.data,
+    allow_overlap: allowOverlap,
+  });
   if (error) {
+    if (/sobre-reserva/i.test(error.message))
+      return {
+        ok: false as const,
+        overlap: true,
+        message: "La habitación ya tiene una reserva en esas fechas.",
+      };
     const conflict =
       error.code === "23P01" ||
       /conflict|exclusion|ya esta reservada/i.test(error.message);
     return {
       ok: false as const,
+      overlap: false,
       message: conflict
         ? "La habitación ya está reservada en esas fechas."
         : /cantidad de huespedes/i.test(error.message)
           ? "La habitación no admite esa cantidad de huéspedes."
           : /ya no se puede cambiar/i.test(error.message)
             ? "La reserva ya no se puede cambiar de habitación."
-            : "No fue posible mover la reserva.",
+            : /habitacion no valida/i.test(error.message)
+              ? "Habitación no válida para esta reserva."
+              : "No fue posible mover la reserva.",
     };
   }
   revalidatePath("/lodging");
-  return { ok: true as const };
+  return { ok: true as const, overbooked: data === "overbooked" };
 }
 
 // La anulación de una reserva importada por iCal (y la regla de que solo

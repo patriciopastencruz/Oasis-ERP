@@ -282,33 +282,45 @@ export function WeeklyCalendar({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hover, setHover] = useState<{ id: string; rect: DOMRect; draggable: boolean } | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
+  const [dropNotice, setDropNotice] = useState<string | null>(null);
+  const [overlapPrompt, setOverlapPrompt] = useState<{ reservationId: string; roomId: string; previousRoomId: string } | null>(null);
   const [, startTransition] = useTransition();
 
-  function handleDrop(reservationId: string, targetRoomId: string) {
-    setDraggingId(null);
-    const reservation = localReservations.find((r) => r.id === reservationId);
-    if (!reservation || reservation.room_id === targetRoomId) return;
-    const previousRoomId = reservation.room_id;
+  function moveTo(reservationId: string, targetRoomId: string, previousRoomId: string, allowOverlap: boolean) {
     setLocalReservations((prev) =>
       prev.map((r) =>
         r.id === reservationId ? { ...r, room_id: targetRoomId } : r,
       ),
     );
     setDropError(null);
+    setDropNotice(null);
+    setOverlapPrompt(null);
     startTransition(async () => {
       const result = await reassignReservationRoomAction(
         reservationId,
         targetRoomId,
+        allowOverlap,
       );
-      if (!result.ok) {
-        setLocalReservations((prev) =>
-          prev.map((r) =>
-            r.id === reservationId ? { ...r, room_id: previousRoomId } : r,
-          ),
-        );
-        setDropError(result.message);
+      if (result.ok) {
+        if (result.overbooked) setDropNotice("Reserva movida como sobre-reserva: la habitación tiene dos reservas en esas fechas.");
+        return;
       }
+      setLocalReservations((prev) =>
+        prev.map((r) =>
+          r.id === reservationId ? { ...r, room_id: previousRoomId } : r,
+        ),
+      );
+      // Si la habitación ya está ocupada esas noches, se pregunta antes de sobre-reservar.
+      if (result.overlap) setOverlapPrompt({ reservationId, roomId: targetRoomId, previousRoomId });
+      else setDropError(result.message);
     });
+  }
+
+  function handleDrop(reservationId: string, targetRoomId: string) {
+    setDraggingId(null);
+    const reservation = localReservations.find((r) => r.id === reservationId);
+    if (!reservation || reservation.room_id === targetRoomId) return;
+    moveTo(reservationId, targetRoomId, reservation.room_id, false);
   }
   /** Cambia de semana y, si cae fuera de lo cargado, trae las reservas de ese tramo (también las de meses pasados). */
   async function goTo(next: number) {
@@ -432,6 +444,35 @@ export function WeeklyCalendar({
           </span>
         ))}
       </div>
+      )}
+
+      {overlapPrompt && (
+        <div role="alertdialog" aria-label="Confirmar sobre-reserva" className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
+          <span>
+            <b>{rooms.find((item) => item.id === overlapPrompt.roomId)?.name ?? "La habitación"}</b> ya tiene una reserva en esas fechas. ¿Mover igual y dejar
+            ambas (sobre-reserva)?
+          </span>
+          <span className="flex shrink-0 gap-2">
+            <button
+              onClick={() => moveTo(overlapPrompt.reservationId, overlapPrompt.roomId, overlapPrompt.previousRoomId, true)}
+              className="rounded-lg bg-amber-600 px-3 py-1 font-semibold text-white hover:bg-amber-700"
+            >
+              Mover igual
+            </button>
+            <button onClick={() => setOverlapPrompt(null)} className="rounded-lg border border-amber-300 bg-white px-3 py-1 font-semibold hover:bg-amber-100">
+              Cancelar
+            </button>
+          </span>
+        </div>
+      )}
+
+      {dropNotice && (
+        <div className="flex items-center justify-between gap-2 border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+          {dropNotice}
+          <button onClick={() => setDropNotice(null)} aria-label="Cerrar" className="shrink-0 rounded p-0.5 hover:bg-amber-100">
+            <X size={13} />
+          </button>
+        </div>
       )}
 
       {dropError && (
