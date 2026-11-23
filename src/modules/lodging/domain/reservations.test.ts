@@ -3,6 +3,7 @@ import {
   generateIcal,
   rateForGuests,
   ratesFromForm,
+  needsOverbookingConfirmation,
   nights,
   overlaps,
   parseIcal,
@@ -102,5 +103,13 @@ describe("tarifas por cantidad de personas", () => {
     const form = new Map<string, string>([["rate_1", "$27.000"], ["rate_2", "32000"], ["rate_3", ""]]);
     expect(ratesFromForm((k) => form.get(k) ?? null)).toEqual({ "1": 27000, "2": 32000 });
     expect(ratesFromForm(() => null)).toBeNull();
+  });
+});
+
+describe("sobre-reserva al mover una reserva", () => {
+  it("pide confirmación solo si la reserva empezó antes de hoy", () => {
+    expect(needsOverbookingConfirmation("2026-11-22", "2026-11-23")).toBe(true);
+    expect(needsOverbookingConfirmation("2026-11-23", "2026-11-23")).toBe(false);
+    expect(needsOverbookingConfirmation("2026-12-01", "2026-11-23")).toBe(false);
   });
 });

@@ -38,6 +38,14 @@ export function overlaps(aIn: string, aOut: string, bIn: string, bOut: string) {
   return aIn < bOut && aOut > bIn;
 }
 
+/**
+ * Mover una reserva a una pieza ocupada (sobre-reserva) se hace sin preguntar cuando la reserva es de hoy en
+ * adelante; si ya empezó o es anterior a hoy, recepción debe confirmar.
+ */
+export function needsOverbookingConfirmation(checkIn: string, today: string) {
+  return checkIn < today;
+}
+
 export function paymentSummary(total: number, payments: Payment[]) {
   const confirmed = payments.filter((p) => p.status === "confirmed");
   const refunds = confirmed

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Banknote, ChevronLeft, ChevronRight, LogIn, User, Users, X } from "lucide-react";
 import { reassignReservationRoomAction } from "@/modules/lodging/application/actions";
+import { needsOverbookingConfirmation } from "@/modules/lodging/domain/reservations";
 import { loadCalendarRangeAction } from "@/modules/lodging/application/calendar-range-actions";
 import { operationalStatusColors } from "@/modules/lodging/domain/operations";
 import { hourLabel, summarizeReservationHover } from "@/modules/lodging/domain/reservation-hover";
@@ -320,7 +321,8 @@ export function WeeklyCalendar({
     setDraggingId(null);
     const reservation = localReservations.find((r) => r.id === reservationId);
     if (!reservation || reservation.room_id === targetRoomId) return;
-    moveTo(reservationId, targetRoomId, reservation.room_id, false);
+    // Reservas de hoy en adelante se sobre-reservan al soltar; las que ya empezaron piden confirmación antes.
+    moveTo(reservationId, targetRoomId, reservation.room_id, !needsOverbookingConfirmation(reservation.check_in, initialStart));
   }
   /** Cambia de semana y, si cae fuera de lo cargado, trae las reservas de ese tramo (también las de meses pasados). */
   async function goTo(next: number) {
@@ -449,8 +451,8 @@ export function WeeklyCalendar({
       {overlapPrompt && (
         <div role="alertdialog" aria-label="Confirmar sobre-reserva" className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
           <span>
-            <b>{rooms.find((item) => item.id === overlapPrompt.roomId)?.name ?? "La habitación"}</b> ya tiene una reserva en esas fechas. ¿Mover igual y dejar
-            ambas (sobre-reserva)?
+            <b>{rooms.find((item) => item.id === overlapPrompt.roomId)?.name ?? "La habitación"}</b> ya tiene una reserva en esas fechas y esta reserva es anterior a hoy.
+            ¿Mover igual y dejar ambas (sobre-reserva)?
           </span>
           <span className="flex shrink-0 gap-2">
             <button
