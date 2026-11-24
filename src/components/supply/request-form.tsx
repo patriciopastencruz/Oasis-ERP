@@ -46,9 +46,6 @@ function MaterialPicker({
     return catalog.filter((m) => (!category || m.category === category) && words.every((w) => fold(`${m.name} ${m.category}`).includes(w)));
   }, [catalog, query, category]);
 
-  const chip = (active: boolean) =>
-    `shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium ${active ? "border-[#0b4f9c] bg-[#0b4f9c] text-white" : "border-[#d5dce4] bg-white text-slate-700"}`;
-
   return (
     <div role="dialog" aria-modal="true" aria-label="Elegir material" style={{ margin: 0 }} className="fixed inset-0 z-50 flex flex-col bg-white">
       <div className="space-y-2 border-b px-3 pb-3 pt-3">
@@ -66,16 +63,19 @@ function MaterialPicker({
             Cerrar
           </button>
         </div>
-        <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1" role="group" aria-label="Filtrar por categoría">
-          <button type="button" onClick={() => setCategory("")} aria-pressed={!category} className={chip(!category)}>
-            Todas
-          </button>
+        <select
+          aria-label="Filtrar por categoría"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="block w-full rounded-xl border border-[#d5dce4] bg-white px-3 py-3 text-base outline-none focus:border-[var(--oasis-primary)]"
+        >
+          <option value="">Todas las categorías</option>
           {categories.map((c) => (
-            <button key={c} type="button" onClick={() => setCategory(category === c ? "" : c)} aria-pressed={category === c} className={chip(category === c)}>
+            <option key={c} value={c}>
               {c}
-            </button>
+            </option>
           ))}
-        </div>
+        </select>
       </div>
       <ul className="flex-1 divide-y overflow-y-auto overscroll-contain">
         {matches.slice(0, MAX_RESULTS).map((m) => (
