@@ -97,9 +97,17 @@ const normalize = (text: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-/** La cita de fechas debe aparecer tal cual (sin tildes ni signos) en lo que dijo o confirmó el cliente. */
+/**
+ * La cita de fechas debe aparecer tal cual (sin tildes ni signos) en lo que dijo o confirmó el cliente.
+ * Puede juntar trozos de varios mensajes («Hoy 25 llegue a calama. Si vienes 27»), pero cada trozo
+ * tiene que estar escrito así por el cliente.
+ */
 export function clientSaidIt(quote: unknown, customerText: string): boolean {
   if (typeof quote !== "string") return false;
-  const q = normalize(quote);
-  return q.length >= 2 && ` ${normalize(customerText)} `.includes(` ${q} `);
+  const said = ` ${normalize(customerText)} `;
+  const pieces = quote
+    .split(/[.;!?¿¡…·]+(?=\s|$)|\n|\s[-–—]\s/)
+    .map((piece) => normalize(piece).replace(/^cliente\s+/, ""))
+    .filter(Boolean);
+  return pieces.length > 0 && pieces.every((piece) => piece.length >= 2 && said.includes(` ${piece} `));
 }

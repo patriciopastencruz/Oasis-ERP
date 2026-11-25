@@ -79,6 +79,8 @@ const CONVERSATIONAL_FOLLOW_UP =
   /\b(?:pagar|pago|abono|transferencia|descuento|mas barata|más barata|me interesa|elijo|elegir|reservar|reserva)\b/;
 const COMPLAINT =
   /\b(?:gracias por nada|reclamo|pesim[oa]|mal servicio|mala atencion|molest[oa]|enojad[oa]|quiero hablar con (?:alguien|una persona|un encargado)|no me ayudaste|perdida de tiempo)\b/;
+// Motivo de revisión que dice que la consulta de disponibilidad falló.
+const FAILED_LOOKUP = /(?:\bno se pud|\bno pude|\bfallo|\berror\b).*\b(?:consult|disponib)|\b(?:consult|disponib).*(?:\bno se pud|\bfallo|\berror\b)/;
 const HUMAN_HANDOFF = /\b(?:persona|equipo|encargad[oa]|recepcion|revisar(?:a|an)?|contactar(?:a|an)?)\b/;
 
 const plain = (text: string) =>
@@ -380,6 +382,10 @@ export async function generateLuciaReply(input: {
       const accessAlreadySaid = Boolean(
         accessNote && input.turns.some((t) => t.role === "assistant" && t.content.includes(accessNote!)),
       );
+      // Si la consulta entregó opciones, «no se pudo consultar» es falso: no se marca para revisión por eso.
+      if (availabilityHasOptions && output.needs_human && FAILED_LOOKUP.test(plain(output.reason ?? ""))) {
+        output = { ...output, needs_human: false, reason: null };
+      }
       if (availabilityWasChecked && availabilitySummary && shouldUseExactAvailabilitySummary && !optionsAlreadySent) {
         output = {
           ...output,
