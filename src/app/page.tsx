@@ -10,10 +10,10 @@ export default async function Home() {
   )
     redirect("/ops");
   redirect(
-    ctx.permissions.has("administration.approvals.view")
-      ? "/admin/approvals"
-      : ctx.permissions.has("reports.executive_dashboard.view")
-        ? "/dashboard"
+    ctx.permissions.has("reports.executive_dashboard.view")
+      ? "/inicio"
+      : ctx.permissions.has("administration.approvals.view")
+        ? "/admin/approvals"
         : ctx.role?.key === "driver"
           ? "/finance/distribution/driver"
           : ctx.permissions.has("finance.distribution.view")

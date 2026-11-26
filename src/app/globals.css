@@ -65,3 +65,15 @@ body {
     font-size: 16px;
   }
 }
+
+/* Desde 768 px el menú lateral ocupa una columna: el color azul llega hasta abajo aunque la página sea más larga que el menú. */
+@media (min-width: 768px) {
+  .erp-shell {
+    background-image: linear-gradient(to right, var(--oasis-sidebar, #082b59) 232px, transparent 232px);
+  }
+}
+@media (min-width: 1024px) {
+  .erp-shell {
+    background-image: linear-gradient(to right, var(--oasis-sidebar, #082b59) 260px, transparent 260px);
+  }
+}

@@ -527,7 +527,7 @@ export async function AppShell({
     "--oasis-avatar": "#dbe9f8",
   } as CSSProperties;
   const homeHref = ctx.permissions.has("reports.executive_dashboard.view")
-    ? "/dashboard"
+    ? "/inicio"
     : isAltiplanica && isDriver
       ? "/finance/distribution/driver"
       : isAltiplanica && ctx.permissions.has("finance.distribution.view")
@@ -572,7 +572,7 @@ export async function AppShell({
   );
   return (
     <ShellRoot theme={unitTheme}>
-      <aside className="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[84%] max-w-[320px] -translate-x-full flex-col overflow-y-auto overscroll-contain border-r bg-[var(--oasis-sidebar)] p-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-white transition-transform duration-200 peer-checked:translate-x-0 md:sticky md:top-0 md:bottom-auto md:z-auto md:h-[100dvh] md:w-auto md:max-w-none md:translate-x-0">
+      <aside className="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[84%] max-w-[320px] -translate-x-full flex-col overflow-y-auto overscroll-contain border-r bg-[var(--oasis-sidebar)] p-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-white transition-transform duration-200 peer-checked:translate-x-0 md:z-30 md:w-[232px] md:max-w-none md:translate-x-0 lg:w-[260px]">
         <SidebarBrand
           homeHref={homeHref}
           unitName={unit?.name}
@@ -834,7 +834,7 @@ export async function AppShell({
           <p className="mt-1 text-[10px] text-white/30">OASIS ERP</p>
         </footer>
       </aside>
-      <div>
+      <div className="min-w-0 md:col-start-2">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:static md:flex-wrap md:px-5">
           <label
             htmlFor={MOBILE_NAV_ID}
