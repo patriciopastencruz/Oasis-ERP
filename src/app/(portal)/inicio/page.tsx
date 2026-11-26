@@ -6,6 +6,9 @@ import { executiveOverview } from "@/modules/executive-dashboard/application/ove
 export const dynamic = "force-dynamic";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+const millions = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 1 });
+/** Desde 10 millones se escribe «$48,3 mill.» para que el monto quepa en el recuadro del celular. */
+const money = (value: number) => (Math.abs(value) >= 10_000_000 ? `$${millions.format(value / 1_000_000)} mill.` : clp.format(value));
 const pct = (value: number) => `${Math.round(value * 100)}%`;
 
 function Block({ icon: Icon, title, href, children }: { icon: typeof BedDouble; title: string; href?: string; children: React.ReactNode }) {
@@ -39,26 +42,26 @@ function Stat({ label, value, tone, note }: { label: string; value: React.ReactN
 
 const shortMonth = (key: string) => new Intl.DateTimeFormat("es-CL", { month: "short", timeZone: "UTC" }).format(new Date(`${key}-15T12:00:00Z`)).replace(".", "");
 
-/** Barras de cotizaciones realizadas por mes (los últimos seis); el mes en curso va destacado. */
-function MonthlyBars({ months, currentKey }: { months: { key: string; count: number }[]; currentKey: string }) {
-  const max = Math.max(1, ...months.map((m) => m.count));
+/** Barras por mes (los últimos seis); el mes en curso va destacado. */
+function MonthlyBars({ title, months, currentKey, show }: { title: string; months: { key: string; value: number }[]; currentKey: string; show: (value: number) => string }) {
+  const max = Math.max(1, ...months.map((m) => m.value));
   return (
-    <figure className="mt-3 rounded-xl border border-[#d9dfe6] bg-white p-3">
-      <figcaption className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#63778e]">Cotizaciones realizadas por mes</figcaption>
-      <div className="flex h-36 items-end gap-2 border-b border-[#d9dfe6]" role="img" aria-label={`Cotizaciones por mes: ${months.map((m) => `${shortMonth(m.key)} ${m.count}`).join(", ")}`}>
+    <figure className="rounded-xl border border-[#d9dfe6] bg-white p-3">
+      <figcaption className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#63778e]">{title}</figcaption>
+      <div className="flex h-36 items-end gap-2 border-b border-[#d9dfe6]" role="img" aria-label={`${title}: ${months.map((m) => `${shortMonth(m.key)} ${show(m.value)}`).join(", ")}`}>
         {months.map((m) => (
-          <div key={m.key} className="flex h-full flex-1 flex-col justify-end gap-1">
-            <span className="text-center text-xs font-bold tabular-nums">{m.count}</span>
+          <div key={m.key} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-1">
+            <span className="truncate text-center text-[11px] font-bold tabular-nums sm:text-xs">{show(m.value)}</span>
             <div
               className={`w-full rounded-t-md ${m.key === currentKey ? "bg-[var(--oasis-primary)]" : "bg-[#9db9dc]"}`}
-              style={{ height: `${Math.max(2, Math.round((m.count / max) * 100))}%`, maxHeight: "calc(100% - 1.25rem)" }}
+              style={{ height: `${Math.max(2, Math.round((m.value / max) * 100))}%`, maxHeight: "calc(100% - 1.25rem)" }}
             />
           </div>
         ))}
       </div>
       <div className="mt-1 flex gap-2">
         {months.map((m) => (
-          <span key={m.key} className={`flex-1 text-center text-[11px] capitalize ${m.key === currentKey ? "font-bold text-[var(--oasis-primary)]" : "text-slate-500"}`}>
+          <span key={m.key} className={`min-w-0 flex-1 text-center text-[11px] capitalize ${m.key === currentKey ? "font-bold text-[var(--oasis-primary)]" : "text-slate-500"}`}>
             {shortMonth(m.key)}
           </span>
         ))}
@@ -107,7 +110,7 @@ export default async function Inicio() {
       {hostels && (
         <Block icon={BedDouble} title="Hostales" href="/hostales">
           <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Stat label={`Ingresos de ${monthLabel}`} value={clp.format(hostels.month.revenue)} />
+            <Stat label={`Ingresos de ${monthLabel}`} value={money(hostels.month.revenue)} />
             <Stat label="Ocupación del mes" value={pct(hostels.month.occupancy)} />
             <Stat label="Tarifa promedio" value={clp.format(hostels.month.adr)} />
             <Stat label="RevPAR" value={clp.format(hostels.month.revpar)} />
@@ -130,7 +133,7 @@ export default async function Inicio() {
                 {hostels.rows.map((row) => (
                   <tr key={row.id} className="border-t">
                     <td className="px-1 py-2 sm:px-1.5 font-semibold">{row.name}</td>
-                    <td className="px-1 py-2 sm:px-1.5 text-right">{clp.format(row.month.revenue)}</td>
+                    <td className="px-1 py-2 sm:px-1.5 text-right">{money(row.month.revenue)}</td>
                     <Goal value={pct(row.month.occupancy)} goal={row.goals.occupancy !== null ? `${Math.round(row.goals.occupancy)}%` : null} ok={row.goals.occupancy === null || row.month.occupancy * 100 >= row.goals.occupancy} />
                     <Goal value={clp.format(row.month.adr)} goal={row.goals.adr !== null ? clp.format(row.goals.adr) : null} ok={row.goals.adr === null || row.month.adr >= row.goals.adr} />
                     <Goal value={clp.format(row.month.revpar)} goal={row.goals.revpar !== null ? clp.format(row.goals.revpar) : null} ok={row.goals.revpar === null || row.month.revpar >= row.goals.revpar} />
@@ -161,8 +164,8 @@ export default async function Inicio() {
                         {row.occupied} de {row.capacity}
                       </span>
                     </td>
-                    <td className="px-1 py-2 sm:px-1.5 text-right">{clp.format(row.received)}</td>
-                    <td className="px-1 py-2 sm:px-1.5 text-right">{clp.format(row.pending)}</td>
+                    <td className="px-1 py-2 sm:px-1.5 text-right">{money(row.received)}</td>
+                    <td className="px-1 py-2 sm:px-1.5 text-right">{money(row.pending)}</td>
                     <td className={`px-1 py-2 sm:px-1.5 text-right ${row.pendingClosings > 0 ? "font-semibold text-red-700" : "text-slate-400"}`}>
                       {row.pendingClosings > 0 ? `${row.pendingClosings} pend.` : "al día"}
                     </td>
@@ -195,11 +198,24 @@ export default async function Inicio() {
                   value={modulares.quotations.current.count}
                   note={`${modulares.quotations.previous.count} el mes anterior`}
                 />
-                <Stat label={`Monto cotizado en ${monthLabel}`} value={clp.format(modulares.quotations.current.amount)} />
+                <Stat label={`Monto cotizado en ${monthLabel}`} value={money(modulares.quotations.current.amount)} />
                 <Stat label="Aprobadas del mes" value={modulares.quotations.current.approved} />
                 <Stat label="Por aprobar" value={modulares.quotations.pending} tone={modulares.quotations.pending > 0 ? "warn" : undefined} />
               </div>
-              <MonthlyBars months={modulares.quotations.months} currentKey={today.slice(0, 7)} />
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <MonthlyBars
+                  title="Cotizaciones realizadas por mes"
+                  months={modulares.quotations.months.map((m) => ({ key: m.key, value: m.count }))}
+                  currentKey={today.slice(0, 7)}
+                  show={(value) => String(value)}
+                />
+                <MonthlyBars
+                  title="Monto cotizado por mes (millones de pesos)"
+                  months={modulares.quotations.months.map((m) => ({ key: m.key, value: m.amount }))}
+                  currentKey={today.slice(0, 7)}
+                  show={(value) => millions.format(value / 1_000_000)}
+                />
+              </div>
             </div>
           )}
         </Block>
@@ -211,7 +227,7 @@ export default async function Inicio() {
             <Stat label="Pedidos de hoy" value={distribution.orders} />
             <Stat label="Entregados" value={distribution.delivered} />
             <Stat label="Pendientes" value={distribution.pending} tone={distribution.pending > 0 ? "warn" : undefined} />
-            <Stat label="Venta del día" value={clp.format(distribution.sales)} />
+            <Stat label="Venta del día" value={money(distribution.sales)} />
           </div>
         </Block>
       )}
@@ -219,10 +235,10 @@ export default async function Inicio() {
       {finance && (
         <Block icon={WalletCards} title={`Pagos de ${monthLabel}`} href="/dashboard">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Stat label="Solicitado" value={clp.format(finance.requested)} />
-            <Stat label="Aprobado" value={clp.format(finance.approved)} />
-            <Stat label="Pagado" value={clp.format(finance.paid)} />
-            <Stat label="Pendiente de pago" value={clp.format(finance.pending)} tone={finance.overdue > 0 ? "warn" : undefined} />
+            <Stat label="Solicitado" value={money(finance.requested)} />
+            <Stat label="Aprobado" value={money(finance.approved)} />
+            <Stat label="Pagado" value={money(finance.paid)} />
+            <Stat label="Pendiente de pago" value={money(finance.pending)} tone={finance.overdue > 0 ? "warn" : undefined} />
           </div>
           {finance.overdue > 0 && <p className="mt-2 text-xs font-semibold text-red-700">{finance.overdue} pagos vencidos.</p>}
         </Block>
