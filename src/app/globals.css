@@ -56,3 +56,12 @@ body {
 .pending-bar {
   animation: pending-bar 1.1s ease-in-out infinite;
 }
+
+/* iPhone: los campos de 16 px o más no hacen zoom al enfocarlos (solo dentro del ERP con menú propio). */
+@media (max-width: 767px) {
+  .erp-shell input:not([type="checkbox"]):not([type="radio"]),
+  .erp-shell select,
+  .erp-shell textarea {
+    font-size: 16px;
+  }
+}

@@ -40,13 +40,16 @@ import {
   Gauge,
   FileText,
   Link2,
+  LogOut,
+  Menu,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
 import { BusinessUnitSelector } from "@/components/layout/business-unit-selector";
 import { SidebarBrand } from "@/components/layout/sidebar-brand";
 import { TopBarTitle } from "@/components/layout/top-bar-title";
-import { ShellRoot } from "@/components/layout/shell-root";
+import { MOBILE_NAV_ID, ShellRoot } from "@/components/layout/shell-root";
+import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { HideInAdminGeneral } from "@/components/layout/hide-in-admin-general";
 import { ShowOnlyInAdminGeneral } from "@/components/layout/show-only-in-admin-general";
 import { AssistantMount } from "@/components/assistant/assistant-mount";
@@ -569,7 +572,7 @@ export async function AppShell({
   );
   return (
     <ShellRoot theme={unitTheme}>
-      <aside className="flex min-h-screen flex-col border-r bg-[var(--oasis-sidebar)] p-5 text-white">
+      <aside className="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[84%] max-w-[320px] -translate-x-full flex-col overflow-y-auto overscroll-contain border-r bg-[var(--oasis-sidebar)] p-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-white transition-transform duration-200 peer-checked:translate-x-0 md:sticky md:top-0 md:bottom-auto md:z-auto md:h-[100dvh] md:w-auto md:max-w-none md:translate-x-0">
         <SidebarBrand
           homeHref={homeHref}
           unitName={unit?.name}
@@ -819,7 +822,12 @@ export async function AppShell({
             </div>
           )}
         </nav>
-        <footer className="mt-6 border-t border-white/10 pt-4 text-center">
+        <form action={logoutAction} className="mt-4 md:hidden">
+          <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-3 text-sm font-semibold">
+            <LogOut size={16} /> Cerrar sesión
+          </button>
+        </form>
+        <footer className="mt-6 border-t border-white/10 pt-4 pb-[env(safe-area-inset-bottom)] text-center">
           <p className="text-[10px] uppercase tracking-[.15em] text-white/45">
             Gestión empresarial
           </p>
@@ -827,8 +835,16 @@ export async function AppShell({
         </footer>
       </aside>
       <div>
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-white px-5 py-3">
-          <div className="text-sm">
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:static md:flex-wrap md:px-5">
+          <label
+            htmlFor={MOBILE_NAV_ID}
+            role="button"
+            aria-label="Abrir menú"
+            className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border md:hidden"
+          >
+            <Menu size={19} />
+          </label>
+          <div className="min-w-0 flex-1 truncate text-sm">
             <TopBarTitle
               unitName={unit?.name}
               companyName={company?.trade_name}
@@ -855,15 +871,26 @@ export async function AppShell({
               </b>
               <span className="block text-xs">{ctx.role?.name}</span>
             </div>
-            <form action={logoutAction}>
+            <form action={logoutAction} className="hidden md:block">
               <button className="rounded-lg border px-3 py-2 text-xs">
                 Cerrar sesión
               </button>
             </form>
           </div>
         </header>
-        <main className="p-5 lg:p-8">{children}</main>
+        <main className="p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:p-5 md:pb-8 lg:p-8">
+          {children}
+        </main>
       </div>
+      <MobileTabBar
+        tabs={[
+          { href: homeHref, label: "Inicio", icon: "home" },
+          ...(ctx.permissions.has("administration.approvals.view")
+            ? [{ href: "/admin/approvals", label: "Aprobar", icon: "approve" as const }]
+            : []),
+          { href: "/notifications", label: "Avisos", icon: "bell" },
+        ]}
+      />
       <AssistantMount />
     </ShellRoot>
   );
