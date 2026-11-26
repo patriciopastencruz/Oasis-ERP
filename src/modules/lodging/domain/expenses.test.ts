@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expenseFormSchema, monthBounds, parseExpenseAmount, shiftMonth, summarizeExpenses, type ExpenseRow } from "./expenses";
+import { canEditExpense, expenseFormSchema, monthBounds, parseExpenseAmount, shiftMonth, summarizeExpenses, type ExpenseRow } from "./expenses";
 
 const row = (over: Partial<ExpenseRow>): ExpenseRow => ({
   id: "1",
@@ -107,5 +107,17 @@ describe("gastos del hostal", () => {
     expect(expenseFormSchema.safeParse({ ...ok, description: " " }).success).toBe(false);
     expect(expenseFormSchema.safeParse({ ...ok, payment_method: "bitcoin" }).success).toBe(false);
     expect(expenseFormSchema.safeParse({ ...ok, category_id: "no-uuid" }).success).toBe(false);
+  });
+});
+
+describe("edición de gastos", () => {
+  it("quien ingresa gastos edita solo los del mes en curso y administración los de cualquier mes", () => {
+    expect(canEditExpense("2026-11-02", false, "2026-11-26", false)).toBe(true);
+    expect(canEditExpense("2026-10-31", false, "2026-11-26", false)).toBe(false);
+    expect(canEditExpense("2026-10-31", false, "2026-11-26", true)).toBe(true);
+  });
+
+  it("un gasto anulado no se edita", () => {
+    expect(canEditExpense("2026-11-02", true, "2026-11-26", true)).toBe(false);
   });
 });

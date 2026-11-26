@@ -104,3 +104,9 @@ export function monthBounds(month: string) {
   const next = `${shiftMonth(month, 1)}-01`;
   return { start, next };
 }
+
+/** Quien ingresa gastos corrige los del mes en curso; administración, los de cualquier mes. Un gasto anulado no se edita. */
+export function canEditExpense(expenseDate: string, voided: boolean, today: string, manager: boolean) {
+  if (voided) return false;
+  return manager || currentMonth(expenseDate) === currentMonth(today);
+}

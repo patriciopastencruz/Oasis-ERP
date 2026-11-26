@@ -79,3 +79,23 @@ describe("migración: quien ingresa el gasto elige el tipo", () => {
     expect(v3).toContain("Adjunta el comprobante del gasto");
   });
 });
+
+describe("migración de edición de gastos", () => {
+  const edit = readFileSync("supabase/migrations/20261126161948_lodging_expenses_edit.sql", "utf8");
+
+  it("exige permiso, limita al mes en curso y no edita anulados", () => {
+    expect(edit).toContain("has_permission('lodging.expenses.record')");
+    expect(edit).toContain("has_permission('lodging.expenses.manage')");
+    expect(edit).toContain("e.expense_date<month_start");
+    expect(edit).toContain("No se puede editar un gasto anulado");
+    expect(edit).toContain("can_access_unit(e.company_id,e.business_unit_id)");
+  });
+
+  it("no abre escritura directa de la tabla y solo ejecuta como usuario autenticado", () => {
+    expect(edit).not.toMatch(/grant (insert|update|delete)[^;]*lodging_expenses/);
+    expect(edit).toContain("revoke execute on function public.lodging_update_expense(uuid,jsonb) from public,anon");
+    expect(edit).toContain("grant execute on function public.lodging_update_expense(uuid,jsonb) to authenticated");
+    expect(edit.trim().startsWith("begin;")).toBe(true);
+    expect(edit.trim().endsWith("commit;")).toBe(true);
+  });
+});

@@ -18,11 +18,13 @@ import {
   openExpenseReceiptAction,
   recordExpenseAction,
   removeExpenseCategoryAction,
+  updateExpenseAction,
   voidExpenseAction,
 } from "@/modules/lodging/application/expense-actions";
 import { santiagoToday } from "@/modules/lodging/domain/daily-closing";
 import {
   EXPENSE_UNIT_CODES,
+  canEditExpense,
   currentMonth,
   expensePaymentLabels,
   expenseSectionLabels,
@@ -411,7 +413,126 @@ export default async function Page({
                   >
                     {clp.format(e.amount)}
                   </td>
-                  <td className="pl-3 text-right">
+                  <td className="pl-3 text-right whitespace-nowrap">
+                    {canRecord && canEditExpense(e.expense_date, !!e.voided_at, today, canManage) && (
+                      <details className="mr-3 inline-block text-left">
+                        <summary className="cursor-pointer text-xs font-semibold text-[#0b4f9c]">
+                          Editar
+                        </summary>
+                        <form
+                          action={updateExpenseAction}
+                          encType="multipart/form-data"
+                          className="fixed left-1/2 top-16 z-[60] grid max-h-[80vh] w-[min(92vw,26rem)] -translate-x-1/2 gap-2 overflow-y-auto rounded-xl border border-[#d9dfe6] bg-white p-4 text-left shadow-2xl whitespace-normal"
+                        >
+                          <input type="hidden" name="expense_id" value={e.id} />
+                          <input type="hidden" name="unit_id" value={unit.id} />
+                          <input type="hidden" name="month" value={month} />
+                          <label className="block text-xs">
+                            Fecha
+                            <input
+                              type="date"
+                              name="expense_date"
+                              defaultValue={e.expense_date}
+                              min={canManage ? undefined : `${currentMonth(today)}-01`}
+                              max={today}
+                              required
+                              className={field}
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            Tipo de gasto
+                            <select
+                              name="category_id"
+                              required
+                              defaultValue={e.category_id ?? ""}
+                              className={field}
+                            >
+                              {!e.category_id && (
+                                <option value="" disabled>
+                                  Elige el tipo…
+                                </option>
+                              )}
+                              {sections.map((s) => (
+                                <optgroup key={s.key} label={expenseSectionLabels[s.key]}>
+                                  {s.items.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block text-xs">
+                            Monto (CLP)
+                            <input
+                              name="amount"
+                              inputMode="numeric"
+                              defaultValue={String(e.amount)}
+                              required
+                              className={field}
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            Forma de pago
+                            <select
+                              name="payment_method"
+                              defaultValue={e.payment_method}
+                              className={field}
+                            >
+                              {Object.entries(expensePaymentLabels).map(([value, label]) => (
+                                <option key={value} value={value}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block text-xs">
+                            Descripción
+                            <input
+                              name="description"
+                              maxLength={200}
+                              defaultValue={e.description}
+                              required
+                              className={field}
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            Proveedor (opcional)
+                            <input
+                              name="supplier"
+                              maxLength={120}
+                              defaultValue={e.supplier ?? ""}
+                              className={field}
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            N.º de boleta (opcional)
+                            <input
+                              name="document_number"
+                              maxLength={60}
+                              defaultValue={e.document_number ?? ""}
+                              className={field}
+                            />
+                          </label>
+                          <label className="block text-xs">
+                            Cambiar comprobante (opcional)
+                            <input
+                              type="file"
+                              name="receipt"
+                              accept="image/jpeg,image/png,image/webp,application/pdf"
+                              className={`${field} file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-xs file:font-semibold`}
+                            />
+                          </label>
+                          <button className="rounded-md bg-[#0b4f9c] px-3 py-2 text-xs font-semibold text-white">
+                            Guardar cambios
+                          </button>
+                          <p className="text-[11px] text-slate-500">
+                            Para cerrar sin guardar, vuelve a tocar «Editar».
+                          </p>
+                        </form>
+                      </details>
+                    )}
                     {canRecord && !e.voided_at && (
                       <details className="inline-block text-left">
                         <summary className="cursor-pointer text-xs font-semibold text-red-700">
@@ -452,8 +573,8 @@ export default async function Page({
         )}
         {!canManage && canRecord && (
           <p className="mt-3 text-xs text-slate-500">
-            Puedes anular los gastos que ingresaste hoy. Los demás los anula
-            administración.
+            Puedes editar los gastos de este mes y anular los que ingresaste
+            hoy. Los demás los anula administración.
           </p>
         )}
       </Panel>

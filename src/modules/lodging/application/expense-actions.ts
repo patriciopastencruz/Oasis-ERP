@@ -86,6 +86,65 @@ export async function recordExpenseAction(form: FormData) {
   go(parsed.data.expense_date.slice(0, 7), "success", "Gasto ingresado con su comprobante.");
 }
 
+/** Corrige un gasto del mes (recepción) o de cualquier mes (administración). El comprobante nuevo es opcional. */
+export async function updateExpenseAction(form: FormData) {
+  const ctx = await requirePermission("lodging.expenses.record");
+  const id = z.string().uuid().safeParse(form.get("expense_id"));
+  const back = month.safeParse(form.get("month")).data ?? null;
+  if (!id.success) go(back, "error", "Gasto no válido.");
+  const parsed = expenseFormSchema.safeParse({
+    unit_id: form.get("unit_id"),
+    month: form.get("month"),
+    expense_date: form.get("expense_date"),
+    category_id: String(form.get("category_id") ?? ""),
+    description: form.get("description"),
+    supplier: form.get("supplier") ?? "",
+    document_number: form.get("document_number") ?? "",
+    payment_method: form.get("payment_method"),
+  });
+  if (!parsed.success) go(back, "error", parsed.error.issues[0]?.message ?? "Revisa los datos del gasto.");
+  const unit = allowedUnit(ctx, parsed.data.unit_id);
+  if (!unit) go(back, "error", "Hostal no válido.");
+  const amount = parseExpenseAmount(String(form.get("amount") ?? ""));
+  if (amount === null) go(back, "error", "Indica el monto en pesos, solo números (por ejemplo 45000).");
+
+  const supabase = await createSupabaseServerClient();
+  const payload: Record<string, unknown> = {
+    expense_date: parsed.data.expense_date,
+    category_id: parsed.data.category_id,
+    description: parsed.data.description,
+    supplier: parsed.data.supplier,
+    document_number: parsed.data.document_number,
+    amount,
+    payment_method: parsed.data.payment_method,
+  };
+  let uploaded: string | null = null;
+  const file = form.get("receipt");
+  if (file instanceof File && file.size > 0) {
+    if (file.size > EXPENSE_RECEIPT_MAX_BYTES) go(back, "error", "El comprobante supera los 10 MB.");
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const mime = detectedMime(bytes.subarray(0, 16));
+    if (!mime) go(back, "error", "Formato no permitido. Usa PDF, JPG, PNG o WEBP.");
+    const path = `${unit.company_id}/${unit.id}/${crypto.randomUUID()}.${EXTENSIONS[mime]}`;
+    const upload = await supabase.storage.from(BUCKET).upload(path, bytes, { contentType: mime, upsert: false });
+    if (upload.error) go(back, "error", "No fue posible subir el comprobante. Inténtalo de nuevo.");
+    uploaded = path;
+    Object.assign(payload, {
+      receipt_path: path,
+      receipt_name: file.name.slice(0, 200) || `comprobante.${EXTENSIONS[mime]}`,
+      receipt_mime: mime,
+      receipt_size: file.size,
+    });
+  }
+  const { error } = await supabase.rpc("lodging_update_expense", { target_expense: id.data, payload });
+  if (error) {
+    if (uploaded) await supabase.storage.from(BUCKET).remove([uploaded]);
+    go(back, "error", friendly(error.message));
+  }
+  revalidatePath("/lodging/expenses");
+  go(back, "success", "Gasto actualizado.");
+}
+
 /** Abre el comprobante de un gasto (enlace temporal de 5 minutos). */
 export async function openExpenseReceiptAction(form: FormData) {
   await requirePermission("lodging.expenses.view");
