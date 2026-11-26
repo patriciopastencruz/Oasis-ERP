@@ -63,12 +63,6 @@ type Ctx = Awaited<
 >;
 const transversalNav = [
   {
-    href: "/dashboard",
-    label: "Panel ejecutivo",
-    icon: LayoutDashboard,
-    permission: "reports.executive_dashboard.view",
-  },
-  {
     href: "/suppliers",
     label: "Proveedores",
     icon: Building2,
@@ -79,18 +73,6 @@ const transversalNav = [
     label: "Tablero de tareas",
     icon: ListTodo,
     permission: "tasks.board.view",
-  },
-  {
-    href: "/whatsapp",
-    label: "Leads WhatsApp",
-    icon: MessageCircle,
-    permission: "whatsapp.inbox.view",
-  },
-  {
-    href: "/whatsapp/settings",
-    label: "WhatsApp: configuración",
-    icon: SlidersHorizontal,
-    permission: "whatsapp.settings.manage",
   },
 ];
 
@@ -805,25 +787,16 @@ export async function AppShell({
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
                 Gestión transversal
               </p>
-              {visibleTransversalNav.map(({ href, label, icon: Icon }) => {
-                const link = (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10"
-                  >
-                    <Icon size={17} />
-                    {isLodgingUnit && href === "/dashboard"
-                      ? "Dashboard Ejecutivo"
-                      : label}
-                  </Link>
-                );
-                return href === "/dashboard" ? (
-                  <HideInAdminGeneral key={href}>{link}</HideInAdminGeneral>
-                ) : (
-                  link
-                );
-              })}
+              {visibleTransversalNav.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/75 hover:bg-white/10"
+                >
+                  <Icon size={17} />
+                  {label}
+                </Link>
+              ))}
             </div>
           )}
         </nav>
