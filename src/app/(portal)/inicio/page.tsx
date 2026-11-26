@@ -10,7 +10,7 @@ const pct = (value: number) => `${Math.round(value * 100)}%`;
 
 function Block({ icon: Icon, title, href, children }: { icon: typeof BedDouble; title: string; href?: string; children: React.ReactNode }) {
   return (
-    <Panel className="p-4 sm:p-5">
+    <Panel className="p-3 sm:p-5">
       <div className="mb-3 flex items-center gap-2">
         <span className="grid size-9 place-items-center rounded-xl bg-[#ebf1f7] text-[#083f7d]">
           <Icon size={18} />
@@ -33,6 +33,15 @@ function Stat({ label, value, tone }: { label: string; value: React.ReactNode; t
       <p className="text-[11px] uppercase tracking-wide text-[#63778e]">{label}</p>
       <p className={`mt-0.5 text-lg font-bold tabular-nums ${tone === "warn" ? "text-red-700" : ""}`}>{value}</p>
     </div>
+  );
+}
+
+function Goal({ value, goal, ok }: { value: string; goal: string | null; ok: boolean }) {
+  return (
+    <td className="px-1 py-2 sm:px-1.5 text-right">
+      <span className={ok ? "" : "text-red-700"}>{value}</span>
+      {goal && <span className="block text-[11px] text-slate-400">meta {goal}</span>}
+    </td>
   );
 }
 
@@ -72,31 +81,59 @@ export default async function Inicio() {
             <Stat label="Tarifa promedio" value={clp.format(hostels.month.adr)} />
             <Stat label="RevPAR" value={clp.format(hostels.month.revpar)} />
           </div>
-          <div className="overflow-x-auto rounded-xl border border-[#d9dfe6]">
-            <table className="w-full text-[13px] tabular-nums">
+          <div className="mb-3 overflow-x-auto rounded-xl border border-[#d9dfe6]">
+            <p className="bg-slate-50 px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Cómo vamos en {monthLabel}, del 1 al {Number(today.slice(8))}
+            </p>
+            <table className="w-full text-[12px] tabular-nums sm:text-[13px]">
               <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-2 py-2">Hoy</th>
-                  <th className="px-2 py-2 text-right">Ocupación</th>
-                  <th className="px-2 py-2 text-right">Ingresado</th>
-                  <th className="px-2 py-2 text-right">Pendiente</th>
-                  <th className="px-2 py-2 text-right">Cierres</th>
+                  <th className="px-1 py-2 sm:px-1.5">Hostal</th>
+                  <th className="px-1 py-2 sm:px-1.5 text-right">Ingresos</th>
+                  <th className="px-1 py-2 sm:px-1.5 text-right">Ocup.</th>
+                  <th className="px-1 py-2 sm:px-1.5 text-right">Tarifa</th>
+                  <th className="px-1 py-2 sm:px-1.5 text-right">RevPAR</th>
                 </tr>
               </thead>
               <tbody>
                 {hostels.rows.map((row) => (
                   <tr key={row.id} className="border-t">
-                    <td className="px-2 py-2 font-semibold">{row.name}</td>
-                    <td className="px-2 py-2 text-right">
+                    <td className="px-1 py-2 sm:px-1.5 font-semibold">{row.name}</td>
+                    <td className="px-1 py-2 sm:px-1.5 text-right">{clp.format(row.month.revenue)}</td>
+                    <Goal value={pct(row.month.occupancy)} goal={row.goals.occupancy !== null ? `${Math.round(row.goals.occupancy)}%` : null} ok={row.goals.occupancy === null || row.month.occupancy * 100 >= row.goals.occupancy} />
+                    <Goal value={clp.format(row.month.adr)} goal={row.goals.adr !== null ? clp.format(row.goals.adr) : null} ok={row.goals.adr === null || row.month.adr >= row.goals.adr} />
+                    <Goal value={clp.format(row.month.revpar)} goal={row.goals.revpar !== null ? clp.format(row.goals.revpar) : null} ok={row.goals.revpar === null || row.month.revpar >= row.goals.revpar} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="border-t px-2 py-1.5 text-[11px] text-slate-500">Bajo cada valor, la meta del hostal (en rojo si va por debajo).</p>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-[#d9dfe6]">
+            <table className="w-full text-[12px] tabular-nums sm:text-[13px]">
+              <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-1 py-2 sm:px-1.5">Hoy</th>
+                  <th className="px-1 py-2 sm:px-1.5 text-right">Ocup.</th>
+                  <th className="px-1 py-2 sm:px-1.5 text-right">Ingresado</th>
+                  <th className="px-1 py-2 sm:px-1.5 text-right">Pendiente</th>
+                  <th className="px-1 py-2 sm:px-1.5 text-right">Cierres</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hostels.rows.map((row) => (
+                  <tr key={row.id} className="border-t">
+                    <td className="px-1 py-2 sm:px-1.5 font-semibold">{row.name}</td>
+                    <td className="px-1 py-2 sm:px-1.5 text-right">
                       {row.capacity ? pct(row.occupied / row.capacity) : "—"}
                       <span className="block text-[11px] text-slate-400">
                         {row.occupied} de {row.capacity}
                       </span>
                     </td>
-                    <td className="px-2 py-2 text-right">{clp.format(row.received)}</td>
-                    <td className="px-2 py-2 text-right">{clp.format(row.pending)}</td>
-                    <td className={`px-2 py-2 text-right ${row.pendingClosings > 0 ? "font-semibold text-red-700" : "text-slate-400"}`}>
-                      {row.pendingClosings > 0 ? `${row.pendingClosings} sin emitir` : "al día"}
+                    <td className="px-1 py-2 sm:px-1.5 text-right">{clp.format(row.received)}</td>
+                    <td className="px-1 py-2 sm:px-1.5 text-right">{clp.format(row.pending)}</td>
+                    <td className={`px-1 py-2 sm:px-1.5 text-right ${row.pendingClosings > 0 ? "font-semibold text-red-700" : "text-slate-400"}`}>
+                      {row.pendingClosings > 0 ? `${row.pendingClosings} pend.` : "al día"}
                     </td>
                   </tr>
                 ))}

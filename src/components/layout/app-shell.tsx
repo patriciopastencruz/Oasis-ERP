@@ -587,6 +587,9 @@ export async function AppShell({
             showAdminOption={ctx.permissions.has(
               "administration.approvals.view",
             )}
+            showOverviewOption={ctx.permissions.has(
+              "reports.executive_dashboard.view",
+            )}
           />
         )}
         <nav className="mt-4 flex-1 space-y-1">

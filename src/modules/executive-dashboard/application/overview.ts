@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { approvableSteps } from "@/modules/finance/payment-control/application/approval-queries";
 import { loadGroupWeeklyReport } from "@/modules/lodging/application/group-weekly-queries";
 import { defaultClosingDate, santiagoToday } from "@/modules/lodging/domain/daily-closing";
+import { revparGoal } from "@/modules/lodging/domain/report-goals";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -102,12 +103,14 @@ async function loadHostels(supabase: Supabase, units: { id: string; code: string
     const day = last?.date === today ? last : null;
     return {
       id: h.unit.id,
-      name: h.unit.name.replace(/^Hostal\s+/i, ""),
+      name: h.unit.name.replace(/^Hostal\s+(Oasis\s+)?/i, ""),
       occupied: day?.occupied ?? 0,
       capacity: day?.capacity ?? 0,
       received: day?.received ?? 0,
       pending: h.balances.rows.filter((r) => r.check_in <= today && r.check_out > today).reduce((total, r) => total + r.balance, 0),
       pendingClosings: h.pendingClosings.length,
+      month: { revenue: h.month.revenue, occupancy: h.month.occupancy, adr: h.month.adr, revpar: h.month.revpar },
+      goals: { occupancy: h.goals.occupancyPct, adr: h.goals.averageRate, revpar: revparGoal(h.goals) },
     };
   });
   return { month, rows };

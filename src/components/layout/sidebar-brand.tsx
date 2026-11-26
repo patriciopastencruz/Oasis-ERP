@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useIsAdminGeneral } from "@/components/layout/admin-mode";
 import { useIsTransversalRoute } from "@/components/layout/transversal-mode";
 
-export const GENERIC_LOGO = "/oasis-logo-crane.png";
+export const GENERIC_LOGO = "/oasis-company-logo.png";
 export const GENERIC_NAME = "Oasis Company";
 
 export function SidebarBrand({
@@ -33,7 +33,7 @@ export function SidebarBrand({
           width={144}
           height={144}
           priority
-          className="size-32 rounded-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,.18)]"
+          className={`size-32 object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,.18)] ${inGenericMode ? "rounded-3xl" : "rounded-full"}`}
         />
       </span>
       <span className="mt-1 block text-center">
