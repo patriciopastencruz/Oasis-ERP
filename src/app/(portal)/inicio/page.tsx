@@ -27,12 +27,43 @@ function Block({ icon: Icon, title, href, children }: { icon: typeof BedDouble; 
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: React.ReactNode; tone?: "warn" }) {
+function Stat({ label, value, tone, note }: { label: string; value: React.ReactNode; tone?: "warn"; note?: string }) {
   return (
     <div className="rounded-xl border border-[#d9dfe6] bg-[#f7f9fb] px-3 py-2.5">
       <p className="text-[11px] uppercase tracking-wide text-[#63778e]">{label}</p>
       <p className={`mt-0.5 text-lg font-bold tabular-nums ${tone === "warn" ? "text-red-700" : ""}`}>{value}</p>
+      {note && <p className="text-[11px] text-slate-400">{note}</p>}
     </div>
+  );
+}
+
+const shortMonth = (key: string) => new Intl.DateTimeFormat("es-CL", { month: "short", timeZone: "UTC" }).format(new Date(`${key}-15T12:00:00Z`)).replace(".", "");
+
+/** Barras de cotizaciones realizadas por mes (los últimos seis); el mes en curso va destacado. */
+function MonthlyBars({ months, currentKey }: { months: { key: string; count: number }[]; currentKey: string }) {
+  const max = Math.max(1, ...months.map((m) => m.count));
+  return (
+    <figure className="mt-3 rounded-xl border border-[#d9dfe6] bg-white p-3">
+      <figcaption className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#63778e]">Cotizaciones realizadas por mes</figcaption>
+      <div className="flex h-36 items-end gap-2 border-b border-[#d9dfe6]" role="img" aria-label={`Cotizaciones por mes: ${months.map((m) => `${shortMonth(m.key)} ${m.count}`).join(", ")}`}>
+        {months.map((m) => (
+          <div key={m.key} className="flex h-full flex-1 flex-col justify-end gap-1">
+            <span className="text-center text-xs font-bold tabular-nums">{m.count}</span>
+            <div
+              className={`w-full rounded-t-md ${m.key === currentKey ? "bg-[var(--oasis-primary)]" : "bg-[#9db9dc]"}`}
+              style={{ height: `${Math.max(2, Math.round((m.count / max) * 100))}%`, maxHeight: "calc(100% - 1.25rem)" }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 flex gap-2">
+        {months.map((m) => (
+          <span key={m.key} className={`flex-1 text-center text-[11px] capitalize ${m.key === currentKey ? "font-bold text-[var(--oasis-primary)]" : "text-slate-500"}`}>
+            {shortMonth(m.key)}
+          </span>
+        ))}
+      </div>
+    </figure>
   );
 }
 
@@ -150,6 +181,27 @@ export default async function Inicio() {
             {modulares.requests !== null && <Stat label="Pedidos de materiales por revisar" value={modulares.requests} tone={modulares.requests > 0 ? "warn" : undefined} />}
             {modulares.lists !== null && <Stat label="Listas de compras abiertas" value={modulares.lists} />}
           </div>
+          {modulares.quotations && (
+            <div className="mt-4">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Cotizaciones</h3>
+                <Link href="/sales/quotations" className="flex items-center gap-1 text-xs font-semibold text-[var(--oasis-primary)]">
+                  Ver <ArrowRight size={13} />
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <Stat
+                  label={`Realizadas en ${monthLabel}`}
+                  value={modulares.quotations.current.count}
+                  note={`${modulares.quotations.previous.count} el mes anterior`}
+                />
+                <Stat label={`Monto cotizado en ${monthLabel}`} value={clp.format(modulares.quotations.current.amount)} />
+                <Stat label="Aprobadas del mes" value={modulares.quotations.current.approved} />
+                <Stat label="Por aprobar" value={modulares.quotations.pending} tone={modulares.quotations.pending > 0 ? "warn" : undefined} />
+              </div>
+              <MonthlyBars months={modulares.quotations.months} currentKey={today.slice(0, 7)} />
+            </div>
+          )}
         </Block>
       )}
 

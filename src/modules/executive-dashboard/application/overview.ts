@@ -2,8 +2,9 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { approvableSteps } from "@/modules/finance/payment-control/application/approval-queries";
 import { loadGroupWeeklyReport } from "@/modules/lodging/application/group-weekly-queries";
-import { defaultClosingDate, santiagoToday } from "@/modules/lodging/domain/daily-closing";
+import { addDays, defaultClosingDate, santiagoToday } from "@/modules/lodging/domain/daily-closing";
 import { revparGoal } from "@/modules/lodging/domain/report-goals";
+import { lastMonthKeys } from "../domain/months";
 import { requirePermission } from "@/modules/platform/auth/application/session";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -36,7 +37,7 @@ export async function executiveOverview() {
   const [approvals, hostels, modulares, distribution, finance] = await Promise.all([
     safe("aprobaciones", () => loadApprovals(supabase, has)),
     safe("hostales", () => loadHostels(supabase, ctx.units, has("kpis.view"), today)),
-    safe("modulares", () => loadModulares(supabase, has)),
+    safe("modulares", () => loadModulares(supabase, has, today)),
     safe("distribuidora", async () => {
       const da = unit("DA");
       if (!da || !has("finance.distribution.view")) return null;
@@ -116,15 +117,41 @@ async function loadHostels(supabase: Supabase, units: { id: string; code: string
   return { month, rows };
 }
 
-async function loadModulares(supabase: Supabase, has: (permission: string) => boolean) {
+async function loadModulares(supabase: Supabase, has: (permission: string) => boolean, today: string) {
   const head = { count: "exact", head: true } as const;
-  const [projects, requests, lists] = await Promise.all([
+  const [projects, requests, lists, quotations] = await Promise.all([
     has("sales.projects.view")
       ? count(supabase.from("om_projects").select("id", head).in("status", ["pending", "manufacturing", "installation"]).is("deleted_at", null))
       : null,
     has("inventory.supply.consolidate") ? count(supabase.from("om_supply_requests").select("id", head).eq("status", "submitted")) : null,
     has("inventory.supply.consolidate") ? count(supabase.from("om_supply_purchase_lists").select("id", head).eq("status", "issued")) : null,
+    has("sales.quotations.create") || has("sales.quotations.approve") ? loadQuotations(supabase, today) : null,
   ]);
-  if (projects === null && requests === null) return null;
-  return { projects, requests, lists };
+  if (projects === null && requests === null && quotations === null) return null;
+  return { projects, requests, lists, quotations };
+}
+
+const santiagoMonth = (timestamp: string) => new Date(timestamp).toLocaleDateString("en-CA", { timeZone: "America/Santiago" }).slice(0, 7);
+
+/** Cotizaciones de Modulares emitidas (no borradores) por mes, con lo cotizado y lo aprobado del mes en curso. */
+async function loadQuotations(supabase: Supabase, today: string) {
+  const keys = lastMonthKeys(today, 6);
+  const { data, error } = await supabase
+    .from("om_quotations")
+    .select("status,total,created_at,submitted_at")
+    .is("deleted_at", null)
+    .neq("status", "draft")
+    .gte("created_at", addDays(`${keys[0]}-01`, -1))
+    .limit(5000);
+  if (error) throw new Error(error.message);
+  const pending = await count(supabase.from("om_quotations").select("id", { count: "exact", head: true }).eq("status", "pending").is("deleted_at", null));
+  const months = keys.map((key) => ({ key, count: 0, amount: 0, approved: 0 }));
+  for (const row of data ?? []) {
+    const month = months.find((m) => m.key === santiagoMonth(row.submitted_at ?? row.created_at));
+    if (!month) continue;
+    month.count += 1;
+    month.amount += Number(row.total ?? 0);
+    if (row.status === "approved" || row.status === "delivered") month.approved += 1;
+  }
+  return { months, pending, current: months[months.length - 1], previous: months[months.length - 2] };
 }
