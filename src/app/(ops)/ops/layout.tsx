@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { LogOut } from "lucide-react";
+import { BackButton } from "@/components/layout/back-button";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
 import { opsContext } from "@/modules/lodging/application/ops-queries";
 import { selectOpsUnitAction } from "@/modules/lodging/application/ops-actions";
@@ -22,6 +23,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-[#f3f6fa] text-[#16202c]">
       <header className="sticky top-0 z-20 bg-[#0b2f5f] px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] text-white shadow">
         <div className="mx-auto flex max-w-xl items-center gap-3">
+          <BackButton fallback="/ops" hideOn={["/ops"]} className="border-white/30 bg-white/10 text-white" />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-[#9fb8d9]">Oasis Operaciones</p>
             <p className="truncate text-lg font-bold">{unit.name}</p>

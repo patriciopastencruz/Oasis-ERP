@@ -4,5 +4,6 @@ import { usePathname } from "next/navigation";
 
 export function useIsAdminGeneral() {
   const pathname = usePathname();
-  return pathname?.startsWith("/admin") ?? false;
+  // El resumen ejecutivo (/inicio) vive en Administración General.
+  return (pathname?.startsWith("/admin") || pathname?.startsWith("/inicio")) ?? false;
 }

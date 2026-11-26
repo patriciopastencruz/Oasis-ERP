@@ -10,10 +10,12 @@ export const GENERIC_NAME = "Oasis Company";
 
 export function SidebarBrand({
   homeHref,
+  adminHref = "/admin/approvals",
   unitName,
   unitLogo,
 }: {
   homeHref: string;
+  adminHref?: string;
   unitName?: string;
   unitLogo: string;
 }) {
@@ -22,7 +24,7 @@ export function SidebarBrand({
   const inGenericMode = inAdminGeneral || inTransversalRoute;
   const name = inGenericMode ? GENERIC_NAME : (unitName ?? "OASIS ERP");
   const logo = inGenericMode ? GENERIC_LOGO : unitLogo;
-  const href = inAdminGeneral ? "/admin/approvals" : homeHref;
+  const href = inAdminGeneral ? adminHref : homeHref;
 
   return (
     <Link href={href} className="mx-auto block w-fit">

@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
-const TRANSVERSAL_PREFIXES = ["/inicio", "/dashboard", "/suppliers", "/tasks"];
+const TRANSVERSAL_PREFIXES = ["/dashboard", "/suppliers", "/tasks"];
 
 export function useIsTransversalRoute() {
   const pathname = usePathname();

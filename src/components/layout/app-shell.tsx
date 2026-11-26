@@ -51,6 +51,7 @@ import { TopBarTitle } from "@/components/layout/top-bar-title";
 import { MENU_COOKIE, MOBILE_NAV_ID } from "@/components/layout/menu-constants";
 import { ShellRoot } from "@/components/layout/shell-root";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
+import { BackButton } from "@/components/layout/back-button";
 import { DesktopMenuToggle } from "@/components/layout/desktop-menu-toggle";
 import { HideInAdminGeneral } from "@/components/layout/hide-in-admin-general";
 import { ShowOnlyInAdminGeneral } from "@/components/layout/show-only-in-admin-general";
@@ -194,6 +195,12 @@ const distributionNav = [
 ] as const;
 
 const administrationNav = [
+  {
+    href: "/inicio",
+    label: "Resumen ejecutivo",
+    icon: LayoutDashboard,
+    permission: "reports.executive_dashboard.view",
+  },
   {
     href: "/admin/approvals",
     label: "Bandeja de aprobaciones",
@@ -510,6 +517,9 @@ export async function AppShell({
     "--oasis-border": "#b8cde6",
     "--oasis-avatar": "#dbe9f8",
   } as CSSProperties;
+  const adminHref = ctx.permissions.has("reports.executive_dashboard.view")
+    ? "/inicio"
+    : "/admin/approvals";
   const homeHref = ctx.permissions.has("reports.executive_dashboard.view")
     ? "/inicio"
     : isAltiplanica && isDriver
@@ -559,6 +569,7 @@ export async function AppShell({
       <aside className="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[84%] max-w-[320px] -translate-x-full flex-col overflow-y-auto overscroll-contain border-r bg-[var(--oasis-sidebar)] p-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-white transition-transform duration-200 peer-checked:translate-x-0 md:z-30 md:w-[232px] md:max-w-none md:translate-x-0 lg:w-[260px]">
         <SidebarBrand
           homeHref={homeHref}
+          adminHref={adminHref}
           unitName={unit?.name}
           unitLogo={unitBrand.logo}
         />
@@ -568,12 +579,11 @@ export async function AppShell({
             companyId={company.id}
             unitId={unit?.id}
             units={companyUnits}
-            showAdminOption={ctx.permissions.has(
-              "administration.approvals.view",
-            )}
-            showOverviewOption={ctx.permissions.has(
-              "reports.executive_dashboard.view",
-            )}
+            showAdminOption={
+              ctx.permissions.has("administration.approvals.view") ||
+              ctx.permissions.has("reports.executive_dashboard.view")
+            }
+            adminHref={adminHref}
           />
         )}
         <nav className="mt-4 flex-1 space-y-1">
@@ -814,6 +824,7 @@ export async function AppShell({
       </aside>
       <div className="min-w-0 md:col-start-2">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:static md:flex-wrap md:px-5">
+          <BackButton fallback={homeHref} hideOn={["/", "/inicio", homeHref]} />
           <label
             htmlFor={MOBILE_NAV_ID}
             role="button"

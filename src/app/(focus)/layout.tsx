@@ -1,4 +1,5 @@
 import { LogOut } from "lucide-react";
+import { BackButton } from "@/components/layout/back-button";
 import { oasisTheme } from "@/components/layout/oasis-theme";
 import { logoutAction } from "@/modules/platform/auth/application/actions";
 import { requireSession } from "@/modules/platform/auth/application/session";
@@ -10,7 +11,8 @@ export default async function FocusLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen bg-[var(--oasis-page)]" style={oasisTheme}>
       <main className="mx-auto max-w-3xl px-4 pb-16 pt-6">
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex items-center justify-between">
+          <BackButton fallback="/" />
           <form action={logoutAction}>
             <button className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-white">
               <LogOut size={14} /> Cerrar sesión

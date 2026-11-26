@@ -9,6 +9,8 @@ const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP",
 const millions = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 1 });
 /** Desde 10 millones se escribe «$48,3 mill.» para que el monto quepa en el recuadro del celular. */
 const money = (value: number) => (Math.abs(value) >= 10_000_000 ? `$${millions.format(value / 1_000_000)} mill.` : clp.format(value));
+/** Abre un módulo de una unidad dejando esa unidad activa (si no, el menú mostraría la última que se eligió). */
+const inUnit = (unit: string, to: string) => `/cambiar-unidad?unidad=${unit}&a=${encodeURIComponent(to)}`;
 const pct = (value: number) => `${Math.round(value * 100)}%`;
 
 function Block({ icon: Icon, title, href, children }: { icon: typeof BedDouble; title: string; href?: string; children: React.ReactNode }) {
@@ -19,11 +21,17 @@ function Block({ icon: Icon, title, href, children }: { icon: typeof BedDouble; 
           <Icon size={18} />
         </span>
         <h2 className="flex-1 text-base font-semibold">{title}</h2>
-        {href && (
-          <Link href={href} className="flex items-center gap-1 text-xs font-semibold text-[var(--oasis-primary)]">
-            Ver <ArrowRight size={13} />
-          </Link>
-        )}
+        {href &&
+          (href.startsWith("/cambiar-unidad") ? (
+            // Enlace común: cambia la unidad en el servidor y no debe precargarse.
+            <a href={href} className="flex items-center gap-1 text-xs font-semibold text-[var(--oasis-primary)]">
+              Ver <ArrowRight size={13} />
+            </a>
+          ) : (
+            <Link href={href} className="flex items-center gap-1 text-xs font-semibold text-[var(--oasis-primary)]">
+              Ver <ArrowRight size={13} />
+            </Link>
+          ))}
       </div>
       {children}
     </Panel>
@@ -178,7 +186,7 @@ export default async function Inicio() {
       )}
 
       {modulares && (
-        <Block icon={HardHat} title="Oasis Modulares" href="/sales/projects">
+        <Block icon={HardHat} title="Oasis Modulares" href={inUnit("OM", "/sales/projects")}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {modulares.projects !== null && <Stat label="Proyectos en curso" value={modulares.projects} />}
             {modulares.requests !== null && <Stat label="Pedidos de materiales por revisar" value={modulares.requests} tone={modulares.requests > 0 ? "warn" : undefined} />}
@@ -188,9 +196,9 @@ export default async function Inicio() {
             <div className="mt-4">
               <div className="mb-2 flex items-center justify-between">
                 <h3 className="text-sm font-semibold">Cotizaciones</h3>
-                <Link href="/sales/quotations" className="flex items-center gap-1 text-xs font-semibold text-[var(--oasis-primary)]">
+                <a href={inUnit("OM", "/sales/quotations")} className="flex items-center gap-1 text-xs font-semibold text-[var(--oasis-primary)]">
                   Ver <ArrowRight size={13} />
-                </Link>
+                </a>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Stat
@@ -222,7 +230,7 @@ export default async function Inicio() {
       )}
 
       {distribution && (
-        <Block icon={Truck} title={distribution.unitName} href="/finance/distribution">
+        <Block icon={Truck} title={distribution.unitName} href={inUnit("DA", "/finance/distribution")}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Stat label="Pedidos de hoy" value={distribution.orders} />
             <Stat label="Entregados" value={distribution.delivered} />
@@ -233,7 +241,7 @@ export default async function Inicio() {
       )}
 
       {finance && (
-        <Block icon={WalletCards} title={`Pagos de ${monthLabel}`} href="/dashboard">
+        <Block icon={WalletCards} title={`Pagos de ${monthLabel}`} href={ctx.permissions.has("finance.reports.view") ? "/finance/payment-control/dashboard" : undefined}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Stat label="Solicitado" value={money(finance.requested)} />
             <Stat label="Aprobado" value={money(finance.approved)} />
