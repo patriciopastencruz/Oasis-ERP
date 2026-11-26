@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, ClipboardCheck, House, Menu } from "lucide-react";
-import { MOBILE_NAV_ID } from "@/components/layout/shell-root";
+import { MOBILE_NAV_ID } from "@/components/layout/menu-constants";
 
 type Tab = { href: string; label: string; icon: "home" | "approve" | "bell" };
 const ICONS = { home: House, approve: ClipboardCheck, bell: Bell };

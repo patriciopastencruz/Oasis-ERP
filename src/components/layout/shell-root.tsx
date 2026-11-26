@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { MENU_COOKIE, MOBILE_NAV_ID } from "@/components/layout/menu-constants";
 import { useIsAdminGeneral } from "@/components/layout/admin-mode";
 import { useIsTransversalRoute } from "@/components/layout/transversal-mode";
 
@@ -16,31 +17,41 @@ const GENERIC_THEME = {
   "--oasis-avatar": "#dbe9f8",
 } as CSSProperties;
 
-/** Id del interruptor que abre el menú lateral en el celular (lo usan el botón de la barra y el fondo). */
-export const MOBILE_NAV_ID = "erp-mobile-nav";
+const DesktopMenuContext = createContext<{ hidden: boolean; toggle: () => void }>({ hidden: false, toggle: () => {} });
+export const useDesktopMenu = () => useContext(DesktopMenuContext);
 
 export function ShellRoot({
   theme,
+  menuHidden = false,
   children,
 }: {
   theme: CSSProperties;
+  menuHidden?: boolean;
   children: ReactNode;
 }) {
+  const [hidden, setHidden] = useState(menuHidden);
+  const toggle = () => {
+    const next = !hidden;
+    setHidden(next);
+    document.cookie = `${MENU_COOKIE}=${next ? "hidden" : "shown"}; path=/; max-age=31536000; samesite=lax`;
+  };
   const inAdminGeneral = useIsAdminGeneral();
   const inTransversalRoute = useIsTransversalRoute();
   const pathname = usePathname();
-  const toggle = useRef<HTMLInputElement>(null);
+  const navToggle = useRef<HTMLInputElement>(null);
   // Al navegar desde el menú del celular, se cierra solo.
   useEffect(() => {
-    if (toggle.current) toggle.current.checked = false;
+    if (navToggle.current) navToggle.current.checked = false;
   }, [pathname]);
   return (
+    <DesktopMenuContext.Provider value={{ hidden, toggle }}>
     <div
+      data-menu={hidden ? "hidden" : "shown"}
       style={inAdminGeneral || inTransversalRoute ? GENERIC_THEME : theme}
       className="erp-shell min-h-screen bg-[var(--oasis-page)] text-[#151d27] md:grid md:grid-cols-[232px_minmax(0,1fr)] lg:grid-cols-[260px_minmax(0,1fr)]"
     >
       <input
-        ref={toggle}
+        ref={navToggle}
         id={MOBILE_NAV_ID}
         type="checkbox"
         aria-hidden
@@ -54,5 +65,6 @@ export function ShellRoot({
       />
       {children}
     </div>
+    </DesktopMenuContext.Provider>
   );
 }

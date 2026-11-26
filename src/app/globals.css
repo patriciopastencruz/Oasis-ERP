@@ -77,3 +77,21 @@ body {
     background-image: linear-gradient(to right, var(--oasis-sidebar, #082b59) 260px, transparent 260px);
   }
 }
+
+/* Menú lateral oculto (botón de la barra superior): el contenido usa todo el ancho. */
+@media (min-width: 768px) {
+  .erp-shell[data-menu="hidden"] {
+    grid-template-columns: minmax(0, 1fr);
+    background-image: none;
+  }
+  .erp-shell[data-menu="hidden"] > aside {
+    translate: -100% 0;
+    visibility: hidden;
+  }
+  .erp-shell[data-menu="hidden"] > div {
+    grid-column-start: 1;
+  }
+  .erp-shell > aside {
+    transition: translate 0.2s, visibility 0.2s;
+  }
+}
