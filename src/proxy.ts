@@ -36,6 +36,8 @@ const PUBLIC = [
   "/hostales.webmanifest",
   // Manifiesto de la app "Oasis Chats" (la página /chats sí pide sesión).
   "/chats.webmanifest",
+  // Manifiesto de la app "Oasis ERP" (las páginas del ERP sí piden sesión).
+  "/erp.webmanifest",
 ];
 // El dominio propio (oasis-erp.cl) reemplazó a la URL de Vercel como
 // dirección oficial. Quien entre por el link antiguo ve un aviso con botón
