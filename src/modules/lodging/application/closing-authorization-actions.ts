@@ -50,10 +50,10 @@ export async function requestClosingAuthorizationAction(form: FormData) {
 /** Administración o gerencia aprueba o rechaza la solicitud. */
 export async function decideClosingAuthorizationAction(form: FormData) {
   await requirePermission("lodging.closings.authorize");
-  const back = "/lodging/closing/authorizations";
+  const back = form.get("return_to") === "/admin/approvals" ? "/admin/approvals" : "/lodging/closing/authorizations";
   const id = z.string().uuid().safeParse(form.get("id"));
   if (!id.success) go(back, "error", "Solicitud inválida.");
-  const approve = form.get("decision") === "approve";
+  const approve = form.get("decision") === "approve" || form.get("decision") === "approved";
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("lodging_closing_authorization_decide", {
     target_request: id.data,
@@ -62,5 +62,6 @@ export async function decideClosingAuthorizationAction(form: FormData) {
   });
   if (error) go(back, "error", friendly(error.message));
   revalidatePath(back);
+  revalidatePath("/admin/approvals");
   go(back, "success", approve ? "Cierre autorizado por 48 horas." : "Solicitud rechazada.");
 }

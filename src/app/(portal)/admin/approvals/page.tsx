@@ -7,6 +7,7 @@ import {
   Boxes,
   Route,
   BedDouble,
+  CalendarClock,
 } from "lucide-react";
 import { PageHeader, Panel } from "@/components/ui/page";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -15,6 +16,7 @@ import { approvableSteps } from "@/modules/finance/payment-control/application/a
 import { reviewQuotationAction } from "@/modules/sales/quotations/application/actions";
 import { decideMaterialChangeAction } from "@/modules/inventory/application/actions";
 import { reviewOrderChangeAction } from "@/modules/finance/distribution/application/actions";
+import { decideClosingAuthorizationAction } from "@/modules/lodging/application/closing-authorization-actions";
 import { InlineDecisionForm } from "@/components/administration/inline-decision-form";
 
 const money = new Intl.NumberFormat("es-CL", {
@@ -80,7 +82,7 @@ export default async function AdministrationApprovals({
   const ctx = await requirePermission("administration.approvals.view");
   const s = await createSupabaseServerClient();
 
-  const [quotationsRes, paymentSteps, pettyCashRes, inventoryRes, distRes, lodgingRes] =
+  const [quotationsRes, paymentSteps, pettyCashRes, inventoryRes, distRes, lodgingRes, closingRes] =
     await Promise.all([
       ctx.permissions.has("sales.quotations.approve")
         ? s
@@ -132,6 +134,15 @@ export default async function AdministrationApprovals({
             .eq("status", "pending")
             .order("requested_at", { ascending: true })
         : Promise.resolve({ data: [] as any[] }),
+      ctx.permissions.has("lodging.closings.authorize")
+        ? s
+            .from("lodging_closing_authorizations")
+            .select(
+              "id,closing_date,reason,requested_at,business_units(name),requester:profiles!lodging_closing_authorizations_requested_by_fkey(first_name,last_name)",
+            )
+            .eq("status", "pending")
+            .order("requested_at", { ascending: true })
+        : Promise.resolve({ data: [] as any[] }),
     ]);
 
   const quotations = quotationsRes.data ?? [];
@@ -139,6 +150,7 @@ export default async function AdministrationApprovals({
   const inventoryRequests = inventoryRes.data ?? [];
   const distRequests = distRes.data ?? [];
   const lodgingCancellations = lodgingRes.data ?? [];
+  const closingRequests = closingRes.data ?? [];
 
   return (
     <>
@@ -286,7 +298,7 @@ export default async function AdministrationApprovals({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase text-[#63778e]">
-                      {x.request_type === "edit" ? "Edición" : "Desactivación"}{" "}
+                      {x.request_type === "edit" ? "Edición de material (precio o datos)" : "Desactivación de material"}{" "}
                       · {unit?.name}
                     </p>
                     <h3 className="font-semibold">
@@ -323,7 +335,7 @@ export default async function AdministrationApprovals({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase text-[#63778e]">
-                      {x.type === "edit" ? "Edición" : "Anulación"} ·{" "}
+                      {x.type === "edit" ? "Cambio en pedido" : "Anulación de pedido"} ·{" "}
                       {unit?.name}
                     </p>
                     <h3 className="font-semibold">
@@ -379,6 +391,37 @@ export default async function AdministrationApprovals({
                   >
                     Revisar y decidir
                   </Link>
+                </div>
+              </Panel>
+            );
+          })}
+        </Section>
+      )}
+
+      {ctx.permissions.has("lodging.closings.authorize") && (
+        <Section icon={CalendarClock} title="Hostales · cierres diarios" count={closingRequests.length}>
+          {closingRequests.map((x) => {
+            const unit = one(x.business_units);
+            const requester = one(x.requester);
+            return (
+              <Panel key={x.id}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase text-[#63778e]">Autorización de cierre · {unit?.name}</p>
+                    <h3 className="font-semibold">Cierre del {x.closing_date.split("-").reverse().join("-")}</h3>
+                    <p className="text-sm text-[#63778e]">
+                      Solicita: {requester?.first_name} {requester?.last_name} · {dateLabel(x.requested_at)}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      <b>Motivo:</b> {x.reason}
+                    </p>
+                  </div>
+                  <InlineDecisionForm
+                    action={decideClosingAuthorizationAction}
+                    hiddenFields={{ id: x.id }}
+                    commentName="notes"
+                    commentPlaceholder="Observación (obligatoria al rechazar)"
+                  />
                 </div>
               </Panel>
             );

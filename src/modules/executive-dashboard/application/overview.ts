@@ -34,9 +34,10 @@ export async function executiveOverview() {
   const has = (permission: string) => ctx.permissions.has(permission);
   const unit = (code: string) => ctx.units.find((u) => u.code === code);
 
-  const [approvals, hostels, modulares, distribution, finance] = await Promise.all([
+  const [approvals, hostels, expenses, modulares, distribution, finance] = await Promise.all([
     safe("aprobaciones", () => loadApprovals(supabase, has)),
     safe("hostales", () => loadHostels(supabase, ctx.units, has("kpis.view"), today)),
+    safe("gastos", () => loadExpenses(supabase, ctx.units, has("lodging.expenses.view"), today)),
     safe("modulares", () => loadModulares(supabase, has, today)),
     safe("distribuidora", async () => {
       const da = unit("DA");
@@ -59,7 +60,7 @@ export async function executiveOverview() {
     }),
   ]);
 
-  return { ctx, today, approvals, hostels, modulares, distribution, finance, canOpenApprovals: has("administration.approvals.view") };
+  return { ctx, today, approvals, hostels, expenses, modulares, distribution, finance, canOpenApprovals: has("administration.approvals.view") };
 }
 
 async function loadApprovals(supabase: Supabase, has: (permission: string) => boolean) {
@@ -80,6 +81,9 @@ async function loadApprovals(supabase: Supabase, has: (permission: string) => bo
       : null,
     has("lodging.reservations.cancel_approve")
       ? count(supabase.from("lodging_reservation_cancellations").select("id", head).eq("status", "pending")).then((n) => ({ label: "Anulaciones de reservas", n }))
+      : null,
+    has("lodging.closings.authorize")
+      ? count(supabase.from("lodging_closing_authorizations").select("id", head).eq("status", "pending")).then((n) => ({ label: "Cierres diarios", n }))
       : null,
   ]);
   const rows = items.filter((item): item is { label: string; n: number } => item !== null);
@@ -104,6 +108,7 @@ async function loadHostels(supabase: Supabase, units: { id: string; code: string
     const day = last?.date === today ? last : null;
     return {
       id: h.unit.id,
+      code: h.unit.code,
       name: h.unit.name.replace(/^Hostal\s+(Oasis\s+)?/i, ""),
       occupied: day?.occupied ?? 0,
       capacity: day?.capacity ?? 0,
@@ -115,6 +120,43 @@ async function loadHostels(supabase: Supabase, units: { id: string; code: string
     };
   });
   return { month, rows };
+}
+
+/** Gasto declarado del mes (fuente oficial; los gastos del cierre diario no se suman): total, por hostal y por tipo. */
+async function loadExpenses(supabase: Supabase, units: { id: string; code: string; name: string }[], allowed: boolean, today: string) {
+  const own = ["HOC", "HOB", "HU"].map((code) => units.find((u) => u.code === code)).filter((u): u is NonNullable<typeof u> => !!u);
+  if (!allowed || !own.length) return null;
+  const start = `${today.slice(0, 8)}01`;
+  const { data, error } = await supabase
+    .from("lodging_expenses")
+    .select("business_unit_id,amount,lodging_finance_categories(name)")
+    .in("business_unit_id", own.map((u) => u.id))
+    .gte("expense_date", start)
+    .lte("expense_date", today)
+    .is("voided_at", null)
+    .limit(5000);
+  if (error) throw new Error(error.message);
+  const byUnit = new Map<string, number>();
+  const byCategory = new Map<string, Map<string, number>>();
+  for (const row of data ?? []) {
+    const amount = Number(row.amount);
+    const cat = Array.isArray(row.lodging_finance_categories) ? row.lodging_finance_categories[0] : row.lodging_finance_categories;
+    const name = cat?.name ?? "Sin clasificar";
+    byUnit.set(row.business_unit_id, (byUnit.get(row.business_unit_id) ?? 0) + amount);
+    const cats = byCategory.get(row.business_unit_id) ?? new Map<string, number>();
+    cats.set(name, (cats.get(name) ?? 0) + amount);
+    byCategory.set(row.business_unit_id, cats);
+  }
+  const short = (name: string) => name.replace(/^Hostal\s+(Oasis\s+)?/i, "");
+  return {
+    units: own.map((u) => ({
+      id: u.id,
+      code: u.code,
+      name: short(u.name),
+      total: byUnit.get(u.id) ?? 0,
+      categories: [...(byCategory.get(u.id) ?? new Map<string, number>())].map(([name, total]) => ({ name, total })),
+    })),
+  };
 }
 
 async function loadModulares(supabase: Supabase, has: (permission: string) => boolean, today: string) {

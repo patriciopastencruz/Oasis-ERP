@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BedDouble, ClipboardCheck, HardHat, Truck, WalletCards } from "lucide-react";
+import { ArrowRight, BedDouble, ClipboardCheck, HardHat, Receipt, Truck, WalletCards } from "lucide-react";
 import { Panel } from "@/components/ui/page";
 import { executiveOverview } from "@/modules/executive-dashboard/application/overview";
 
@@ -87,10 +87,88 @@ function Goal({ value, goal, ok }: { value: string; goal: string | null; ok: boo
   );
 }
 
+const PIE_COLORS = ["#083f7d", "#2f80c9", "#e0a526", "#2e9e74", "#c45a3b", "#7a5bb5", "#8a9aab"];
+
+/** Torta de distribución: se queda con los 6 mayores y junta el resto en «Otros». */
+function Pie({ title, slices }: { title: string; slices: { label: string; value: number }[] }) {
+  const sorted = slices.filter((s) => s.value > 0).sort((a, b) => b.value - a.value);
+  const head = sorted.slice(0, 6);
+  const rest = sorted.slice(6).reduce((total, s) => total + s.value, 0);
+  const parts = rest > 0 ? [...head, { label: "Otros", value: rest }] : head;
+  const total = parts.reduce((sum, s) => sum + s.value, 0);
+  const stops = parts.map((part, i) => {
+    const before = parts.slice(0, i).reduce((sum, p) => sum + p.value, 0);
+    return `${PIE_COLORS[i]} ${(before / total) * 360}deg ${((before + part.value) / total) * 360}deg`;
+  });
+  return (
+    <figure className="rounded-xl border border-[#d9dfe6] bg-white p-3">
+      <figcaption className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#63778e]">{title}</figcaption>
+      {total === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-400">Sin gastos declarados este mes.</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-4">
+          <div
+            className="size-32 shrink-0 rounded-full"
+            style={{ background: `conic-gradient(${stops.join(", ")})` }}
+            role="img"
+            aria-label={`${title}: ${parts.map((p) => `${p.label} ${Math.round((p.value / total) * 100)}%`).join(", ")}`}
+          />
+          <ul className="min-w-0 flex-1 space-y-1 text-[12px]">
+            {parts.map((part, i) => (
+              <li key={part.label} className="flex items-center gap-2">
+                <span className="size-2.5 shrink-0 rounded-sm" style={{ background: PIE_COLORS[i] }} />
+                <span className="min-w-0 flex-1 truncate">{part.label}</span>
+                <span className="font-semibold tabular-nums">{Math.round((part.value / total) * 100)}%</span>
+                <span className="w-24 text-right tabular-nums text-slate-500">{money(part.value)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </figure>
+  );
+}
+
+const FILTERS = [
+  { key: "all", label: "Todos" },
+  { key: "hostales", label: "Hostales" },
+  { key: "OM", label: "Modulares" },
+  { key: "DA", label: "Distribuidora" },
+];
+
+function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      aria-current={active ? "true" : undefined}
+      className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-semibold ${active ? "border-[var(--oasis-primary)] bg-[var(--oasis-primary)] text-white" : "border-[#d9dfe6] bg-white text-[#3d5168]"}`}
+    >
+      {children}
+    </Link>
+  );
+}
+
 const Unavailable = () => <p className="text-sm text-[#63778e]">No se pudo cargar esta sección. Vuelve a abrir la página para reintentar.</p>;
 
-export default async function Inicio() {
-  const { ctx, today, approvals, hostels, modulares, distribution, finance, canOpenApprovals } = await executiveOverview();
+export default async function Inicio({ searchParams }: { searchParams: Promise<{ u?: string }> }) {
+  const { u } = await searchParams;
+  const overview = await executiveOverview();
+  const { ctx, today, approvals, canOpenApprovals } = overview;
+  const hostelCodes = ["HOC", "HOB", "HU"];
+  const filter = u && (u === "hostales" || u === "OM" || u === "DA" || hostelCodes.includes(u)) ? u : "all";
+  const inHostels = filter === "all" || filter === "hostales" || hostelCodes.includes(filter);
+  const hostelRows = overview.hostels ? overview.hostels.rows.filter((r) => !hostelCodes.includes(filter) || r.code === filter) : [];
+  const single = hostelRows.length === 1 && hostelCodes.includes(filter) ? hostelRows[0] : null;
+  const hostels = inHostels && overview.hostels ? { month: single ? { ...single.month } : overview.hostels.month, rows: hostelRows } : null;
+  const expenseUnits = inHostels && overview.expenses ? overview.expenses.units.filter((e) => !hostelCodes.includes(filter) || e.code === filter) : [];
+  const expenseTotal = expenseUnits.reduce((sum, e) => sum + e.total, 0);
+  const expenseCategories = new Map<string, number>();
+  for (const e of expenseUnits) for (const c of e.categories) expenseCategories.set(c.name, (expenseCategories.get(c.name) ?? 0) + c.total);
+  const modulares = filter === "all" || filter === "OM" ? overview.modulares : null;
+  const distribution = filter === "all" || filter === "DA" ? overview.distribution : null;
+  const finance = filter === "all" ? overview.finance : null;
+  const hostelFilterOpen = filter === "hostales" || hostelCodes.includes(filter);
   const dayLabel = new Intl.DateTimeFormat("es-CL", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Santiago" }).format(new Date(`${today}T12:00:00Z`));
   const monthLabel = new Intl.DateTimeFormat("es-CL", { month: "long", timeZone: "America/Santiago" }).format(new Date(`${today}T12:00:00Z`));
 
@@ -102,7 +180,29 @@ export default async function Inicio() {
         <p className="mt-1 text-sm text-[#5c6f85] first-letter:uppercase">{dayLabel}</p>
       </header>
 
-      {approvals && approvals.rows.length > 0 && (
+      <nav aria-label="Filtrar por unidad de negocio" className="-mx-1 space-y-2">
+        <div className="flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {FILTERS.map((f) => (
+            <Chip key={f.key} href={f.key === "all" ? "/inicio" : `/inicio?u=${f.key}`} active={f.key === "hostales" ? hostelFilterOpen : f.key === filter}>
+              {f.label}
+            </Chip>
+          ))}
+        </div>
+        {hostelFilterOpen && overview.hostels && (
+          <div className="flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <Chip href="/inicio?u=hostales" active={filter === "hostales"}>
+              Los tres
+            </Chip>
+            {overview.hostels.rows.map((r) => (
+              <Chip key={r.code} href={`/inicio?u=${r.code}`} active={filter === r.code}>
+                {r.name}
+              </Chip>
+            ))}
+          </div>
+        )}
+      </nav>
+
+      {filter === "all" && approvals && approvals.rows.length > 0 && (
         <Block icon={ClipboardCheck} title="Por aprobar" href={canOpenApprovals ? "/admin/approvals" : undefined}>
           <p className="mb-3 text-sm text-[#5c6f85]">
             {approvals.total === 0 ? "No tienes nada pendiente." : `${approvals.total} ${approvals.total === 1 ? "pendiente" : "pendientes"} en total.`}
@@ -185,6 +285,42 @@ export default async function Inicio() {
         </Block>
       )}
 
+      {hostels && overview.expenses && (
+        <Block icon={Receipt} title={`Gasto declarado de ${monthLabel}`} href="/hostales">
+          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <Stat label="Gasto declarado del mes" value={money(expenseTotal)} />
+            <Stat label="Sobre los ingresos" value={hostels.month.revenue > 0 ? pct(expenseTotal / hostels.month.revenue) : "—"} note={`ingresos ${money(hostels.month.revenue)}`} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {expenseUnits.length > 1 && <Pie title="Distribución por hostal" slices={expenseUnits.map((e) => ({ label: e.name, value: e.total }))} />}
+            <Pie title="Distribución por tipo de gasto" slices={[...expenseCategories].map(([label, value]) => ({ label, value }))} />
+          </div>
+          {expenseUnits.length > 1 && (
+            <div className="mt-3 overflow-x-auto rounded-xl border border-[#d9dfe6]">
+              <table className="w-full text-[12px] tabular-nums sm:text-[13px]">
+                <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-1.5 py-2">Hostal</th>
+                    <th className="px-1.5 py-2 text-right">Gasto declarado</th>
+                    <th className="px-1.5 py-2 text-right">% del total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenseUnits.map((e) => (
+                    <tr key={e.id} className="border-t">
+                      <td className="px-1.5 py-2 font-semibold">{e.name}</td>
+                      <td className="px-1.5 py-2 text-right">{money(e.total)}</td>
+                      <td className="px-1.5 py-2 text-right">{expenseTotal ? pct(e.total / expenseTotal) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="mt-2 text-[11px] text-slate-500">Solo gastos declarados en el módulo de gastos (no incluye los del cierre diario).</p>
+        </Block>
+      )}
+
       {modulares && (
         <Block icon={HardHat} title="Oasis Modulares" href={inUnit("OM", "/sales/projects")}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -253,6 +389,7 @@ export default async function Inicio() {
       )}
 
       {!approvals && !hostels && !modulares && !distribution && !finance && <Unavailable />}
+      {filter !== "all" && !hostels && !modulares && !distribution && <p className="text-sm text-[#63778e]">No tienes acceso a los indicadores de esta unidad.</p>}
     </div>
   );
 }
